@@ -1,0 +1,15 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-harvestersworkerssys-dev-b5ee2-authRole",
+      "UnauthRoleArn": "arn:aws:iam::730335555114:role/amplify-harvestersworkerssys-dev-b5ee2-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::730335555114:role/amplify-harvestersworkerssys-dev-b5ee2-authRole",
+      "Region": "eu-west-1",
+      "DeploymentBucketName": "amplify-harvestersworkerssys-dev-b5ee2-deployment",
+      "UnauthRoleName": "amplify-harvestersworkerssys-dev-b5ee2-unauthRole",
+      "StackName": "amplify-harvestersworkerssys-dev-b5ee2",
+      "StackId": "arn:aws:cloudformation:eu-west-1:730335555114:stack/amplify-harvestersworkerssys-dev-b5ee2/95da9e30-b966-11ef-8f5a-0a96da999a39",
+      "AmplifyAppId": "d2z1wqj05jg4n9"
+    }
+  }
+}

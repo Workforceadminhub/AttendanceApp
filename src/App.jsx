@@ -5,7 +5,7 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import NotFound from "./components/NotFound";
 import Login from "./components/Login";
-import Dashboard from "./components/Home";
+import Dashboard from "./components/Workers/Dashboard";
 import Summary from "./components/Summary";
 
 const App = () => {

@@ -1,15 +1,22 @@
 import { useNavigate } from "react-router-dom";
+import Select from "./Select";
 
-export default function DepartmentSummary() {
+export default function DepartmentAttendance() {
   const navigate = useNavigate();
   const data = [
     {
       id: 1,
-      department: "Workforce admin",
-      strength: 100,
-      present: 60,
-      absent: 60,
-      percentage: 20,
+      name: "Philip",
+      phoneNumber: 100,
+      birthday: 60,
+      status: 60,
+    },
+    {
+      id: 2,
+      name: "Philip",
+      phoneNumber: 100,
+      birthday: 60,
+      status: 60,
     },
   ];
   return (
@@ -17,8 +24,9 @@ export default function DepartmentSummary() {
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
           <h1 className="text-base font-semibold leading-6 text-gray-900">
-            Department summary
+            Leadership Recruitment
           </h1>
+          <p>Thursday 15/01/2025 - Sunday service</p>
         </div>
       </div>
       <div className="mt-8 flow-root">
@@ -37,54 +45,61 @@ export default function DepartmentSummary() {
                     scope="col"
                     className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
                   >
-                    Department
+                    Name
                   </th>
                   <th
                     scope="col"
                     className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
                   >
-                    Strength
+                    Phone number
                   </th>
                   <th
                     scope="col"
                     className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
                   >
-                    Present
+                    Birthday
                   </th>
                   <th
                     scope="col"
                     className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
                   >
-                    Absent
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                  >
-                    Percentage
+                    Status
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200 h-full">
                 {data.map((person) => (
                   <tr key={person.id}>
                     <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
                       {person.id}
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {person.department}
+                      {person.name}
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {person.strength}
+                      {person.phoneNumber}
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {person.present}
+                      {person.birthday}
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {person.absent}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {person.percentage}
+                      <div className="w-48 z-1000">
+                        <Select
+                          title=""
+                          options={[
+                            { id: 1, name: "Present" },
+                            { id: 2, name: "Online" },
+                            { id: 3, name: "Absent" },
+                            { id: 4, name: "Out of town/travelled" },
+                            { id: 5, name: "Work" },
+                            { id: 6, name: "Sick" },
+                            { id: 6, name: "Family issue" },
+                            { id: 6, name: "School exam" },
+                            { id: 6, name: "Not reachable" },
+                            { id: 6, name: "Inactive" },
+                          ]}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -1,14 +1,27 @@
-const Dashboard = () => {
+export default function Home() {
   return (
-    <div className="p-4 bg-white rounded shadow-md max-w-md mx-auto">
-      <h2 className="text-xl font-semibold mb-4">Sunday Service Attendance Summary</h2>
-      <p className="text-gray-600">Date: 05/12/2024</p>
-      <p className="text-gray-600">Total Strength: 265</p>
-      <p className="text-gray-600">Total Present: 162</p>
-      <p className="text-gray-600">Total Absent: 103</p>
-      <p className="text-gray-600">Attendance Percentage: 61.13%</p>
+    <div className="bg-white">
+      <div className="px-6 py-24 sm:px-6 sm:py-32 lg:px-8">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="text-balance text-4xl font-semibold tracking-tight text-gray-900 sm:text-5xl">
+            Manage worker's attendance. Start using our app today.
+          </h2>
+          <p className="mx-auto mt-6 max-w-xl text-pretty text-lg/8 text-gray-600">
+            Portal for managing team's attendance
+          </p>
+          <div className="mt-10 flex items-center justify-center gap-x-6">
+            <a
+              href="/login"
+              className="rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            >
+              Get started
+            </a>
+            <a href="#" className="text-sm/6 font-semibold text-gray-900">
+              Learn more <span aria-hidden="true">→</span>
+            </a>
+          </div>
+        </div>
+      </div>
     </div>
-  );
-};
-
-export default Dashboard;
+  )
+}

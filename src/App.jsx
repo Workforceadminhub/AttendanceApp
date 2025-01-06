@@ -6,7 +6,9 @@ import "react-toastify/dist/ReactToastify.css";
 import NotFound from "./components/NotFound";
 import Login from "./components/Login";
 import Dashboard from "./components/Workers/Dashboard";
-import Summary from "./components/Summary";
+import DepartmentSummary from "./components/Workers/DeparmentSummary";
+import Home from "./components/Home";
+import DepartmentAttendance from "./components/Workers/DepartmentAttendance";
 
 const App = () => {
   const queryClient = new QueryClient({
@@ -22,9 +24,10 @@ const App = () => {
       <BrowserRouter>
         <SkeletonTheme baseColor="#e5e5e5" highlightColor="#d6d4d4">
           <Routes>
-            <Route index element={<Dashboard />} />
+            <Route index element={<Home />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/admin/summary" element={<Summary />} />
+            <Route path="/admin/summary" element={<DepartmentSummary />} />
+            <Route path="/attendance" element={<DepartmentAttendance />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="*" exact={true} element={<NotFound />} />
           </Routes>

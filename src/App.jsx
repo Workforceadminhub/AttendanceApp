@@ -9,6 +9,7 @@ import Dashboard from "./components/Workers/Dashboard";
 import DepartmentSummary from "./components/Workers/DeparmentSummary";
 import Home from "./components/Home";
 import DepartmentAttendance from "./components/Workers/DepartmentAttendance";
+import PrivateRoute from "./components/PrivateRoute";
 
 const App = () => {
   const queryClient = new QueryClient({
@@ -26,9 +27,158 @@ const App = () => {
           <Routes>
             <Route index element={<Home />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/admin/summary" element={<DepartmentSummary />} />
-            <Route path="/attendance" element={<DepartmentAttendance />} />
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route
+              path="/summary"
+              element={
+                <PrivateRoute>
+                  <DepartmentSummary />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/attendance"
+              element={
+                <PrivateRoute>
+                  <DepartmentAttendance />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/attendance/subheadsmin"
+              element={
+                <PrivateRoute>
+                  <DepartmentAttendance />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/attendance/leadeff"
+              element={
+                <PrivateRoute>
+                  <DepartmentAttendance />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/attendance/lrecruit"
+              element={
+                <PrivateRoute>
+                  <DepartmentAttendance />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/attendance/leadtr"
+              element={
+                <PrivateRoute>
+                  <DepartmentAttendance />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/attendance/pascares"
+              element={
+                <PrivateRoute>
+                  <DepartmentAttendance />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/attendance/dbsp"
+              element={
+                <PrivateRoute>
+                  <DepartmentAttendance />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/attendance/wadata"
+              element={
+                <PrivateRoute>
+                  <DepartmentAttendance />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/attendance/mincc"
+              element={
+                <PrivateRoute>
+                  <DepartmentAttendance />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/attendance/rcam"
+              element={
+                <PrivateRoute>
+                  <DepartmentAttendance />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/attendance/crfn"
+              element={
+                <PrivateRoute>
+                  <DepartmentAttendance />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/attendance/mdmn"
+              element={
+                <PrivateRoute>
+                  <DepartmentAttendance />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/attendance/edc"
+              element={
+                <PrivateRoute>
+                  <DepartmentAttendance />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/attendance/prm"
+              element={
+                <PrivateRoute>
+                  <DepartmentAttendance />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/attendance/kds"
+              element={
+                <PrivateRoute>
+                  <DepartmentAttendance />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/attendance/hod"
+              element={
+                <PrivateRoute>
+                  <DepartmentAttendance />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/attendance/lea"
+              element={
+                <PrivateRoute>
+                  <DepartmentAttendance />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
             <Route path="*" exact={true} element={<NotFound />} />
           </Routes>
         </SkeletonTheme>

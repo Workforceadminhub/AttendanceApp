@@ -1,3 +1,4 @@
+import Header from "../Header";
 import DatePickerComponent from "./DatePickerComponent";
 import Select from "./Select";
 
@@ -16,6 +17,7 @@ export default function Dashboard() {
 
   return (
     <div className="p-4">
+      <Header />
       <h3 className="text-base font-semibold text-gray-900">Last 30 days</h3>
       <div className="flex flex-col space-y-4">
         <Select title="Assigned to" options={services} />

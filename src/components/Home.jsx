@@ -1,10 +1,13 @@
+import Header from "./Header";
+
 export default function Home() {
   return (
     <div className="bg-white">
+      <Header />
       <div className="px-6 py-24 sm:px-6 sm:py-32 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-balance text-4xl font-semibold tracking-tight text-gray-900 sm:text-5xl">
-            Manage worker's attendance. Start using our app today.
+            Manage worker's attendance.
           </h2>
           <p className="mx-auto mt-6 max-w-xl text-pretty text-lg/8 text-gray-600">
             Portal for managing team's attendance
@@ -16,7 +19,7 @@ export default function Home() {
             >
               Get started
             </a>
-            <a href="#" className="text-sm/6 font-semibold text-gray-900">
+            <a href="/login" className="text-sm/6 font-semibold text-gray-900">
               Learn more <span aria-hidden="true">→</span>
             </a>
           </div>

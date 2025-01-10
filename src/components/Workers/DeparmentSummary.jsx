@@ -1,7 +1,9 @@
-import { useNavigate } from "react-router-dom";
+// import { useNavigate } from "react-router-dom";
+
+import Header from "../Header";
 
 export default function DepartmentSummary() {
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   const data = [
     {
       id: 1,
@@ -14,6 +16,7 @@ export default function DepartmentSummary() {
   ];
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
+      <Header />
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
           <h1 className="text-base font-semibold leading-6 text-gray-900">

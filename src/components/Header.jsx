@@ -19,7 +19,7 @@ export default function Header() {
     //   name: "Department summary",
     //   href: `/summary${authUser.route}`,
     // },
-    { name: "Attendance", href: `/attendance${authUser?.route}` },
+    { name: "Attendance", href: `/attendance${authUser?.route || "/wadata"}` },
   ];
 
   return (

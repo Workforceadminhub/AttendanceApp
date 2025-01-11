@@ -17,13 +17,11 @@ const Login = () => {
         setError("Invalid code");
         return;
       }
-      console.log(data);
       if (data) {
         setMessage("Login successful!");
-        console.log("user...");
         setError("");
         sessionStorage.setItem("authUser", JSON.stringify(data));
-        navigate("/dashboard");
+        navigate(`/attendance${data.route}`);
       }
     } catch (err) {
       setError("Something went wrong, please try again.");

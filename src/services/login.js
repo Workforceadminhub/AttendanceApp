@@ -7,7 +7,6 @@ const loginService = async (code) => {
     .eq("code", code)
     .single();
 
-  console.log(data);
 
   if (error) {
     throw error;

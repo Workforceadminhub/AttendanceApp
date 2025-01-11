@@ -1,57 +1,30 @@
-"use client";
+import { Select } from "@headlessui/react";
+import { ChevronDownIcon } from "@heroicons/react/20/solid";
+import clsx from "clsx";
 
-import { useState } from "react";
-import {
-  Label,
-  Listbox,
-  ListboxButton,
-  ListboxOption,
-  ListboxOptions,
-} from "@headlessui/react";
-import { ChevronUpDownIcon } from "@heroicons/react/16/solid";
-import { CheckIcon } from "@heroicons/react/20/solid";
-
-export default function Select({ title = "", options = [] }) {
-  const [selected, setSelected] = useState(options[0]);
-  // a new commit
-
+export default function SelectDropdown({ options, onChange }) {
   return (
-    <Listbox value={selected} onChange={setSelected}>
-      <Label className="block text-sm/6 font-medium text-gray-900">
-        {title}
-      </Label>
-      <div className="relative mt-2">
-        <ListboxButton className="grid w-full cursor-default grid-cols-1 rounded-md bg-white py-1.5 pl-3 pr-2 text-left text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6">
-          <span className="col-start-1 row-start-1 truncate pr-6">
-            {selected.name}
-          </span>
-          <ChevronUpDownIcon
-            aria-hidden="true"
-            className="col-start-1 row-start-1 size-5 self-center justify-self-end text-gray-500 sm:size-4"
-          />
-        </ListboxButton>
-
-        <ListboxOptions
-          transition
-          className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none data-[closed]:data-[leave]:opacity-0 data-[leave]:transition data-[leave]:duration-100 data-[leave]:ease-in sm:text-sm"
+    <div>
+      <div className="relative">
+        <Select
+          onChange={onChange}
+          className={clsx(
+            "block w-full border-2 rounded-lg border-slate-600 bg-white/5 py-1.5 px-3 text-sm/6",
+            "focus:outline-none data-[focus]:outline-2 data-[focus]:-outline-offset-2 data-[focus]:outline-white/25",
+            // Make the text of each option black on Windows
+            "*:text-black border-slate-900"
+          )}
         >
-          {options.map((person) => (
-            <ListboxOption
-              key={person.id}
-              value={person}
-              className="group z-50 relative cursor-default select-none py-2 pl-3 pr-9 text-gray-900 data-[focus]:bg-indigo-600 data-[focus]:text-white data-[focus]:outline-none"
-            >
-              <span className="block truncate font-normal group-data-[selected]:font-semibold">
-                {person.name}
-              </span>
-
-              <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-indigo-600 group-[&:not([data-selected])]:hidden group-data-[focus]:text-white">
-                <CheckIcon aria-hidden="true" className="size-5" />
-              </span>
-            </ListboxOption>
+          <option value={""}>Mark attendance</option>
+          {options.map((option) => (
+            <option key={option.id} value={option.id} className="bg-green-300">{option.name}</option>
           ))}
-        </ListboxOptions>
+        </Select>
+        <ChevronDownIcon
+          className="group pointer-events-none absolute top-2.5 right-2.5 size-4 fill-white/60"
+          aria-hidden="true"
+        />
       </div>
-    </Listbox>
+    </div>
   );
 }

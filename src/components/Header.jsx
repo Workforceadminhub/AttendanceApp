@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Dialog, DialogPanel } from "@headlessui/react";
 import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
+import { useNavigate } from "react-router-dom";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard" },
@@ -13,6 +14,7 @@ const navigation = [
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const authUser = sessionStorage.getItem("authUser");
+  const navigate = useNavigate()
 
   return (
     <header className="bg-white">
@@ -23,11 +25,7 @@ export default function Header() {
         <a href="/dashboard" className="-m-1.5 p-1.5 flex">
           <span className="sr-only">Dashboard</span>
           <span>HICC - Gbagada</span>
-          <img
-            alt=""
-            src="/logo.jpg"
-            className="h-8 w-auto"
-          />
+          <img alt="" src="/logo.jpg" className="h-8 w-auto" />
         </a>
         <div className="flex lg:hidden">
           <button
@@ -49,10 +47,20 @@ export default function Header() {
               {item.name}
             </a>
           ))}
-          {!authUser && (
+          {!authUser ? (
             <a href="/login" className="text-sm/6 font-semibold text-gray-900">
               Log in <span aria-hidden="true">&rarr;</span>
             </a>
+          ) : (
+            <div
+              className="text-sm/6 font-semibold text-gray-900"
+              onClick={() => {
+                sessionStorage.removeItem("authUser");
+                navigate("/login");
+              }}
+            >
+              Logout
+            </div>
           )}
         </div>
       </nav>

@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { fetchWorkers } from "../../services/workers";
 import { addAttendance } from "../../services/attendance";
 import { toast } from "react-toastify";
+import getDayAndYear from "../../utils/getDate";
 
 export default function DepartmentAttendance() {
   const location = useLocation();
@@ -15,6 +16,7 @@ export default function DepartmentAttendance() {
   const [data, setData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const dateForAttendance = getDayAndYear()
 
   useEffect(() => {
     setIsLoading(true);
@@ -26,7 +28,26 @@ export default function DepartmentAttendance() {
       .finally(() => setIsLoading(false));
   }, []);
 
+  function updateOrAddWorker(array, newWorker) {
+    // Find the index of an object with the same workerid
+    
+    const index = array.findIndex(
+      (worker) => worker.workerid === newWorker.workerid
+    );
+
+    if (index !== -1) {
+      // If a match is found, replace the old object with the new one
+      array[index] = newWorker;
+      return array;
+    } else {
+      // If no match is found, add the new object to the array
+      array.push(newWorker);
+      return array;
+    }
+  }
+
   const saveAttendance = async () => {
+    console.log(attendance)
     setAttendanceLoading(true);
     await addAttendance(attendance);
     setAttendanceLoading(false);
@@ -42,7 +63,7 @@ export default function DepartmentAttendance() {
             <h1 className="text-base font-semibold leading-6 text-gray-900">
               {team?.department} attendance
             </h1>
-            <p>Thursday 15/01/2025 - Sunday service</p>
+            <p>{dateForAttendance} - {dateForAttendance.includes("Sunday") ? "Sunday service" : "Midweek service"}</p>
           </div>
         </div>
         <div className="mt-8 flow-root">
@@ -67,7 +88,7 @@ export default function DepartmentAttendance() {
                       scope="col"
                       className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
                     >
-                      phonenumber
+                      Phone number
                     </th>
 
                     <th
@@ -84,7 +105,7 @@ export default function DepartmentAttendance() {
                   </tbody>
                 )}
                 <tbody className="divide-y divide-gray-200 h-full">
-                  {data.map((person, idx) => (
+                  {data?.map((person, idx) => (
                     <tr key={person.id}>
                       <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
                         {idx + 1}
@@ -100,19 +121,27 @@ export default function DepartmentAttendance() {
                         <div className="w-48 z-1000">
                           <SelectDropdown
                             title=""
-                            defaultValue={person.attendance}
-                            onChange={(selected) =>
-                              setAttendance([
-                                ...attendance,
+                            defaultValue={
+                              person?.attendance
+                                ? {
+                                    id: person.attendance.toLowerCase(),
+                                    name: person.attendance,
+                                  }
+                                : undefined
+                            }
+                            onChange={(selected) => {
+                              const newAttendance = updateOrAddWorker(
+                                attendance,
                                 {
                                   workerid: person.id,
                                   name: person.fullname,
                                   attendance: selected.name,
                                   department: team.department,
-                                  date: new Date(),
-                                },
-                              ])
-                            }
+                                  attendancedate: dateForAttendance,
+                                }
+                              );
+                              setAttendance(newAttendance);
+                            }}
                             options={[
                               { id: "present", name: "Present" },
                               { id: "online", name: "Online" },

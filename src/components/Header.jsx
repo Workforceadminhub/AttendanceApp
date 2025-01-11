@@ -14,11 +14,11 @@ export default function Header() {
   if (!authUser) navigate("/login");
 
   const navigation = [
-    // { name: "Dashboard", href: `/dashboard${authUser.route}` },
-    // {
-    //   name: "Department summary",
-    //   href: `/summary${authUser.route}`,
-    // },
+    { name: "Dashboard", href: `/dashboard${authUser?.route || '/wadata'}` },
+    {
+      name: "Department summary",
+      href: `/summary${authUser?.route || 'wadata'}`,
+    },
     { name: "Attendance", href: `/attendance${authUser?.route || "/wadata"}` },
   ];
 

@@ -10,7 +10,7 @@ import { CheckIcon, ChevronUpDownIcon } from "@heroicons/react/20/solid";
 
 export default function SelectDropdown({ options, onChange, defaultValue }) {
   const placeholder = { id: null, name: "Mark attendance" };
-  const [selected, setSelected] = useState(placeholder);
+  const [selected, setSelected] = useState(defaultValue || placeholder);
 
   const spanColorMap = {
     Present: "bg-green-200",
@@ -25,17 +25,19 @@ export default function SelectDropdown({ options, onChange, defaultValue }) {
     Inactive: "bg-gray-300",
   };
 
-  useEffect(() => {
-    selected.id && onChange(selected);
-  }, [selected]);
-
   return (
     <div className="w-72">
-      <Listbox value={selected} onChange={setSelected}>
+      <Listbox
+        value={selected}
+        onChange={(value) => {
+          setSelected(value);
+          onChange(value);
+        }}
+      >
         <div className="relative mt-1">
           <ListboxButton
             className={`relative w-full cursor-default rounded-lg py-2 pl-3 pr-10 text-left shadow-md focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white/75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm px-2 ${
-              spanColorMap[defaultValue || selected.name]
+              spanColorMap[selected.name]
             }`}
           >
             <span
@@ -43,7 +45,7 @@ export default function SelectDropdown({ options, onChange, defaultValue }) {
                 selected.id === null ? "text-gray-400" : ""
               }`}
             >
-              {defaultValue || selected.name}
+              {selected.name}
             </span>
             <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
               <ChevronUpDownIcon

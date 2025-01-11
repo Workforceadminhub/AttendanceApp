@@ -1,8 +1,21 @@
+import getDayAndYear from "../utils/getDate";
 import { supabase } from "./supabaseClient";
 
 export const addAttendance = async (attendance) => {
+  const dateForAttendance = getDayAndYear();
   try {
-    const { data, error } = await supabase.from("attendance").insert(attendance);
+    await supabase
+      .from("attendance")
+      .delete()
+      .in(
+        "workerid",
+        attendance.map((item) => item.workerid)
+      )
+      .eq("attendancedate", dateForAttendance);
+
+    const { data, error } = await supabase
+      .from("attendance")
+      .insert(attendance);
 
     if (error) {
       throw error;

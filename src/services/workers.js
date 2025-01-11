@@ -23,7 +23,6 @@ export const fetchWorkers = async (department) => {
 };
 
 export const useFetchWorkers = (department) => {
-  console.log({ department });
   return useQuery({
     queryKey: [department],
     queryFn: () => fetchWorkers(department),

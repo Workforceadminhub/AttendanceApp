@@ -47,7 +47,6 @@ export default function DepartmentAttendance() {
   }
 
   const saveAttendance = async () => {
-    console.log(attendance)
     setAttendanceLoading(true);
     await addAttendance(attendance);
     setAttendanceLoading(false);

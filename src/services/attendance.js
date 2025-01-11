@@ -78,21 +78,27 @@ export const fetchAttendance = async () => {
     const { data, error } = await supabase
       .from("attendance")
       .select("*")
-      .eq("attendancedate", dateForAttendance);
+      .eq("attendancedate", dateForAttendance)
+      .or("attendance.eq.Present,attendance.eq.Online");
+
+    if (error) {
+      throw error;
+    }
 
     const { data: worker, error: workerError } = await supabase
       .from("worker")
       .select("");
+
+    if (workerError) {
+      throw workerError;
+    }
     const departmentTotals = getDepartmentTotals(worker);
     const defaultSummary = getDefaultSummary(routeObject);
     const updatedSummary = updateDefaultSummary(
       defaultSummary,
       departmentTotals
     );
-
-    if (error) {
-      throw error;
-    }
+    
 
     return updatedSummary;
   } catch (error) {

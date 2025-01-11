@@ -3,7 +3,6 @@
 import Header from "../Header";
 
 export default function DepartmentSummary() {
-  // const navigate = useNavigate();
   const data = [
     {
       id: 1,

@@ -3,18 +3,24 @@
 import { useState } from "react";
 import { Dialog, DialogPanel } from "@headlessui/react";
 import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
-import { useNavigate } from "react-router-dom";
-
-const navigation = [
-  { name: "Dashboard", href: "/dashboard" },
-  { name: "Department summary", href: "/summary" },
-  { name: "Attendance", href: "/attendance" },
-];
+import {  useNavigate } from "react-router-dom";
+import { getUser } from "../utils/getUser";
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const authUser = sessionStorage.getItem("authUser");
-  const navigate = useNavigate()
+  const authUser = getUser()
+  const navigate = useNavigate();
+
+  if (!authUser) navigate("/login");
+
+  const navigation = [
+    { name: "Dashboard", href: `/dashboard${authUser.route}` },
+    {
+      name: "Department summary",
+      href: `/summary${authUser.route}`,
+    },
+    { name: "Attendance", href: `/attendance${authUser.route}` },
+  ];
 
   return (
     <header className="bg-white">
@@ -42,18 +48,21 @@ export default function Header() {
             <a
               key={item.name}
               href={item.href}
-              className="text-sm/6 font-semibold text-gray-900"
+              className="text-sm/6 font-semibold text-gray-900 cursor-pointer"
             >
               {item.name}
             </a>
           ))}
           {!authUser ? (
-            <a href="/login" className="text-sm/6 font-semibold text-gray-900">
+            <a
+              href="/login"
+              className="text-sm/6 font-semibold text-gray-900 cursor-pointer"
+            >
               Log in <span aria-hidden="true">&rarr;</span>
             </a>
           ) : (
             <div
-              className="text-sm/6 font-semibold text-gray-900"
+              className="text-sm/6 font-semibold text-gray-900 cursor-pointer"
               onClick={() => {
                 sessionStorage.removeItem("authUser");
                 navigate("/login");

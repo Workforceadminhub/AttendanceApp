@@ -8,15 +8,18 @@ const Login = () => {
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
 
+  const handleKeyPress = (event) => {
+    // look for the `Enter` keyCode
+    if (event.keyCode === 13 || event.which === 13) {
+      handleLogin()
+    }
+  }
+
   const handleLogin = async () => {
     try {
       // Query the database to check if the code exists
       const data = await loginService(code);
 
-      if (error) {
-        setError("Invalid code");
-        return;
-      }
       if (data) {
         setMessage("Login successful!");
         setError("");
@@ -45,11 +48,15 @@ const Login = () => {
               name="id"
               placeholder="Enter your ID"
               onChange={(e) => setCode(e.target.value)}
-              className="mt-1 block h-12 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              onKeyDown={handleKeyPress}
+              className="mt-1 pl-2 block h-12 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
           </div>
           <button
+            type="button"
             onClick={handleLogin}
+            onKeyDown={handleKeyPress}
+            onE
             className="w-full bg-black text-white py-2 px-4 rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-600"
           >
             Login

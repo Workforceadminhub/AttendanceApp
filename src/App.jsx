@@ -43,6 +43,7 @@ const App = () => {
                 </PrivateRoute>
               }
             />
+            {/* Attendance */}
             <Route
               path="/attendance/subheadsmin"
               element={
@@ -171,11 +172,263 @@ const App = () => {
                 </PrivateRoute>
               }
             />
+            
+            {/* Dashboard  */}
             <Route
-              path="/dashboard"
+              path="/dashboard/subheadsmin"
               element={
                 <PrivateRoute>
                   <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/leadeff"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/lrecruit"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/leadtr"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/pascares"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/dbsp"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/wadata"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/mincc"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/rcam"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/crfn"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/mdmn"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/edc"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/prm"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/kds"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/hod"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/lea"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+
+            {/* Summary  */}
+            <Route
+              path="/summary/subheadsmin"
+              element={
+                <PrivateRoute>
+                  <DepartmentSummary />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/summary/leadeff"
+              element={
+                <PrivateRoute>
+                  <DepartmentSummary />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/summary/lrecruit"
+              element={
+                <PrivateRoute>
+                  <DepartmentSummary />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/summary/leadtr"
+              element={
+                <PrivateRoute>
+                  <DepartmentSummary />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/summary/pascares"
+              element={
+                <PrivateRoute>
+                  <DepartmentSummary />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/summary/dbsp"
+              element={
+                <PrivateRoute>
+                  <DepartmentSummary />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/summary/wadata"
+              element={
+                <PrivateRoute>
+                  <DepartmentSummary />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/summary/mincc"
+              element={
+                <PrivateRoute>
+                  <DepartmentSummary />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/summary/rcam"
+              element={
+                <PrivateRoute>
+                  <DepartmentSummary />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/summary/crfn"
+              element={
+                <PrivateRoute>
+                  <DepartmentSummary />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/summary/mdmn"
+              element={
+                <PrivateRoute>
+                  <DepartmentSummary />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/summary/edc"
+              element={
+                <PrivateRoute>
+                  <DepartmentSummary />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/summary/prm"
+              element={
+                <PrivateRoute>
+                  <DepartmentSummary />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/summary/kds"
+              element={
+                <PrivateRoute>
+                  <DepartmentSummary />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/summary/hod"
+              element={
+                <PrivateRoute>
+                  <DepartmentSummary />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/lea"
+              element={
+                <PrivateRoute>
+                  <DepartmentSummary />
                 </PrivateRoute>
               }
             />

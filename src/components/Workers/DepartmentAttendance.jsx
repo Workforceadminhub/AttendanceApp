@@ -3,33 +3,36 @@ import { useLocation } from "react-router-dom";
 import Header from "../Header";
 import SelectDropdown from "./Select";
 import { getDepartment } from "../../utils/getDepartment";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { fetchWorkers } from "../../services/workers";
+import { addAttendance } from "../../services/attendance";
+import { toast } from "react-toastify";
 
 export default function DepartmentAttendance() {
   const location = useLocation();
   const team = getDepartment(location.pathname);
   const [attendance, setAttendance] = useState([]);
+  const [data, setData] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
 
-  const saveAttendance = () => {
-    console.log(attendance);
+  useEffect(() => {
+    setIsLoading(true);
+    fetchWorkers(team.department)
+      .then((res) => {
+        setData(res);
+      })
+      .catch((error) => console.error("Error:", error))
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  const saveAttendance = async () => {
+    setAttendanceLoading(true);
+    await addAttendance(attendance);
+    setAttendanceLoading(false);
+    toast.success("Attendance added successfully");
   };
 
-  const data = [
-    {
-      id: 1,
-      name: "Philip Egwuatu",
-      phoneNumber: 100,
-      birthday: 60,
-      status: 60,
-    },
-    {
-      id: 2,
-      name: "Philip Okoro Magic",
-      phoneNumber: 100,
-      birthday: 60,
-      status: 60,
-    },
-  ];
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
       <Header />
@@ -60,12 +63,13 @@ export default function DepartmentAttendance() {
                     >
                       Name
                     </th>
-                    {/* <th
+                    <th
                       scope="col"
                       className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
                     >
-                      Phone number
-                    </th> */}
+                      Birthdate
+                    </th>
+
                     <th
                       scope="col"
                       className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
@@ -74,18 +78,24 @@ export default function DepartmentAttendance() {
                     </th>
                   </tr>
                 </thead>
+                {isLoading && (
+                  <tbody className="divide-y divide-gray-200 h-full">
+                    Loading...
+                  </tbody>
+                )}
                 <tbody className="divide-y divide-gray-200 h-full">
-                  {data.map((person) => (
+                  {data.map((person, idx) => (
                     <tr key={person.id}>
                       <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
-                        {person.id}
+                        {idx + 1}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {person.name}
+                        {person.fullname}
                       </td>
-                      {/* <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {person.phoneNumber}
-                      </td> */}
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {person.birthdate}
+                      </td>
+
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                         <div className="w-48 z-1000">
                           <SelectDropdown
@@ -94,10 +104,11 @@ export default function DepartmentAttendance() {
                               setAttendance([
                                 ...attendance,
                                 {
-                                  id: person.id,
-                                  name: person.name,
-                                  status: selected.name,
-                                  department: team
+                                  workerid: person.id,
+                                  name: person.fullname,
+                                  attendance: selected.name,
+                                  department: team.department,
+                                  date: new Date(),
                                 },
                               ])
                             }
@@ -123,12 +134,12 @@ export default function DepartmentAttendance() {
                   ))}
                 </tbody>
               </table>
-                  <button
-                    className="bg-gray-900 text-white p-3 rounded-xl"
-                    onClick={saveAttendance}
-                  >
-                    Save attendance
-                  </button>
+              <button
+                className="bg-gray-900 text-white p-3 rounded-xl"
+                onClick={saveAttendance}
+              >
+                {attendanceLoading ? "Saving..." : "Save attendance"}
+              </button>
             </div>
           </div>
         </div>

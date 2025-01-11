@@ -29,6 +29,7 @@ export default function SelectDropdown({ options, onChange }) {
     selected.id && onChange(selected);
   }, [selected]);
 
+
   return (
     <div className="w-72">
       <Listbox value={selected} onChange={setSelected}>
@@ -54,7 +55,7 @@ export default function SelectDropdown({ options, onChange }) {
             leaveFrom="opacity-100"
             leaveTo="opacity-0"
           >
-            <ListboxOptions className="z-50 fixed mt-1 max-h-60 w-72 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm">
+            <ListboxOptions className="z-50 absolute mt-1 max-h-60 w-72 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm">
               {[placeholder, ...options].map((option, optionIdx) => (
                 <ListboxOption
                   key={optionIdx}

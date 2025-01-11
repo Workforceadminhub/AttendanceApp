@@ -27,3 +27,27 @@ export const addAttendance = async (attendance) => {
     return null;
   }
 };
+
+export const fetchAttendance = async () => {
+  const dateForAttendance = getDayAndYear();
+  try {
+    const { data, error } = await supabase
+      .from("attendance")
+      .select("*")
+      .eq("attendancedate", dateForAttendance);
+
+    const { data: worker, error: workerError } = await supabase
+      .from("worker")
+      .select("");
+    console.log(data, worker);
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error fetching attendance:", error.message);
+    return null;
+  }
+};

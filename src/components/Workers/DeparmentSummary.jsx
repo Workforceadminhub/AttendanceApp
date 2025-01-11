@@ -1,8 +1,14 @@
 // import { useNavigate } from "react-router-dom";
 
+import { useEffect, useState } from "react";
 import Header from "../Header";
+import { fetchAttendance } from "../../services/attendance";
+import { routeObject } from "../../utils/routeObject";
 
 export default function DepartmentSummary() {
+  const [attendanceSummary, setAttendanceSummary] = useState(
+    getDefaultSummary(routeObject)
+  );
   const data = [
     {
       id: 1,
@@ -14,6 +20,39 @@ export default function DepartmentSummary() {
     },
   ];
 
+  function getDefaultSummary(routeObject) {
+    return routeObject.map((department, index) => ({
+      id: index + 1,
+      department: department.department,
+      present: 0,
+      absent: 0,
+      total: 0,
+      percentage: "0%",
+    }));
+  }
+
+  function getDepartmentSummary(data) {
+    const departmentSummary = {};
+
+    data.forEach((record) => {
+      const department = record.department;
+      if (departmentSummary[department]) {
+        departmentSummary[department]++;
+      } else {
+        departmentSummary[department] = 1;
+      }
+    });
+
+    return departmentSummary;
+  }
+
+  // useEffect(() => {
+  //   fetchAttendance().then((attendance) =>
+  //     setAttendanceSummary(getDepartmentSummary(attendance))
+  //   );
+  // }, []);
+
+  console.log(attendanceSummary);
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
@@ -70,25 +109,25 @@ export default function DepartmentSummary() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {data.map((person) => (
-                  <tr key={person.id}>
+                {attendanceSummary.map((item) => (
+                  <tr key={item.id}>
                     <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
-                      {person.id}
+                      {item.id}
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {person.department}
+                      {item.department}
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {person.strength}
+                      {item.total}
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {person.present}
+                      {item.present}
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {person.absent}
+                      {item.absent}
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {person.percentage}
+                      {item.percentage}
                     </td>
                   </tr>
                 ))}

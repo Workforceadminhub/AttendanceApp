@@ -14,7 +14,7 @@ export default function Header() {
   if (!authUser) navigate("/login");
 
   const navigation = [
-    { name: "Dashboard", href: `/dashboard${authUser?.route || '/wadata'}` },
+    // { name: "Dashboard", href: `/dashboard${authUser?.route || '/wadata'}` },
     {
       name: "Department summary",
       href: `/summary${authUser?.route || 'wadata'}`,

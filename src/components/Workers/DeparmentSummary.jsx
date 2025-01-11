@@ -4,55 +4,18 @@ import { useEffect, useState } from "react";
 import Header from "../Header";
 import { fetchAttendance } from "../../services/attendance";
 import { routeObject } from "../../utils/routeObject";
+import getDefaultSummary from "../../utils/getDefaultSummary";
 
 export default function DepartmentSummary() {
   const [attendanceSummary, setAttendanceSummary] = useState(
     getDefaultSummary(routeObject)
   );
-  const data = [
-    {
-      id: 1,
-      department: "Workforce admin",
-      strength: 100,
-      present: 60,
-      absent: 60,
-      percentage: 20,
-    },
-  ];
 
-  function getDefaultSummary(routeObject) {
-    return routeObject.map((department, index) => ({
-      id: index + 1,
-      department: department.department,
-      present: 0,
-      absent: 0,
-      total: 0,
-      percentage: "0%",
-    }));
-  }
-
-  function getDepartmentSummary(data) {
-    const departmentSummary = {};
-
-    data.forEach((record) => {
-      const department = record.department;
-      if (departmentSummary[department]) {
-        departmentSummary[department]++;
-      } else {
-        departmentSummary[department] = 1;
-      }
-    });
-
-    return departmentSummary;
-  }
-
-  // useEffect(() => {
-  //   fetchAttendance().then((attendance) =>
-  //     setAttendanceSummary(getDepartmentSummary(attendance))
-  //   );
-  // }, []);
-
-  console.log(attendanceSummary);
+  useEffect(() => {
+    fetchAttendance().then((attendance) =>
+      setAttendanceSummary(attendance)
+    );
+  }, []);
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">

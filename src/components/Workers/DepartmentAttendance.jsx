@@ -100,6 +100,7 @@ export default function DepartmentAttendance() {
                         <div className="w-48 z-1000">
                           <SelectDropdown
                             title=""
+                            defaultValue={person.attendance}
                             onChange={(selected) =>
                               setAttendance([
                                 ...attendance,

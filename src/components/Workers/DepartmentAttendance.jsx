@@ -90,13 +90,13 @@ export default function DepartmentAttendance() {
                         <div className="w-48 z-1000">
                           <SelectDropdown
                             title=""
-                            onChange={(e) =>
+                            onChange={(selected) =>
                               setAttendance([
                                 ...attendance,
                                 {
                                   id: person.id,
                                   name: person.name,
-                                  status: e.target.value,
+                                  status: selected.name,
                                   department: team
                                 },
                               ])

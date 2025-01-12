@@ -46,6 +46,17 @@ export default function DepartmentAttendance() {
     }
   }
 
+  const updateAttendance = (selected, person) => {
+    const newAttendance = updateOrAddWorker(attendance, {
+      workerid: person.id,
+      name: person.fullname,
+      attendance: selected.name,
+      department: team.department,
+      attendancedate: dateForAttendance,
+    });
+    setAttendance(newAttendance);
+  };
+
   const saveAttendance = async () => {
     setAttendanceLoading(true);
     await addAttendance(attendance);
@@ -139,19 +150,9 @@ export default function DepartmentAttendance() {
                                   }
                                 : undefined
                             }
-                            onChange={(selected) => {
-                              const newAttendance = updateOrAddWorker(
-                                attendance,
-                                {
-                                  workerid: person.id,
-                                  name: person.fullname,
-                                  attendance: selected.name,
-                                  department: team.department,
-                                  attendancedate: dateForAttendance,
-                                }
-                              );
-                              setAttendance(newAttendance);
-                            }}
+                            onChange={(selected) =>
+                              updateAttendance(selected, person)
+                            }
                             options={[
                               { id: "present", name: "Present" },
                               { id: "online", name: "Online" },

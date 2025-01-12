@@ -17,7 +17,7 @@ export default function Header() {
     // { name: "Dashboard", href: `/dashboard${authUser?.route || '/wadata'}` },
     {
       name: "Department summary",
-      href: `/summary${authUser?.route || 'wadata'}`,
+      href: `/summary${authUser?.route || '/wadata'}`,
     },
     { name: "Attendance", href: `/attendance${authUser?.route || "/wadata"}` },
   ];

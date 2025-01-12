@@ -60,14 +60,17 @@ function getDepartmentTotals(data) {
   return departmentTotals;
 }
 
-function updateDefaultSummary(defaultSummary, totals) {
+function updateDefaultSummary(defaultSummary, totals, presentSummary) {
   return defaultSummary.map((summary) => {
-    const total = totals[summary.department] || 0;
+    const strength = totals[summary.department] || 0;
+    const present = presentSummary[summary.department] || 0;
     return {
       ...summary,
-      total: total,
+      total: strength,
+      present,
+      absent: strength - present,
       percentage:
-        total > 0 ? `${((summary.present / total) * 100).toFixed(2)}%` : "0%",
+        strength > 0 ? `${((present / strength) * 100).toFixed(2)}%` : "0%",
     };
   });
 }
@@ -93,10 +96,12 @@ export const fetchAttendance = async () => {
       throw workerError;
     }
     const departmentTotals = getDepartmentTotals(worker);
+    const presentSummary = getDepartmentSummary(data);
     const defaultSummary = getDefaultSummary(routeObject);
     const updatedSummary = updateDefaultSummary(
       defaultSummary,
-      departmentTotals
+      departmentTotals,
+      presentSummary
     );
     
 

@@ -36,7 +36,7 @@ export default function SelectDropdown({ options, onChange, defaultValue }) {
       >
         <div className="relative mt-1">
           <ListboxButton
-            className={`relative w-full cursor-default rounded-lg py-2 pl-3 pr-10 text-left shadow-md focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white/75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm px-2 ${
+            className={`relative md:w-48 sm:w-48 xs:w-48 lg:w-56 cursor-default rounded-lg py-2 pl-3 pr-10 text-left shadow-md focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white/75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 sm:text-sm px-2 ${
               spanColorMap[selected.name]
             }`}
           >
@@ -60,7 +60,7 @@ export default function SelectDropdown({ options, onChange, defaultValue }) {
             leaveFrom="opacity-100"
             leaveTo="opacity-0"
           >
-            <ListboxOptions className="z-50 absolute mt-1 max-h-60 w-72 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm">
+            <ListboxOptions className="z-50 absolute mt-1 max-h-100 md:w-48 sm:w-48 xs:w-48 lg:w-56 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm">
               {[placeholder, ...options].map((option, optionIdx) => (
                 <ListboxOption
                   key={optionIdx}

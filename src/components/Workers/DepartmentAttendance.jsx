@@ -67,7 +67,7 @@ export default function DepartmentAttendance() {
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
       <Header />
-      <div className="lg:mx-64">
+      <div className="lg:mx-48 md:mx-24 sm:mx-2 xs:mx-1">
         <div className="sm:flex sm:items-center">
           <div className="sm:flex-auto">
             {team.department === "Sub team" ? (
@@ -139,7 +139,7 @@ export default function DepartmentAttendance() {
                       </td>
 
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        <div className="w-48 z-1000">
+                        <div className="w-48 z-1000 pr-4">
                           <SelectDropdown
                             title=""
                             defaultValue={

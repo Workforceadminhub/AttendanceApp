@@ -135,7 +135,7 @@ export default function DepartmentAttendance() {
                         {person.fullname}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {`${0}${person.phonenumber}`}
+                        {person.phonenumber ? `${0}${person.phonenumber}` : ''}
                       </td>
 
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
@@ -176,7 +176,7 @@ export default function DepartmentAttendance() {
                 </tbody>
               </table>
               <button
-                className="bg-gray-900 text-white p-3 rounded-xl"
+                className="bg-gray-900 text-white p-3 ml-3 rounded-xl"
                 onClick={saveAttendance}
               >
                 {attendanceLoading ? "Saving..." : "Save attendance"}

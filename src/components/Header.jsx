@@ -3,12 +3,12 @@
 import { useState } from "react";
 import { Dialog, DialogPanel } from "@headlessui/react";
 import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
-import {  useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { getUser } from "../utils/getUser";
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const authUser = getUser()
+  const authUser = getUser();
   const navigate = useNavigate();
 
   if (!authUser) navigate("/login");
@@ -17,7 +17,7 @@ export default function Header() {
     // { name: "Dashboard", href: `/dashboard${authUser?.route || '/wadata'}` },
     {
       name: "Department summary",
-      href: `/summary${authUser?.route || '/wadata'}`,
+      href: `/summary${authUser?.route || "/wadata"}`,
     },
     { name: "Attendance", href: `/attendance${authUser?.route || "/wadata"}` },
   ];
@@ -83,11 +83,8 @@ export default function Header() {
           <div className="flex items-center justify-between">
             <a href="/dashboard" className="-m-1.5 p-1.5">
               <span className="sr-only">Dashboard</span>
-              <img
-                alt=""
-                src="https://tailwindui.com/plus/img/logos/mark.svg?color=indigo&shade=600"
-                className="h-8 w-auto"
-              />
+              <span>HICC - Gbagada</span>
+              <img alt="" src="/logo.jpg" className="h-8 w-auto" />
             </a>
             <button
               type="button"
@@ -112,12 +109,24 @@ export default function Header() {
                 ))}
               </div>
               <div className="py-6">
-                <a
-                  href="/login"
-                  className="-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold text-gray-900 hover:bg-gray-50"
-                >
-                  Log in
-                </a>
+                {!authUser ? (
+                  <a
+                    href="/login"
+                    className="text-sm/6 font-semibold text-gray-900 cursor-pointer"
+                  >
+                    Log in <span aria-hidden="true">&rarr;</span>
+                  </a>
+                ) : (
+                  <div
+                    className="text-sm/6 font-semibold text-gray-900 cursor-pointer"
+                    onClick={() => {
+                      sessionStorage.removeItem("authUser");
+                      navigate("/login");
+                    }}
+                  >
+                    Logout
+                  </div>
+                )}
               </div>
             </div>
           </div>

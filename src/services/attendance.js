@@ -103,7 +103,6 @@ export const fetchAttendance = async () => {
       departmentTotals,
       presentSummary
     );
-    
 
     return updatedSummary;
   } catch (error) {
@@ -111,3 +110,28 @@ export const fetchAttendance = async () => {
     return null;
   }
 };
+
+export function calculateTotals(data) {
+  const totals = data.reduce(
+    (acc, item) => {
+      acc.present += item.present;
+      acc.absent += item.absent;
+      acc.total += item.total;
+      return acc;
+    },
+    { present: 0, absent: 0, total: 0 }
+  );
+
+  // Calculate the overall percentage
+  const overallPercentage =
+    totals.total === 0
+      ? "0.00%"
+      : ((totals.present / totals.total) * 100).toFixed(2) + "%";
+
+  return [
+    { name: "Total strength", stat: totals.total },
+    { name: "Total present", stat: totals.present },
+    { name: "Total absent", stat: totals.absent },
+    { name: "Total percentage", stat: overallPercentage },
+  ];
+}

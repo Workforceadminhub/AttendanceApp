@@ -1,30 +1,32 @@
+import { useEffect, useState } from "react";
+import { calculateTotals, fetchAttendance } from "../../services/attendance";
 import Header from "../Header";
 import DatePickerComponent from "./DatePickerComponent";
 import Select from "./Select";
 
-const stats = [
-  { name: "Total strength", stat: "265" },
-  { name: "Total present", stat: "102" },
-  { name: "Total absent", stat: "103" },
-  { name: "Total percentage", stat: "24.57%" },
-];
-
 export default function Dashboard() {
+  const [attendanceSummary, setAttendanceSummary] = useState([]);
   const services = [
     { id: 1, name: "Sunday service" },
     { id: 2, name: "Wednesday service" },
   ];
+
+  useEffect(() => {
+    fetchAttendance().then((attendance) =>
+      setAttendanceSummary(calculateTotals(attendance))
+    );
+  }, []);
 
   return (
     <div className="p-4">
       <Header />
       <h3 className="text-base font-semibold text-gray-900">Last 30 days</h3>
       <div className="flex flex-col space-y-4">
-        <Select title="Assigned to" options={services} />
+        {/* <Select title="Select service" options={services} /> */}
         <DatePickerComponent />
       </div>
       <dl className="mt-5 space-y-4">
-        {stats.map((item) => (
+        {attendanceSummary.map((item) => (
           <div
             key={item.name}
             className="overflow-hidden rounded-lg border bg-white px-4 py-5 shadow sm:p-6"

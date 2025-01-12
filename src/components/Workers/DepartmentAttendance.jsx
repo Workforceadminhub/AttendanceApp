@@ -141,7 +141,7 @@ export default function DepartmentAttendance() {
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                         <div className="w-48 z-1000 pr-4">
                           <SelectDropdown
-                            title=""
+                            title="Mark attendance"
                             defaultValue={
                               person?.attendance
                                 ? {

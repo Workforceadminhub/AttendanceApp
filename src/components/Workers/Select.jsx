@@ -8,8 +8,8 @@ import {
 } from "@headlessui/react";
 import { CheckIcon, ChevronUpDownIcon } from "@heroicons/react/20/solid";
 
-export default function SelectDropdown({ options, onChange, defaultValue }) {
-  const placeholder = { id: null, name: "Mark attendance" };
+export default function SelectDropdown({ title, options, onChange, defaultValue }) {
+  const placeholder = { id: null, name: title };
   const [selected, setSelected] = useState(defaultValue || placeholder);
 
   const spanColorMap = {

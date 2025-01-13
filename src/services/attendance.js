@@ -3,11 +3,15 @@ import getDefaultSummary from "../utils/getDefaultSummary";
 import { routeObject } from "../utils/routeObject";
 import { supabase } from "./supabaseClient";
 
+// const table = "attendance"
+const table = "attendance2"
+// const joinOps = "attendance.eq.Present,attendance.eq.Online"
+const joinOps = "attendance2.eq.Present,attendance2.eq.Online"
 export const addAttendance = async (attendance) => {
   const dateForAttendance = getDayAndYear();
   try {
     await supabase
-      .from("attendance")
+      .from(table)
       .delete()
       .in(
         "workerid",
@@ -16,7 +20,7 @@ export const addAttendance = async (attendance) => {
       .eq("attendancedate", dateForAttendance);
 
     const { data, error } = await supabase
-      .from("attendance")
+      .from(table)
       .insert(attendance);
 
     if (error) {
@@ -79,10 +83,10 @@ export const fetchAttendance = async () => {
   const dateForAttendance = getDayAndYear();
   try {
     const { data, error } = await supabase
-      .from("attendance")
+      .from(table)
       .select("*")
       .eq("attendancedate", dateForAttendance)
-      .or("attendance.eq.Present,attendance.eq.Online");
+      .or(joinOps);
 
     if (error) {
       throw error;

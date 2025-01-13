@@ -1,10 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "./supabaseClient";
+
+const table = "attendance2"
+// const table = "attendance"
+
 export const fetchWorkers = async (department) => {
   try {
     const { data, error } = await supabase
       .from("worker")
-      .select("*, attendance ( workerid, attendance )")
+      .select(`*, ${table} ( workerid, attendance )`)
       .eq("department", department);
 
     if (error) {
@@ -14,7 +18,7 @@ export const fetchWorkers = async (department) => {
     return data.map((item) => ({
       ...item,
       attendance:
-        item.attendance.length > 0 ? item.attendance[0].attendance : undefined,
+        item[table].length > 0 ? item[table][0].attendance : undefined,
     })); // Returns an array of workers in the specified department
   } catch (error) {
     console.error("Error fetching workers:", error.message);

@@ -12,12 +12,13 @@ function getDayAndYear() {
     "Saturday",
   ];
 
-  if (dayOfWeek === 0 || dayOfWeek === 1 || dayOfWeek === 6) {
+  if (dayOfWeek === 0 || dayOfWeek === 1 || dayOfWeek === 6 || dayOfWeek === 2) {
     return `${dayNames[0]} - 12/${today.getMonth() + 1}/${year}`;
   } else if (dayOfWeek === 3 || dayOfWeek === 4) {
     return `${dayNames[3]} ${today.getDate()} ${year}`;
   }
-  return null; // Return null if the day doesn't meet the criteria
+
+  return null;
 }
 
 export default getDayAndYear;

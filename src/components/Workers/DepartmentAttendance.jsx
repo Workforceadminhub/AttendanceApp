@@ -176,8 +176,9 @@ export default function DepartmentAttendance() {
                 </tbody>
               </table>
               <button
-                className="bg-gray-900 text-white p-3 ml-3 rounded-xl"
+                className={`bg-gray-900 text-white p-3 ml-3 rounded-xl ${attendanceLoading && "cursor-not-allowed"}`}
                 onClick={saveAttendance}
+                disabled={attendanceLoading}
               >
                 {attendanceLoading ? "Saving..." : "Save attendance"}
               </button>

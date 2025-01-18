@@ -2,6 +2,7 @@ function getDefaultSummary(routeObject) {
   return routeObject.map((department, index) => ({
     id: index + 1,
     department: department.department,
+    team: department.team,
     present: 0,
     absent: 0,
     total: 0,

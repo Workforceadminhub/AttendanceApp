@@ -81,6 +81,14 @@ function updateDefaultSummary(defaultSummary, totals, presentSummary) {
 
 export const fetchAttendance = async () => {
   const dateForAttendance = getDayAndYear();
+  const authUser = sessionStorage.getItem('authUser');
+  if (!authUser) {
+    throw new Error('User not authenticated');
+  }
+
+  const parsedUser = JSON.parse(authUser)
+  const team = parsedUser.team || ''
+  
   try {
     const { data, error } = await supabase
       .from(table)
@@ -99,6 +107,7 @@ export const fetchAttendance = async () => {
     if (workerError) {
       throw workerError;
     }
+    
     const departmentTotals = getDepartmentTotals(worker);
     const presentSummary = getDepartmentSummary(data);
     const defaultSummary = getDefaultSummary(routeObject);
@@ -107,8 +116,9 @@ export const fetchAttendance = async () => {
       departmentTotals,
       presentSummary
     );
-
-    return updatedSummary;
+    const filteredSummary = updatedSummary.filter(item => item.team === team)
+   
+    return filteredSummary;
   } catch (error) {
     console.error("Error fetching attendance:", error.message);
     return null;

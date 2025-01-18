@@ -17,7 +17,7 @@ export default function DepartmentAttendance() {
   const [isLoading, setIsLoading] = useState(false);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const dateForAttendance = getDayAndYear();
-  const [refresh, setRefresh] = useState("")
+  const [refresh, setRefresh] = useState("");
 
   useEffect(() => {
     setIsLoading(true);
@@ -56,7 +56,7 @@ export default function DepartmentAttendance() {
       attendancedate: dateForAttendance,
     });
     setAttendance(newAttendance);
-    setRefresh("updated")
+    setRefresh("updated");
   };
 
   const saveAttendance = async () => {
@@ -138,7 +138,11 @@ export default function DepartmentAttendance() {
                         {person.fullname}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {person.phonenumber ? `${0}${person.phonenumber}` : ''}
+                        {person.phonenumber
+                          ? person.phonenumber.startsWith("0")
+                            ? person.phonenumber
+                            : `0${person.phonenumber}`
+                          : ""}
                       </td>
 
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
@@ -180,7 +184,9 @@ export default function DepartmentAttendance() {
                 </tbody>
               </table>
               <button
-                className={`bg-gray-900 text-white p-3 ml-[75%] rounded-xl ${attendanceLoading && "cursor-not-allowed"}`}
+                className={`bg-gray-900 text-white p-3 ml-[75%] rounded-xl ${
+                  attendanceLoading && "cursor-not-allowed"
+                }`}
                 onClick={saveAttendance}
                 disabled={attendanceLoading}
               >

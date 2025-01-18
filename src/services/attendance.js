@@ -4,8 +4,8 @@ import getDefaultSummary from "../utils/getDefaultSummary";
 import { routeObject } from "../utils/routeObject";
 import { supabase } from "./supabaseClient";
 
-// const table = "attendance"
-const table = "attendance2";
+const table = "attendance"
+// const table = "attendance2";
 const joinOps = "attendance.eq.Present,attendance.eq.Online";
 export const addAttendance = async (attendance) => {
   const dateForAttendance = getDayAndYear();

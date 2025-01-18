@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import Header from "./Header";
 
 export default function Home() {
@@ -26,5 +27,5 @@ export default function Home() {
         </div>
       </div>
     </div>
-  )
+  );
 }

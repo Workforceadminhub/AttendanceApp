@@ -27,7 +27,7 @@ const Login = () => {
         navigate(`/attendance${data.route}`);
       }
     } catch (err) {
-      setError("Something went wrong, please try again.");
+      setError("Invalid login code");
     }
   };
 

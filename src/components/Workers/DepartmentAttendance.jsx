@@ -17,6 +17,7 @@ export default function DepartmentAttendance() {
   const [isLoading, setIsLoading] = useState(false);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const dateForAttendance = getDayAndYear();
+  const [refresh, setRefresh] = useState("")
 
   useEffect(() => {
     setIsLoading(true);
@@ -26,7 +27,7 @@ export default function DepartmentAttendance() {
       })
       .catch((error) => console.error("Error:", error))
       .finally(() => setIsLoading(false));
-  }, []);
+  }, [refresh]);
 
   function updateOrAddWorker(array, newWorker) {
     // Find the index of an object with the same workerid
@@ -55,12 +56,14 @@ export default function DepartmentAttendance() {
       attendancedate: dateForAttendance,
     });
     setAttendance(newAttendance);
+    setRefresh("updated")
   };
 
   const saveAttendance = async () => {
     setAttendanceLoading(true);
     await addAttendance(attendance);
     setAttendanceLoading(false);
+    setRefresh("added");
     toast.success("Attendance added successfully");
   };
 
@@ -142,6 +145,7 @@ export default function DepartmentAttendance() {
                         <div className="w-48 z-1000 pr-4">
                           <SelectDropdown
                             title="Mark attendance"
+                            disabled={person.attendance}
                             defaultValue={
                               person?.attendance
                                 ? {

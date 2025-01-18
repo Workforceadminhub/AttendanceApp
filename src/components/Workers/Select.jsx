@@ -8,7 +8,7 @@ import {
 } from "@headlessui/react";
 import { CheckIcon, ChevronUpDownIcon } from "@heroicons/react/20/solid";
 
-export default function SelectDropdown({ title, options, onChange, defaultValue }) {
+export default function SelectDropdown({ title, options, onChange, defaultValue, disabled = false }) {
   const placeholder = { id: null, name: title };
   const [selected, setSelected] = useState(defaultValue || placeholder);
 
@@ -29,6 +29,7 @@ export default function SelectDropdown({ title, options, onChange, defaultValue 
     <div className="w-72">
       <Listbox
         value={selected}
+        disabled={disabled}
         onChange={(value) => {
           setSelected(value);
           onChange(value);

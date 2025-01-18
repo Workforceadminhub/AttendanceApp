@@ -175,4 +175,11 @@ export const routeObject = [
     team: "Programs",
   },
   { route: "/venuemgt", department: "Venue Management", team: "Programs" },
+  { route: "/pearl", department: "Pearl ET", team: "Programs" },
+  { route: "/programsadminteam", department: "Programs Admin Team", team: "Programs" },
 ];
+
+
+export const attendanceRoutes = routeObject.map((item) => `/attendance${item.route}`)
+export const summaryRoutes = routeObject.map((item) => `/summary${item.route}`)
+export const dashboardRoutes = routeObject.map((item) => `/dashboard${item.route}`)

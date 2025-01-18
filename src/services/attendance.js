@@ -5,10 +5,10 @@ import { supabase } from "./supabaseClient";
 
 // const table = "attendance"
 const table = "attendance2"
-// const joinOps = "attendance.eq.Present,attendance.eq.Online"
 const joinOps = "attendance.eq.Present,attendance.eq.Online"
 export const addAttendance = async (attendance) => {
   const dateForAttendance = getDayAndYear();
+  console.log({ dateForAttendance });
   try {
     await supabase
       .from(table)

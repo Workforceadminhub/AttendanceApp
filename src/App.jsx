@@ -200,7 +200,7 @@ const App = () => {
 
             {/* Additional Routes for other departments not Ministry */}
             <Route
-              path="/attendance//benevolence"
+              path="/attendance/benevolence"
               element={
                 <PrivateRoute>
                   <DepartmentAttendance />
@@ -700,7 +700,7 @@ const App = () => {
 
             {/* Additional routes nor non ministry teams for dashboard */}
             <Route
-              path="/dashboard//benevolence"
+              path="/dashboard/benevolence"
               element={
                 <PrivateRoute>
                   <Dashboard />
@@ -1200,7 +1200,7 @@ const App = () => {
 
             {/* Additional routes nor non ministry teams for dashboard */}
             <Route
-              path="/summary//benevolence"
+              path="/summary/benevolence"
               element={
                 <PrivateRoute>
                   <DepartmentSummary />

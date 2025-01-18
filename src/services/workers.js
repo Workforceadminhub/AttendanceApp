@@ -25,8 +25,6 @@ export const fetchWorkers = async (department) => {
         item[table].length > 0 ? item[table][0].attendance : undefined,
     }));
 
-    console.log(finalResult)
-
     return finalResult
   } catch (error) {
     console.error("Error fetching workers:", error.message);

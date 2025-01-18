@@ -1198,7 +1198,7 @@ const App = () => {
               }
             />
 
-            {/* Additional routes nor non ministry teams for dashboard */}
+            {/* Additional routes nor non ministry teams for dashboard and */}
             <Route
               path="/summary/benevolence"
               element={

@@ -109,6 +109,22 @@ const App = () => {
                 }
               />
             ))}
+            <Route
+              path="/attendance/summary"
+              element={
+                <PrivateRoute>
+                  <DepartmentSummary />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/attendance/dashboard"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
             <Route path="*" exact={true} element={<NotFound />} />
           </Routes>
         </SkeletonTheme>

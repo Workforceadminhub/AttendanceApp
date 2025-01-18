@@ -13,14 +13,27 @@ export default function Header() {
 
   if (!authUser) navigate("/login");
 
-  const navigation = [
-    { name: "Dashboard", href: `/dashboard${authUser?.route || '/wadata'}` },
+  const nav = [
+    { name: "Dashboard", href: `/dashboard${authUser?.route || "/wadata"}` },
     {
       name: "Department summary",
       href: `/summary${authUser?.route || "/wadata"}`,
     },
     { name: "Attendance", href: `/attendance${authUser?.route || "/wadata"}` },
   ];
+
+  const adminNavigation = [
+    { name: "Dashboard", href: "/attendance/dashboard" },
+    {
+      name: "Department summary",
+      href: "/attendance/summary",
+    },
+  ];
+
+  const navigation =
+    authUser.department.toLowerCase() === "church admin"
+      ? adminNavigation
+      : nav;
 
   return (
     <header className="bg-white">

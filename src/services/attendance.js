@@ -4,8 +4,8 @@ import { routeObject } from "../utils/routeObject";
 import { supabase } from "./supabaseClient";
 
 // const table = "attendance"
-const table = "attendance2"
-const joinOps = "attendance.eq.Present,attendance.eq.Online"
+const table = "attendance2";
+const joinOps = "attendance.eq.Present,attendance.eq.Online";
 export const addAttendance = async (attendance) => {
   const dateForAttendance = getDayAndYear();
   try {
@@ -18,9 +18,7 @@ export const addAttendance = async (attendance) => {
       )
       .eq("attendancedate", dateForAttendance);
 
-    const { data, error } = await supabase
-      .from(table)
-      .insert(attendance);
+    const { data, error } = await supabase.from(table).insert(attendance);
 
     if (error) {
       throw error;
@@ -80,14 +78,14 @@ function updateDefaultSummary(defaultSummary, totals, presentSummary) {
 
 export const fetchAttendance = async () => {
   const dateForAttendance = getDayAndYear();
-  const authUser = sessionStorage.getItem('authUser');
+  const authUser = sessionStorage.getItem("authUser");
   if (!authUser) {
-    throw new Error('User not authenticated');
+    throw new Error("User not authenticated");
   }
+  console.log(authUser);
+  const parsedUser = JSON.parse(authUser);
+  const team = parsedUser.team || "";
 
-  const parsedUser = JSON.parse(authUser)
-  const team = parsedUser.team || ''
-  
   try {
     const { data, error } = await supabase
       .from(table)
@@ -106,7 +104,7 @@ export const fetchAttendance = async () => {
     if (workerError) {
       throw workerError;
     }
-    
+
     const departmentTotals = getDepartmentTotals(worker);
     const presentSummary = getDepartmentSummary(data);
     const defaultSummary = getDefaultSummary(routeObject);
@@ -115,8 +113,10 @@ export const fetchAttendance = async () => {
       departmentTotals,
       presentSummary
     );
-    const filteredSummary = updatedSummary.filter(item => item.team === team)
-   
+
+    if (team === "Gbagada Campus") return updatedSummary;
+    const filteredSummary = updatedSummary.filter((item) => item.team === team);
+
     return filteredSummary;
   } catch (error) {
     console.error("Error fetching attendance:", error.message);

@@ -31,7 +31,7 @@ export default function Header() {
   ];
 
   const navigation =
-    authUser.department.toLowerCase() === "church admin"
+    authUser?.department?.toLowerCase() === "church admin"
       ? adminNavigation
       : nav;
 

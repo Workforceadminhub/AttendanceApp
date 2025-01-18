@@ -3,13 +3,11 @@ import { calculateTotals, fetchAttendance } from "../../services/attendance";
 import Header from "../Header";
 import DatePickerComponent from "./DatePickerComponent";
 import Select from "./Select";
+import getDayAndYear from "../../utils/getDate";
 
 export default function Dashboard() {
   const [attendanceSummary, setAttendanceSummary] = useState([]);
-  const services = [
-    { id: 1, name: "Sunday service" },
-    { id: 2, name: "Wednesday service" },
-  ];
+  const dateForAttendance = getDayAndYear();
 
   useEffect(() => {
     fetchAttendance().then((attendance) =>
@@ -20,10 +18,10 @@ export default function Dashboard() {
   return (
     <div className="p-4">
       <Header />
-      <h3 className="text-base font-semibold text-gray-900">Last 30 days</h3>
-      <div className="flex flex-col space-y-4">
+      {/* <h3 className="text-base font-semibold text-gray-900">Last 30 days</h3> */}
+      <div className="flex flex-col space-y-4 font-bold">
         {/* <Select title="Select service" options={services} /> */}
-        <DatePickerComponent />
+        {dateForAttendance}
       </div>
       <dl className="mt-5 space-y-4">
         {attendanceSummary.map((item) => (

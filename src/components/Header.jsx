@@ -5,6 +5,7 @@ import { Dialog, DialogPanel } from "@headlessui/react";
 import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useNavigate } from "react-router-dom";
 import { getUser } from "../utils/getUser";
+import { ADMIN_ENUMS } from "../utils/adminEnums";
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -31,7 +32,7 @@ export default function Header() {
   ];
 
   const navigation =
-    authUser?.department?.toLowerCase() === "church admin"
+    authUser?.department?.toLowerCase() === ADMIN_ENUMS.ADMIN_DEPARTMENT.toLowerCase()
       ? adminNavigation
       : nav;
 

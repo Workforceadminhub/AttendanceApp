@@ -78,6 +78,7 @@ const App = () => {
             {attendanceRoutes.map((route) => (
               <Route
                 path={route}
+                key={route}
                 element={
                   <PrivateRoute>
                     <DepartmentAttendance />
@@ -90,6 +91,7 @@ const App = () => {
             {dashboardRoutes.map((route) => (
               <Route
                 path={route}
+                key={route}
                 element={
                   <PrivateRoute>
                     <Dashboard />
@@ -102,6 +104,7 @@ const App = () => {
             {summaryRoutes.map((route) => (
               <Route
                 path={route}
+                key={route}
                 element={
                   <PrivateRoute>
                     <DepartmentSummary />

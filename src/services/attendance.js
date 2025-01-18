@@ -1,3 +1,4 @@
+import { ADMIN_ENUMS } from "../utils/adminEnums";
 import getDayAndYear from "../utils/getDate";
 import getDefaultSummary from "../utils/getDefaultSummary";
 import { routeObject } from "../utils/routeObject";
@@ -82,7 +83,6 @@ export const fetchAttendance = async () => {
   if (!authUser) {
     throw new Error("User not authenticated");
   }
-  console.log(authUser);
   const parsedUser = JSON.parse(authUser);
   const team = parsedUser.team || "";
 
@@ -114,7 +114,7 @@ export const fetchAttendance = async () => {
       presentSummary
     );
 
-    if (team === "Gbagada Campus") return updatedSummary;
+    if (team?.toLowerCase() === ADMIN_ENUMS.ADMIN_TEAM.toLowerCase()) return updatedSummary;
     const filteredSummary = updatedSummary.filter((item) => item.team === team);
 
     return filteredSummary;

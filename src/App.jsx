@@ -567,6 +567,14 @@ const App = () => {
                 </PrivateRoute>
               }
             />
+            <Route
+              path="/attendance/pearl"
+              element={
+                <PrivateRoute>
+                  <DepartmentAttendance />
+                </PrivateRoute>
+              }
+            />
 
             {/* Dashboard  */}
             <Route
@@ -1067,6 +1075,14 @@ const App = () => {
                 </PrivateRoute>
               }
             />
+            <Route
+              path="/dashboard/pearl"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
 
             {/* Summary  */}
             <Route
@@ -1561,6 +1577,14 @@ const App = () => {
             />
             <Route
               path="/summary/protocol"
+              element={
+                <PrivateRoute>
+                  <DepartmentSummary />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/summary/pearl"
               element={
                 <PrivateRoute>
                   <DepartmentSummary />

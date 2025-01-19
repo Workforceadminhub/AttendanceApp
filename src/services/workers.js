@@ -12,7 +12,7 @@ export const fetchWorkers = async (department) => {
       .from("worker")
       .select(`*, ${table} ( workerid, attendance, attendancedate )`)
       .eq("department", department)
-      .eq(`${table}.attendancedate`, dateForAttendance);
+      .eq(`${table}.attendancedate`, dateForAttendance)
   
 
     if (error) {

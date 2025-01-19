@@ -1,5 +1,5 @@
 export const routeObject = [
-  { department: "Sub team", route: "/subheadsmin", team: "Ministry" },
+  { department: "Ministry team leadership", route: "/subheadsmin", team: "Ministry" },
   { department: "Leadership Effectiveness", route: "/leadeff", team: "Ministry" },
   { department: "Leadership Recruitment", route: "/lrecruit", team: "Ministry" },
   { department: "Leadership Training", route: "/leadtr", team: "Ministry" },

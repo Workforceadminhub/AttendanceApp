@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { calculateTotals, fetchAttendance } from "../../services/attendance";
 import Header from "../Header";
-import DatePickerComponent from "./DatePickerComponent";
-import Select from "./Select";
 import getDayAndYear from "../../utils/getDate";
 
 export default function Dashboard() {

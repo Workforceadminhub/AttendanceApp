@@ -2,7 +2,7 @@
 import { useLocation } from "react-router-dom";
 import Header from "../Header";
 import SelectDropdown from "./Select";
-import { getDepartment } from "../../utils/getDepartment";
+import { getDepartmentByUser } from "../../utils/getDepartment";
 import { useEffect, useState } from "react";
 import { fetchWorkers } from "../../services/workers";
 import { addAttendance } from "../../services/attendance";
@@ -11,13 +11,14 @@ import getDayAndYear from "../../utils/getDate";
 
 export default function DepartmentAttendance() {
   const location = useLocation();
-  const team = getDepartment(location.pathname);
+  // const team = getDepartment(location.pathname);
   const [attendance, setAttendance] = useState([]);
   const [data, setData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const dateForAttendance = getDayAndYear();
   const [refresh, setRefresh] = useState("");
+  const team = getDepartmentByUser(location.pathname)
 
   useEffect(() => {
     setIsLoading(true);

@@ -1,10 +1,9 @@
 import { ADMIN_ENUMS } from "../utils/adminEnums";
 import getDayAndYear from "../utils/getDate";
 import getDefaultSummary from "../utils/getDefaultSummary";
-import { routeObject } from "../utils/routeObject";
 import { supabase } from "./supabaseClient";
 
-const table = "attendance"
+const table = "attendance";
 // const table = "attendance2";
 const joinOps = "attendance.eq.Present,attendance.eq.Online";
 export const addAttendance = async (attendance) => {
@@ -99,22 +98,30 @@ export const fetchAttendance = async () => {
 
     const { data: worker, error: workerError } = await supabase
       .from("worker")
-      .select("");
+      .select("*");
 
+    const { data: routes, error: routesError } = await supabase
+      .from("admin")
+      .select("*");
+
+    if (routesError) {
+      throw routesError;
+    }
     if (workerError) {
       throw workerError;
     }
 
     const departmentTotals = getDepartmentTotals(worker);
     const presentSummary = getDepartmentSummary(data);
-    const defaultSummary = getDefaultSummary(routeObject);
+    const defaultSummary = getDefaultSummary(routes);
     const updatedSummary = updateDefaultSummary(
       defaultSummary,
       departmentTotals,
       presentSummary
     );
 
-    if (team?.toLowerCase() === ADMIN_ENUMS.ADMIN_TEAM.toLowerCase()) return updatedSummary;
+    if (team?.toLowerCase() === ADMIN_ENUMS.ADMIN_TEAM.toLowerCase())
+      return updatedSummary;
     const filteredSummary = updatedSummary.filter((item) => item.team === team);
 
     return filteredSummary;

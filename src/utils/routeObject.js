@@ -8,7 +8,7 @@ export const routeObject = [
   { department: "Workforce Admin", route: "/wadata", team: "Ministry" },
   { department: "Call Centre", route: "/mincc", team: "Ministry" },
   { department: "Recruitment and Assimilation", route: "/rcam", team: "Ministry" },
-  { department: "Career & Finance", route: "/crfn", team: "Ministry" },
+  { department: "Career and Finance", route: "/crfn", team: "Ministry" },
   { department: "Medicals", route: "/mdmn", team: "Ministry" },
   { department: "Elders Care", route: "/edc", team: "Ministry" },
   { department: "Prison Ministry", route: "/prm", team: "Ministry" },

@@ -18,7 +18,7 @@ export default function DepartmentAttendance() {
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const dateForAttendance = getDayAndYear();
   const [refresh, setRefresh] = useState("");
-  const team = getDepartmentByUser(location.pathname)
+  const team = getDepartmentByUser(location.pathname);
 
   useEffect(() => {
     setIsLoading(true);
@@ -74,15 +74,10 @@ export default function DepartmentAttendance() {
       <div className="lg:mx-48 md:mx-24 sm:mx-2 xs:mx-1">
         <div className="sm:flex sm:items-center">
           <div className="sm:flex-auto">
-            {team.department === "Sub team" ? (
-              <h1 className="text-base font-semibold leading-6 text-gray-900">
-                Ministry team leadership attendance
-              </h1>
-            ) : (
-              <h1 className="text-base font-semibold leading-6 text-gray-900">
-                {team?.department} attendance
-              </h1>
-            )}
+            <h1 className="text-base font-semibold leading-6 text-gray-900">
+              {team?.department} attendance
+            </h1>
+
             <p>
               {dateForAttendance} -{" "}
               {dateForAttendance.includes("Sunday")

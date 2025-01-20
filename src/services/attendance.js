@@ -110,10 +110,14 @@ export const fetchAttendance = async () => {
     if (workerError) {
       throw workerError;
     }
-
+    const uniqueRoutes = routes.filter(
+      (item, index, self) =>
+        index === self.findIndex((obj) => obj.department === item.department)
+    );
+    
     const departmentTotals = getDepartmentTotals(worker);
     const presentSummary = getDepartmentSummary(data);
-    const defaultSummary = getDefaultSummary(routes);
+    const defaultSummary = getDefaultSummary(uniqueRoutes);
     const updatedSummary = updateDefaultSummary(
       defaultSummary,
       departmentTotals,

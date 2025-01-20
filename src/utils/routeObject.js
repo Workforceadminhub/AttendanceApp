@@ -91,7 +91,9 @@ export const routeObject = [
   { route: "/shomolu2", department: "Shomolu 2 Community", team: "Districts" },
   { route: "/oworo1", department: "Oworo 1 Community", team: "Districts" },
   { route: "/oworo2", department: "Oworo 2 Community", team: "Districts" },
-  { route: "/oworo2", department: "Royal Priesthoods Community", team: "Districts" },
+  { route: "/anagkazo", department: "Anagkazo Community", team: "Districts" },
+  { route: "/sunrise", department: "Sunrise Community", team: "Districts" },
+  { route: "/targetmissions", department: "Target Missions ", team: "Districts" },
   {
     route: "/lightbearers",
     department: "Lightbearers Community",

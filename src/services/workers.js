@@ -21,6 +21,7 @@ export const fetchWorkers = async (department) => {
 
     const finalResult = data.map((item) => ({
       ...item,
+      name: item?.fullname?.trim(),
       attendance:
         item[table].length > 0 ? item[table][0].attendance : undefined,
     }));

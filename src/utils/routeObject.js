@@ -181,6 +181,15 @@ export const routeObject = [
   { route: "/venuemgt", department: "Venue Management", team: "Programs" },
   { route: "/pearl", department: "Pearl ET", team: "Programs" },
   { route: "/programsadminteam", department: "Programs Admin Team", team: "Programs" },
+  { route: "/rpstirhouse", department: "Reach and Partnership - Stirhouse", team: "Next Gen" },
+  { route: "/ldstirhouse", department: "Learning and Development - Stirhouse", team: "Next Gen" },
+  { route: "/pestirhouse", department: "Programming and Environment - Stirhouse", team: "Next Gen" },
+  { route: "/adminstirhouse", department: "Administration - Stirhouse", team: "Next Gen" },
+  { route: "/rpkidszone", department: "Reach and Partnership - Kidszone", team: "Next Gen" },
+  { route: "/nwkidszone", department: "New Workers - Kidszone", team: "Next Gen" },
+  { route: "/adminkidszone", department: "Administration - Kidszone", team: "Next Gen" },
+  { route: "/progkidszone", department: "Programming and Environment - Kidszone", team: "Next Gen" },
+  { route: "/learnkidszone", department: "Learning and Development - Kidszone", team: "Next Gen" },
 ];
 
 

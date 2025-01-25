@@ -2,8 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "./supabaseClient";
 import getDayAndYear from "../utils/getDate";
 
-const table = "attendance2"
-// const table = "attendance"
+// const table = "attendance2"
+const table = "attendance"
 
 export const fetchWorkers = async (department) => {
   try {

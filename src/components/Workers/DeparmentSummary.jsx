@@ -5,11 +5,15 @@ import Header from "../Header";
 import { fetchAttendance } from "../../services/attendance";
 import { routeObject } from "../../utils/routeObject";
 import getDefaultSummary from "../../utils/getDefaultSummary";
+import { getDepartmentByUser } from "../../utils/getDepartment";
+import { useLocation } from "react-router-dom";
 
 export default function DepartmentSummary() {
   const [attendanceSummary, setAttendanceSummary] = useState(
     getDefaultSummary(routeObject)
   );
+  const location = useLocation()
+  const team = getDepartmentByUser(location.pathname);
 
   useEffect(() => {
     fetchAttendance().then((attendance) =>
@@ -23,7 +27,7 @@ export default function DepartmentSummary() {
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
           <h1 className="text-base font-semibold leading-6 text-gray-900">
-            Department summary
+            {`${team.team} summary` || "Department summary"}
           </h1>
         </div>
       </div>

@@ -1,14 +1,12 @@
 // import { useNavigate } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 import Header from "../Header";
-import SelectDropdown from "./Select";
 import { getDepartmentByUser } from "../../utils/getDepartment";
 import { useEffect, useMemo, useState } from "react";
 import { fetchWorkers } from "../../services/workers";
 import { addAttendance } from "../../services/attendance";
 import { toast } from "react-toastify";
 import getDayAndYear from "../../utils/getDate";
-import Select from 'react-select'
 import ReactSelectDropdown from "../ReactSelect";
 
 export default function DepartmentAttendance() {
@@ -73,7 +71,7 @@ export default function DepartmentAttendance() {
     const newAttendance = updateOrAddWorker(attendance, {
       workerid: person.id,
       name: person.fullname,
-      attendance: selected.label,
+      attendance: selected?.label,
       department: team.department,
       attendancedate: dateForAttendance,
     });
@@ -187,8 +185,8 @@ export default function DepartmentAttendance() {
                             defaultValue={
                               person?.attendance
                                 ? {
-                                    id: person.attendance.toLowerCase(),
-                                    name: person.attendance,
+                                    value: person.attendance.toLowerCase(),
+                                    label: person.attendance,
                                   }
                                 : undefined
                             }

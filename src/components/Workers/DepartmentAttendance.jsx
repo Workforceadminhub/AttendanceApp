@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom";
 import Header from "../Header";
 import SelectDropdown from "./Select";
 import { getDepartmentByUser } from "../../utils/getDepartment";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { fetchWorkers } from "../../services/workers";
 import { addAttendance } from "../../services/attendance";
 import { toast } from "react-toastify";
@@ -20,6 +20,25 @@ export default function DepartmentAttendance() {
   const [refresh, setRefresh] = useState("");
   const team = getDepartmentByUser(location.pathname);
 
+  const options = useMemo(
+    () => [
+      { id: "present", name: "Present" },
+      { id: "online", name: "Online" },
+      { id: "absent", name: "Absent" },
+      {
+        id: "out-of-town",
+        name: "Out of town/travelled",
+      },
+      { id: "work", name: "Work" },
+      { id: "sick", name: "Sick" },
+      { id: "family-issue", name: "Family issue" },
+      { id: "school-exam", name: "School exam" },
+      { id: "not-reachable", name: "Not reachable" },
+      { id: "inactive", name: "Inactive" },
+    ],
+    []
+  );
+  
   useEffect(() => {
     setIsLoading(true);
     fetchWorkers(team.department)
@@ -157,21 +176,7 @@ export default function DepartmentAttendance() {
                             onChange={(selected) =>
                               updateAttendance(selected, person)
                             }
-                            options={[
-                              { id: "present", name: "Present" },
-                              { id: "online", name: "Online" },
-                              { id: "absent", name: "Absent" },
-                              {
-                                id: "out-of-town",
-                                name: "Out of town/travelled",
-                              },
-                              { id: "work", name: "Work" },
-                              { id: "sick", name: "Sick" },
-                              { id: "family-issue", name: "Family issue" },
-                              { id: "school-exam", name: "School exam" },
-                              { id: "not-reachable", name: "Not reachable" },
-                              { id: "inactive", name: "Inactive" },
-                            ]}
+                            options={options}
                           />
                         </div>
                       </td>

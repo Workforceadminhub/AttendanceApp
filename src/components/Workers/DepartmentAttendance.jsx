@@ -8,6 +8,8 @@ import { fetchWorkers } from "../../services/workers";
 import { addAttendance } from "../../services/attendance";
 import { toast } from "react-toastify";
 import getDayAndYear from "../../utils/getDate";
+import Select from 'react-select'
+import ReactSelectDropdown from "../ReactSelect";
 
 export default function DepartmentAttendance() {
   const location = useLocation();
@@ -22,19 +24,19 @@ export default function DepartmentAttendance() {
 
   const options = useMemo(
     () => [
-      { id: "present", name: "Present" },
-      { id: "online", name: "Online" },
-      { id: "absent", name: "Absent" },
+      { value: "present", label: "Present" },
+      { value: "online", label: "Online" },
+      { value: "absent", label: "Absent" },
       {
-        id: "out-of-town",
-        name: "Out of town/travelled",
+        value: "out-of-town",
+        label: "Out of town/travelled",
       },
-      { id: "work", name: "Work" },
-      { id: "sick", name: "Sick" },
-      { id: "family-issue", name: "Family issue" },
-      { id: "school-exam", name: "School exam" },
-      { id: "not-reachable", name: "Not reachable" },
-      { id: "inactive", name: "Inactive" },
+      { value: "work", label: "Work" },
+      { value: "sick", label: "Sick" },
+      { value: "family-issue", label: "Family issue" },
+      { value: "school-exam", label: "School exam" },
+      { value: "not-reachable", label: "Not reachable" },
+      { value: "inactive", label: "Inactive" },
     ],
     []
   );
@@ -71,7 +73,7 @@ export default function DepartmentAttendance() {
     const newAttendance = updateOrAddWorker(attendance, {
       workerid: person.id,
       name: person.fullname,
-      attendance: selected.name,
+      attendance: selected.label,
       department: team.department,
       attendancedate: dateForAttendance,
     });
@@ -162,7 +164,24 @@ export default function DepartmentAttendance() {
 
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                         <div className="w-48 z-1000 pr-4">
-                          <SelectDropdown
+                        {/* <Select options={options} /> */}
+                          {/* <SelectDropdown
+                            title="Mark attendance"
+                            disabled={person.attendance}
+                            defaultValue={
+                              person?.attendance
+                                ? {
+                                    id: person.attendance.toLowerCase(),
+                                    name: person.attendance,
+                                  }
+                                : undefined
+                            }
+                            onChange={(selected) =>
+                              updateAttendance(selected, person)
+                            }
+                            options={options}
+                          /> */}
+                          <ReactSelectDropdown
                             title="Mark attendance"
                             disabled={person.attendance}
                             defaultValue={

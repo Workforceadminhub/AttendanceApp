@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import {
   Listbox,
   ListboxButton,
@@ -24,6 +24,12 @@ export default function SelectDropdown({ title, options, onChange, defaultValue,
     "Not reachable": "bg-gray-200",
     Inactive: "bg-gray-300",
   };
+
+  useEffect(() => {
+    if (defaultValue) {
+      setSelected(defaultValue);
+    }
+  }, [defaultValue]);
 
   return (
     <div className="w-72">

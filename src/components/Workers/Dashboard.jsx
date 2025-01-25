@@ -2,10 +2,14 @@ import { useEffect, useState } from "react";
 import { calculateTotals, fetchAttendance } from "../../services/attendance";
 import Header from "../Header";
 import getDayAndYear from "../../utils/getDate";
+import { useLocation } from "react-router-dom";
+import { getDepartmentByUser } from "../../utils/getDepartment";
 
 export default function Dashboard() {
   const [attendanceSummary, setAttendanceSummary] = useState([]);
   const dateForAttendance = getDayAndYear();
+  const location = useLocation();
+  const team = getDepartmentByUser(location.pathname);
 
   useEffect(() => {
     fetchAttendance().then((attendance) =>
@@ -19,8 +23,9 @@ export default function Dashboard() {
       {/* <h3 className="text-base font-semibold text-gray-900">Last 30 days</h3> */}
       <div className="flex flex-col space-y-4 font-bold">
         {/* <Select title="Select service" options={services} /> */}
-        {dateForAttendance}
+        {`${team?.team} Dashboard`} - {dateForAttendance}
       </div>
+
       <dl className="mt-5 space-y-4">
         {attendanceSummary.map((item) => (
           <div

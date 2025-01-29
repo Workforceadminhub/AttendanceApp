@@ -16,7 +16,7 @@ function getDayAndYear() {
   if (dayOfWeek === 0 || dayOfWeek === 1 || dayOfWeek === 6 || dayOfWeek === 2) {
     return `${dayNames[0]} - ${day}/${today.getMonth() + 1}/${year}`;
   } else if (dayOfWeek === 3 || dayOfWeek === 4) {
-    `${dayNames[0]} - ${day}/${today.getMonth() + 1}/${year}`;
+    return `${dayNames[0]} - ${day}/${today.getMonth() + 1}/${year}`;
     // return `${dayNames[3]} ${today.getDate()} ${year}`;
   }
 

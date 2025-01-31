@@ -278,3 +278,12 @@ export const adminRoutes = Array.from(
   )
 );
 
+export const getAdminSelectOptions = (isChurchAdmin, team) => {
+  const options = isChurchAdmin
+    ? routeObject.map((item) => ({ value: item.team, label: item.team }))
+    : routeObject
+        .filter((item) => item.team === team.department)
+        .map((item) => ({ value: item.department, label: item.department }));
+
+  return options;
+};

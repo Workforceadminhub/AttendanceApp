@@ -12,6 +12,7 @@ import DepartmentAttendance from "./components/Workers/DepartmentAttendance";
 import PrivateRoute from "./components/PrivateRoute";
 import { useEffect, useState } from "react";
 import {
+  adminRoutes,
   attendanceRoutes,
   dashboardRoutes,
   summaryRoutes,
@@ -112,6 +113,8 @@ const App = () => {
                 }
               />
             ))}
+
+            {/* Admin routes */}
             <Route
               path="/attendance/summary"
               element={
@@ -128,6 +131,35 @@ const App = () => {
                 </PrivateRoute>
               }
             />
+            {adminRoutes.map((route) => (
+              <>
+                <Route
+                  path={`/attendance/${route}`}
+                  element={
+                    <PrivateRoute>
+                      <DepartmentSummary />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path={`/summary/${route}`}
+                  element={
+                    <PrivateRoute>
+                      <DepartmentSummary />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path={`/dashboard/${route}`}
+                  element={
+                    <PrivateRoute>
+                      <Dashboard />
+                    </PrivateRoute>
+                  }
+                />
+              </>
+            ))}
+
             <Route path="*" exact={true} element={<NotFound />} />
           </Routes>
         </SkeletonTheme>

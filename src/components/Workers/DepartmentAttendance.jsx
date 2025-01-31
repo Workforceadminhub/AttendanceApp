@@ -99,7 +99,7 @@ export default function DepartmentAttendance() {
 
             <p>
               {dateForAttendance} -{" "}
-              {dateForAttendance.includes("Sunday")
+              {dateForAttendance?.includes("Sunday")
                 ? "Sunday service"
                 : "Midweek service"}
             </p>

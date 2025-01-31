@@ -1,13 +1,35 @@
+import { ADMIN_ENUMS } from "./adminEnums";
+
 export const routeObject = [
-  { department: "Ministry team leadership", route: "/subheadsmin", team: "Ministry" },
-  { department: "Leadership Effectiveness", route: "/leadeff", team: "Ministry" },
-  { department: "Leadership Recruitment", route: "/lrecruit", team: "Ministry" },
+  {
+    department: "Ministry team leadership",
+    route: "/subheadsmin",
+    team: "Ministry",
+  },
+  {
+    department: "Leadership Effectiveness",
+    route: "/leadeff",
+    team: "Ministry",
+  },
+  {
+    department: "Leadership Recruitment",
+    route: "/lrecruit",
+    team: "Ministry",
+  },
   { department: "Leadership Training", route: "/leadtr", team: "Ministry" },
   { department: "Pastoral Care", route: "/pascares", team: "Ministry" },
-  { department: "Discipleship, Bible Study and Prayer", route: "/dbsp", team: "Ministry" },
+  {
+    department: "Discipleship, Bible Study and Prayer",
+    route: "/dbsp",
+    team: "Ministry",
+  },
   { department: "Workforce Admin", route: "/wadata", team: "Ministry" },
   { department: "Call Centre", route: "/mincc", team: "Ministry" },
-  { department: "Recruitment and Assimilation", route: "/rcam", team: "Ministry" },
+  {
+    department: "Recruitment and Assimilation",
+    route: "/rcam",
+    team: "Ministry",
+  },
   { department: "Career and Finance", route: "/crfn", team: "Ministry" },
   { department: "Medicals", route: "/mdmn", team: "Ministry" },
   { department: "Elders Care", route: "/edc", team: "Ministry" },
@@ -180,19 +202,79 @@ export const routeObject = [
   },
   { route: "/venuemgt", department: "Venue Management", team: "Programs" },
   { route: "/pearl", department: "Pearl ET", team: "Programs" },
-  { route: "/programsadminteam", department: "Programs Admin Team", team: "Programs" },
-  { route: "/rpstirhouse", department: "Reach and Partnership - Stirhouse", team: "Next Gen" },
-  { route: "/ldstirhouse", department: "Learning and Development - Stirhouse", team: "Next Gen" },
-  { route: "/pestirhouse", department: "Programming and Environment - Stirhouse", team: "Next Gen" },
-  { route: "/adminstirhouse", department: "Administration - Stirhouse", team: "Next Gen" },
-  { route: "/rpkidszone", department: "Reach and Partnership - Kidszone", team: "Next Gen" },
-  { route: "/nwkidszone", department: "New Workers - Kidszone", team: "Next Gen" },
-  { route: "/adminkidszone", department: "Administration - Kidszone", team: "Next Gen" },
-  { route: "/progkidszone", department: "Programming and Environment - Kidszone", team: "Next Gen" },
-  { route: "/learnkidszone", department: "Learning and Development - Kidszone", team: "Next Gen" },
+  {
+    route: "/programsadminteam",
+    department: "Programs Admin Team",
+    team: "Programs",
+  },
+  {
+    route: "/rpstirhouse",
+    department: "Reach and Partnership - Stirhouse",
+    team: "Next Gen",
+  },
+  {
+    route: "/ldstirhouse",
+    department: "Learning and Development - Stirhouse",
+    team: "Next Gen",
+  },
+  {
+    route: "/pestirhouse",
+    department: "Programming and Environment - Stirhouse",
+    team: "Next Gen",
+  },
+  {
+    route: "/adminstirhouse",
+    department: "Administration - Stirhouse",
+    team: "Next Gen",
+  },
+  {
+    route: "/rpkidszone",
+    department: "Reach and Partnership - Kidszone",
+    team: "Next Gen",
+  },
+  {
+    route: "/nwkidszone",
+    department: "New Workers - Kidszone",
+    team: "Next Gen",
+  },
+  {
+    route: "/adminkidszone",
+    department: "Administration - Kidszone",
+    team: "Next Gen",
+  },
+  {
+    route: "/progkidszone",
+    department: "Programming and Environment - Kidszone",
+    team: "Next Gen",
+  },
+  {
+    route: "/learnkidszone",
+    department: "Learning and Development - Kidszone",
+    team: "Next Gen",
+  },
 ];
 
+export const attendanceRoutes = routeObject.map(
+  (item) => `/attendance${item.route}`
+);
+export const summaryRoutes = routeObject.map((item) => `/summary${item.route}`);
+export const dashboardRoutes = routeObject.map(
+  (item) => `/dashboard${item.route}`
+);
 
-export const attendanceRoutes = routeObject.map((item) => `/attendance${item.route}`)
-export const summaryRoutes = routeObject.map((item) => `/summary${item.route}`)
-export const dashboardRoutes = routeObject.map((item) => `/dashboard${item.route}`)
+const specialDepartmentsFromTeam = Array.from(
+  new Set(routeObject.map((item) => item.team))
+);
+
+export const specialDepartments = [
+  ...specialDepartmentsFromTeam,
+  ADMIN_ENUMS.ADMIN_DEPARTMENT,
+];
+export const adminRoutes = Array.from(
+  new Set(
+    routeObject.map(
+      (item) => `admin/${item.team.toLowerCase().trim().replaceAll(" ", "")}`
+    )
+  )
+);
+

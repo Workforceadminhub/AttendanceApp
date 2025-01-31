@@ -1,6 +1,7 @@
 import { ADMIN_ENUMS } from "../utils/adminEnums";
 import getDayAndYear from "../utils/getDate";
 import getDefaultSummary from "../utils/getDefaultSummary";
+import { specialDepartments } from "../utils/routeObject";
 import { supabase } from "./supabaseClient";
 
 const table = "attendance";
@@ -113,7 +114,7 @@ export const fetchAttendance = async () => {
     const uniqueRoutes = routes.filter(
       (item, index, self) =>
         index === self.findIndex((obj) => obj.department === item.department)
-    );
+    ).filter((item) => !specialDepartments?.includes(item.department));
     
     const departmentTotals = getDepartmentTotals(worker);
     const presentSummary = getDepartmentSummary(data);

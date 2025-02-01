@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom";
 import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
 import { useEffect, useMemo, useState } from "react";
-import { fetchAdminWorkers, fetchWorkers } from "../../services/workers";
+import { fetchAdminWorkers } from "../../services/workers";
 import { addAttendance } from "../../services/attendance";
 import { toast } from "react-toastify";
 import getDayAndYear from "../../utils/getDate";
@@ -120,7 +120,7 @@ export default function AdminDepartmentAttendance() {
                 { value: "All", label: "All teams/departments" },
                 ...optionsAdmin,
               ]}
-              className="w-[20%]"
+              className="w-[30%]"
             />
           </div>
         </div>
@@ -157,32 +157,44 @@ export default function AdminDepartmentAttendance() {
                     </th>
                   </tr>
                 </thead>
-                {isLoading && (
+                {/* {isLoading && (
                   <tbody className="divide-y divide-gray-200 h-full">
                     Loading...
                   </tbody>
-                )}
-                <tbody className="divide-y divide-gray-200 h-full">
-                  {data?.map((person, idx) => (
-                    <tr key={person.id}>
-                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
-                        {idx + 1}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {person.fullname}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {person.phonenumber
-                          ? person.phonenumber.startsWith("0")
-                            ? person.phonenumber
-                            : `0${person.phonenumber}`
-                          : ""}
-                      </td>
+                )} */}
+                {isLoading ? (
+                  <tbody className="divide-y divide-gray-200 space-y-4 h-[32rem]">
+                    {[...Array(5)].map((_, index) => (
+                      <tr key={index}>
+                        <td className="text-sm animate-pulse bg-gray-200 rounded-md sm:pl-0"></td>
+                        <td className="text-sm animate-pulse bg-gray-200 rounded-md"></td>
+                        <td className="text-sm animate-pulse bg-gray-200 rounded-md"></td>
+                        <td className="text-sm animate-pulse bg-gray-200 rounded-md"></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                ) : (
+                  <tbody className="divide-y divide-gray-200 h-full">
+                    {data?.map((person, idx) => (
+                      <tr key={person.id}>
+                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
+                          {idx + 1}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          {person.fullname}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          {person.phonenumber
+                            ? person.phonenumber.startsWith("0")
+                              ? person.phonenumber
+                              : `0${person.phonenumber}`
+                            : ""}
+                        </td>
 
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        <div className="w-48 z-1000 pr-4">
-                          {/* <Select options={options} /> */}
-                          {/* <SelectDropdown
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <div className="w-48 z-1000 pr-4">
+                            {/* <Select options={options} /> */}
+                            {/* <SelectDropdown
                             title="Mark attendance"
                             disabled={person.attendance}
                             defaultValue={
@@ -198,27 +210,28 @@ export default function AdminDepartmentAttendance() {
                             }
                             options={options}
                           /> */}
-                          <ReactSelectDropdown
-                            title="Mark attendance"
-                            disabled={person.attendance}
-                            defaultValue={
-                              person?.attendance
-                                ? {
-                                    value: person.attendance.toLowerCase(),
-                                    label: person.attendance,
-                                  }
-                                : undefined
-                            }
-                            onChange={(selected) =>
-                              updateAttendance(selected, person)
-                            }
-                            options={options}
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
+                            <ReactSelectDropdown
+                              title="Mark attendance"
+                              disabled={person.attendance}
+                              defaultValue={
+                                person?.attendance
+                                  ? {
+                                      value: person.attendance.toLowerCase(),
+                                      label: person.attendance,
+                                    }
+                                  : undefined
+                              }
+                              onChange={(selected) =>
+                                updateAttendance(selected, person)
+                              }
+                              options={options}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                )}
               </table>
               <button
                 className={`bg-gray-900 text-white p-3 ml-[75%] rounded-xl ${

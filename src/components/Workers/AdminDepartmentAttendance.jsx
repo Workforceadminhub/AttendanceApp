@@ -10,6 +10,7 @@ import getDayAndYear from "../../utils/getDate";
 import ReactSelectDropdown from "../ReactSelect";
 import { ADMIN_ENUMS } from "../../utils/adminEnums";
 import { getAdminSelectOptions } from "../../utils/routeObject";
+import TableLoadingState from "../TableLoadingState";
 
 export default function AdminDepartmentAttendance() {
   const location = useLocation();
@@ -163,16 +164,7 @@ export default function AdminDepartmentAttendance() {
                   </tbody>
                 )} */}
                 {isLoading ? (
-                  <tbody className="divide-y divide-gray-200 space-y-4 h-[32rem]">
-                    {[...Array(5)].map((_, index) => (
-                      <tr key={index}>
-                        <td className="text-sm animate-pulse bg-gray-200 rounded-md sm:pl-0"></td>
-                        <td className="text-sm animate-pulse bg-gray-200 rounded-md"></td>
-                        <td className="text-sm animate-pulse bg-gray-200 rounded-md"></td>
-                        <td className="text-sm animate-pulse bg-gray-200 rounded-md"></td>
-                      </tr>
-                    ))}
-                  </tbody>
+                  <TableLoadingState length={5} />
                 ) : (
                   <tbody className="divide-y divide-gray-200 h-full">
                     {data?.map((person, idx) => (

@@ -7,18 +7,22 @@ import { routeObject } from "../../utils/routeObject";
 import getDefaultSummary from "../../utils/getDefaultSummary";
 import { getDepartmentByUser } from "../../utils/getDepartment";
 import { useLocation } from "react-router-dom";
+import TableLoadingState from "../TableLoadingState";
 
 export default function DepartmentSummary() {
+  const [isLoading, setIsLoading] = useState(false);
   const [attendanceSummary, setAttendanceSummary] = useState(
     getDefaultSummary(routeObject)
   );
-  const location = useLocation()
+  const location = useLocation();
   const team = getDepartmentByUser(location.pathname);
 
   useEffect(() => {
-    fetchAttendance().then((attendance) =>
-      setAttendanceSummary(attendance)
-    );
+    setIsLoading(true);
+    fetchAttendance().then((attendance) => {
+      setAttendanceSummary(attendance);
+      setIsLoading(false)
+    });
   }, []);
 
   return (
@@ -75,30 +79,34 @@ export default function DepartmentSummary() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
-                {attendanceSummary?.map((item, index) => (
-                  <tr key={item.id}>
-                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
-                      {index + 1}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {item.department}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {item.total}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {item.present}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {item.absent}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {item.percentage}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
+              {isLoading ? (
+                <TableLoadingState length={5} />
+              ) : (
+                <tbody className="divide-y divide-gray-200">
+                  {attendanceSummary?.map((item, index) => (
+                    <tr key={item.id}>
+                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
+                        {index + 1}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {item.department}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {item.total}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {item.present}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {item.absent}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {item.percentage}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              )}
             </table>
           </div>
         </div>

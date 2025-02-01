@@ -9,19 +9,25 @@ import { getDepartmentByUser } from "../../utils/getDepartment";
 import { useLocation } from "react-router-dom";
 import ReactSelectDropdown from "../ReactSelect";
 import { ADMIN_ENUMS } from "../../utils/adminEnums";
+import TableLoadingState from "../TableLoadingState";
 
 export default function AdminDepartmentSummary() {
   const [activeGroup, setActiveGroup] = useState("All");
+  const [isLoading, setIsLoading] = useState(false);
   const [attendanceSummary, setAttendanceSummary] = useState(
     getDefaultSummary(routeObject)
   );
   const location = useLocation();
   const team = getDepartmentByUser(location.pathname);
   const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
-  const options = getAdminSelectOptions(isChurchAdmin, team)
+  const options = getAdminSelectOptions(isChurchAdmin, team);
 
   useEffect(() => {
-    fetchAdminAttendance(activeGroup, isChurchAdmin).then((attendance) => setAttendanceSummary(attendance));
+    setIsLoading(true);
+    fetchAdminAttendance(activeGroup, isChurchAdmin).then((attendance) => {
+      setAttendanceSummary(attendance);
+      setIsLoading(false)
+    });
   }, [activeGroup, isChurchAdmin]);
 
   return (
@@ -37,9 +43,12 @@ export default function AdminDepartmentSummary() {
       <div className="mt-8">
         <ReactSelectDropdown
           title={isChurchAdmin ? "Select Team" : "Select Department"}
-          defaultValue={{value: "All", label: "All teams/departments"}}
+          defaultValue={{ value: "All", label: "All teams/departments" }}
           onChange={(selected) => setActiveGroup(selected?.value)}
-          options={[{value: "All", label: "All teams/departments"}, ...options]}
+          options={[
+            { value: "All", label: "All teams/departments" },
+            ...options,
+          ]}
           className="w-[20%]"
         />
       </div>
@@ -87,30 +96,34 @@ export default function AdminDepartmentSummary() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
-                {attendanceSummary?.map((item, index) => (
-                  <tr key={item.id}>
-                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
-                      {index + 1}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {item.department}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {item.total}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {item.present}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {item.absent}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {item.percentage}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
+              {isLoading ? (
+                <TableLoadingState length={6} />
+              ) : (
+                <tbody className="divide-y divide-gray-200">
+                  {attendanceSummary?.map((item, index) => (
+                    <tr key={item.id}>
+                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
+                        {index + 1}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {item.department}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {item.total}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {item.present}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {item.absent}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {item.percentage}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              )}
             </table>
           </div>
         </div>

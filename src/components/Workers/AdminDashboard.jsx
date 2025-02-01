@@ -10,10 +10,13 @@ import { getDepartmentByUser } from "../../utils/getDepartment";
 import { ADMIN_ENUMS } from "../../utils/adminEnums";
 import { getAdminSelectOptions } from "../../utils/routeObject";
 import ReactSelectDropdown from "../ReactSelect";
+import TableLoadingState from "../TableLoadingState";
+import LoadingState from "../LoadingState";
 
 export default function AdminDashboard() {
   const [activeGroup, setActiveGroup] = useState("All");
   const [attendanceSummary, setAttendanceSummary] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   const dateForAttendance = getDayAndYear();
   const location = useLocation();
   const team = getDepartmentByUser(location.pathname);
@@ -21,9 +24,11 @@ export default function AdminDashboard() {
   const options = getAdminSelectOptions(isChurchAdmin, team);
 
   useEffect(() => {
-    fetchAdminAttendance(activeGroup, isChurchAdmin).then((attendance) =>
-      setAttendanceSummary(calculateTotals(attendance))
-    );
+    setIsLoading(true);
+    fetchAdminAttendance(activeGroup, isChurchAdmin).then((attendance) => {
+      setAttendanceSummary(calculateTotals(attendance));
+      setIsLoading(false);
+    });
   }, [activeGroup, isChurchAdmin]);
 
   return (
@@ -48,7 +53,11 @@ export default function AdminDashboard() {
           />
         </div>
       </div>
-
+      {isLoading && (
+        <div className="ml-24 mt-24">
+          <LoadingState />
+        </div>
+      )}
       <dl className="mt-5 space-y-4">
         {attendanceSummary.map((item) => (
           <div

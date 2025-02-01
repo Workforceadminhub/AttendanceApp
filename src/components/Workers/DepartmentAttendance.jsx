@@ -8,6 +8,7 @@ import { addAttendance } from "../../services/attendance";
 import { toast } from "react-toastify";
 import getDayAndYear from "../../utils/getDate";
 import ReactSelectDropdown from "../ReactSelect";
+import TableLoadingState from "../TableLoadingState";
 
 export default function DepartmentAttendance() {
   const location = useLocation();
@@ -144,16 +145,7 @@ export default function DepartmentAttendance() {
                   </tbody>
                 )} */}
                 {isLoading ? (
-                  <tbody className="divide-y divide-gray-200 space-y-4 h-[32rem]">
-                    {[...Array(5)].map((_, index) => (
-                      <tr key={index} className="gap-4">
-                        <td className=" text-sm animate-pulse bg-gray-200 rounded-md sm:pl-0"></td>
-                        <td className=" text-sm animate-pulse bg-gray-200 rounded-md"></td>
-                        <td className=" text-sm animate-pulse bg-gray-200 rounded-md"></td>
-                        <td className=" text-sm animate-pulse bg-gray-200 rounded-md"></td>
-                      </tr>
-                    ))}
-                  </tbody>
+                   <TableLoadingState length={5} />
                 ) : (
                   <tbody className="divide-y divide-gray-200 h-full">
                     {data?.map((person, idx) => (

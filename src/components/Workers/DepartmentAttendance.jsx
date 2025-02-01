@@ -48,6 +48,7 @@ export default function DepartmentAttendance() {
       })
       .catch((error) => console.error("Error:", error))
       .finally(() => setIsLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh]);
 
   function updateOrAddWorker(array, newWorker) {
@@ -130,6 +131,12 @@ export default function DepartmentAttendance() {
                     >
                       Phone number
                     </th>
+                    <th
+                      scope="col"
+                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                    >
+                      Birthday
+                    </th>
 
                     <th
                       scope="col"
@@ -162,6 +169,9 @@ export default function DepartmentAttendance() {
                               ? person.phonenumber
                               : `0${person.phonenumber}`
                             : ""}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          {person.birthdate}
                         </td>
 
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">

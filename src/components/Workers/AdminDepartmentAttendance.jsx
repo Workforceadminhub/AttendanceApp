@@ -149,6 +149,12 @@ export default function AdminDepartmentAttendance() {
                     >
                       Phone number
                     </th>
+                    <th
+                      scope="col"
+                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                    >
+                      Birthdate
+                    </th>
 
                     <th
                       scope="col"
@@ -181,6 +187,9 @@ export default function AdminDepartmentAttendance() {
                               ? person.phonenumber
                               : `0${person.phonenumber}`
                             : ""}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          {person.birthdate}
                         </td>
 
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">

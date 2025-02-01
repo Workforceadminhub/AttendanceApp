@@ -4,7 +4,6 @@ import Header from "../Header";
 import getDayAndYear from "../../utils/getDate";
 import { useLocation } from "react-router-dom";
 import { getDepartmentByUser } from "../../utils/getDepartment";
-import TableLoadingState from "../TableLoadingState";
 import LoadingState from "../LoadingState";
 
 export default function Dashboard() {

@@ -10,7 +10,6 @@ import { getDepartmentByUser } from "../../utils/getDepartment";
 import { ADMIN_ENUMS } from "../../utils/adminEnums";
 import { getAdminSelectOptions } from "../../utils/routeObject";
 import ReactSelectDropdown from "../ReactSelect";
-import TableLoadingState from "../TableLoadingState";
 import LoadingState from "../LoadingState";
 
 export default function AdminDashboard() {

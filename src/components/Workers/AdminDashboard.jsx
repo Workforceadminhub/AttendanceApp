@@ -44,7 +44,7 @@ export default function AdminDashboard() {
               { value: "All", label: "All teams/departments" },
               ...options,
             ]}
-            className="w-[20%]"
+            className="w-[25%]"
           />
         </div>
       </div>

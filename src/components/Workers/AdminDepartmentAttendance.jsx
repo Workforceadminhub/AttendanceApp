@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom";
 import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
 import { useEffect, useMemo, useState } from "react";
-import { fetchWorkers } from "../../services/workers";
+import { fetchAdminWorkers, fetchWorkers } from "../../services/workers";
 import { addAttendance } from "../../services/attendance";
 import { toast } from "react-toastify";
 import getDayAndYear from "../../utils/getDate";
@@ -46,13 +46,13 @@ export default function AdminDepartmentAttendance() {
 
   useEffect(() => {
     setIsLoading(true);
-    fetchWorkers(team.department)
+    fetchAdminWorkers(team.team, activeGroup)
       .then((res) => {
         setData(res);
       })
       .catch((error) => console.error("Error:", error))
       .finally(() => setIsLoading(false));
-  }, [refresh]);
+  }, [activeGroup, refresh, team.team]);
 
   function updateOrAddWorker(array, newWorker) {
     // Find the index of an object with the same workerid
@@ -118,7 +118,7 @@ export default function AdminDepartmentAttendance() {
               onChange={(selected) => setActiveGroup(selected?.value)}
               options={[
                 { value: "All", label: "All teams/departments" },
-                ...options,
+                ...optionsAdmin,
               ]}
               className="w-[20%]"
             />

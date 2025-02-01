@@ -6,7 +6,7 @@ function TableLoadingState({ length }) {
       {[...Array(length)].map((_, index) => (
         <tr key={index} className="mb-4">
           {[...Array(length)].map((_, index) => (
-            <td className="text-sm animate-pulse bg-gray-200 sm:pl-0 mb-4"></td>
+            <td className="text-sm animate-pulse bg-gray-200 sm:pl-0 mb-4" key={index}></td>
           ))}
         </tr>
       ))}

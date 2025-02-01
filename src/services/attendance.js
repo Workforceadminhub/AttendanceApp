@@ -155,10 +155,15 @@ export const fetchAdminAttendance = async (activeGroup, isChurchAdmin) => {
     );
 
     if (team?.toLowerCase() === ADMIN_ENUMS.ADMIN_TEAM.toLowerCase())
-      return updatedSummary;
-    const filteredSummary = updatedSummary.filter((item) => item.team === team);
+      return updatedSummary.sort((a, b) =>
+        a.department.localeCompare(b.department)
+      );
 
-    return filteredSummary.sort((a, b) => a.department.localeCompare(b.department));;
+    const filteredSummary = updatedSummary
+      .filter((item) => item.team === team)
+      .sort((a, b) => a.department.localeCompare(b.department));
+
+    return filteredSummary;
   } catch (error) {
     console.error("Error fetching attendance:", error.message);
     return null;
@@ -217,10 +222,14 @@ export const fetchAttendance = async () => {
     );
 
     if (team?.toLowerCase() === ADMIN_ENUMS.ADMIN_TEAM.toLowerCase())
-      return updatedSummary;
-    const filteredSummary = updatedSummary.filter((item) => item.team === team);
+      return updatedSummary.sort((a, b) =>
+        a.department.localeCompare(b.department)
+      );
+    const filteredSummary = updatedSummary
+      .filter((item) => item.team === team)
+      .sort((a, b) => a.department.localeCompare(b.department));
 
-    return filteredSummary.sort((a, b) => a.department.localeCompare(b.department));;
+    return filteredSummary;
   } catch (error) {
     console.error("Error fetching attendance:", error.message);
     return null;

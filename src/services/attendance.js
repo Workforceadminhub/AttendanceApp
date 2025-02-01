@@ -158,7 +158,7 @@ export const fetchAdminAttendance = async (activeGroup, isChurchAdmin) => {
       return updatedSummary;
     const filteredSummary = updatedSummary.filter((item) => item.team === team);
 
-    return filteredSummary;
+    return filteredSummary.sort((a, b) => a.department.localeCompare(b.department));;
   } catch (error) {
     console.error("Error fetching attendance:", error.message);
     return null;
@@ -220,7 +220,7 @@ export const fetchAttendance = async () => {
       return updatedSummary;
     const filteredSummary = updatedSummary.filter((item) => item.team === team);
 
-    return filteredSummary;
+    return filteredSummary.sort((a, b) => a.department.localeCompare(b.department));;
   } catch (error) {
     console.error("Error fetching attendance:", error.message);
     return null;

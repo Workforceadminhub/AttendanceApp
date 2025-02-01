@@ -10,7 +10,7 @@ import DepartmentSummary from "./components/Workers/DeparmentSummary";
 import Home from "./components/Home";
 import DepartmentAttendance from "./components/Workers/DepartmentAttendance";
 import PrivateRoute from "./components/PrivateRoute";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   adminRoutes,
   attendanceRoutes,
@@ -134,8 +134,9 @@ const App = () => {
                 </PrivateRoute>
               }
             />
+
             {adminRoutes.map((route) => (
-              <>
+              <React.Fragment key={route}>
                 <Route
                   path={`/attendance/${route}`}
                   element={
@@ -160,7 +161,7 @@ const App = () => {
                     </PrivateRoute>
                   }
                 />
-              </>
+              </React.Fragment>
             ))}
 
             <Route path="*" exact={true} element={<NotFound />} />

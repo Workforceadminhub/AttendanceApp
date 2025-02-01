@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import { calculateTotals, fetchAttendance } from "../../services/attendance";
+import {
+  calculateTotals,
+  fetchAdminAttendance,
+} from "../../services/attendance";
 import Header from "../Header";
 import getDayAndYear from "../../utils/getDate";
 import { useLocation } from "react-router-dom";
@@ -15,13 +18,13 @@ export default function AdminDashboard() {
   const location = useLocation();
   const team = getDepartmentByUser(location.pathname);
   const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
-  const options = getAdminSelectOptions(isChurchAdmin, team)
+  const options = getAdminSelectOptions(isChurchAdmin, team);
 
   useEffect(() => {
-    fetchAttendance().then((attendance) =>
+    fetchAdminAttendance(activeGroup, isChurchAdmin).then((attendance) =>
       setAttendanceSummary(calculateTotals(attendance))
     );
-  }, []);
+  }, [activeGroup, isChurchAdmin]);
 
   return (
     <div className="p-4">
@@ -32,12 +35,18 @@ export default function AdminDashboard() {
         {`${team?.team} Dashboard`} - {dateForAttendance}
       </div>
       <div className="mt-8">
-        <ReactSelectDropdown
-          title={isChurchAdmin ? "Select Team" : "Select Department"}
-          defaultValue={"All"}
-          onChange={(selected) => setActiveGroup(selected)}
-          options={options}
-        />
+        <div className="mt-8">
+          <ReactSelectDropdown
+            title={isChurchAdmin ? "Select Team" : "Select Department"}
+            defaultValue={{ value: "All", label: "All teams/departments" }}
+            onChange={(selected) => setActiveGroup(selected?.value)}
+            options={[
+              { value: "All", label: "All teams/departments" },
+              ...options,
+            ]}
+            className="w-[20%]"
+          />
+        </div>
       </div>
 
       <dl className="mt-5 space-y-4">

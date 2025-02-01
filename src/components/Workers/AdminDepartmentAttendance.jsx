@@ -23,7 +23,7 @@ export default function AdminDepartmentAttendance() {
   const [refresh, setRefresh] = useState("");
   const team = getDepartmentByUser(location.pathname);
   const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
-  const optionsAdmin = getAdminSelectOptions(isChurchAdmin, team)
+  const optionsAdmin = getAdminSelectOptions(isChurchAdmin, team);
 
   const options = useMemo(
     () => [
@@ -43,7 +43,7 @@ export default function AdminDepartmentAttendance() {
     ],
     []
   );
-  
+
   useEffect(() => {
     setIsLoading(true);
     fetchWorkers(team.department)
@@ -111,13 +111,19 @@ export default function AdminDepartmentAttendance() {
           </div>
         </div>
         <div className="mt-8">
-        <ReactSelectDropdown
-          title={isChurchAdmin ? "Select Team" : "Select Department"}
-          defaultValue={"All"}
-          onChange={(selected) => setActiveGroup(selected)}
-          options={optionsAdmin}
-        />
-      </div>
+          <div className="mt-8">
+            <ReactSelectDropdown
+              title={isChurchAdmin ? "Select Team" : "Select Department"}
+              defaultValue={{ value: "All", label: "All teams/departments" }}
+              onChange={(selected) => setActiveGroup(selected?.value)}
+              options={[
+                { value: "All", label: "All teams/departments" },
+                ...options,
+              ]}
+              className="w-[20%]"
+            />
+          </div>
+        </div>
         <div className="mt-8 flow-root">
           <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
             <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
@@ -175,7 +181,7 @@ export default function AdminDepartmentAttendance() {
 
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                         <div className="w-48 z-1000 pr-4">
-                        {/* <Select options={options} /> */}
+                          {/* <Select options={options} /> */}
                           {/* <SelectDropdown
                             title="Mark attendance"
                             disabled={person.attendance}

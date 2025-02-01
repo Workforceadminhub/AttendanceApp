@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Header from "../Header";
-import { fetchAttendance } from "../../services/attendance";
+import { fetchAdminAttendance } from "../../services/attendance";
 import { getAdminSelectOptions, routeObject } from "../../utils/routeObject";
 import getDefaultSummary from "../../utils/getDefaultSummary";
 import { getDepartmentByUser } from "../../utils/getDepartment";
@@ -21,8 +21,8 @@ export default function AdminDepartmentSummary() {
   const options = getAdminSelectOptions(isChurchAdmin, team)
 
   useEffect(() => {
-    fetchAttendance().then((attendance) => setAttendanceSummary(attendance));
-  }, []);
+    fetchAdminAttendance(activeGroup, isChurchAdmin).then((attendance) => setAttendanceSummary(attendance));
+  }, [activeGroup, isChurchAdmin]);
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
@@ -37,9 +37,10 @@ export default function AdminDepartmentSummary() {
       <div className="mt-8">
         <ReactSelectDropdown
           title={isChurchAdmin ? "Select Team" : "Select Department"}
-          defaultValue={"All"}
-          onChange={(selected) => setActiveGroup(selected)}
-          options={options}
+          defaultValue={{value: "All", label: "All teams/departments"}}
+          onChange={(selected) => setActiveGroup(selected?.value)}
+          options={[{value: "All", label: "All teams/departments"}, ...options]}
+          className="w-[20%]"
         />
       </div>
       <div className="mt-8 flow-root">

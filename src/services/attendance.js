@@ -77,6 +77,94 @@ function updateDefaultSummary(defaultSummary, totals, presentSummary) {
   });
 }
 
+export const fetchAdminAttendance = async (activeGroup, isChurchAdmin) => {
+  const dateForAttendance = getDayAndYear();
+  const authUser = sessionStorage.getItem("authUser");
+  if (!authUser) {
+    throw new Error("User not authenticated");
+  }
+  const parsedUser = JSON.parse(authUser);
+  const team = parsedUser.team || "";
+
+  try {
+    const { data, error } = await supabase
+      .from(table)
+      .select("*")
+      .eq("attendancedate", dateForAttendance)
+      .or(joinOps);
+
+    if (error) {
+      throw error;
+    }
+
+    const { data: worker, error: workerError } = await supabase
+      .from("worker")
+      .select("*");
+
+    const { data: routes, error: routesError } = await supabase
+      .from("admin")
+      .select("*");
+
+    if (routesError) {
+      throw routesError;
+    }
+    if (workerError) {
+      throw workerError;
+    }
+
+    let uniqueRoutes;
+    if (activeGroup === "All") {
+      uniqueRoutes = routes
+        .filter(
+          (item, index, self) =>
+            index ===
+            self.findIndex((obj) => obj.department === item.department)
+        )
+        .filter((item) => !specialDepartments?.includes(item.department));
+    }
+
+    if (activeGroup !== "All" && isChurchAdmin) {
+      uniqueRoutes = routes
+        .filter(
+          (item, index, self) =>
+            index ===
+            self.findIndex((obj) => obj.department === item.department)
+        )
+        .filter((item) => !specialDepartments?.includes(item.department))
+        .filter((item) => item.team === activeGroup);
+    }
+
+    if (activeGroup !== "All" && !isChurchAdmin) {
+      uniqueRoutes = routes
+        .filter(
+          (item, index, self) =>
+            index ===
+            self.findIndex((obj) => obj.department === item.department)
+        )
+        .filter((item) => !specialDepartments?.includes(item.department))
+        .filter((item) => item.department === activeGroup);
+    }
+
+    const departmentTotals = getDepartmentTotals(worker);
+    const presentSummary = getDepartmentSummary(data);
+    const defaultSummary = getDefaultSummary(uniqueRoutes);
+    const updatedSummary = updateDefaultSummary(
+      defaultSummary,
+      departmentTotals,
+      presentSummary
+    );
+
+    if (team?.toLowerCase() === ADMIN_ENUMS.ADMIN_TEAM.toLowerCase())
+      return updatedSummary;
+    const filteredSummary = updatedSummary.filter((item) => item.team === team);
+
+    return filteredSummary;
+  } catch (error) {
+    console.error("Error fetching attendance:", error.message);
+    return null;
+  }
+};
+
 export const fetchAttendance = async () => {
   const dateForAttendance = getDayAndYear();
   const authUser = sessionStorage.getItem("authUser");
@@ -111,11 +199,14 @@ export const fetchAttendance = async () => {
     if (workerError) {
       throw workerError;
     }
-    const uniqueRoutes = routes.filter(
-      (item, index, self) =>
-        index === self.findIndex((obj) => obj.department === item.department)
-    ).filter((item) => !specialDepartments?.includes(item.department));
-    
+
+    const uniqueRoutes = routes
+      .filter(
+        (item, index, self) =>
+          index === self.findIndex((obj) => obj.department === item.department)
+      )
+      .filter((item) => !specialDepartments?.includes(item.department));
+
     const departmentTotals = getDepartmentTotals(worker);
     const presentSummary = getDepartmentSummary(data);
     const defaultSummary = getDefaultSummary(uniqueRoutes);

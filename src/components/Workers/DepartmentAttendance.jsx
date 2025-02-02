@@ -10,6 +10,7 @@ import getDayAndYear from "../../utils/getDate";
 import ReactSelectDropdown from "../ReactSelect";
 import TableLoadingState from "../TableLoadingState";
 import Layout from "../Layout";
+import { switchOffAttendance } from "../../utils/switchOffAttendance";
 
 export default function DepartmentAttendance() {
   const location = useLocation();
@@ -21,6 +22,7 @@ export default function DepartmentAttendance() {
   const dateForAttendance = getDayAndYear();
   const [refresh, setRefresh] = useState("");
   const team = getDepartmentByUser(location.pathname);
+  const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
 
   const options = useMemo(
     () => [
@@ -40,6 +42,12 @@ export default function DepartmentAttendance() {
     ],
     []
   );
+
+  useEffect(() => {
+    switchOffAttendance()
+      .then((res) => setAttendanceIsClosed(res))
+      .catch((err) => console.log(err));
+  }, []);
 
   useEffect(() => {
     setIsLoading(true);
@@ -127,6 +135,7 @@ export default function DepartmentAttendance() {
                     <tr>
                       <th
                         scope="col"
+                        t
                         className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0"
                       >
                         S/N
@@ -207,7 +216,7 @@ export default function DepartmentAttendance() {
                           /> */}
                               <ReactSelectDropdown
                                 title="Mark attendance"
-                                disabled={person.attendance}
+                                disabled={person.attendance || attendanceIsClosed}
                                 defaultValue={
                                   person?.attendance
                                     ? {

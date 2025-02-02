@@ -12,6 +12,7 @@ import { ADMIN_ENUMS } from "../../utils/adminEnums";
 import { getAdminSelectOptions } from "../../utils/routeObject";
 import TableLoadingState from "../TableLoadingState";
 import Layout from "../Layout";
+import { switchOffAttendance } from "../../utils/switchOffAttendance";
 
 export default function AdminDepartmentAttendance() {
   const location = useLocation();
@@ -26,6 +27,7 @@ export default function AdminDepartmentAttendance() {
   const team = getDepartmentByUser(location.pathname);
   const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
   const optionsAdmin = getAdminSelectOptions(isChurchAdmin, team);
+  const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
 
   const options = useMemo(
     () => [
@@ -47,6 +49,12 @@ export default function AdminDepartmentAttendance() {
   );
 
   useEffect(() => {
+    switchOffAttendance()
+      .then((res) => setAttendanceIsClosed(res))
+      .catch((err) => console.log(err));
+  }, []);
+
+  useEffect(() => {
     setIsLoading(true);
     fetchAdminWorkers(team.team, activeGroup)
       .then((res) => {
@@ -61,7 +69,8 @@ export default function AdminDepartmentAttendance() {
       .then((res) => {
         setData(res);
       })
-      .catch((error) => console.error("Error:", error))
+      .catch((error) => console.error("Error:", error));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh]);
 
   function updateOrAddWorker(array, newWorker) {
@@ -223,7 +232,9 @@ export default function AdminDepartmentAttendance() {
                           /> */}
                               <ReactSelectDropdown
                                 title="Mark attendance"
-                                disabled={person.attendance}
+                                disabled={
+                                  person.attendance || attendanceIsClosed
+                                }
                                 defaultValue={
                                   person?.attendance
                                     ? {

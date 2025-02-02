@@ -5,6 +5,7 @@ import getDayAndYear from "../../utils/getDate";
 import { useLocation } from "react-router-dom";
 import { getDepartmentByUser } from "../../utils/getDepartment";
 import LoadingState from "../LoadingState";
+import Layout from "../Layout";
 
 export default function Dashboard() {
   const [attendanceSummary, setAttendanceSummary] = useState([]);
@@ -22,35 +23,37 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div className="p-4">
+    <div className="px-4 sm:px-6 lg:px-8 py-8">
       <Header />
-      {/* <h3 className="text-base font-semibold text-gray-900">Last 30 days</h3> */}
-      <div className="flex flex-col space-y-4 font-bold">
-        {/* <Select title="Select service" options={services} /> */}
-        {`${team?.team} Dashboard`} - {dateForAttendance}
-      </div>
-
-      {isLoading && (
-        <div className="ml-24 mt-24">
-          <LoadingState />
+      <Layout>
+        {/* <h3 className="text-base font-semibold text-gray-900">Last 30 days</h3> */}
+        <div className="flex flex-col space-y-4 font-bold">
+          {/* <Select title="Select service" options={services} /> */}
+          {`${team?.team} Dashboard`} - {dateForAttendance}
         </div>
-      )}
 
-      <dl className="mt-5 space-y-4">
-        {attendanceSummary.map((item) => (
-          <div
-            key={item.name}
-            className="overflow-hidden rounded-lg border bg-white px-4 py-5 shadow sm:p-6"
-          >
-            <dt className="truncate text-sm font-medium text-gray-500">
-              {item.name}
-            </dt>
-            <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
-              {item.stat}
-            </dd>
+        {isLoading && (
+          <div className="ml-24 mt-24">
+            <LoadingState />
           </div>
-        ))}
-      </dl>
+        )}
+
+        <dl className="mt-5 space-y-4">
+          {attendanceSummary.map((item) => (
+            <div
+              key={item.name}
+              className="overflow-hidden rounded-lg border bg-white px-4 py-5 shadow sm:p-6"
+            >
+              <dt className="truncate text-sm font-medium text-gray-500">
+                {item.name}
+              </dt>
+              <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
+                {item.stat}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </Layout>
     </div>
   );
 }

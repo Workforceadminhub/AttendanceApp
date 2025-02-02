@@ -10,6 +10,7 @@ const joinOps = "attendance.eq.Present,attendance.eq.Online";
 export const addAttendance = async (attendance) => {
   const dateForAttendance = getDayAndYear();
   try {
+    console.log(attendance)
     await supabase
       .from(table)
       .delete()

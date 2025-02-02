@@ -9,6 +9,7 @@ import { toast } from "react-toastify";
 import getDayAndYear from "../../utils/getDate";
 import ReactSelectDropdown from "../ReactSelect";
 import TableLoadingState from "../TableLoadingState";
+import Layout from "../Layout";
 
 export default function DepartmentAttendance() {
   const location = useLocation();
@@ -48,7 +49,16 @@ export default function DepartmentAttendance() {
       })
       .catch((error) => console.error("Error:", error))
       .finally(() => setIsLoading(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    fetchWorkers(team.department)
+      .then((res) => {
+        setData(res);
+      })
+      .catch((error) => console.error("Error:", error));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh]);
 
   function updateOrAddWorker(array, newWorker) {
@@ -75,6 +85,7 @@ export default function DepartmentAttendance() {
       name: person.fullname,
       attendance: selected?.label,
       department: team.department,
+      team: team.team,
       attendancedate: dateForAttendance,
     });
     setAttendance(newAttendance);
@@ -92,92 +103,93 @@ export default function DepartmentAttendance() {
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
       <Header />
-      <div className="lg:mx-48 md:mx-24 sm:mx-2 xs:mx-1">
-        <div className="sm:flex sm:items-center">
-          <div className="sm:flex-auto">
-            <h1 className="text-base font-semibold leading-6 text-gray-900">
-              {team?.department} attendance
-            </h1>
+      <Layout>
+        <div>
+          <div className="sm:flex sm:items-center">
+            <div className="sm:flex-auto">
+              <h1 className="text-base font-semibold leading-6 text-gray-900">
+                {team?.department} attendance
+              </h1>
 
-            <p>
-              {dateForAttendance} -{" "}
-              {dateForAttendance?.includes("Sunday")
-                ? "Sunday service"
-                : "Midweek service"}
-            </p>
+              <p>
+                {dateForAttendance} -{" "}
+                {dateForAttendance?.includes("Sunday")
+                  ? "Sunday service"
+                  : "Midweek service"}
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="mt-8 flow-root">
-          <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-            <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-              <table className="min-w-full divide-y divide-gray-300">
-                <thead>
-                  <tr>
-                    <th
-                      scope="col"
-                      className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0"
-                    >
-                      S/N
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      Name
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      Phone number
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      Birthday
-                    </th>
+          <div className="mt-8 flow-root">
+            <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+              <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+                <table className="min-w-full divide-y divide-gray-300">
+                  <thead>
+                    <tr>
+                      <th
+                        scope="col"
+                        className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0"
+                      >
+                        S/N
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                      >
+                        Name
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                      >
+                        Phone number
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                      >
+                        Birthday
+                      </th>
 
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      Status
-                    </th>
-                  </tr>
-                </thead>
-                {/* {isLoading && (
+                      <th
+                        scope="col"
+                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                      >
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+                  {/* {isLoading && (
                   <tbody className="divide-y divide-gray-200 h-full">
                     Loading...
                   </tbody>
                 )} */}
-                {isLoading ? (
-                   <TableLoadingState length={5} />
-                ) : (
-                  <tbody className="divide-y divide-gray-200 h-full">
-                    {data?.map((person, idx) => (
-                      <tr key={person.id}>
-                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
-                          {idx + 1}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {person.fullname}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {person.phonenumber
-                            ? person.phonenumber.startsWith("0")
-                              ? person.phonenumber
-                              : `0${person.phonenumber}`
-                            : ""}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {person.birthdate}
-                        </td>
+                  {isLoading ? (
+                    <TableLoadingState length={5} />
+                  ) : (
+                    <tbody className="divide-y divide-gray-200 h-full">
+                      {data?.map((person, idx) => (
+                        <tr key={person.id}>
+                          <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
+                            {idx + 1}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            {person.fullname}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            {person.phonenumber
+                              ? person.phonenumber.startsWith("0")
+                                ? person.phonenumber
+                                : `0${person.phonenumber}`
+                              : ""}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            {person.birthdate}
+                          </td>
 
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          <div className="w-48 z-1000 pr-4">
-                            {/* <Select options={options} /> */}
-                            {/* <SelectDropdown
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            <div className="w-48 z-1000 pr-4">
+                              {/* <Select options={options} /> */}
+                              {/* <SelectDropdown
                             title="Mark attendance"
                             disabled={person.attendance}
                             defaultValue={
@@ -193,42 +205,43 @@ export default function DepartmentAttendance() {
                             }
                             options={options}
                           /> */}
-                            <ReactSelectDropdown
-                              title="Mark attendance"
-                              disabled={person.attendance}
-                              defaultValue={
-                                person?.attendance
-                                  ? {
-                                      value: person.attendance.toLowerCase(),
-                                      label: person.attendance,
-                                    }
-                                  : undefined
-                              }
-                              onChange={(selected) =>
-                                updateAttendance(selected, person)
-                              }
-                              options={options}
-                            />
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                )}
-              </table>
-              <button
-                className={`bg-gray-900 text-white p-3 ml-[75%] rounded-xl ${
-                  attendanceLoading && "cursor-not-allowed"
-                }`}
-                onClick={saveAttendance}
-                disabled={attendanceLoading}
-              >
-                {attendanceLoading ? "Saving..." : "Save attendance"}
-              </button>
+                              <ReactSelectDropdown
+                                title="Mark attendance"
+                                disabled={person.attendance}
+                                defaultValue={
+                                  person?.attendance
+                                    ? {
+                                        value: person.attendance.toLowerCase(),
+                                        label: person.attendance,
+                                      }
+                                    : undefined
+                                }
+                                onChange={(selected) =>
+                                  updateAttendance(selected, person)
+                                }
+                                options={options}
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  )}
+                </table>
+                <button
+                  className={`bg-blue-500 text-white p-1.5 ml-[85%] rounded-lg ${
+                    attendanceLoading && "cursor-not-allowed"
+                  }`}
+                  onClick={saveAttendance}
+                  disabled={attendanceLoading}
+                >
+                  {attendanceLoading ? "Saving..." : "Save attendance"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </Layout>
     </div>
   );
 }

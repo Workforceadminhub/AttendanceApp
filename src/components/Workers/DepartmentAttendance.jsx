@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom";
 import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
 import { useEffect, useMemo, useState } from "react";
-import { fetchWorkers } from "../../services/workers";
+import { fetchAdminWorkers, fetchWorkers } from "../../services/workers";
 import { addAttendance } from "../../services/attendance";
 import { toast } from "react-toastify";
 import getDayAndYear from "../../utils/getDate";
@@ -11,6 +11,9 @@ import ReactSelectDropdown from "../ReactSelect";
 import TableLoadingState from "../TableLoadingState";
 import Layout from "../Layout";
 import { switchOffAttendance } from "../../utils/switchOffAttendance";
+import { getAdminSelectOptions } from "../../utils/routeObject";
+import { ADMIN_ENUMS } from "../../utils/adminEnums";
+import { checkAdminStatus } from "../../utils/checkAdminStatus";
 
 export default function DepartmentAttendance() {
   const location = useLocation();
@@ -21,7 +24,11 @@ export default function DepartmentAttendance() {
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const dateForAttendance = getDayAndYear();
   const [refresh, setRefresh] = useState("");
+  const [activeGroup, setActiveGroup] = useState("All");
   const team = getDepartmentByUser(location.pathname);
+  const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
+  const isAdminMember = checkAdminStatus(location.pathname);
+  const optionsAdmin = getAdminSelectOptions(isChurchAdmin, team);
   const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
 
   const options = useMemo(
@@ -43,29 +50,81 @@ export default function DepartmentAttendance() {
     []
   );
 
-  useEffect(() => {
-    switchOffAttendance()
-      .then((res) => setAttendanceIsClosed(res))
-      .catch((err) => console.log(err));
-  }, []);
+  // useEffect(() => {
+  //   switchOffAttendance()
+  //     .then((res) => setAttendanceIsClosed(res))
+  //     .catch((err) => console.log(err));
+  // }, []);
 
-  useEffect(() => {
+  // useEffect(() => {
+  //   setIsLoading(true);
+  //   fetchWorkers(team.department)
+  //     .then((res) => {
+  //       setData(res);
+  //     })
+  //     .catch((error) => console.error("Error:", error))
+  //     .finally(() => setIsLoading(false));
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, []);
+
+  // useEffect(() => {
+  // fetchWorkers(team.department)
+  //   .then((res) => {
+  //     setData(res);
+  //   })
+  //   .catch((error) => console.error("Error:", error));
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [refresh]);
+
+  const queryAdminWorkers = () => {
+    setIsLoading(true);
+    fetchAdminWorkers(team.team, activeGroup)
+      .then((res) => {
+        setData(res);
+      })
+      .catch((error) => {
+        toast.error("Error marking attendance");
+        setIsLoading(false);
+        console.log(error);
+      })
+      .finally(() => setIsLoading(false));
+  };
+
+  const queryWorkers = () => {
     setIsLoading(true);
     fetchWorkers(team.department)
       .then((res) => {
         setData(res);
       })
-      .catch((error) => console.error("Error:", error))
+      .catch((error) => {
+        toast.error("Error marking attendance");
+        setIsLoading(false);
+        console.log(error);
+      })
       .finally(() => setIsLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  };
+  useEffect(() => {
+    switchOffAttendance()
+      .then((res) => setAttendanceIsClosed(res))
+      .catch((err) => console.log(err))
+      .finally(() => setIsLoading(false));
   }, []);
 
   useEffect(() => {
-    fetchWorkers(team.department)
-      .then((res) => {
-        setData(res);
-      })
-      .catch((error) => console.error("Error:", error));
+    if (isAdminMember) {
+      queryAdminWorkers();
+    } else {
+      queryWorkers();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeGroup, isAdminMember, isChurchAdmin, team.team]);
+
+  useEffect(() => {
+    if (isAdminMember) {
+      queryAdminWorkers();
+    } else {
+      queryWorkers();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh]);
 
@@ -127,6 +186,25 @@ export default function DepartmentAttendance() {
               </p>
             </div>
           </div>
+          {isAdminMember && (
+            <div className="mt-8">
+              <div className="mt-8">
+                <ReactSelectDropdown
+                  title={isChurchAdmin ? "Select Team" : "Select Department"}
+                  defaultValue={{
+                    value: "All",
+                    label: "All teams/departments",
+                  }}
+                  onChange={(selected) => setActiveGroup(selected?.value)}
+                  options={[
+                    { value: "All", label: "All teams/departments" },
+                    ...optionsAdmin,
+                  ]}
+                  className="w-[25%]"
+                />
+              </div>
+            </div>
+          )}
           <div className="mt-8 flow-root">
             <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
               <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
@@ -216,7 +294,9 @@ export default function DepartmentAttendance() {
                           /> */}
                               <ReactSelectDropdown
                                 title="Mark attendance"
-                                disabled={person.attendance || attendanceIsClosed}
+                                disabled={
+                                  person.attendance || attendanceIsClosed
+                                }
                                 defaultValue={
                                   person?.attendance
                                     ? {

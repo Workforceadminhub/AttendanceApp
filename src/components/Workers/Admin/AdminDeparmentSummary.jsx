@@ -1,16 +1,16 @@
 // import { useNavigate } from "react-router-dom";
 
 import { useEffect, useState } from "react";
-import Header from "../Header";
-import { fetchAdminAttendance } from "../../services/attendance";
-import { getAdminSelectOptions, routeObject } from "../../utils/routeObject";
-import getDefaultSummary from "../../utils/getDefaultSummary";
-import { getDepartmentByUser } from "../../utils/getDepartment";
+import Header from "../../Header";
+import { fetchAdminAttendance } from "../../../services/attendance";
+import { getAdminSelectOptions, routeObject } from "../../../utils/routeObject";
+import getDefaultSummary from "../../../utils/getDefaultSummary";
+import { getDepartmentByUser } from "../../../utils/getDepartment";
 import { useLocation } from "react-router-dom";
-import ReactSelectDropdown from "../ReactSelect";
-import { ADMIN_ENUMS } from "../../utils/adminEnums";
-import TableLoadingState from "../TableLoadingState";
-import Layout from "../Layout";
+import ReactSelectDropdown from "../../ReactSelect";
+import { ADMIN_ENUMS } from "../../../utils/adminEnums";
+import TableLoadingState from "../../TableLoadingState";
+import Layout from "../../Layout";
 
 export default function AdminDepartmentSummary() {
   const [activeGroup, setActiveGroup] = useState("All");

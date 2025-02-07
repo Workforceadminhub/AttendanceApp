@@ -17,9 +17,6 @@ import {
   dashboardRoutes,
   summaryRoutes,
 } from "./utils/routeObject";
-import AdminDashboard from "./components/Workers/AdminDashboard";
-import AdminDepartmentSummary from "./components/Workers/AdminDeparmentSummary";
-import AdminDepartmentAttendance from "./components/Workers/AdminDepartmentAttendance";
 
 const App = () => {
   const queryClient = new QueryClient({
@@ -122,7 +119,7 @@ const App = () => {
               path="/attendance/summary"
               element={
                 <PrivateRoute>
-                  <AdminDepartmentSummary />
+                  <DepartmentSummary />
                 </PrivateRoute>
               }
             />
@@ -130,7 +127,7 @@ const App = () => {
               path="/attendance/dashboard"
               element={
                 <PrivateRoute>
-                  <AdminDashboard />
+                  <Dashboard />
                 </PrivateRoute>
               }
             />
@@ -141,7 +138,7 @@ const App = () => {
                   path={`/attendance/${route}`}
                   element={
                     <PrivateRoute>
-                      <AdminDepartmentAttendance />
+                      <DepartmentAttendance />
                     </PrivateRoute>
                   }
                 />
@@ -149,7 +146,7 @@ const App = () => {
                   path={`/summary/${route}`}
                   element={
                     <PrivateRoute>
-                      <AdminDepartmentSummary />
+                      <DepartmentSummary />
                     </PrivateRoute>
                   }
                 />
@@ -157,7 +154,7 @@ const App = () => {
                   path={`/dashboard/${route}`}
                   element={
                     <PrivateRoute>
-                      <AdminDashboard />
+                      <Dashboard />
                     </PrivateRoute>
                   }
                 />

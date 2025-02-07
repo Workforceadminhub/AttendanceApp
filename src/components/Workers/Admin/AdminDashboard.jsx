@@ -2,16 +2,16 @@ import { useEffect, useState } from "react";
 import {
   calculateTotals,
   fetchAdminAttendance,
-} from "../../services/attendance";
-import Header from "../Header";
-import getDayAndYear from "../../utils/getDate";
+} from "../../../services/attendance";
+import Header from "../../Header";
+import getDayAndYear from "../../../utils/getDate";
 import { useLocation } from "react-router-dom";
-import { getDepartmentByUser } from "../../utils/getDepartment";
-import { ADMIN_ENUMS } from "../../utils/adminEnums";
-import { getAdminSelectOptions } from "../../utils/routeObject";
-import ReactSelectDropdown from "../ReactSelect";
-import LoadingState from "../LoadingState";
-import Layout from "../Layout";
+import { getDepartmentByUser } from "../../../utils/getDepartment";
+import { ADMIN_ENUMS } from "../../../utils/adminEnums";
+import { getAdminSelectOptions } from "../../../utils/routeObject";
+import ReactSelectDropdown from "../../ReactSelect";
+import LoadingState from "../../LoadingState";
+import Layout from "../../Layout";
 
 export default function AdminDashboard() {
   const [activeGroup, setActiveGroup] = useState("All");

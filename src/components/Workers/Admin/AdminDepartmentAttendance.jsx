@@ -1,18 +1,18 @@
 // import { useNavigate } from "react-router-dom";
 import { useLocation } from "react-router-dom";
-import Header from "../Header";
-import { getDepartmentByUser } from "../../utils/getDepartment";
+import Header from "../../Header";
+import { getDepartmentByUser } from "../../../utils/getDepartment";
 import { useEffect, useMemo, useState } from "react";
-import { fetchAdminWorkers } from "../../services/workers";
-import { addAttendance } from "../../services/attendance";
+import { fetchAdminWorkers } from "../../../services/workers";
+import { addAttendance } from "../../../services/attendance";
 import { toast } from "react-toastify";
-import getDayAndYear from "../../utils/getDate";
-import ReactSelectDropdown from "../ReactSelect";
-import { ADMIN_ENUMS } from "../../utils/adminEnums";
-import { getAdminSelectOptions } from "../../utils/routeObject";
-import TableLoadingState from "../TableLoadingState";
-import Layout from "../Layout";
-import { switchOffAttendance } from "../../utils/switchOffAttendance";
+import getDayAndYear from "../../../utils/getDate";
+import ReactSelectDropdown from "../../ReactSelect";
+import { ADMIN_ENUMS } from "../../../utils/adminEnums";
+import { getAdminSelectOptions } from "../../../utils/routeObject";
+import TableLoadingState from "../../TableLoadingState";
+import Layout from "../../Layout";
+import { switchOffAttendance } from "../../../utils/switchOffAttendance";
 
 export default function AdminDepartmentAttendance() {
   const location = useLocation();

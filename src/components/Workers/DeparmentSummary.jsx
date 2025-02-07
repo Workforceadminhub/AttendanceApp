@@ -2,29 +2,68 @@
 
 import { useEffect, useState } from "react";
 import Header from "../Header";
-import { fetchAttendance } from "../../services/attendance";
-import { routeObject } from "../../utils/routeObject";
+import {
+  fetchAdminAttendance,
+  fetchAttendance,
+} from "../../services/attendance";
+import { getAdminSelectOptions, routeObject } from "../../utils/routeObject";
 import getDefaultSummary from "../../utils/getDefaultSummary";
 import { getDepartmentByUser } from "../../utils/getDepartment";
 import { useLocation } from "react-router-dom";
 import TableLoadingState from "../TableLoadingState";
 import Layout from "../Layout";
+import { ADMIN_ENUMS } from "../../utils/adminEnums";
+import ReactSelectDropdown from "../ReactSelect";
+import { checkAdminStatus } from "../../utils/checkAdminStatus";
+import { toast } from "react-toastify";
 
 export default function DepartmentSummary() {
   const [isLoading, setIsLoading] = useState(false);
+  const [activeGroup, setActiveGroup] = useState("All");
   const [attendanceSummary, setAttendanceSummary] = useState(
     getDefaultSummary(routeObject)
   );
   const location = useLocation();
   const team = getDepartmentByUser(location.pathname);
+  const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
+  const isAdminMember = checkAdminStatus(location.pathname);
+  const options = getAdminSelectOptions(isChurchAdmin, team);
+
+  const queryAdminAttendance = () => {
+    setIsLoading(true);
+    fetchAdminAttendance(activeGroup, isChurchAdmin)
+      .then((attendance) => {
+        setAttendanceSummary(attendance);
+        setIsLoading(false);
+      })
+      .catch((error) => {
+        setIsLoading(false);
+        console.log(error);
+        toast.error("Error loading summart");
+      });
+  };
+
+  const queryAttendance = () => {
+    setIsLoading(true);
+    fetchAttendance()
+      .then((attendance) => {
+        setAttendanceSummary(attendance);
+        setIsLoading(false);
+      })
+      .catch((error) => {
+        setIsLoading(false);
+        toast.error("Error loading summart");
+      });
+  };
 
   useEffect(() => {
-    setIsLoading(true);
-    fetchAttendance().then((attendance) => {
-      setAttendanceSummary(attendance);
-      setIsLoading(false);
-    });
-  }, []);
+    if (isAdminMember) {
+      queryAdminAttendance();
+    } else {
+      queryAttendance();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeGroup, isChurchAdmin, isAdminMember]);
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
@@ -36,6 +75,20 @@ export default function DepartmentSummary() {
               {`${team.team} summary` || "Department summary"}
             </h1>
           </div>
+        </div>
+        <div className="mt-8">
+          {isAdminMember && (
+            <ReactSelectDropdown
+              title={isChurchAdmin ? "Select Team" : "Select Department"}
+              defaultValue={{ value: "All", label: "All teams/departments" }}
+              onChange={(selected) => setActiveGroup(selected?.value)}
+              options={[
+                { value: "All", label: "All teams/departments" },
+                ...options,
+              ]}
+              className="w-[25%]"
+            />
+          )}
         </div>
         <div className="mt-8 flow-root">
           <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
@@ -82,7 +135,7 @@ export default function DepartmentSummary() {
                   </tr>
                 </thead>
                 {isLoading ? (
-                  <TableLoadingState length={5} />
+                  <TableLoadingState length={6} />
                 ) : (
                   <tbody className="divide-y divide-gray-200">
                     {attendanceSummary?.map((item, index) => (

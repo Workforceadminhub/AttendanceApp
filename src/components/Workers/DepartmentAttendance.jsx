@@ -171,6 +171,7 @@ export default function DepartmentAttendance() {
             </div>
             {isAdminMember && (
               <ViewHistoryButton
+                label="View History"
                 link={`/attendance/history/admin/${team.department}`}
               />
             )}

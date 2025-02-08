@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
-function ViewHistoryButton({ link }) {
+function ViewHistoryButton({ link, label }) {
   const navigate = useNavigate();
   return (
     <button
@@ -10,7 +10,7 @@ function ViewHistoryButton({ link }) {
         navigate(link);
       }}
     >
-      View History
+      {label}
     </button>
   );
 }

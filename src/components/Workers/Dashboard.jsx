@@ -95,7 +95,12 @@ export default function Dashboard() {
           </div>
           {isAdminMember && (
             <ViewHistoryButton
-              link={`/dashboard/history/admin/${team.department}`}
+              label="View History"
+              link={
+                isChurchAdmin
+                  ? `/dashboard/history/admin`
+                  : `/dashboard/history/admin/${team.department}`
+              }
             />
           )}
         </div>

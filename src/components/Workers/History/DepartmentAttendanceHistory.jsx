@@ -17,6 +17,7 @@ import TableLoadingState from "../../TableLoadingState";
 import { fetchHistoryOptions } from "../../../services/history";
 import { debounce } from "lodash";
 import { DEBOUNCE_INTERVAL } from "../../../utils/constants";
+import ViewHistoryButton from "../../ViewHistoryButton";
 
 export default function DepartmentAttendanceHistory() {
   const location = useLocation();
@@ -83,7 +84,6 @@ export default function DepartmentAttendanceHistory() {
       })
       .finally(() => setIsLoading(false));
   };
-
 
   useEffect(() => {
     switchOffAttendance()
@@ -191,14 +191,7 @@ export default function DepartmentAttendanceHistory() {
                   : "Midweek service"}
               </p>
             </div>
-            <button
-              className="bg-teal-500 text-white rounded-lg p-2 hover:bg-teal-300"
-              onClick={() => {
-                navigate(-1);
-              }}
-            >
-              Back to Attendance
-            </button>
+            <ViewHistoryButton label="Back to Attendance" link={-1} />
           </div>
           {isAdminMember && (
             <div className="mt-8 flex space-x-2">

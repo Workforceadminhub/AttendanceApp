@@ -18,6 +18,7 @@ import Header from "../../Header";
 import Layout from "../../Layout";
 import ReactSelectDropdown from "../../ReactSelect";
 import LoadingState from "../../LoadingState";
+import ViewHistoryButton from "../../ViewHistoryButton";
 
 export default function DashboardHistory() {
   const navigate = useNavigate();
@@ -108,14 +109,10 @@ export default function DashboardHistory() {
             {/* <Select title="Select service" options={services} /> */}
             {`${team?.team} Dashboard`} - {dateForAttendance}
           </div>
-          <button
-            className="bg-teal-500 text-white rounded-lg p-2 hover:bg-teal-300"
-            onClick={() => {
-              navigate(-1);
-            }}
-          >
-            Back to Dashboard
-          </button>
+          <ViewHistoryButton
+            label="Back to Dashboard"
+            link={-1}
+          />
         </div>
         {isAdminMember && (
           <div className="mt-8 flex space-x-2">

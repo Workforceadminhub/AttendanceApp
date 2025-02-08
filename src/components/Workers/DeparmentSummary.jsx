@@ -90,7 +90,12 @@ export default function DepartmentSummary() {
           </div>
           {isAdminMember && (
             <ViewHistoryButton
-              link={`/summary/history/admin/${team.department}`}
+            label="View History"
+              link={
+                isChurchAdmin
+                  ? `/summary/history/admin`
+                  : `/summary/history/admin/${team.department}`
+              }
             />
           )}
         </div>

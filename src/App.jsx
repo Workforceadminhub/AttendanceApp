@@ -193,6 +193,22 @@ const App = () => {
                 />
               </React.Fragment>
             ))}
+            <Route
+              path={`/summary/history/admin`}
+              element={
+                <PrivateRoute>
+                  <DepartmentSummaryHistory />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path={`/dashboard/history/admin`}
+              element={
+                <PrivateRoute>
+                  <DashboardHistory />
+                </PrivateRoute>
+              }
+            />
 
             <Route path="*" exact={true} element={<NotFound />} />
           </Routes>

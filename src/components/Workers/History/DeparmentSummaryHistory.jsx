@@ -20,6 +20,7 @@ import Layout from "../../Layout";
 import ReactSelectDropdown from "../../ReactSelect";
 import TableLoadingState from "../../TableLoadingState";
 import Header from "../../Header";
+import ViewHistoryButton from "../../ViewHistoryButton";
 
 export default function DepartmentSummaryHistory() {
   const navigate = useNavigate();
@@ -108,14 +109,7 @@ export default function DepartmentSummaryHistory() {
               {`${team.team} summary` || "Department summary"}
             </h1>
           </div>
-          <button
-            className="bg-teal-500 text-white rounded-lg p-2 hover:bg-teal-300"
-            onClick={() => {
-              navigate(-1);
-            }}
-          >
-            Back to Summary
-          </button>
+          <ViewHistoryButton label="Back to Summary" link={-1} />
         </div>
         <div className="mt-8">
           {isAdminMember && (

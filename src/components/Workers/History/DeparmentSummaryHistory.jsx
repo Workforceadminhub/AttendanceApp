@@ -1,7 +1,7 @@
 // import { useNavigate } from "react-router-dom";
 
 import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { debounce } from "lodash";
 import getDefaultSummary from "../../../utils/getDefaultSummary";
@@ -10,7 +10,10 @@ import { getNextSunday } from "../../../utils/getDate";
 import { getDepartmentByUser } from "../../../utils/getDepartment";
 import { ADMIN_ENUMS } from "../../../utils/adminEnums";
 import { checkAdminStatus } from "../../../utils/checkAdminStatus";
-import { fetchAdminAttendance, fetchAttendance } from "../../../services/attendance";
+import {
+  fetchAdminAttendance,
+  fetchAttendance,
+} from "../../../services/attendance";
 import { fetchHistoryOptions } from "../../../services/history";
 import { DEBOUNCE_INTERVAL } from "../../../utils/constants";
 import Layout from "../../Layout";
@@ -18,8 +21,8 @@ import ReactSelectDropdown from "../../ReactSelect";
 import TableLoadingState from "../../TableLoadingState";
 import Header from "../../Header";
 
-
 export default function DepartmentSummaryHistory() {
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [activeGroup, setActiveGroup] = useState("All");
   const [attendanceSummary, setAttendanceSummary] = useState(
@@ -66,7 +69,7 @@ export default function DepartmentSummaryHistory() {
     fetchHistoryOptions().then((res) =>
       setHistoryOptions(res.map((item) => ({ label: item, value: item })))
     );
-  }, [])
+  }, []);
 
   useEffect(() => {
     if (isAdminMember) {
@@ -105,6 +108,14 @@ export default function DepartmentSummaryHistory() {
               {`${team.team} summary` || "Department summary"}
             </h1>
           </div>
+          <button
+            className="bg-teal-500 text-white rounded-lg p-2 hover:bg-teal-300"
+            onClick={() => {
+              navigate(-1);
+            }}
+          >
+            Back to Summary
+          </button>
         </div>
         <div className="mt-8">
           {isAdminMember && (

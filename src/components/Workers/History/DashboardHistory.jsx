@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { debounce } from "lodash";
 import { getNextSunday } from "../../../utils/getDate";
@@ -7,7 +7,11 @@ import { getDepartmentByUser } from "../../../utils/getDepartment";
 import { ADMIN_ENUMS } from "../../../utils/adminEnums";
 import { checkAdminStatus } from "../../../utils/checkAdminStatus";
 import { getAdminSelectOptions } from "../../../utils/routeObject";
-import { calculateTotals, fetchAdminAttendance, fetchAttendance } from "../../../services/attendance";
+import {
+  calculateTotals,
+  fetchAdminAttendance,
+  fetchAttendance,
+} from "../../../services/attendance";
 import { fetchHistoryOptions } from "../../../services/history";
 import { DEBOUNCE_INTERVAL } from "../../../utils/constants";
 import Header from "../../Header";
@@ -15,8 +19,8 @@ import Layout from "../../Layout";
 import ReactSelectDropdown from "../../ReactSelect";
 import LoadingState from "../../LoadingState";
 
-
 export default function DashboardHistory() {
+  const navigate = useNavigate();
   const [attendanceSummary, setAttendanceSummary] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeGroup, setActiveGroup] = useState("All");
@@ -99,34 +103,42 @@ export default function DashboardHistory() {
       <Header />
       <Layout>
         {/* <h3 className="text-base font-semibold text-gray-900">Last 30 days</h3> */}
-        <div className="flex flex-col space-y-4 font-bold">
-          {/* <Select title="Select service" options={services} /> */}
-          {`${team?.team} Dashboard`} - {dateForAttendance}
+        <div className="flex justify-between">
+          <div className="flex flex-col space-y-4 font-bold">
+            {/* <Select title="Select service" options={services} /> */}
+            {`${team?.team} Dashboard`} - {dateForAttendance}
+          </div>
+          <button
+            className="bg-teal-500 text-white rounded-lg p-2 hover:bg-teal-300"
+            onClick={() => {
+              navigate(-1);
+            }}
+          >
+            Back to Dashboard
+          </button>
         </div>
         {isAdminMember && (
-          <div className="mt-8">
-            <div className="mt-8">
-              <ReactSelectDropdown
-                title={isChurchAdmin ? "Select Team" : "Select Department"}
-                defaultValue={{ value: "All", label: "All teams/departments" }}
-                onChange={handleChange}
-                options={[
-                  { value: "All", label: "All teams/departments" },
-                  ...options,
-                ]}
-                className="w-[25%]"
-              />
-              <ReactSelectDropdown
-                title={"Select Sunday"}
-                defaultValue={{
-                  value: dateForAttendance,
-                  label: dateForAttendance,
-                }}
-                onChange={handleHistoryChange}
-                options={[...historyOptions]}
-                className="w-[25%]"
-              />
-            </div>
+          <div className="mt-8 flex space-x-2">
+            <ReactSelectDropdown
+              title={isChurchAdmin ? "Select Team" : "Select Department"}
+              defaultValue={{ value: "All", label: "All teams/departments" }}
+              onChange={handleChange}
+              options={[
+                { value: "All", label: "All teams/departments" },
+                ...options,
+              ]}
+              className="w-[25%]"
+            />
+            <ReactSelectDropdown
+              title={"Select Sunday"}
+              defaultValue={{
+                value: dateForAttendance,
+                label: dateForAttendance,
+              }}
+              onChange={handleHistoryChange}
+              options={[...historyOptions]}
+              className="w-[25%]"
+            />
           </div>
         )}
 

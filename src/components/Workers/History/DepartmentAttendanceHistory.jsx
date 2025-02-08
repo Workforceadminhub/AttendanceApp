@@ -197,7 +197,7 @@ export default function DepartmentAttendanceHistory() {
                 navigate(-1);
               }}
             >
-              Back to attendance
+              Back to Attendance
             </button>
           </div>
           {isAdminMember && (

@@ -88,14 +88,16 @@ export default function Dashboard() {
       <Header />
       <Layout>
         {/* <h3 className="text-base font-semibold text-gray-900">Last 30 days</h3> */}
-        <div className="flex flex-col space-y-4 font-bold">
-          {/* <Select title="Select service" options={services} /> */}
-          {`${team?.team} Dashboard`} - {dateForAttendance}
+        <div className="flex justify-between">
+          <div className="flex flex-col space-y-4 font-bold">
+            {/* <Select title="Select service" options={services} /> */}
+            {`${team?.team} Dashboard`} - {dateForAttendance}
+          </div>
           {isAdminMember && (
             <button
               className="bg-teal-500 text-white rounded-lg p-2 hover:bg-teal-300"
               onClick={() => {
-                navigate(`/summary/history/admin/${team.department}`);
+                navigate(`/dashboard/history/admin/${team.department}`);
               }}
             >
               View History
@@ -104,18 +106,16 @@ export default function Dashboard() {
         </div>
         {isAdminMember && (
           <div className="mt-8">
-            <div className="mt-8">
-              <ReactSelectDropdown
-                title={isChurchAdmin ? "Select Team" : "Select Department"}
-                defaultValue={{ value: "All", label: "All teams/departments" }}
-                onChange={handleChange}
-                options={[
-                  { value: "All", label: "All teams/departments" },
-                  ...options,
-                ]}
-                className="w-[25%]"
-              />
-            </div>
+            <ReactSelectDropdown
+              title={isChurchAdmin ? "Select Team" : "Select Department"}
+              defaultValue={{ value: "All", label: "All teams/departments" }}
+              onChange={handleChange}
+              options={[
+                { value: "All", label: "All teams/departments" },
+                ...options,
+              ]}
+              className="w-[25%]"
+            />
           </div>
         )}
 

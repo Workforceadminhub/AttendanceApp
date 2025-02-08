@@ -7,6 +7,7 @@ export const fetchHistoryOptions = async () => {
       throw error
    }
 
-   const historyOptions = [...new Set(data.map(item => item.attendancedate))].reverse()
+   const historyOptions = [...new Set(data.map(item => item.attendancedate))].reverse().sort((a,b) => a.localCompare(b))
+   console.log(historyOptions)
    return historyOptions
 }

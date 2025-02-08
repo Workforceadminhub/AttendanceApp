@@ -6,7 +6,7 @@ import {
 } from "../../services/attendance";
 import Header from "../Header";
 import { getNextSunday } from "../../utils/getDate";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { getDepartmentByUser } from "../../utils/getDepartment";
 import LoadingState from "../LoadingState";
 import Layout from "../Layout";
@@ -17,9 +17,9 @@ import ReactSelectDropdown from "../ReactSelect";
 import { getAdminSelectOptions } from "../../utils/routeObject";
 import { debounce } from "lodash";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
+import ViewHistoryButton from "../ViewHistoryButton";
 
 export default function Dashboard() {
-  const navigate = useNavigate();
   const [attendanceSummary, setAttendanceSummary] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeGroup, setActiveGroup] = useState("All");
@@ -94,14 +94,9 @@ export default function Dashboard() {
             {`${team?.team} Dashboard`} - {dateForAttendance}
           </div>
           {isAdminMember && (
-            <button
-              className="bg-teal-500 text-white rounded-lg p-2 hover:bg-teal-300"
-              onClick={() => {
-                navigate(`/dashboard/history/admin/${team.department}`);
-              }}
-            >
-              View History
-            </button>
+            <ViewHistoryButton
+              link={`/dashboard/history/admin/${team.department}`}
+            />
           )}
         </div>
         {isAdminMember && (

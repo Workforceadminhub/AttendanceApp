@@ -9,7 +9,7 @@ import {
 import { getAdminSelectOptions, routeObject } from "../../utils/routeObject";
 import getDefaultSummary from "../../utils/getDefaultSummary";
 import { getDepartmentByUser } from "../../utils/getDepartment";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import TableLoadingState from "../TableLoadingState";
 import Layout from "../Layout";
 import { ADMIN_ENUMS } from "../../utils/adminEnums";
@@ -18,9 +18,9 @@ import { checkAdminStatus } from "../../utils/checkAdminStatus";
 import { toast } from "react-toastify";
 import { debounce } from "lodash";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
+import ViewHistoryButton from "../ViewHistoryButton";
 
 export default function DepartmentSummary() {
-  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [activeGroup, setActiveGroup] = useState("All");
   const [attendanceSummary, setAttendanceSummary] = useState(
@@ -89,14 +89,9 @@ export default function DepartmentSummary() {
             </h1>
           </div>
           {isAdminMember && (
-            <button
-              className="bg-teal-500 text-white rounded-lg p-2 hover:bg-teal-300"
-              onClick={() => {
-                navigate(`/summary/history/admin/${team.department}`);
-              }}
-            >
-              View History
-            </button>
+            <ViewHistoryButton
+              link={`/summary/history/admin/${team.department}`}
+            />
           )}
         </div>
         <div className="mt-8">

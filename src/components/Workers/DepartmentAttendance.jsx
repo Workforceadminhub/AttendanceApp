@@ -1,5 +1,4 @@
-// import { useNavigate } from "react-router-dom";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
 import { useEffect, useMemo, useState } from "react";
@@ -16,10 +15,10 @@ import { ADMIN_ENUMS } from "../../utils/adminEnums";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
 import { debounce } from "lodash";
+import ViewHistoryButton from "../ViewHistoryButton";
 
 export default function DepartmentAttendance() {
   const location = useLocation();
-  const navigate = useNavigate();
   // const team = getDepartment(location.pathname);
   const [attendance, setAttendance] = useState([]);
   const [data, setData] = useState([]);
@@ -152,7 +151,6 @@ export default function DepartmentAttendance() {
     debouncedSetActiveGroup(selected?.value);
   };
 
-
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
       <Header />
@@ -172,14 +170,9 @@ export default function DepartmentAttendance() {
               </p>
             </div>
             {isAdminMember && (
-              <button
-                className="bg-teal-500 text-white rounded-lg p-2 hover:bg-teal-300"
-                onClick={() => {
-                  navigate(`/attendance/history/admin/${team.department}`);
-                }}
-              >
-                View History
-              </button>
+              <ViewHistoryButton
+                link={`/attendance/history/admin/${team.department}`}
+              />
             )}
           </div>
           {isAdminMember && (

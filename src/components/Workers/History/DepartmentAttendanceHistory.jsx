@@ -1,6 +1,6 @@
 // import { useNavigate } from "react-router-dom";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import {  useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import { getNextSunday } from "../../../utils/getDate";
 import { getDepartmentByUser } from "../../../utils/getDepartment";
@@ -15,6 +15,8 @@ import Layout from "../../Layout";
 import ReactSelectDropdown from "../../ReactSelect";
 import TableLoadingState from "../../TableLoadingState";
 import { fetchHistoryOptions } from "../../../services/history";
+import { debounce } from "lodash";
+import { DEBOUNCE_INTERVAL } from "../../../utils/constants";
 
 export default function DepartmentAttendanceHistory() {
   const location = useLocation();
@@ -27,6 +29,7 @@ export default function DepartmentAttendanceHistory() {
   const dateForAttendance = getNextSunday();
   const [refresh, setRefresh] = useState("");
   const [activeGroup, setActiveGroup] = useState("All");
+  const [activeHistory, setActiveHistory] = useState(dateForAttendance);
   const team = getDepartmentByUser(location.pathname);
   const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
   const isAdminMember = checkAdminStatus(location.pathname);
@@ -55,7 +58,7 @@ export default function DepartmentAttendanceHistory() {
 
   const queryAdminWorkers = () => {
     setIsLoading(true);
-    fetchAdminWorkers(team.team, activeGroup)
+    fetchAdminWorkers(team.team, activeGroup, activeHistory)
       .then((res) => {
         setData(res);
         setIsLoading(false);
@@ -69,7 +72,7 @@ export default function DepartmentAttendanceHistory() {
 
   const queryWorkers = () => {
     setIsLoading(true);
-    fetchWorkers(team.department)
+    fetchWorkers(team.department, activeHistory)
       .then((res) => {
         setData(res);
       })
@@ -82,7 +85,9 @@ export default function DepartmentAttendanceHistory() {
   };
 
   useEffect(() => {
-    fetchHistoryOptions().then((res) => setHistoryOptions());
+    fetchHistoryOptions().then((res) =>
+      setHistoryOptions(res.map((item) => ({ label: item, value: item })))
+    );
   }, []);
 
   useEffect(() => {
@@ -98,7 +103,7 @@ export default function DepartmentAttendanceHistory() {
       queryWorkers();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeGroup, isAdminMember, isChurchAdmin, team.team]);
+  }, [activeGroup, activeHistory, isAdminMember, isChurchAdmin, team.team]);
 
   useEffect(() => {
     if (isAdminMember) {
@@ -147,6 +152,24 @@ export default function DepartmentAttendanceHistory() {
     toast.success("Attendance added successfully");
   };
 
+  const debouncedSetActiveGroup = debounce(
+    (value) => setActiveGroup(value),
+    DEBOUNCE_INTERVAL
+  );
+
+  const handleChange = (selected) => {
+    debouncedSetActiveGroup(selected?.value);
+  };
+
+  const debouncedSetActiveHistory = debounce(
+    (value) => setActiveHistory(value),
+    DEBOUNCE_INTERVAL
+  );
+
+  const handleHistoryChange = (selected) => {
+    debouncedSetActiveHistory(selected?.value);
+  };
+
   if (!isAdminMember) {
     return <div>Unathorized</div>;
   }
@@ -186,7 +209,7 @@ export default function DepartmentAttendanceHistory() {
                   value: "All",
                   label: "All teams/departments",
                 }}
-                onChange={(selected) => setActiveGroup(selected?.value)}
+                onChange={handleChange}
                 options={[
                   { value: "All", label: "All teams/departments" },
                   ...optionsAdmin,
@@ -194,16 +217,13 @@ export default function DepartmentAttendanceHistory() {
                 className="w-[25%]"
               />
               <ReactSelectDropdown
-                title={isChurchAdmin ? "Select Team" : "Select Department"}
+                title={"Select Sunday"}
                 defaultValue={{
-                  value: "All",
-                  label: "All teams/departments",
+                  value: dateForAttendance,
+                  label: dateForAttendance,
                 }}
-                onChange={(selected) => setActiveGroup(selected?.value)}
-                options={[
-                  { value: "All", label: "All teams/departments" },
-                  ...optionsAdmin,
-                ]}
+                onChange={handleHistoryChange}
+                options={[...historyOptions]}
                 className="w-[25%]"
               />
             </div>

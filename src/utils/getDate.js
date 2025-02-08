@@ -47,7 +47,6 @@ export function getNextSunday() {
   const year = previousSunday.getFullYear();
 
   const formattedDay = `${dayName} - ${day}/${month}/${year}`;
-  console.log(formattedDay);
   return formattedDay;
 }
 

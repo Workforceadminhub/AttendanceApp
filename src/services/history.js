@@ -8,6 +8,5 @@ export const fetchHistoryOptions = async () => {
    }
 
    const historyOptions = [...new Set(data.map(item => item.attendancedate))].reverse()
-   console.log(historyOptions)
    return historyOptions
 }

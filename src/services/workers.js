@@ -6,9 +6,9 @@ import { routeObject } from "../utils/routeObject";
 // const table = "attendance2"
 const table = "attendance";
 
-export const fetchWorkers = async (department) => {
+export const fetchWorkers = async (department, activeDate) => {
   try {
-    const dateForAttendance = getNextSunday();
+    const dateForAttendance = activeDate || getNextSunday();
     const { data, error } = await supabase
       .from("worker")
       .select(`*, ${table} ( workerid, attendance, attendancedate )`)
@@ -33,12 +33,12 @@ export const fetchWorkers = async (department) => {
   }
 };
 
-export const fetchAdminWorkers = async (team, activeGroup) => {
+export const fetchAdminWorkers = async (team, activeGroup, activeDate) => {
   try {
     const departments = routeObject
       .filter((item) => item.team === team)
       .map((item) => item.department);
-    const dateForAttendance = getNextSunday();
+    const dateForAttendance = activeDate || getNextSunday();
     let data;
     let error;
     if (activeGroup === "All") {

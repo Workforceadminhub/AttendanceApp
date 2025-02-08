@@ -5,7 +5,7 @@ import {
   fetchAttendance,
 } from "../../services/attendance";
 import Header from "../Header";
-import {getNextSunday} from "../../utils/getDate";
+import { getNextSunday } from "../../utils/getDate";
 import { useLocation } from "react-router-dom";
 import { getDepartmentByUser } from "../../utils/getDepartment";
 import LoadingState from "../LoadingState";
@@ -15,6 +15,8 @@ import { ADMIN_ENUMS } from "../../utils/adminEnums";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
 import ReactSelectDropdown from "../ReactSelect";
 import { getAdminSelectOptions } from "../../utils/routeObject";
+import { debounce } from "lodash";
+import { DEBOUNCE_INTERVAL } from "../../utils/constants";
 
 export default function Dashboard() {
   const [attendanceSummary, setAttendanceSummary] = useState([]);
@@ -71,6 +73,15 @@ export default function Dashboard() {
     });
   }, []);
 
+  const debouncedSetActiveGroup = debounce(
+    (value) => setActiveGroup(value),
+    DEBOUNCE_INTERVAL
+  );
+
+  const handleChange = (selected) => {
+    debouncedSetActiveGroup(selected?.value);
+  };
+
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
       <Header />
@@ -80,20 +91,22 @@ export default function Dashboard() {
           {/* <Select title="Select service" options={services} /> */}
           {`${team?.team} Dashboard`} - {dateForAttendance}
         </div>
-        {isAdminMember && <div className="mt-8">
+        {isAdminMember && (
           <div className="mt-8">
-            <ReactSelectDropdown
-              title={isChurchAdmin ? "Select Team" : "Select Department"}
-              defaultValue={{ value: "All", label: "All teams/departments" }}
-              onChange={(selected) => setActiveGroup(selected?.value)}
-              options={[
-                { value: "All", label: "All teams/departments" },
-                ...options,
-              ]}
-              className="w-[25%]"
-            />
+            <div className="mt-8">
+              <ReactSelectDropdown
+                title={isChurchAdmin ? "Select Team" : "Select Department"}
+                defaultValue={{ value: "All", label: "All teams/departments" }}
+                onChange={handleChange}
+                options={[
+                  { value: "All", label: "All teams/departments" },
+                  ...options,
+                ]}
+                className="w-[25%]"
+              />
+            </div>
           </div>
-        </div>}
+        )}
 
         {isLoading && (
           <div className="ml-24 mt-24">

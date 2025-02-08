@@ -14,6 +14,8 @@ import { switchOffAttendance } from "../../utils/switchOffAttendance";
 import { getAdminSelectOptions } from "../../utils/routeObject";
 import { ADMIN_ENUMS } from "../../utils/adminEnums";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
+import { DEBOUNCE_INTERVAL } from "../../utils/constants";
+import { debounce } from "lodash";
 
 export default function DepartmentAttendance() {
   const location = useLocation();
@@ -141,6 +143,16 @@ export default function DepartmentAttendance() {
     toast.success("Attendance added successfully");
   };
 
+  const debouncedSetActiveGroup = debounce(
+    (value) => setActiveGroup(value),
+    DEBOUNCE_INTERVAL
+  );
+
+  const handleChange = (selected) => {
+    debouncedSetActiveGroup(selected?.value);
+  };
+
+
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
       <Header />
@@ -179,7 +191,7 @@ export default function DepartmentAttendance() {
                     value: "All",
                     label: "All teams/departments",
                   }}
-                  onChange={(selected) => setActiveGroup(selected?.value)}
+                  onChange={handleChange}
                   options={[
                     { value: "All", label: "All teams/departments" },
                     ...optionsAdmin,

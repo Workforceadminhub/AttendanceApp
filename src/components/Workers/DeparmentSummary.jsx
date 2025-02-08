@@ -16,6 +16,8 @@ import { ADMIN_ENUMS } from "../../utils/adminEnums";
 import ReactSelectDropdown from "../ReactSelect";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
 import { toast } from "react-toastify";
+import { debounce } from "lodash";
+import { DEBOUNCE_INTERVAL } from "../../utils/constants";
 
 export default function DepartmentSummary() {
   const [isLoading, setIsLoading] = useState(false);
@@ -66,6 +68,15 @@ export default function DepartmentSummary() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeGroup, isChurchAdmin, isAdminMember]);
 
+  const debouncedSetActiveGroup = debounce(
+    (value) => setActiveGroup(value),
+    DEBOUNCE_INTERVAL
+  );
+
+  const handleChange = (selected) => {
+    debouncedSetActiveGroup(selected?.value);
+  };
+
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
       <Header />
@@ -82,7 +93,7 @@ export default function DepartmentSummary() {
             <ReactSelectDropdown
               title={isChurchAdmin ? "Select Team" : "Select Department"}
               defaultValue={{ value: "All", label: "All teams/departments" }}
-              onChange={(selected) => setActiveGroup(selected?.value)}
+              onChange={handleChange}
               options={[
                 { value: "All", label: "All teams/departments" },
                 ...options,

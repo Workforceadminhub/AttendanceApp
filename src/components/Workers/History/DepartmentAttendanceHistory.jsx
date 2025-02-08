@@ -1,6 +1,6 @@
 // import { useNavigate } from "react-router-dom";
 import { useLocation, useNavigate } from "react-router-dom";
-import {  useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import { getNextSunday } from "../../../utils/getDate";
 import { getDepartmentByUser } from "../../../utils/getDepartment";
@@ -84,16 +84,15 @@ export default function DepartmentAttendanceHistory() {
       .finally(() => setIsLoading(false));
   };
 
-  useEffect(() => {
-    fetchHistoryOptions().then((res) =>
-      setHistoryOptions(res.map((item) => ({ label: item, value: item })))
-    );
-  }, []);
 
   useEffect(() => {
     switchOffAttendance()
       .then((res) => setAttendanceIsClosed(res))
       .catch((err) => console.log(err));
+
+    fetchHistoryOptions().then((res) =>
+      setHistoryOptions(res.map((item) => ({ label: item, value: item })))
+    );
   }, []);
 
   useEffect(() => {

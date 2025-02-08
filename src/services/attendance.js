@@ -78,8 +78,8 @@ function updateDefaultSummary(defaultSummary, totals, presentSummary) {
   });
 }
 
-export const fetchAdminAttendance = async (activeGroup, isChurchAdmin) => {
-  const dateForAttendance = getNextSunday();
+export const fetchAdminAttendance = async (activeGroup, isChurchAdmin, activeDate) => {
+  const dateForAttendance = activeDate || getNextSunday();
   const authUser = sessionStorage.getItem("authUser");
   if (!authUser) {
     throw new Error("User not authenticated");
@@ -171,8 +171,8 @@ export const fetchAdminAttendance = async (activeGroup, isChurchAdmin) => {
   }
 };
 
-export const fetchAttendance = async () => {
-  const dateForAttendance = getNextSunday();
+export const fetchAttendance = async (activeDate) => {
+  const dateForAttendance = activeDate || getNextSunday();
   const authUser = sessionStorage.getItem("authUser");
   if (!authUser) {
     throw new Error("User not authenticated");

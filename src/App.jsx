@@ -19,6 +19,8 @@ import {
   summaryRoutes,
 } from "./utils/routeObject";
 import DepartmentAttendanceHistory from "./components/Workers/History/DepartmentAttendanceHistory";
+import DepartmentSummaryHistory from "./components/Workers/History/DeparmentSummaryHistory";
+import DashboardHistory from "./components/Workers/History/DashboardHistory";
 
 const App = () => {
   const queryClient = new QueryClient({
@@ -177,7 +179,7 @@ const App = () => {
                   path={`/summary/${route}`}
                   element={
                     <PrivateRoute>
-                      <DepartmentSummary />
+                      <DepartmentSummaryHistory />
                     </PrivateRoute>
                   }
                 />
@@ -185,7 +187,7 @@ const App = () => {
                   path={`/dashboard/${route}`}
                   element={
                     <PrivateRoute>
-                      <Dashboard />
+                      <DashboardHistory />
                     </PrivateRoute>
                   }
                 />

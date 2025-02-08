@@ -1,25 +1,22 @@
 import { useEffect, useState } from "react";
-import {
-  calculateTotals,
-  fetchAdminAttendance,
-  fetchAttendance,
-} from "../../services/attendance";
-import Header from "../Header";
-import { getNextSunday } from "../../utils/getDate";
-import { useLocation, useNavigate } from "react-router-dom";
-import { getDepartmentByUser } from "../../utils/getDepartment";
-import LoadingState from "../LoadingState";
-import Layout from "../Layout";
+import { useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
-import { ADMIN_ENUMS } from "../../utils/adminEnums";
-import { checkAdminStatus } from "../../utils/checkAdminStatus";
-import ReactSelectDropdown from "../ReactSelect";
-import { getAdminSelectOptions } from "../../utils/routeObject";
 import { debounce } from "lodash";
-import { DEBOUNCE_INTERVAL } from "../../utils/constants";
+import { getNextSunday } from "../../../utils/getDate";
+import { getDepartmentByUser } from "../../../utils/getDepartment";
+import { ADMIN_ENUMS } from "../../../utils/adminEnums";
+import { checkAdminStatus } from "../../../utils/checkAdminStatus";
+import { getAdminSelectOptions } from "../../../utils/routeObject";
+import { calculateTotals, fetchAdminAttendance, fetchAttendance } from "../../../services/attendance";
+import { fetchHistoryOptions } from "../../../services/history";
+import { DEBOUNCE_INTERVAL } from "../../../utils/constants";
+import Header from "../../Header";
+import Layout from "../../Layout";
+import ReactSelectDropdown from "../../ReactSelect";
+import LoadingState from "../../LoadingState";
 
-export default function Dashboard() {
-  const navigate = useNavigate();
+
+export default function DashboardHistory() {
   const [attendanceSummary, setAttendanceSummary] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeGroup, setActiveGroup] = useState("All");
@@ -29,10 +26,12 @@ export default function Dashboard() {
   const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
   const isAdminMember = checkAdminStatus(location.pathname);
   const options = getAdminSelectOptions(isChurchAdmin, team);
+  const [activeHistory, setActiveHistory] = useState(dateForAttendance);
+  const [historyOptions, setHistoryOptions] = useState([]);
 
   const queryAdminAttendance = () => {
     setIsLoading(true);
-    fetchAdminAttendance(activeGroup, isChurchAdmin)
+    fetchAdminAttendance(activeGroup, isChurchAdmin, activeHistory)
       .then((attendance) => {
         setAttendanceSummary(calculateTotals(attendance));
         setIsLoading(false);
@@ -46,7 +45,7 @@ export default function Dashboard() {
 
   const queryAttendance = () => {
     setIsLoading(true);
-    fetchAttendance()
+    fetchAttendance(activeHistory)
       .then((attendance) => {
         setAttendanceSummary(calculateTotals(attendance));
         setIsLoading(false);
@@ -64,7 +63,7 @@ export default function Dashboard() {
       queryAttendance();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeGroup, isChurchAdmin, isAdminMember]);
+  }, [activeGroup, isChurchAdmin, isAdminMember, activeHistory]);
 
   useEffect(() => {
     setIsLoading(true);
@@ -72,6 +71,10 @@ export default function Dashboard() {
       setAttendanceSummary(calculateTotals(attendance));
       setIsLoading(false);
     });
+
+    fetchHistoryOptions().then((res) =>
+      setHistoryOptions(res.map((item) => ({ label: item, value: item })))
+    );
   }, []);
 
   const debouncedSetActiveGroup = debounce(
@@ -83,6 +86,14 @@ export default function Dashboard() {
     debouncedSetActiveGroup(selected?.value);
   };
 
+  const debouncedSetActiveHistory = debounce(
+    (value) => setActiveHistory(value),
+    DEBOUNCE_INTERVAL
+  );
+
+  const handleHistoryChange = (selected) => {
+    debouncedSetActiveHistory(selected?.value);
+  };
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
       <Header />
@@ -91,16 +102,6 @@ export default function Dashboard() {
         <div className="flex flex-col space-y-4 font-bold">
           {/* <Select title="Select service" options={services} /> */}
           {`${team?.team} Dashboard`} - {dateForAttendance}
-          {isAdminMember && (
-            <button
-              className="bg-teal-500 text-white rounded-lg p-2 hover:bg-teal-300"
-              onClick={() => {
-                navigate(`/summary/history/admin/${team.department}`);
-              }}
-            >
-              View History
-            </button>
-          )}
         </div>
         {isAdminMember && (
           <div className="mt-8">
@@ -113,6 +114,16 @@ export default function Dashboard() {
                   { value: "All", label: "All teams/departments" },
                   ...options,
                 ]}
+                className="w-[25%]"
+              />
+              <ReactSelectDropdown
+                title={"Select Sunday"}
+                defaultValue={{
+                  value: dateForAttendance,
+                  label: dateForAttendance,
+                }}
+                onChange={handleHistoryChange}
+                options={[...historyOptions]}
                 className="w-[25%]"
               />
             </div>

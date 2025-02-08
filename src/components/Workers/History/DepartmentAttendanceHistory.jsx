@@ -1,33 +1,38 @@
 // import { useNavigate } from "react-router-dom";
-import { useLocation } from "react-router-dom";
-import Header from "../../Header";
-import { getDepartmentByUser } from "../../../utils/getDepartment";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
-import { fetchAdminWorkers } from "../../../services/workers";
-import { addAttendance } from "../../../services/attendance";
 import { toast } from "react-toastify";
 import { getNextSunday } from "../../../utils/getDate";
-import ReactSelectDropdown from "../../ReactSelect";
+import { getDepartmentByUser } from "../../../utils/getDepartment";
 import { ADMIN_ENUMS } from "../../../utils/adminEnums";
+import { checkAdminStatus } from "../../../utils/checkAdminStatus";
 import { getAdminSelectOptions } from "../../../utils/routeObject";
-import TableLoadingState from "../../TableLoadingState";
-import Layout from "../../Layout";
+import { fetchAdminWorkers, fetchWorkers } from "../../../services/workers";
 import { switchOffAttendance } from "../../../utils/switchOffAttendance";
+import { addAttendance } from "../../../services/attendance";
+import Header from "../../Header";
+import Layout from "../../Layout";
+import ReactSelectDropdown from "../../ReactSelect";
+import TableLoadingState from "../../TableLoadingState";
+import { fetchHistoryOptions } from "../../../services/history";
 
-export default function AdminDepartmentAttendance() {
+export default function DepartmentAttendanceHistory() {
   const location = useLocation();
+  const navigate = useNavigate();
   // const team = getDepartment(location.pathname);
   const [attendance, setAttendance] = useState([]);
   const [data, setData] = useState([]);
-  const [activeGroup, setActiveGroup] = useState("All");
   const [isLoading, setIsLoading] = useState(false);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const dateForAttendance = getNextSunday();
   const [refresh, setRefresh] = useState("");
+  const [activeGroup, setActiveGroup] = useState("All");
   const team = getDepartmentByUser(location.pathname);
   const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
+  const isAdminMember = checkAdminStatus(location.pathname);
   const optionsAdmin = getAdminSelectOptions(isChurchAdmin, team);
   const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
+  const [historyOptions, setHistoryOptions] = useState([]);
 
   const options = useMemo(
     () => [
@@ -48,6 +53,38 @@ export default function AdminDepartmentAttendance() {
     []
   );
 
+  const queryAdminWorkers = () => {
+    setIsLoading(true);
+    fetchAdminWorkers(team.team, activeGroup)
+      .then((res) => {
+        setData(res);
+        setIsLoading(false);
+      })
+      .catch((error) => {
+        toast.error("Error marking attendance");
+        setIsLoading(false);
+        console.log(error);
+      });
+  };
+
+  const queryWorkers = () => {
+    setIsLoading(true);
+    fetchWorkers(team.department)
+      .then((res) => {
+        setData(res);
+      })
+      .catch((error) => {
+        toast.error("Error marking attendance");
+        setIsLoading(false);
+        console.log(error);
+      })
+      .finally(() => setIsLoading(false));
+  };
+
+  useEffect(() => {
+    fetchHistoryOptions().then((res) => setHistoryOptions());
+  }, []);
+
   useEffect(() => {
     switchOffAttendance()
       .then((res) => setAttendanceIsClosed(res))
@@ -55,27 +92,25 @@ export default function AdminDepartmentAttendance() {
   }, []);
 
   useEffect(() => {
-    setIsLoading(true);
-    fetchAdminWorkers(team.team, activeGroup)
-      .then((res) => {
-        setData(res);
-      })
-      .catch((error) => console.error("Error:", error))
-      .finally(() => setIsLoading(false));
-  }, [activeGroup, team.team]);
+    if (isAdminMember) {
+      queryAdminWorkers();
+    } else {
+      queryWorkers();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeGroup, isAdminMember, isChurchAdmin, team.team]);
 
   useEffect(() => {
-    fetchAdminWorkers(team.team, activeGroup)
-      .then((res) => {
-        setData(res);
-      })
-      .catch((error) => console.error("Error:", error));
+    if (isAdminMember) {
+      queryAdminWorkers();
+    } else {
+      queryWorkers();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh]);
 
   function updateOrAddWorker(array, newWorker) {
     // Find the index of an object with the same workerid
-
     const index = array.findIndex(
       (worker) => worker.workerid === newWorker.workerid
     );
@@ -97,6 +132,7 @@ export default function AdminDepartmentAttendance() {
       name: person.fullname,
       attendance: selected?.label,
       department: team.department,
+      team: team.team,
       attendancedate: dateForAttendance,
     });
     setAttendance(newAttendance);
@@ -110,6 +146,10 @@ export default function AdminDepartmentAttendance() {
     setRefresh("added");
     toast.success("Attendance added successfully");
   };
+
+  if (!isAdminMember) {
+    return <div>Unathorized</div>;
+  }
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
@@ -129,12 +169,36 @@ export default function AdminDepartmentAttendance() {
                   : "Midweek service"}
               </p>
             </div>
+            <button
+              className="bg-teal-500 text-white rounded-lg p-2 hover:bg-teal-300"
+              onClick={() => {
+                navigate(-1);
+              }}
+            >
+              Back to attendance
+            </button>
           </div>
-          <div className="mt-8">
-            <div className="mt-8">
+          {isAdminMember && (
+            <div className="mt-8 flex space-x-2">
               <ReactSelectDropdown
                 title={isChurchAdmin ? "Select Team" : "Select Department"}
-                defaultValue={{ value: "All", label: "All teams/departments" }}
+                defaultValue={{
+                  value: "All",
+                  label: "All teams/departments",
+                }}
+                onChange={(selected) => setActiveGroup(selected?.value)}
+                options={[
+                  { value: "All", label: "All teams/departments" },
+                  ...optionsAdmin,
+                ]}
+                className="w-[25%]"
+              />
+              <ReactSelectDropdown
+                title={isChurchAdmin ? "Select Team" : "Select Department"}
+                defaultValue={{
+                  value: "All",
+                  label: "All teams/departments",
+                }}
                 onChange={(selected) => setActiveGroup(selected?.value)}
                 options={[
                   { value: "All", label: "All teams/departments" },
@@ -143,7 +207,7 @@ export default function AdminDepartmentAttendance() {
                 className="w-[25%]"
               />
             </div>
-          </div>
+          )}
           <div className="mt-8 flow-root">
             <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
               <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
@@ -152,6 +216,7 @@ export default function AdminDepartmentAttendance() {
                     <tr>
                       <th
                         scope="col"
+                        t
                         className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0"
                       >
                         S/N
@@ -172,7 +237,7 @@ export default function AdminDepartmentAttendance() {
                         scope="col"
                         className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
                       >
-                        Birthdate
+                        Birthday
                       </th>
 
                       <th
@@ -183,11 +248,6 @@ export default function AdminDepartmentAttendance() {
                       </th>
                     </tr>
                   </thead>
-                  {/* {isLoading && (
-                  <tbody className="divide-y divide-gray-200 h-full">
-                    Loading...
-                  </tbody>
-                )} */}
                   {isLoading ? (
                     <TableLoadingState length={5} />
                   ) : (
@@ -213,23 +273,6 @@ export default function AdminDepartmentAttendance() {
 
                           <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                             <div className="w-48 z-1000 pr-4">
-                              {/* <Select options={options} /> */}
-                              {/* <SelectDropdown
-                            title="Mark attendance"
-                            disabled={person.attendance}
-                            defaultValue={
-                              person?.attendance
-                                ? {
-                                    id: person.attendance.toLowerCase(),
-                                    name: person.attendance,
-                                  }
-                                : undefined
-                            }
-                            onChange={(selected) =>
-                              updateAttendance(selected, person)
-                            }
-                            options={options}
-                          /> */}
                               <ReactSelectDropdown
                                 title="Mark attendance"
                                 disabled={
@@ -256,11 +299,11 @@ export default function AdminDepartmentAttendance() {
                   )}
                 </table>
                 <button
-                  className={`bg-blue-500 text-white p-3 ml-[75%] rounded-xl ${
-                    true && "cursor-not-allowed"
+                  className={`bg-blue-500 text-white p-1.5 ml-[85%] rounded-lg ${
+                    attendanceLoading && "cursor-not-allowed"
                   }`}
                   onClick={saveAttendance}
-                  disabled={true}
+                  disabled={attendanceLoading}
                 >
                   {attendanceLoading ? "Saving..." : "Save attendance"}
                 </button>
@@ -272,29 +315,3 @@ export default function AdminDepartmentAttendance() {
     </div>
   );
 }
-
-// useEffect(() => {
-//   switchOffAttendance()
-//     .then((res) => setAttendanceIsClosed(res))
-//     .catch((err) => console.log(err));
-// }, []);
-
-// useEffect(() => {
-//   setIsLoading(true);
-//   fetchWorkers(team.department)
-//     .then((res) => {
-//       setData(res);
-//     })
-//     .catch((error) => console.error("Error:", error))
-//     .finally(() => setIsLoading(false));
-//   // eslint-disable-next-line react-hooks/exhaustive-deps
-// }, []);
-
-// useEffect(() => {
-// fetchWorkers(team.department)
-//   .then((res) => {
-//     setData(res);
-//   })
-//   .catch((error) => console.error("Error:", error));
-//   // eslint-disable-next-line react-hooks/exhaustive-deps
-// }, [refresh]);

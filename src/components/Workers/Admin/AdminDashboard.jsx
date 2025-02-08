@@ -4,7 +4,7 @@ import {
   fetchAdminAttendance,
 } from "../../../services/attendance";
 import Header from "../../Header";
-import getDayAndYear from "../../../utils/getDate";
+import { getNextSunday } from "../../../utils/getDate";
 import { useLocation } from "react-router-dom";
 import { getDepartmentByUser } from "../../../utils/getDepartment";
 import { ADMIN_ENUMS } from "../../../utils/adminEnums";
@@ -17,7 +17,7 @@ export default function AdminDashboard() {
   const [activeGroup, setActiveGroup] = useState("All");
   const [attendanceSummary, setAttendanceSummary] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const dateForAttendance = getDayAndYear();
+  const dateForAttendance = getNextSunday();
   const location = useLocation();
   const team = getDepartmentByUser(location.pathname);
   const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;

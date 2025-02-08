@@ -39,7 +39,7 @@ export default function DepartmentSummary() {
       .catch((error) => {
         setIsLoading(false);
         console.log(error);
-        toast.error("Error loading summart");
+        toast.error("Error loading summary");
       });
   };
 
@@ -52,7 +52,8 @@ export default function DepartmentSummary() {
       })
       .catch((error) => {
         setIsLoading(false);
-        toast.error("Error loading summart");
+        console.log(error);
+        toast.error("Error loading summary");
       });
   };
 

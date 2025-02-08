@@ -1,5 +1,5 @@
 import { ADMIN_ENUMS } from "../utils/adminEnums";
-import getDayAndYear from "../utils/getDate";
+import {getNextSunday} from "../utils/getDate";
 import getDefaultSummary from "../utils/getDefaultSummary";
 import { specialDepartments } from "../utils/routeObject";
 import { supabase } from "./supabaseClient";
@@ -8,7 +8,7 @@ const table = "attendance";
 // const table = "attendance2";
 const joinOps = "attendance.eq.Present,attendance.eq.Online";
 export const addAttendance = async (attendance) => {
-  const dateForAttendance = getDayAndYear();
+  const dateForAttendance = getNextSunday();
   try {
     console.log(attendance)
     await supabase
@@ -79,7 +79,7 @@ function updateDefaultSummary(defaultSummary, totals, presentSummary) {
 }
 
 export const fetchAdminAttendance = async (activeGroup, isChurchAdmin) => {
-  const dateForAttendance = getDayAndYear();
+  const dateForAttendance = getNextSunday();
   const authUser = sessionStorage.getItem("authUser");
   if (!authUser) {
     throw new Error("User not authenticated");
@@ -172,7 +172,7 @@ export const fetchAdminAttendance = async (activeGroup, isChurchAdmin) => {
 };
 
 export const fetchAttendance = async () => {
-  const dateForAttendance = getDayAndYear();
+  const dateForAttendance = getNextSunday();
   const authUser = sessionStorage.getItem("authUser");
   if (!authUser) {
     throw new Error("User not authenticated");

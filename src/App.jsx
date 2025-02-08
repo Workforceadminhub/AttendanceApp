@@ -15,8 +15,10 @@ import {
   adminRoutes,
   attendanceRoutes,
   dashboardRoutes,
+  historyRoutes,
   summaryRoutes,
 } from "./utils/routeObject";
+import DepartmentAttendanceHistory from "./components/Workers/History/DepartmentAttendanceHistory";
 
 const App = () => {
   const queryClient = new QueryClient({
@@ -139,6 +141,35 @@ const App = () => {
                   element={
                     <PrivateRoute>
                       <DepartmentAttendance />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path={`/summary/${route}`}
+                  element={
+                    <PrivateRoute>
+                      <DepartmentSummary />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path={`/dashboard/${route}`}
+                  element={
+                    <PrivateRoute>
+                      <Dashboard />
+                    </PrivateRoute>
+                  }
+                />
+              </React.Fragment>
+            ))}
+
+            {historyRoutes.map((route) => (
+              <React.Fragment key={route}>
+                <Route
+                  path={`/attendance/${route}`}
+                  element={
+                    <PrivateRoute>
+                      <DepartmentAttendanceHistory />
                     </PrivateRoute>
                   }
                 />

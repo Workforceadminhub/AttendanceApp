@@ -127,6 +127,13 @@ export const adminRoutes = Array.from(
     )
   )
 );
+export const historyRoutes = Array.from(
+  new Set(
+    routeObject.map(
+      (item) => `history/admin/${item.team.toLowerCase().trim().replaceAll(" ", "")}`
+    )
+  )
+);
 
 export const getAdminSelectOptions = (isChurchAdmin, team) => {
   const options = isChurchAdmin

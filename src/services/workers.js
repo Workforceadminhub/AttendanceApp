@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "./supabaseClient";
-import getDayAndYear from "../utils/getDate";
+import { getNextSunday } from "../utils/getDate";
 import { routeObject } from "../utils/routeObject";
 
 // const table = "attendance2"
@@ -8,7 +8,7 @@ const table = "attendance";
 
 export const fetchWorkers = async (department) => {
   try {
-    const dateForAttendance = getDayAndYear();
+    const dateForAttendance = getNextSunday();
     const { data, error } = await supabase
       .from("worker")
       .select(`*, ${table} ( workerid, attendance, attendancedate )`)
@@ -38,7 +38,7 @@ export const fetchAdminWorkers = async (team, activeGroup) => {
     const departments = routeObject
       .filter((item) => item.team === team)
       .map((item) => item.department);
-    const dateForAttendance = getDayAndYear();
+    const dateForAttendance = getNextSunday();
     let data;
     let error;
     if (activeGroup === "All") {

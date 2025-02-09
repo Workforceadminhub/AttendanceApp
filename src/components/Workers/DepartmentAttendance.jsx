@@ -260,24 +260,45 @@ export default function DepartmentAttendance() {
 
                           <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                             <div className="w-48 z-1000 pr-4">
-                              <ReactSelectDropdown
-                                title="Mark attendance"
-                                disabled={
-                                  person.attendance || attendanceIsClosed
-                                }
-                                defaultValue={
-                                  person?.attendance
-                                    ? {
-                                        value: person.attendance.toLowerCase(),
-                                        label: person.attendance,
-                                      }
-                                    : undefined
-                                }
-                                onChange={(selected) =>
-                                  updateAttendance(selected, person)
-                                }
-                                options={options}
-                              />
+                              {isAdminMember ? (
+                                <ReactSelectDropdown
+                                  title="Mark attendance"
+                                  disabled={true}
+                                  defaultValue={
+                                    person?.attendance
+                                      ? {
+                                          value:
+                                            person.attendance.toLowerCase(),
+                                          label: person.attendance,
+                                        }
+                                      : undefined
+                                  }
+                                  onChange={(selected) =>
+                                    updateAttendance(selected, person)
+                                  }
+                                  options={options}
+                                />
+                              ) : (
+                                <ReactSelectDropdown
+                                  title="Mark attendance"
+                                  disabled={
+                                    person.attendance || attendanceIsClosed
+                                  }
+                                  defaultValue={
+                                    person?.attendance
+                                      ? {
+                                          value:
+                                            person.attendance.toLowerCase(),
+                                          label: person.attendance,
+                                        }
+                                      : undefined
+                                  }
+                                  onChange={(selected) =>
+                                    updateAttendance(selected, person)
+                                  }
+                                  options={options}
+                                />
+                              )}
                             </div>
                           </td>
                         </tr>

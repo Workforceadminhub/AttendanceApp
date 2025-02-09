@@ -25,7 +25,7 @@ export default function DepartmentAttendance() {
   const [isLoading, setIsLoading] = useState(false);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const dateForAttendance = getNextSunday();
-  const [refresh, setRefresh] = useState("");
+  const [refresh, setRefresh] = useState(0);
   const [activeGroup, setActiveGroup] = useState("All");
   const team = getDepartmentByUser(location.pathname);
   const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
@@ -131,14 +131,13 @@ export default function DepartmentAttendance() {
       attendancedate: dateForAttendance,
     });
     setAttendance(newAttendance);
-    setRefresh("updated");
   };
 
   const saveAttendance = async () => {
     setAttendanceLoading(true);
     await addAttendance(attendance);
     setAttendanceLoading(false);
-    setRefresh("added");
+    setRefresh(Math.random());
     toast.success("Attendance added successfully");
   };
 

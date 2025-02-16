@@ -293,7 +293,7 @@ export default function DepartmentAttendance() {
                                       : undefined
                                   }
                                   onChange={(selected) =>
-                                    updateAttendance(selected, person)
+                                   selected.value !== null && updateAttendance(selected, person)
                                   }
                                   options={options}
                                 />

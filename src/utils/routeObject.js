@@ -101,7 +101,12 @@ export const routeObject = [
   { department: "New Workers - Kidszone", route: "/nwkidszone", team: "Next Gen" },
   { department: "Administration - Kidszone", route: "/adminkidszone", team: "Next Gen" },
   { department: "Programming and Environment - Kidszone", route: "/progkidszone", team: "Next Gen" },
-  { department: "Learning and Development - Kidszone", route: "/learnkidszone", team: "Next Gen" }
+  { department: "Learning and Development - Kidszone", route: "/learnkidszone", team: "Next Gen" },
+  { department: "Venue Management - Zeina team", route: "/vmgtzeina", team: "Programs" },
+  { department: "Venue Management - Tosin Agbetuyi team", route: "/vmgttosin", team: "Programs" },
+  { department: "Venue Management - Emmanuel team", route: "/vmgtemma", team: "Programs" },
+  { department: "Venue Management - Boluwatife team", route: "/vmgtbolu", team: "Programs" },
+  { department: "Venue Management - Feyisayo Phillip team", route: "/vmgtfeyi", team: "Programs" },
 ];
 
 export const attendanceRoutes = routeObject.map(

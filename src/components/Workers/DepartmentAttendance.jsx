@@ -17,6 +17,36 @@ import { DEBOUNCE_INTERVAL } from "../../utils/constants";
 import { debounce } from "lodash";
 import ViewHistoryButton from "../ViewHistoryButton";
 
+// Separate component for the attendance dropdown to reduce duplication
+const AttendanceDropdown = ({
+  person,
+  isAdminMember,
+  attendanceIsClosed,
+  updateAttendance,
+  options,
+  className,
+}) => {
+  return (
+    <ReactSelectDropdown
+      title="Mark attendance"
+      disabled={isAdminMember || person.attendance || attendanceIsClosed}
+      defaultValue={
+        person?.attendance
+          ? {
+              value: person.attendance.toLowerCase(),
+              label: person.attendance,
+            }
+          : undefined
+      }
+      onChange={(selected) =>
+        selected?.value !== null && updateAttendance(selected, person)
+      }
+      options={options}
+      className={className}
+    />
+  );
+};
+
 export default function DepartmentAttendance() {
   const location = useLocation();
   // const team = getDepartment(location.pathname);
@@ -151,17 +181,17 @@ export default function DepartmentAttendance() {
   };
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-8">
+    <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
       <Header />
       <Layout>
         <div>
-          <div className="sm:flex sm:items-center">
-            <div className="sm:flex-auto">
-              <h1 className="text-base font-semibold leading-6 text-gray-900">
+          {/* Header Section */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex-1">
+              <h1 className="text-lg sm:text-xl font-semibold text-gray-900">
                 {team?.department} attendance
               </h1>
-
-              <p>
+              <p className="text-sm text-gray-600">
                 {dateForAttendance} -{" "}
                 {dateForAttendance?.includes("Sunday")
                   ? "Sunday service"
@@ -169,152 +199,154 @@ export default function DepartmentAttendance() {
               </p>
             </div>
             {isAdminMember && (
-              <ViewHistoryButton
-                label="View History"
-                link={`/attendance/history/admin/${team.department}`}
-              />
-            )}
-          </div>
-          {isAdminMember && (
-            <div className="mt-8">
-              <div className="mt-8">
-                <ReactSelectDropdown
-                  title={isChurchAdmin ? "Select Team" : "Select Department"}
-                  defaultValue={{
-                    value: "All",
-                    label: "All teams/departments",
-                  }}
-                  onChange={handleChange}
-                  options={[
-                    { value: "All", label: "All teams/departments" },
-                    ...optionsAdmin,
-                  ]}
-                  className="w-[25%]"
+              <div className="self-start sm:self-center">
+                <ViewHistoryButton
+                  label="View History"
+                  link={`/attendance/history/admin/${team.department}`}
                 />
               </div>
+            )}
+          </div>
+
+          {/* Admin Controls */}
+          {isAdminMember && (
+            <div className="mt-6">
+              <ReactSelectDropdown
+                title={isChurchAdmin ? "Select Team" : "Select Department"}
+                defaultValue={{
+                  value: "All",
+                  label: "All teams/departments",
+                }}
+                onChange={handleChange}
+                options={[
+                  { value: "All", label: "All teams/departments" },
+                  ...optionsAdmin,
+                ]}
+                className="w-full sm:w-[25%]"
+              />
             </div>
           )}
-          <div className="mt-8 flow-root">
-            <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-              <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-                <table className="min-w-full divide-y divide-gray-300">
-                  <thead>
-                    <tr>
-                      <th
-                        scope="col"
-                        t
-                        className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0"
-                      >
-                        S/N
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                      >
-                        Name
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                      >
-                        Phone number
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                      >
-                        Birthday
-                      </th>
 
-                      <th
-                        scope="col"
-                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                      >
-                        Status
-                      </th>
-                    </tr>
-                  </thead>
-                  {isLoading ? (
-                    <TableLoadingState length={5} />
-                  ) : (
-                    <tbody className="divide-y divide-gray-200 h-full">
-                      {data?.map((person, idx) => (
-                        <tr key={person.id}>
-                          <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
-                            {idx + 1}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                            {person.fullname}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                            {person.phonenumber
-                              ? person.phonenumber.startsWith("0")
-                                ? person.phonenumber
-                                : `0${person.phonenumber}`
-                              : ""}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                            {person.birthdate}
-                          </td>
-
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                            <div className="w-48 z-1000 pr-4">
-                              {isAdminMember ? (
-                                <ReactSelectDropdown
-                                  title="Mark attendance"
-                                  disabled={true}
-                                  defaultValue={
-                                    person?.attendance
-                                      ? {
-                                          value:
-                                            person.attendance.toLowerCase(),
-                                          label: person.attendance,
-                                        }
-                                      : undefined
-                                  }
-                                  onChange={(selected) =>
-                                    updateAttendance(selected, person)
-                                  }
-                                  options={options}
-                                />
-                              ) : (
-                                <ReactSelectDropdown
-                                  title="Mark attendance"
-                                  disabled={
-                                    person.attendance || attendanceIsClosed
-                                  }
-                                  defaultValue={
-                                    person?.attendance
-                                      ? {
-                                          value:
-                                            person.attendance.toLowerCase(),
-                                          label: person.attendance,
-                                        }
-                                      : undefined
-                                  }
-                                  onChange={(selected) =>
-                                   selected.value !== null && updateAttendance(selected, person)
-                                  }
-                                  options={options}
-                                />
-                              )}
-                            </div>
-                          </td>
+          {/* Table Section */}
+          <div className="mt-6">
+            {isLoading ? (
+              <TableLoadingState length={5} />
+            ) : (
+              <div className="space-y-4">
+                {/* Desktop Table */}
+                <div className="hidden sm:block">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-300">
+                      <thead>
+                        <tr>
+                          <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0">
+                            S/N
+                          </th>
+                          <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                            Name
+                          </th>
+                          <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                            Phone number
+                          </th>
+                          <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                            Birthday
+                          </th>
+                          <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                            Status
+                          </th>
                         </tr>
-                      ))}
-                    </tbody>
-                  )}
-                </table>
-                <button
-                  className={`bg-blue-500 text-white p-1.5 ml-[85%] rounded-lg ${
-                    attendanceLoading && "cursor-not-allowed"
-                  }`}
-                  onClick={saveAttendance}
-                  disabled={attendanceLoading}
-                >
-                  {attendanceLoading ? "Saving..." : "Save attendance"}
-                </button>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {data?.map((person, idx) => (
+                          <tr key={person.id}>
+                            <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
+                              {idx + 1}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                              {person.fullname}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                              {person.phonenumber
+                                ? person.phonenumber.startsWith("0")
+                                  ? person.phonenumber
+                                  : `0${person.phonenumber}`
+                                : ""}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                              {person.birthdate}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                              <AttendanceDropdown
+                                person={person}
+                                isAdminMember={isAdminMember}
+                                attendanceIsClosed={attendanceIsClosed}
+                                updateAttendance={updateAttendance}
+                                options={options}
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Mobile Cards */}
+                <div className="sm:hidden">
+                  <div className="space-y-4">
+                    {data?.map((person, idx) => (
+                      <div
+                        key={person.id}
+                        className="bg-white rounded-lg shadow p-4 space-y-3"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {person.fullname}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {person.phonenumber
+                                ? person.phonenumber.startsWith("0")
+                                  ? person.phonenumber
+                                  : `0${person.phonenumber}`
+                                : ""}
+                            </p>
+                          </div>
+                          <span className="text-sm text-gray-500">
+                            #{idx + 1}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          <p>Birthday: {person.birthdate}</p>
+                        </div>
+                        <div className="pt-2">
+                          <AttendanceDropdown
+                            person={person}
+                            isAdminMember={isAdminMember}
+                            attendanceIsClosed={attendanceIsClosed}
+                            updateAttendance={updateAttendance}
+                            options={options}
+                            className="w-[50%] sm:w-24"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
+            )}
+
+            {/* Save Button */}
+            <div className="mt-6 flex justify-end">
+              <button
+                className={`bg-blue-500 text-white px-4 py-2 rounded-lg w-full sm:w-auto ${
+                  attendanceLoading && "cursor-not-allowed opacity-75"
+                }`}
+                onClick={saveAttendance}
+                disabled={attendanceLoading}
+              >
+                {attendanceLoading ? "Saving..." : "Save attendance"}
+              </button>
             </div>
           </div>
         </div>

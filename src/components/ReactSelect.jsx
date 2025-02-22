@@ -6,7 +6,7 @@ export default function ReactSelectDropdown({
   options,
   onChange,
   defaultValue,
-  className = "sm:w-60 xs:w-40 md:w-60 lg:w-64 xl:w-64",
+  className = "sm:w-44 xs:w-40 md:w-52 lg:w-64 xl:w-64",
   disabled = false,
 }) {
   // Map for assigning background colors to options

@@ -287,9 +287,7 @@ export default function DepartmentAttendanceHistory() {
                             <div className="w-48 z-1000 pr-4">
                               <ReactSelectDropdown
                                 title="Mark attendance"
-                                disabled={
-                                  person.attendance || attendanceIsClosed
-                                }
+                                disabled={true}
                                 defaultValue={
                                   person?.attendance
                                     ? {

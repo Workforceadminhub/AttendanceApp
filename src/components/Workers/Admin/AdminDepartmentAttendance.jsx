@@ -232,9 +232,7 @@ export default function AdminDepartmentAttendance() {
                           /> */}
                               <ReactSelectDropdown
                                 title="Mark attendance"
-                                disabled={
-                                  person.attendance || attendanceIsClosed
-                                }
+                                disabled={true}
                                 defaultValue={
                                   person?.attendance
                                     ? {

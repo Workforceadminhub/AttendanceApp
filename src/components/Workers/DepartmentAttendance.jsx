@@ -326,7 +326,7 @@ export default function DepartmentAttendance() {
                             attendanceIsClosed={attendanceIsClosed}
                             updateAttendance={updateAttendance}
                             options={options}
-                            className="w-[50%] sm:w-24"
+                            className="w-full"
                           />
                         </div>
                       </div>

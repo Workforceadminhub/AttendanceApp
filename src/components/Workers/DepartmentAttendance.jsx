@@ -222,7 +222,7 @@ export default function DepartmentAttendance() {
                   { value: "All", label: "All teams/departments" },
                   ...optionsAdmin,
                 ]}
-                className="w-full sm:w-[25%]"
+                className="lg:w-[25%] md:w-[30%] xl:w-[25%] sm:w-[45%] xs:w-[50%]"
               />
             </div>
           )}

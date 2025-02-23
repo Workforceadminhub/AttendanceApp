@@ -114,7 +114,7 @@ export default function Dashboard() {
                 { value: "All", label: "All teams/departments" },
                 ...options,
               ]}
-              className="w-[25%]"
+              className="lg:w-[25%] md:w-[30%] xl:w-[25%] sm:w-[45%] xs:w-[50%]"
             />
           </div>
         )}

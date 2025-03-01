@@ -20,7 +20,7 @@ const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
         />
       </div>
       <div className="flex">
-        {/* <label className="text-lg text-red-500 mt-2 mr-2">*</label> */}
+        <label className="text-lg text-transparent mt-2 mr-2">*</label>
         <input
           type="text"
           placeholder="Middle Name"

@@ -192,7 +192,7 @@ export default function DepartmentAttendance() {
 
   const removeWorkerData = () => {
     setIsLoading(true);
-    removeWorker(workerId)
+    removeWorker(workerId, team.team, team.department)
       .then(() => {
         toast.success("Worker removed successfully");
         setIsLoading(false);

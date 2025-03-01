@@ -11,7 +11,7 @@ import { getDepartmentByUser } from "../../utils/getDepartment";
 import LoadingState from "../LoadingState";
 import Layout from "../Layout";
 import { toast } from "react-toastify";
-import { ADMIN_ENUMS } from "../../utils/adminEnums";
+import { ADMIN_ENUMS } from "../../utils/enums";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
 import ReactSelectDropdown from "../ReactSelect";
 import { getAdminSelectOptions } from "../../utils/routeObject";

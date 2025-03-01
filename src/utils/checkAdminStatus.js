@@ -1,4 +1,4 @@
-import { ADMIN_ENUMS } from "./adminEnums";
+import { ADMIN_ENUMS } from "./enums";
 import { getDepartmentByUser } from "./getDepartment";
 
 export const checkAdminStatus = (pathname) => {

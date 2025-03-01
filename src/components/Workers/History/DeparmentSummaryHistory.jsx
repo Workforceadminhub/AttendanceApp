@@ -1,14 +1,14 @@
 // import { useNavigate } from "react-router-dom";
 
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { debounce } from "lodash";
 import getDefaultSummary from "../../../utils/getDefaultSummary";
 import { getAdminSelectOptions, routeObject } from "../../../utils/routeObject";
 import { getNextSunday } from "../../../utils/getDate";
 import { getDepartmentByUser } from "../../../utils/getDepartment";
-import { ADMIN_ENUMS } from "../../../utils/adminEnums";
+import { ADMIN_ENUMS } from "../../../utils/enums";
 import { checkAdminStatus } from "../../../utils/checkAdminStatus";
 import {
   fetchAdminAttendance,
@@ -23,7 +23,6 @@ import Header from "../../Header";
 import ViewHistoryButton from "../../ViewHistoryButton";
 
 export default function DepartmentSummaryHistory() {
-  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [activeGroup, setActiveGroup] = useState("All");
   const [attendanceSummary, setAttendanceSummary] = useState(

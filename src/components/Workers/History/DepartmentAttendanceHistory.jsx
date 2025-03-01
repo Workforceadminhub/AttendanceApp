@@ -1,10 +1,10 @@
 // import { useNavigate } from "react-router-dom";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import { getNextSunday } from "../../../utils/getDate";
 import { getDepartmentByUser } from "../../../utils/getDepartment";
-import { ADMIN_ENUMS } from "../../../utils/adminEnums";
+import { ADMIN_ENUMS } from "../../../utils/enums";
 import { checkAdminStatus } from "../../../utils/checkAdminStatus";
 import { getAdminSelectOptions } from "../../../utils/routeObject";
 import { fetchAdminWorkers, fetchWorkers } from "../../../services/workers";
@@ -21,7 +21,6 @@ import ViewHistoryButton from "../../ViewHistoryButton";
 
 export default function DepartmentAttendanceHistory() {
   const location = useLocation();
-  const navigate = useNavigate();
   // const team = getDepartment(location.pathname);
   const [attendance, setAttendance] = useState([]);
   const [data, setData] = useState([]);
@@ -287,7 +286,7 @@ export default function DepartmentAttendanceHistory() {
                             <div className="w-48 z-1000 pr-4">
                               <ReactSelectDropdown
                                 title="Mark attendance"
-                                disabled={true}
+                                disabled={true || attendanceIsClosed}
                                 defaultValue={
                                   person?.attendance
                                     ? {

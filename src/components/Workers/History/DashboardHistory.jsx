@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { debounce } from "lodash";
 import { getNextSunday } from "../../../utils/getDate";
 import { getDepartmentByUser } from "../../../utils/getDepartment";
-import { ADMIN_ENUMS } from "../../../utils/adminEnums";
+import { ADMIN_ENUMS } from "../../../utils/enums";
 import { checkAdminStatus } from "../../../utils/checkAdminStatus";
 import { getAdminSelectOptions } from "../../../utils/routeObject";
 import {
@@ -21,7 +21,6 @@ import LoadingState from "../../LoadingState";
 import ViewHistoryButton from "../../ViewHistoryButton";
 
 export default function DashboardHistory() {
-  const navigate = useNavigate();
   const [attendanceSummary, setAttendanceSummary] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeGroup, setActiveGroup] = useState("All");

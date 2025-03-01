@@ -1,4 +1,4 @@
-import { ADMIN_ENUMS } from "../utils/adminEnums";
+import { ADMIN_ENUMS } from "../utils/enums";
 import {getNextSunday} from "../utils/getDate";
 import getDefaultSummary from "../utils/getDefaultSummary";
 import { specialDepartments } from "../utils/routeObject";

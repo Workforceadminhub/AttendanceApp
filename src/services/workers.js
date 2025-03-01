@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "./supabaseClient";
 import { getNextSunday } from "../utils/getDate";
 import { routeObject } from "../utils/routeObject";
+import { WORKER_STATUS } from "../utils/enums";
 
 // const table = "attendance2"
 const table = "attendance";
@@ -19,12 +20,14 @@ export const fetchWorkers = async (department, activeDate) => {
       throw error;
     }
 
-    const finalResult = data.map((item) => ({
-      ...item,
-      name: item?.fullname?.trim(),
-      attendance:
-        item[table].length > 0 ? item[table][0].attendance : undefined,
-    }));
+    const finalResult = data
+      .map((item) => ({
+        ...item,
+        name: item?.fullname?.trim(),
+        attendance:
+          item[table].length > 0 ? item[table][0].attendance : undefined,
+      }))
+      .filter((item) => item.status !== WORKER_STATUS.PENDING || !item.status);
 
     return finalResult;
   } catch (error) {
@@ -85,7 +88,7 @@ export const addNewWorker = async (worker) => {
   try {
     const { data, error } = await supabase.from("worker").insert({
       ...worker,
-      status: "PENDING",
+      status: WORKER_STATUS.PENDING,
     });
 
     if (error) {

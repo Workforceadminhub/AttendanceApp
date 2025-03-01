@@ -7,7 +7,7 @@ import Header from "../../Header";
 import { getNextSunday } from "../../../utils/getDate";
 import { useLocation } from "react-router-dom";
 import { getDepartmentByUser } from "../../../utils/getDepartment";
-import { ADMIN_ENUMS } from "../../../utils/adminEnums";
+import { ADMIN_ENUMS } from "../../../utils/enums";
 import { getAdminSelectOptions } from "../../../utils/routeObject";
 import ReactSelectDropdown from "../../ReactSelect";
 import LoadingState from "../../LoadingState";

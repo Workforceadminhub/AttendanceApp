@@ -8,7 +8,7 @@ import { addAttendance } from "../../../services/attendance";
 import { toast } from "react-toastify";
 import { getNextSunday } from "../../../utils/getDate";
 import ReactSelectDropdown from "../../ReactSelect";
-import { ADMIN_ENUMS } from "../../../utils/adminEnums";
+import { ADMIN_ENUMS } from "../../../utils/enums";
 import { getAdminSelectOptions } from "../../../utils/routeObject";
 import TableLoadingState from "../../TableLoadingState";
 import Layout from "../../Layout";

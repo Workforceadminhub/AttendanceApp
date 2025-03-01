@@ -1,4 +1,4 @@
-import { ADMIN_ENUMS } from "./adminEnums";
+import { ADMIN_ENUMS } from "./enums";
 
 export const routeObject = [
   { department: "Workforce Admin", route: "/wadata", team: "Ministry" },

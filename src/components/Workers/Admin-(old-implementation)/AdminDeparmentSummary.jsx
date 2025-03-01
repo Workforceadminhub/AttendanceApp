@@ -8,7 +8,7 @@ import getDefaultSummary from "../../../utils/getDefaultSummary";
 import { getDepartmentByUser } from "../../../utils/getDepartment";
 import { useLocation } from "react-router-dom";
 import ReactSelectDropdown from "../../ReactSelect";
-import { ADMIN_ENUMS } from "../../../utils/adminEnums";
+import { ADMIN_ENUMS } from "../../../utils/enums";
 import TableLoadingState from "../../TableLoadingState";
 import Layout from "../../Layout";
 

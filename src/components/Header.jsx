@@ -5,7 +5,7 @@ import { Dialog, DialogPanel } from "@headlessui/react";
 import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useNavigate } from "react-router-dom";
 import { getUser } from "../utils/getUser";
-import { ADMIN_ENUMS } from "../utils/adminEnums";
+import { ADMIN_ENUMS } from "../utils/enums";
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

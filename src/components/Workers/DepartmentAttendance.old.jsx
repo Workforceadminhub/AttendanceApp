@@ -11,7 +11,7 @@ import TableLoadingState from "../TableLoadingState";
 import Layout from "../Layout";
 import { switchOffAttendance } from "../../utils/switchOffAttendance";
 import { getAdminSelectOptions } from "../../utils/routeObject";
-import { ADMIN_ENUMS } from "../../utils/adminEnums";
+import { ADMIN_ENUMS } from "../../utils/enums";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
 import { debounce } from "lodash";

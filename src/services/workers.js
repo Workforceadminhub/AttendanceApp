@@ -81,6 +81,24 @@ export const fetchAdminWorkers = async (team, activeGroup, activeDate) => {
   }
 };
 
+export const addNewWorker = async (worker) => {
+  try {
+    const { data, error } = await supabase.from("worker").insert({
+      ...worker,
+      status: "PENDING",
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error adding new worker:", error.message);
+    return null;
+  }
+};
+
 export const useFetchWorkers = (department) => {
   return useQuery({
     queryKey: [department],

@@ -21,6 +21,7 @@ import {
 import DepartmentAttendanceHistory from "./components/Workers/History/DepartmentAttendanceHistory";
 import DepartmentSummaryHistory from "./components/Workers/History/DeparmentSummaryHistory";
 import DashboardHistory from "./components/Workers/History/DashboardHistory";
+import NewWorker from "./components/Workers/NewWorker";
 
 const App = () => {
   const queryClient = new QueryClient({
@@ -62,6 +63,7 @@ const App = () => {
           <Routes>
             <Route index element={<Home />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/new/worker" element={<NewWorker />} />
             <Route
               path="/summary"
               element={

@@ -6,6 +6,7 @@ const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
 
   return (
     <div className="flex flex-col space-y-4 pb-8">
+      <h2 className="font-bold text-center text-xl">Add New Worker</h2>
       <div className="flex">
         <label className="text-lg text-red-500 mt-2 mr-2">*</label>
         <input
@@ -15,6 +16,18 @@ const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
           value={formData.firstname}
           onChange={(e) =>
             setFormData({ ...formData, firstname: e.target.value })
+          }
+        />
+      </div>
+      <div className="flex">
+        <label className="text-lg text-red-500 mt-2 mr-2">*</label>
+        <input
+          type="text"
+          placeholder="Middle Name"
+          className="border p-3 w-full rounded-md"
+          value={formData.othername}
+          onChange={(e) =>
+            setFormData({ ...formData, othername: e.target.value })
           }
         />
       </div>
@@ -52,22 +65,7 @@ const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
           }
         />
       </div>
-      <div className="flex">
-        <label className="text-lg text-transparent invisible mt-2 mr-2">
-          *
-        </label>
-        <input
-          type="text"
-          placeholder="Marital Status"
-          className="border p-3 w-full rounded-md"
-          value={formData.maritalstatus}
-          onChange={(e) =>
-            setFormData({ ...formData, maritalstatus: e.target.value })
-          }
-        />
-      </div>
-
-      {!isActive && (
+      {/* {!isActive && ( */}
         <div className="flex flex-col space-y-5">
           <div className="flex">
             <label className="text-lg text-red-500 mt-2 mr-2">*</label>
@@ -125,8 +123,85 @@ const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
             </select>
           </div>
         </div>
-      )}
+      {/* )} */}
       <div className="flex">
+        <label className="text-lg text-red-500 mt-2 mr-2">*</label>
+        <select
+          className="border p-3 w-full rounded-md"
+          value={formData.gender || ""}
+          onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+        >
+          <option value="">Select Gender</option>
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+        </select>
+      </div>
+      {/* Marital Status (Updated) */}
+      <div className="flex">
+        <label className="text-lg text-red-500 mt-2 mr-2">*</label>
+        <select
+          className="border p-3 w-full rounded-md"
+          value={formData.maritalstatus || ""}
+          onChange={(e) =>
+            setFormData({ ...formData, maritalstatus: e.target.value })
+          }
+        >
+          <option value="">Select Marital Status</option>
+          <option value="Single">Single</option>
+          <option value="Married">Married</option>
+          {/* <option value="Single Parent">Single Parent</option> */}
+        </select>
+      </div>
+      {/* Date of Birth */}
+      <div className="flex">
+        <label className="text-lg text-red-500 mt-2 mr-2">*</label>
+        {/* Using type="date" gives a better UI, but if you need text, change it to type="text" */}
+        <input
+          type="date"
+          placeholder="Date of Birth"
+          className="border p-3 w-full rounded-md"
+          value={formData.dob || ""}
+          onChange={(e) => setFormData({ ...formData, birthdate: e.target.value })}
+        />
+      </div>
+      {/* Age Range */}
+      <div className="flex">
+        <label className="text-lg text-red-500 mt-2 mr-2">*</label>
+        <select
+          className="border p-3 w-full rounded-md"
+          value={formData.ageRange || ""}
+          onChange={(e) =>
+            setFormData({ ...formData, agerange: e.target.value })
+          }
+        >
+          <option value="">Select Age Range</option>
+          <option value="18-25">18-25</option>
+          <option value="26-30">26-30</option>
+          <option value="31-35">31-35</option>
+          <option value="36-40">36-40</option>
+          <option value="41-45">41-45</option>
+          <option value="46-50">46-50</option>
+          <option value="51 & Above">51 & Above</option>
+        </select>
+      </div>
+      {/* Employment */}
+      <div className="flex">
+        <label className="text-lg text-red-500 mt-2 mr-2">*</label>
+        <select
+          className="border p-3 w-full rounded-md"
+          value={formData.employment || ""}
+          onChange={(e) =>
+            setFormData({ ...formData, employment: e.target.value })
+          }
+        >
+          <option value="">Select Employment Status</option>
+          <option value="Employed">Employed</option>
+          <option value="Self-employed">Self-employed</option>
+          <option value="Student">Student</option>
+          <option value="Unemployed">Unemployed</option>
+        </select>
+      </div>
+      {/* <div className="flex">
         <label className="text-lg text-red-500 mt-2 mr-3">*</label>
         <input
           type="checkbox"
@@ -136,7 +211,7 @@ const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
           onChange={(e) => setFormData({ ...formData, nlp: e.target.checked })}
         />
         <label htmlFor="nlp" className="text-lg">Sign up to serve at NLP Conference Lagos 2025</label>
-      </div>
+      </div> */}
       <div className="flex justify-between space-x-3">
         <label className="text-lg text-transparent invisible mt-2">*</label>
         <button
@@ -149,7 +224,7 @@ const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
           className="bg-blue-500 text-white p-4 mt-4 w-full rounded-md hover:bg-blue-400"
           onClick={handleSubmit}
         >
-          {isLoading ? "Registering..." : "Register"}
+          {isLoading ? "Adding..." : "Add New Worker"}
         </button>
       </div>
     </div>

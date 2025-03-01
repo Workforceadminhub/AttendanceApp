@@ -1,4 +1,4 @@
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
 import { useEffect, useMemo, useState } from "react";
@@ -49,6 +49,7 @@ const AttendanceDropdown = ({
 
 export default function DepartmentAttendance() {
   const location = useLocation();
+  const navigate = useNavigate();
   // const team = getDepartment(location.pathname);
   const [attendance, setAttendance] = useState([]);
   const [data, setData] = useState([]);
@@ -198,13 +199,22 @@ export default function DepartmentAttendance() {
                   : "Midweek service"}
               </p>
             </div>
-            {isAdminMember && (
+            {isAdminMember ? (
               <div className="self-start sm:self-center">
                 <ViewHistoryButton
                   label="View History"
                   link={`/attendance/history/admin/${team.department}`}
                 />
               </div>
+            ) : (
+              <button
+                className="bg-blue-500 px-4 text-white py-2 rounded-lg"
+                onClick={() => {
+                  navigate("/new/worker");
+                }}
+              >
+                Add New Worker
+              </button>
             )}
           </div>
 

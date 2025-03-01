@@ -16,6 +16,8 @@ import { checkAdminStatus } from "../../utils/checkAdminStatus";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
 import { debounce } from "lodash";
 import ViewHistoryButton from "../ViewHistoryButton";
+import { TrashIcon } from "@heroicons/react/24/outline";
+import Modal from "../Modal";
 
 // Separate component for the attendance dropdown to reduce duplication
 const AttendanceDropdown = ({
@@ -63,6 +65,7 @@ export default function DepartmentAttendance() {
   const isAdminMember = checkAdminStatus(location.pathname);
   const optionsAdmin = getAdminSelectOptions(isChurchAdmin, team);
   const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
 
   const options = useMemo(
     () => [
@@ -181,6 +184,13 @@ export default function DepartmentAttendance() {
     debouncedSetActiveGroup(selected?.value);
   };
 
+  const removeWorker = (worker) => {
+    removeWorker(worker).then(() => {
+      setModalOpen(false);
+      toast.success("Worker removed successfully");
+    });
+  };
+
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
       <Header />
@@ -294,6 +304,21 @@ export default function DepartmentAttendance() {
                                 options={options}
                               />
                             </td>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                              <TrashIcon
+                                className="text-red-500 size-5 cursor-pointer"
+                                onClick={() => {
+                                  setModalOpen(true);
+                                }}
+                              />
+                              <Modal
+                                confirmText="Yes, Delete"
+                                title="Are you sure you want to delete?"
+                                onConfirm={() => removeWorker(person.id)}
+                                isOpen={modalOpen}
+                                onClose={() => setModalOpen(false)}
+                              />
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -329,7 +354,7 @@ export default function DepartmentAttendance() {
                         <div className="text-sm text-gray-500">
                           <p>Birthday: {person.birthdate}</p>
                         </div>
-                        <div className="pt-2">
+                        <div className="pt-2 flex space-x-3">
                           <AttendanceDropdown
                             person={person}
                             isAdminMember={isAdminMember}
@@ -337,6 +362,19 @@ export default function DepartmentAttendance() {
                             updateAttendance={updateAttendance}
                             options={options}
                             className="w-full"
+                          />
+                          <TrashIcon
+                            className="text-red-500 size-9 cursor-pointer"
+                            onClick={() => {
+                              setModalOpen(true);
+                            }}
+                          />
+                          <Modal
+                            confirmText="Yes, Delete"
+                            title="Are you sure you want to delete?"
+                            onConfirm={() => removeWorker(person.id)}
+                            isOpen={modalOpen}
+                            onClose={() => setModalOpen(false)}
                           />
                         </div>
                       </div>

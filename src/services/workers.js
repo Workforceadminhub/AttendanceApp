@@ -27,7 +27,12 @@ export const fetchWorkers = async (department, activeDate) => {
         attendance:
           item[table].length > 0 ? item[table][0].attendance : undefined,
       }))
-      .filter((item) => item.status !== WORKER_STATUS.PENDING || !item.status);
+      .filter(
+        (item) =>
+          item.status !== WORKER_STATUS.PENDING ||
+          item.status !== WORKER_STATUS.INACTIVE ||
+          !item.status
+      );
 
     return finalResult;
   } catch (error) {
@@ -99,6 +104,18 @@ export const addNewWorker = async (worker) => {
   } catch (error) {
     console.error("Error adding new worker:", error.message);
     return null;
+  }
+};
+
+export const removeWorker = (workerid) => {
+  // Implement this function to update a worker's status
+  try {
+    return supabase
+      .from("worker")
+      .update({ status: WORKER_STATUS.INACTIVE })
+      .eq("workerid", workerid);
+  } catch (error) {
+    throw error;
   }
 };
 

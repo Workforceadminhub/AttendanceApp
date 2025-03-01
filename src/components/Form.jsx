@@ -123,7 +123,6 @@ const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
             </select>
           </div>
         </div>
-      {/* )} */}
       <div className="flex">
         <label className="text-lg text-red-500 mt-2 mr-2">*</label>
         <select
@@ -149,18 +148,16 @@ const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
           <option value="">Select Marital Status</option>
           <option value="Single">Single</option>
           <option value="Married">Married</option>
-          {/* <option value="Single Parent">Single Parent</option> */}
         </select>
       </div>
       {/* Date of Birth */}
       <div className="flex">
         <label className="text-lg text-red-500 mt-2 mr-2">*</label>
-        {/* Using type="date" gives a better UI, but if you need text, change it to type="text" */}
         <input
           type="date"
           placeholder="Date of Birth"
           className="border p-3 w-full rounded-md"
-          value={formData.dob || ""}
+          value={formData.birthdate || ""}
           onChange={(e) => setFormData({ ...formData, birthdate: e.target.value })}
         />
       </div>
@@ -169,7 +166,7 @@ const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
         <label className="text-lg text-red-500 mt-2 mr-2">*</label>
         <select
           className="border p-3 w-full rounded-md"
-          value={formData.ageRange || ""}
+          value={formData.agerange || ""}
           onChange={(e) =>
             setFormData({ ...formData, agerange: e.target.value })
           }
@@ -201,17 +198,6 @@ const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
           <option value="Unemployed">Unemployed</option>
         </select>
       </div>
-      {/* <div className="flex">
-        <label className="text-lg text-red-500 mt-2 mr-3">*</label>
-        <input
-          type="checkbox"
-          id="nlp"
-          className="mr-4 size-4 mt-2"
-          checked={formData.nlp}
-          onChange={(e) => setFormData({ ...formData, nlp: e.target.checked })}
-        />
-        <label htmlFor="nlp" className="text-lg">Sign up to serve at NLP Conference Lagos 2025</label>
-      </div> */}
       <div className="flex justify-between space-x-3">
         <label className="text-lg text-transparent invisible mt-2">*</label>
         <button

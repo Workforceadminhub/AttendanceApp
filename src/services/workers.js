@@ -99,7 +99,7 @@ export const addNewWorker = async (worker) => {
       fullnamereverse: middlename
         ? `${worker.lastname} ${worker.othername} ${worker.firstname}`
         : `${worker.lastname} ${worker.firstname}`,
-      status: WORKER_STATUS.PENDING,
+      status: WORKER_STATUS.PENDING_ADD,
     });
 
     if (error) {
@@ -118,7 +118,7 @@ export const removeWorker = (workerid) => {
   try {
     return supabase
       .from("worker")
-      .update({ status: WORKER_STATUS.INACTIVE, department: null, team: null})
+      .update({ status: WORKER_STATUS.PENDING_DELETE})
       .eq("id", workerid);
   } catch (error) {
     throw error;

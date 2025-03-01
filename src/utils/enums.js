@@ -4,7 +4,8 @@ export const ADMIN_ENUMS = {
 }
 
 export const WORKER_STATUS = {
-    PENDING: "PENDING",
+    PENDING_ADD: "PENDING_ADD",
+    PENDING_DELETE: "PENDING_DELETE",
     ACTIVE: "ACTIVE",
     INACTIVE: "INACTIVE"
 }

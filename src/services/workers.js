@@ -118,7 +118,7 @@ export const removeWorker = (workerid) => {
   try {
     return supabase
       .from("worker")
-      .update({ status: WORKER_STATUS.INACTIVE })
+      .update({ status: WORKER_STATUS.INACTIVE, department: null, team: null})
       .eq("id", workerid);
   } catch (error) {
     throw error;

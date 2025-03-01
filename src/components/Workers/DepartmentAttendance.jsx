@@ -192,9 +192,9 @@ export default function DepartmentAttendance() {
 
   const removeWorkerData = () => {
     setIsLoading(true);
-    removeWorker(workerId, team.team, team.department)
+    removeWorker(workerId)
       .then(() => {
-        toast.success("Worker removed successfully");
+        toast.success("Worker removed, pending approval");
         setIsLoading(false);
         setModalOpen(false);
         setRefresh(Math.random());
@@ -405,17 +405,19 @@ export default function DepartmentAttendance() {
             )}
 
             {/* Save Button */}
-            <div className="mt-6 flex justify-end">
-              <button
-                className={`bg-blue-500 text-white px-4 py-2 rounded-lg w-full sm:w-auto ${
-                  attendanceLoading && "cursor-not-allowed opacity-75"
-                }`}
-                onClick={saveAttendance}
-                disabled={attendanceLoading}
-              >
-                {attendanceLoading ? "Saving..." : "Save attendance"}
-              </button>
-            </div>
+            {!isAdminMember && (
+              <div className="mt-6 flex justify-end">
+                <button
+                  className={`bg-blue-500 text-white px-4 py-2 rounded-lg w-full sm:w-auto ${
+                    attendanceLoading && "cursor-not-allowed opacity-75"
+                  }`}
+                  onClick={saveAttendance}
+                  disabled={attendanceLoading}
+                >
+                  {attendanceLoading ? "Saving..." : "Save attendance"}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </Layout>

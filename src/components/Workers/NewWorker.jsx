@@ -57,7 +57,7 @@ function NewWorker() {
     try {
       await addNewWorker(formData);
       setIsLoading(false);
-      toast.success("Worker added successfully");
+      toast.success("Worker added successfully, pending approval");
       setFormData(newWorker);
     } catch (error) {
       toast.error("Error adding worker: " + error);

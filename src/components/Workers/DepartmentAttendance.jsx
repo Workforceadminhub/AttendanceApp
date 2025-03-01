@@ -194,7 +194,7 @@ export default function DepartmentAttendance() {
     setIsLoading(true);
     removeWorker(workerId)
       .then(() => {
-        toast.success("Worker removed, pending approval");
+        toast.success("Request submitted and pending approval");
         setIsLoading(false);
         setModalOpen(false);
         setRefresh(Math.random());
@@ -243,7 +243,7 @@ export default function DepartmentAttendance() {
                     setActiveDelete(!activeDelete);
                   }}
                 >
-                  {activeDelete ? "Complete Removal" : "Remove Workers"}
+                  {activeDelete ? "Complete Request" : "Request to Delete Workers"}
                 </button>
               </div>
             )}

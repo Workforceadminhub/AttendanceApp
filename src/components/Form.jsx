@@ -20,7 +20,7 @@ const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
         />
       </div>
       <div className="flex">
-        <label className="text-lg text-red-500 mt-2 mr-2">*</label>
+        {/* <label className="text-lg text-red-500 mt-2 mr-2">*</label> */}
         <input
           type="text"
           placeholder="Middle Name"
@@ -104,9 +104,7 @@ const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
             </select>
           </div>
           <div className="flex">
-            <label className="text-lg text-transparent invisible mt-2 mr-2">
-              *
-            </label>
+          <label className="text-lg text-red-500 mt-2 mr-2">*</label>
             <select
               className="border p-3 w-full bg-gray-100 rounded-md"
               value={formData.workerrole}
@@ -154,8 +152,7 @@ const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
       <div className="flex">
         <label className="text-lg text-red-500 mt-2 mr-2">*</label>
         <input
-          type="date"
-          placeholder="Date of Birth"
+          placeholder="Birthday, Example: 13th May"
           className="border p-3 w-full rounded-md"
           value={formData.birthdate || ""}
           onChange={(e) => setFormData({ ...formData, birthdate: e.target.value })}

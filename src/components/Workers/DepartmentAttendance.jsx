@@ -71,6 +71,7 @@ export default function DepartmentAttendance() {
   const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [workerId, setWorkerId] = useState(0);
+  const [activeDelete, setActiveDelete] = useState(false);
 
   const options = useMemo(
     () => [
@@ -227,14 +228,24 @@ export default function DepartmentAttendance() {
                 />
               </div>
             ) : (
-              <button
-                className="bg-blue-500 px-4 text-white py-2 rounded-lg"
-                onClick={() => {
-                  navigate("/new/worker");
-                }}
-              >
-                Add New Worker
-              </button>
+              <div>
+                <button
+                  className="bg-blue-500 px-4 text-white py-2 rounded-lg"
+                  onClick={() => {
+                    navigate("/new/worker");
+                  }}
+                >
+                  Add New Worker
+                </button>
+                <button
+                  className="bg-red-500 px-4 text-white py-2 rounded-lg ml-3"
+                  onClick={() => {
+                    setActiveDelete(!activeDelete);
+                  }}
+                >
+                  {activeDelete ? "Complete Removal" : "Remove Workers"}
+                </button>
+              </div>
             )}
           </div>
 
@@ -315,13 +326,15 @@ export default function DepartmentAttendance() {
                               />
                             </td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                              <TrashIcon
-                                className="text-red-500 size-5 cursor-pointer"
-                                onClick={() => {
-                                  setModalOpen(true);
-                                  setWorkerId(person.id);
-                                }}
-                              />
+                              {activeDelete && (
+                                <TrashIcon
+                                  className="text-red-500 size-5 cursor-pointer"
+                                  onClick={() => {
+                                    setModalOpen(true);
+                                    setWorkerId(person.id);
+                                  }}
+                                />
+                              )}
                             </td>
                           </tr>
                         ))}
@@ -375,12 +388,14 @@ export default function DepartmentAttendance() {
                             options={options}
                             className="w-full"
                           />
-                          <TrashIcon
-                            className="text-red-500 size-9 cursor-pointer"
-                            onClick={() => {
-                              setModalOpen(true);
-                            }}
-                          />
+                          {activeDelete && (
+                            <TrashIcon
+                              className="text-red-500 size-9 cursor-pointer"
+                              onClick={() => {
+                                setModalOpen(true);
+                              }}
+                            />
+                          )}
                         </div>
                       </div>
                     ))}

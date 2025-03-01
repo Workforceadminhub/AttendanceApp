@@ -29,12 +29,11 @@ export const fetchWorkers = async (department, activeDate) => {
       }))
       .filter(
         (item) =>
-          item.status !== WORKER_STATUS.PENDING ||
-          item.status !== WORKER_STATUS.INACTIVE ||
+          item.status === WORKER_STATUS.ACTIVE ||
           !item.status
       );
 
-    return finalResult;
+    return finalResult
   } catch (error) {
     console.error("Error fetching workers:", error.message);
     return null; // You can return null or handle errors differently
@@ -91,8 +90,15 @@ export const fetchAdminWorkers = async (team, activeGroup, activeDate) => {
 
 export const addNewWorker = async (worker) => {
   try {
+    const middlename = worker?.othername;
     const { data, error } = await supabase.from("worker").insert({
       ...worker,
+      fullname: middlename
+        ? `${worker.firstname} ${worker.othername} ${worker.lastname}`
+        : `${worker.firstname} ${worker.lastname}`,
+      fullnamereverse: middlename
+        ? `${worker.lastname} ${worker.othername} ${worker.firstname}`
+        : `${worker.lastname} ${worker.firstname}`,
       status: WORKER_STATUS.PENDING,
     });
 
@@ -113,7 +119,7 @@ export const removeWorker = (workerid) => {
     return supabase
       .from("worker")
       .update({ status: WORKER_STATUS.INACTIVE })
-      .eq("workerid", workerid);
+      .eq("id", workerid);
   } catch (error) {
     throw error;
   }

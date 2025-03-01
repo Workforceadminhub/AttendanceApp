@@ -74,7 +74,7 @@ export const teams = [
         "Recruitment and Assimilation",
         "Ministry Call Center",
         "Prayer, Bible Study and Discipleship",
-        "Workforce Administration",
+        "Workforce Admin",
         "Leadership Effectiveness",
         "Leadership Recruitment",
         "Leadership Training",

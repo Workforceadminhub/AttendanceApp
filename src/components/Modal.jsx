@@ -1,6 +1,6 @@
 import React from "react";
 
-const Modal = ({ isOpen, onClose, onConfirm, title, confirmText }) => {
+const Modal = ({ isOpen, onClose, onConfirm, title, confirmText, isLoading, confirmingText }) => {
   if (!isOpen) return null;
 
   return (
@@ -20,7 +20,7 @@ const Modal = ({ isOpen, onClose, onConfirm, title, confirmText }) => {
             className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 w-full ml-2"
             onClick={onConfirm}
           >
-            {confirmText}
+            {isLoading ? confirmingText : confirmText}
           </button>
         </div>
       </div>

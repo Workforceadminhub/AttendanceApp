@@ -2,7 +2,11 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
 import { useEffect, useMemo, useState } from "react";
-import { fetchAdminWorkers, fetchWorkers } from "../../services/workers";
+import {
+  fetchAdminWorkers,
+  fetchWorkers,
+  removeWorker,
+} from "../../services/workers";
 import { addAttendance } from "../../services/attendance";
 import { toast } from "react-toastify";
 import { getNextSunday } from "../../utils/getDate";
@@ -66,6 +70,7 @@ export default function DepartmentAttendance() {
   const optionsAdmin = getAdminSelectOptions(isChurchAdmin, team);
   const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [workerId, setWorkerId] = useState(0);
 
   const options = useMemo(
     () => [
@@ -184,11 +189,16 @@ export default function DepartmentAttendance() {
     debouncedSetActiveGroup(selected?.value);
   };
 
-  const removeWorker = (worker) => {
-    removeWorker(worker).then(() => {
-      setModalOpen(false);
-      toast.success("Worker removed successfully");
-    });
+  const removeWorkerData = () => {
+    setIsLoading(true);
+    removeWorker(workerId)
+      .then(() => {
+        toast.success("Worker removed successfully");
+        setIsLoading(false);
+        setModalOpen(false);
+        setRefresh(Math.random());
+      })
+      .catch(() => toast.error("Error removing worker"));
   };
 
   return (
@@ -309,14 +319,8 @@ export default function DepartmentAttendance() {
                                 className="text-red-500 size-5 cursor-pointer"
                                 onClick={() => {
                                   setModalOpen(true);
+                                  setWorkerId(person.id);
                                 }}
-                              />
-                              <Modal
-                                confirmText="Yes, Delete"
-                                title="Are you sure you want to delete?"
-                                onConfirm={() => removeWorker(person.id)}
-                                isOpen={modalOpen}
-                                onClose={() => setModalOpen(false)}
                               />
                             </td>
                           </tr>
@@ -325,6 +329,14 @@ export default function DepartmentAttendance() {
                     </table>
                   </div>
                 </div>
+                <Modal
+                  confirmText="Yes, Delete"
+                  title="Are you sure you want to delete?"
+                  onConfirm={() => removeWorkerData()}
+                  isOpen={modalOpen}
+                  onClose={() => setModalOpen(false)}
+                  confirmingText="Deleting..."
+                />
 
                 {/* Mobile Cards */}
                 <div className="sm:hidden">
@@ -368,13 +380,6 @@ export default function DepartmentAttendance() {
                             onClick={() => {
                               setModalOpen(true);
                             }}
-                          />
-                          <Modal
-                            confirmText="Yes, Delete"
-                            title="Are you sure you want to delete?"
-                            onConfirm={() => removeWorker(person.id)}
-                            isOpen={modalOpen}
-                            onClose={() => setModalOpen(false)}
                           />
                         </div>
                       </div>

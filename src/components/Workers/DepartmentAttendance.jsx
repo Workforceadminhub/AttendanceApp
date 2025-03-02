@@ -243,7 +243,7 @@ export default function DepartmentAttendance() {
             ) : (
               <div>
                 <button
-                  className="bg-blue-500 px-4 text-white py-2 rounded-lg"
+                  className="bg-blue-500 px-4 text-white py-2 rounded-lg sm:text-xs xs:text-xs md:text-sm lg:text-sm xl:text-sm"
                   onClick={() => {
                     navigate("/new/worker");
                   }}
@@ -251,7 +251,7 @@ export default function DepartmentAttendance() {
                   Add New Worker
                 </button>
                 <button
-                  className="bg-red-500 px-4 text-white py-2 rounded-lg ml-3"
+                  className="bg-red-500 px-4 text-white py-2 rounded-lg ml-3 text-xs"
                   onClick={() => {
                     setActiveDelete(!activeDelete);
                   }}

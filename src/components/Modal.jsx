@@ -14,7 +14,7 @@ const Modal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center backdrop-blur-sm opacity-90 z-10">
+    <div className="fixed inset-0 flex items-center justify-center backdrop-blur-xl opacity-95 z-10">
       <div className="bg-white p-6 rounded-lg shadow-lg w-96 h-96">
         <h2 className="text-xl font-bold text-center mb-4">{title}</h2>
         <div className="flex py-4">

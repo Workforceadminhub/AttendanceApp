@@ -114,12 +114,17 @@ export const addNewWorker = async (worker) => {
   }
 };
 
-export const removeWorker = (workerid) => {
+export const removeWorker = (workerid, deleteData) => {
   // Implement this function to update a worker's status
   try {
     return supabase
       .from("worker")
-      .update({ status: WORKER_STATUS.PENDING_DELETE })
+      .update({
+        status: WORKER_STATUS.PENDING_DELETE,
+        reasonfordelete: deleteData?.reasonfordelete,
+        nameofrequester: deleteData?.nameofrequester,
+        roleofrequester: deleteData?.roleofrequester,
+      })
       .eq("id", workerid);
   } catch (error) {
     throw error;

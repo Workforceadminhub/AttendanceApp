@@ -72,6 +72,11 @@ export default function DepartmentAttendance() {
   const [modalOpen, setModalOpen] = useState(false);
   const [workerId, setWorkerId] = useState(0);
   const [activeDelete, setActiveDelete] = useState(false);
+  const [deleteData, setDeleteData] = useState({
+    nameofrequester: "",
+    reasonfordelete: "",
+    roleofrequester: "",
+  });
 
   const options = useMemo(
     () => [
@@ -191,15 +196,23 @@ export default function DepartmentAttendance() {
   };
 
   const removeWorkerData = () => {
-    setIsLoading(true);
-    removeWorker(workerId)
-      .then(() => {
-        toast.success("Request submitted and pending approval");
-        setIsLoading(false);
-        setModalOpen(false);
-        setRefresh(Math.random());
-      })
-      .catch(() => toast.error("Error removing worker"));
+    if (
+      !deleteData.nameofrequester ||
+      !deleteData.reasonfordelete ||
+      !deleteData.roleofrequester
+    ) {
+      toast.error("Please fill all required fields");
+    } else {
+      setIsLoading(true);
+      removeWorker(workerId, deleteData)
+        .then(() => {
+          toast.success("Request submitted and pending approval");
+          setIsLoading(false);
+          setModalOpen(false);
+          setRefresh(Math.random());
+        })
+        .catch(() => toast.error("Error removing worker"));
+    }
   };
 
   return (
@@ -243,7 +256,9 @@ export default function DepartmentAttendance() {
                     setActiveDelete(!activeDelete);
                   }}
                 >
-                  {activeDelete ? "Complete Request" : "Request to Delete Workers"}
+                  {activeDelete
+                    ? "Complete Request"
+                    : "Request to Delete Workers"}
                 </button>
               </div>
             )}
@@ -344,11 +359,13 @@ export default function DepartmentAttendance() {
                 </div>
                 <Modal
                   confirmText="Yes, Delete"
-                  title="Are you sure you want to delete?"
+                  title="Request to delete worker"
                   onConfirm={() => removeWorkerData()}
                   isOpen={modalOpen}
                   onClose={() => setModalOpen(false)}
                   confirmingText="Deleting..."
+                  formData={deleteData}
+                  setFormData={setDeleteData}
                 />
 
                 {/* Mobile Cards */}

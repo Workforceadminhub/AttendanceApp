@@ -68,7 +68,7 @@ function NewWorker() {
 
   return (
     <Layout>
-      <div className="mt-12 px-[20%]">
+      <div className="mt-12 px-[5%] md:px-[20%] lg:px-[20%] xk:px-[20%]">
         <Form
           formData={formData}
           handleSubmit={handleSubmit}

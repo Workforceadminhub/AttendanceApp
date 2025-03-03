@@ -65,6 +65,18 @@ const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
           }
         />
       </div>
+      <div className="flex">
+        <label className="text-lg text-red-500 mt-2 mr-2">*</label>
+        <input
+          type="tel"
+          placeholder="Name of Requester"
+          className="border p-3 w-full rounded-md"
+          value={formData.nameofrequester}
+          onChange={(e) =>
+            setFormData({ ...formData, nameofrequester: e.target.value })
+          }
+        />
+      </div>
       {/* {!isActive && ( */}
         <div className="flex flex-col space-y-5">
           <div className="flex">

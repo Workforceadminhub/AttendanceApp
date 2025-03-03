@@ -20,6 +20,7 @@ function NewWorker() {
     team: "",
     department: "",
     workerrole: "",
+    nameofrequester: "",
   };
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState(newWorker);
@@ -38,6 +39,7 @@ function NewWorker() {
       "team",
       "department",
       "workerrole",
+      "nameofrequester",
     ];
 
     for (let field of requiredFields) {

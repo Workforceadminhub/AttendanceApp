@@ -410,6 +410,7 @@ export default function DepartmentAttendance() {
                               className="text-red-500 size-9 cursor-pointer"
                               onClick={() => {
                                 setModalOpen(true);
+                                setWorkerId(person.id);
                               }}
                             />
                           )}

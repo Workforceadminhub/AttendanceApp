@@ -99,7 +99,8 @@ export const fetchAdminAttendance = async (activeGroup, isChurchAdmin, activeDat
 
     const { data: worker, error: workerError } = await supabase
       .from("worker")
-      .select("*");
+      .select("*")
+      .or("status.eq.ACTIVE,status.is.null,status.eq.PENDING_DELETE");;
 
     const { data: routes, error: routesError } = await supabase
       .from("admin")

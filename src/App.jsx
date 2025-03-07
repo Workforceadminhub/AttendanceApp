@@ -22,6 +22,7 @@ import DepartmentAttendanceHistory from "./components/Workers/History/Department
 import DepartmentSummaryHistory from "./components/Workers/History/DeparmentSummaryHistory";
 import DashboardHistory from "./components/Workers/History/DashboardHistory";
 import NewWorker from "./components/Workers/NewWorker";
+import UnmarkedAttendance from "./components/Workers/Unmarked";
 
 const App = () => {
   const queryClient = new QueryClient({
@@ -77,6 +78,14 @@ const App = () => {
               element={
                 <PrivateRoute>
                   <DepartmentAttendance />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/attendance/unmarked"
+              element={
+                <PrivateRoute>
+                  <UnmarkedAttendance />
                 </PrivateRoute>
               }
             />

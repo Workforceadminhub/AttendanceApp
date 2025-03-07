@@ -41,6 +41,38 @@ export const fetchWorkers = async (department, activeDate) => {
   }
 };
 
+export const fetchUnmarkedWorkers = async (team, activeDate) => {
+  try {
+    const dateForAttendance = activeDate || getNextSunday();
+    const { data: workers, error: workersError } = await supabase
+      .from("worker")
+      .select("*")
+      .eq("team", team);
+
+    const { data: markedWorkers, error } = await supabase
+      .from("attendance")
+      .select("*")
+      .eq("attendancedate", dateForAttendance)
+      .eq("team", team);
+
+    const unmarkedWorkers = workers.filter(
+      (worker) =>
+        !markedWorkers.some(
+          (markedWorker) => markedWorker.workerid === worker.id
+        )
+    );
+
+    if (workersError || error) {
+      throw error;
+    }
+
+    return unmarkedWorkers;
+  } catch (error) {
+    console.error("Error fetching workers:", error.message);
+    return null; // You can return null or handle errors differently
+  }
+};
+
 export const fetchAdminWorkers = async (team, activeGroup, activeDate) => {
   try {
     const departments = routeObject

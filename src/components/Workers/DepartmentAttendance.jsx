@@ -242,7 +242,7 @@ export default function DepartmentAttendance() {
                 <ViewHistoryButton
                   label="Unmarked Workers"
                   link={`/attendance/unmarked`}
-                  color="bg-gray-500"
+                  color="bg-gray-500 hover:bg-gray-300"
                 />
               </div>
             ) : (

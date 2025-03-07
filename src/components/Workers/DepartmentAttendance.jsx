@@ -234,10 +234,15 @@ export default function DepartmentAttendance() {
               </p>
             </div>
             {isAdminMember ? (
-              <div className="self-start sm:self-center">
+              <div className="self-start sm:self-center space-x-2">
                 <ViewHistoryButton
                   label="View History"
                   link={`/attendance/history/admin/${team.department}`}
+                />
+                <ViewHistoryButton
+                  label="Unmarked Workers"
+                  link={`/attendance/unmarked`}
+                  color="bg-gray-500"
                 />
               </div>
             ) : (

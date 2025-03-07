@@ -82,7 +82,7 @@ const App = () => {
               }
             />
             <Route
-              path="/attendance/unmarked"
+              path="/attendance/devmode"
               element={
                 <PrivateRoute>
                   <UnmarkedAttendance />

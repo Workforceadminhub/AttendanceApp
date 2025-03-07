@@ -67,7 +67,7 @@ export default function UnmarkedAttendance() {
   const team = getDepartmentByUser(location.pathname);
   const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
   const isAdminMember = checkAdminStatus(location.pathname);
-  const optionsAdmin = getAdminSelectOptions(isChurchAdmin, team);
+  const optionsAdmin = getAdminSelectOptions(true, team);
   const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [workerId, setWorkerId] = useState(0);
@@ -99,7 +99,7 @@ export default function UnmarkedAttendance() {
 
   const queryAdminWorkers = () => {
     setIsLoading(true);
-    fetchUnmarkedWorkers(team.team, activeGroup)
+    fetchUnmarkedWorkers(activeGroup)
       .then((res) => {
         setData(res);
         setIsLoading(false);
@@ -113,7 +113,7 @@ export default function UnmarkedAttendance() {
 
   const queryWorkers = () => {
     setIsLoading(true);
-    fetchUnmarkedWorkers(team.department)
+    fetchUnmarkedWorkers(activeGroup)
       .then((res) => {
         setData(res);
         setIsLoading(false);
@@ -139,6 +139,7 @@ export default function UnmarkedAttendance() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeGroup, isAdminMember, isChurchAdmin, team.team]);
+
 
   useEffect(() => {
     if (isAdminMember) {
@@ -265,23 +266,22 @@ export default function UnmarkedAttendance() {
           </div>
 
           {/* Admin Controls */}
-          {isAdminMember && (
-            <div className="mt-6">
-              <ReactSelectDropdown
-                title={isChurchAdmin ? "Select Team" : "Select Department"}
-                defaultValue={{
-                  value: "All",
-                  label: "All teams/departments",
-                }}
-                onChange={handleChange}
-                options={[
-                  { value: "All", label: "All teams/departments" },
-                  ...optionsAdmin,
-                ]}
-                className="lg:w-[25%] md:w-[30%] xl:w-[25%] sm:w-[45%] xs:w-[50%]"
-              />
-            </div>
-          )}
+
+          <div className="mt-6">
+            <ReactSelectDropdown
+              title={isChurchAdmin ? "Select Team" : "Select Department"}
+              defaultValue={{
+                value: "All",
+                label: "All teams/departments",
+              }}
+              onChange={handleChange}
+              options={[
+                { value: "All", label: "All teams/departments" },
+                ...optionsAdmin,
+              ]}
+              className="lg:w-[25%] md:w-[30%] xl:w-[25%] sm:w-[45%] xs:w-[50%]"
+            />
+          </div>
 
           {/* Table Section */}
           <div className="mt-6">

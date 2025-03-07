@@ -22,6 +22,7 @@ import { debounce } from "lodash";
 import ViewHistoryButton from "../ViewHistoryButton";
 import { TrashIcon } from "@heroicons/react/24/outline";
 import Modal from "../Modal";
+import { getUser } from "../../utils/getUser";
 
 // Separate component for the attendance dropdown to reduce duplication
 const AttendanceDropdown = ({
@@ -238,11 +239,6 @@ export default function DepartmentAttendance() {
                 <ViewHistoryButton
                   label="View History"
                   link={`/attendance/history/admin/${team.department}`}
-                />
-                <ViewHistoryButton
-                  label="Unmarked Workers"
-                  link={`/attendance/unmarked`}
-                  color="bg-gray-500 hover:bg-gray-300"
                 />
               </div>
             ) : (

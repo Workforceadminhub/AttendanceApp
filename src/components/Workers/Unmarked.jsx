@@ -140,7 +140,6 @@ export default function UnmarkedAttendance() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeGroup, isAdminMember, isChurchAdmin, team.team]);
 
-
   useEffect(() => {
     if (isAdminMember) {
       queryAdminWorkers();
@@ -181,7 +180,16 @@ export default function UnmarkedAttendance() {
 
   const saveAttendance = async () => {
     setAttendanceLoading(true);
-    await addAttendance(attendance);
+    const attendData = data.map((person) => ({
+      attendance: "Absent",
+      attendancedate: dateForAttendance,
+      department: person.department,
+      name: person.fullname,
+      team: person.team,
+      workerid: person.id,
+    }));
+
+    await addAttendance(attendData);
     setAttendanceLoading(false);
     setRefresh(Math.random());
     toast.success("Attendance added successfully");
@@ -302,6 +310,9 @@ export default function UnmarkedAttendance() {
                             Name
                           </th>
                           <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                            Department
+                          </th>
+                          <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                             Phone number
                           </th>
                           <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
@@ -320,6 +331,9 @@ export default function UnmarkedAttendance() {
                             </td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                               {person.fullname}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                              {person.department}
                             </td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                               {person.phonenumber
@@ -432,7 +446,7 @@ export default function UnmarkedAttendance() {
                   onClick={saveAttendance}
                   disabled={attendanceLoading}
                 >
-                  {attendanceLoading ? "Saving..." : "Save attendance"}
+                  {attendanceLoading ? "Marking..." : "Mark Absent"}
                 </button>
               </div>
             )}

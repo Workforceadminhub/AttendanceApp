@@ -1,5 +1,5 @@
 import { ADMIN_ENUMS } from "../utils/enums";
-import {getNextSunday} from "../utils/getDate";
+import { getNextSunday } from "../utils/getDate";
 import getDefaultSummary from "../utils/getDefaultSummary";
 import { specialDepartments } from "../utils/routeObject";
 import { supabase } from "./supabaseClient";
@@ -77,7 +77,11 @@ function updateDefaultSummary(defaultSummary, totals, presentSummary) {
   });
 }
 
-export const fetchAdminAttendance = async (activeGroup, isChurchAdmin, activeDate) => {
+export const fetchAdminAttendance = async (
+  activeGroup,
+  isChurchAdmin,
+  activeDate
+) => {
   const dateForAttendance = activeDate || getNextSunday();
   const authUser = sessionStorage.getItem("authUser");
   if (!authUser) {
@@ -193,7 +197,8 @@ export const fetchAttendance = async (activeDate) => {
 
     const { data: worker, error: workerError } = await supabase
       .from("worker")
-      .select("*");
+      .select("*")
+      .or("status.is.null,status.eq.ACTIVE,status.eq.PENDING_DELETE");
 
     const { data: routes, error: routesError } = await supabase
       .from("admin")

@@ -47,7 +47,8 @@ export const fetchUnmarkedWorkers = async (team, activeDate) => {
     const { data: workers, error: workersError } = await supabase
       .from("worker")
       .select("*")
-      .eq("team", team);
+      .eq("team", team)
+      .or("status.is.null,status.eq.ACTIVE,status.eq.PENDING_DELETE");
 
     const { data: markedWorkers, error } = await supabase
       .from("attendance")

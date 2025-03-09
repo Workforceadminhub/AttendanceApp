@@ -108,12 +108,19 @@ export const fetchAdminWorkers = async (team, activeGroup, activeDate) => {
       throw error;
     }
 
-    const finalResult = data.map((item) => ({
-      ...item,
-      name: item?.fullname?.trim(),
-      attendance:
-        item[table].length > 0 ? item[table][0].attendance : undefined,
-    }));
+    const finalResult = data
+      .map((item) => ({
+        ...item,
+        name: item?.fullname?.trim(),
+        attendance:
+          item[table].length > 0 ? item[table][0].attendance : undefined,
+      }))
+      .filter(
+        (item) =>
+          item.status === WORKER_STATUS.ACTIVE ||
+          !item.status ||
+          item.status === WORKER_STATUS.PENDING_DELETE
+      );
 
     return finalResult;
   } catch (error) {

@@ -68,7 +68,7 @@ const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
       <div className="flex">
         <label className="text-lg text-red-500 mt-2 mr-2">*</label>
         <input
-          type="tel"
+          type="text"
           placeholder="Name of Requester"
           className="border p-3 w-full rounded-md"
           value={formData.nameofrequester}

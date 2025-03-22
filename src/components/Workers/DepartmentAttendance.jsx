@@ -23,6 +23,7 @@ import ViewHistoryButton from "../ViewHistoryButton";
 import { TrashIcon } from "@heroicons/react/24/outline";
 import Modal from "../Modal";
 import { getUser } from "../../utils/getUser";
+import LoadingState from "../LoadingState";
 
 // Separate component for the attendance dropdown to reduce duplication
 const AttendanceDropdown = ({
@@ -287,7 +288,7 @@ export default function DepartmentAttendance() {
           {/* Table Section */}
           <div className="mt-6">
             {isLoading ? (
-              <TableLoadingState length={5} />
+              <LoadingState />
             ) : (
               <div className="space-y-4">
                 {/* Desktop Table */}

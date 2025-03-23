@@ -77,7 +77,7 @@ function updateDefaultSummary(
       ...summary,
       total: strength,
       present,
-      absent: strength - present,
+      absent: strength - present - unfilled,
       unfilled,
       percentage:
         strength > 0 ? `${((present / strength) * 100).toFixed(2)}%` : "0%",

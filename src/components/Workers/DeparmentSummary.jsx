@@ -78,6 +78,8 @@ export default function DepartmentSummary() {
     debouncedSetActiveGroup(selected?.value);
   };
 
+  console.log({ attendanceSummary });
+
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
       <Header />
@@ -90,7 +92,7 @@ export default function DepartmentSummary() {
           </div>
           {isAdminMember && (
             <ViewHistoryButton
-            label="View History"
+              label="View History"
               link={
                 isChurchAdmin
                   ? `/summary/history/admin`
@@ -153,6 +155,12 @@ export default function DepartmentSummary() {
                       scope="col"
                       className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
                     >
+                      Unfilled
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                    >
                       Percentage
                     </th>
                   </tr>
@@ -177,6 +185,9 @@ export default function DepartmentSummary() {
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                           {item.absent}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          {item.unfilled}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                           {item.percentage}

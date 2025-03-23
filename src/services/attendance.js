@@ -3,6 +3,7 @@ import { getNextSunday } from "../utils/getDate";
 import getDefaultSummary from "../utils/getDefaultSummary";
 import { specialDepartments } from "../utils/routeObject";
 import { supabase } from "./supabaseClient";
+import { fetchUnmarkedWorkers } from "./workers";
 
 const table = "attendance";
 // const table = "attendance2";
@@ -62,15 +63,22 @@ function getDepartmentTotals(data) {
   return departmentTotals;
 }
 
-function updateDefaultSummary(defaultSummary, totals, presentSummary) {
+function updateDefaultSummary(
+  defaultSummary,
+  totals,
+  presentSummary,
+  unfilledSummary
+) {
   return defaultSummary.map((summary) => {
     const strength = totals[summary.department] || 0;
     const present = presentSummary[summary.department] || 0;
+    const unfilled = unfilledSummary.filter(item => item.department === summary.department).length || 0;
     return {
       ...summary,
       total: strength,
       present,
       absent: strength - present,
+      unfilled,
       percentage:
         strength > 0 ? `${((present / strength) * 100).toFixed(2)}%` : "0%",
     };
@@ -96,6 +104,8 @@ export const fetchAdminAttendance = async (
       .select("*")
       .eq("attendancedate", dateForAttendance)
       .or(joinOps);
+
+    const unfilledData = await fetchUnmarkedWorkers(team, dateForAttendance);
 
     if (error) {
       throw error;
@@ -156,7 +166,8 @@ export const fetchAdminAttendance = async (
     const updatedSummary = updateDefaultSummary(
       defaultSummary,
       departmentTotals,
-      presentSummary
+      presentSummary,
+      unfilledData
     );
 
     if (team?.toLowerCase() === ADMIN_ENUMS.ADMIN_TEAM.toLowerCase())
@@ -191,6 +202,7 @@ export const fetchAttendance = async (activeDate) => {
       .eq("attendancedate", dateForAttendance)
       .or(joinOps);
 
+    const unfilledData = await fetchUnmarkedWorkers(team, dateForAttendance);
     if (error) {
       throw error;
     }
@@ -224,7 +236,8 @@ export const fetchAttendance = async (activeDate) => {
     const updatedSummary = updateDefaultSummary(
       defaultSummary,
       departmentTotals,
-      presentSummary
+      presentSummary,
+      unfilledData
     );
 
     if (team?.toLowerCase() === ADMIN_ENUMS.ADMIN_TEAM.toLowerCase())

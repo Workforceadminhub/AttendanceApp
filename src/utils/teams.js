@@ -178,7 +178,7 @@ export const teamsAndDepartments = [
     ],
   },
   {
-    team: "District/Community",
+    team: "Districts",
     department: [
       "Anagkazo Community",
       "Bethel Community",

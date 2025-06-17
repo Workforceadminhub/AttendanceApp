@@ -165,7 +165,7 @@ export const teamsAndDepartments = [
     ],
   },
   {
-    team: "Missions",
+    team: "Mission",
     department: [
       "Evangelism",
       "God's Encounter",

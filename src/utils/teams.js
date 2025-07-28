@@ -198,7 +198,7 @@ export const teamsAndDepartments = [
     department: [
       "Women of Wisdom",
       "Men of Harvest",
-      "Singles",
+      "Singles Ministry",
       "Admin/Subteam head",
     ],
   },

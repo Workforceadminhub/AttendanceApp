@@ -58,7 +58,7 @@ export const routeObject = [
   { department: "Shekinah Community", route: "/shekinah", team: "Districts" },
   { department: "Rehoboth Community", route: "/rehoboth", team: "Districts" },
   { department: "Dominion Kingdom Community", route: "/dominionkgm", team: "Districts" },
-  { department: "Hephzibah Community", route: "/hephizibah", team: "Districts" },
+  { department: "Hephzibah Community", route: "/hephzibah", team: "Districts" },
   { department: "Sapphire ET", route: "/sapphire", team: "Programs" },
   { department: "Musicians", route: "/musicians", team: "Programs" },
   { department: "Diamond ET", route: "/diamont", team: "Programs" },

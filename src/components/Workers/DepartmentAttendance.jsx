@@ -107,7 +107,7 @@ export default function DepartmentAttendance() {
         setIsLoading(false);
       })
       .catch((error) => {
-        toast.error("Error marking attendance");
+        toast.error("Error loading attendance");
         setIsLoading(false);
         console.log(error);
       });
@@ -121,7 +121,7 @@ export default function DepartmentAttendance() {
         setIsLoading(false);
       })
       .catch((error) => {
-        toast.error("Error marking attendance");
+        toast.error("Error loading attendance");
         setIsLoading(false);
         console.log(error);
       });

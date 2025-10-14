@@ -6,6 +6,7 @@ const Login = () => {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleKeyPress = (event) => {
@@ -18,16 +19,20 @@ const Login = () => {
   const handleLogin = async () => {
     try {
       // Query the database to check if the code exists
+      setIsLoading(true);
       const data = await loginService(code);
-
-      if (data) {
+      console.log("Login response data:", data.user);
+      if(data.accessToken){
         setMessage("Login successful!");
         setError("");
-        sessionStorage.setItem("authUser", JSON.stringify(data));
-        navigate(`/attendance${data.route}`);
+        sessionStorage.setItem("authUser", JSON.stringify(data.user));
+        sessionStorage.setItem("accessToken", data.accessToken);
+        navigate(`/attendance${data.user.route}`);
       }
+      setIsLoading(false);
     } catch (err) {
-      setError("Invalid login code");
+      setError(err.message || "Login failed. Please try again.");
+      setIsLoading(false);
     }
   };
 
@@ -59,7 +64,7 @@ const Login = () => {
             onE
             className="w-full bg-black text-white py-2 px-4 rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-600"
           >
-            Login
+            {isLoading ? "Logging in..." : "Login"}
           </button>
           {error && <p style={{ color: "red" }}>{error}</p>}
           {message && <p style={{ color: "green" }}>{message}</p>}

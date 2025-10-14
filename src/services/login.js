@@ -1,18 +1,7 @@
-import { supabase } from "./supabaseClient";
+import apiRequest from "../utils/apiClient";
 
 const loginService = async (code) => {
-  const { data, error } = await supabase
-    .from("admin")
-    .select("*")
-    .eq("code", code)
-    .single();
-
-
-  if (error) {
-    throw error;
-  }
-
-  return data;
+  return apiRequest("POST", "/auth/signin", { password: code }, undefined, false);
 };
 
 export default loginService;

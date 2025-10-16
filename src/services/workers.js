@@ -73,7 +73,7 @@ export const addNewWorker = async (worker) => {
 
 export const removeWorker = async (workerid, deleteData) => {
   try {
-    const res = await apiRequest("PATCH", `/api/workers/requestDelete`, {
+    const res = await apiRequest("PUT", `/api/workers/requestDelete`, {
       workerid,
       deleteData,
     });

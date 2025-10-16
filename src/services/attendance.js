@@ -1,34 +1,23 @@
 import apiRequest from "../utils/apiClient";
 import { getNextSunday } from "../utils/getDate";
-import { supabase } from "./supabaseClient";
 
-const table = "attendance";
 // const table = "attendance2";
 export const addAttendance = async (attendance) => {
-  const dateForAttendance = getNextSunday();
   try {
-    await supabase
-      .from(table)
-      .delete()
-      .in(
-        "workerid",
-        attendance.map((item) => item.workerid)
-      )
-      .eq("attendancedate", dateForAttendance);
+    const response = await apiRequest("POST", "/api/attendance/add", {
+      attendance,
+    });
 
-    const { data, error } = await supabase.from(table).insert(attendance);
-
-    if (error) {
-      throw error;
+    if (!response || response.error) {
+      throw new Error(response?.error || "Failed to fetch admin attendance");
     }
 
-    return data;
+    return response.data;
   } catch (error) {
-    console.error("Error adding attendance:", error.message);
-    return null;
+    console.error("Error fetching attendance:", error.message);
+    return null; // You can return null or handle errors differently
   }
 };
-
 
 export const fetchAdminAttendance = async (
   activeGroup,

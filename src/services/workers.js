@@ -14,7 +14,6 @@ export const fetchWorkers = async (department, activeDate) => {
       throw new Error(response?.error || "Failed to fetch workers");
     }
 
-    console.log("Workers data:", response);
     return response.data;
   } catch (error) {
     console.error("Error fetching workers:", error.message);

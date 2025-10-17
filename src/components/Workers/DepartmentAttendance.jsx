@@ -107,7 +107,7 @@ export default function DepartmentAttendance() {
         setIsLoading(false);
       })
       .catch((error) => {
-        toast.error("Error marking attendance");
+        toast.error("Error loading attendance");
         setIsLoading(false);
         console.log(error);
       });
@@ -121,7 +121,7 @@ export default function DepartmentAttendance() {
         setIsLoading(false);
       })
       .catch((error) => {
-        toast.error("Error marking attendance");
+        toast.error("Error loading attendance");
         setIsLoading(false);
         console.log(error);
       });
@@ -181,11 +181,17 @@ export default function DepartmentAttendance() {
   };
 
   const saveAttendance = async () => {
-    setAttendanceLoading(true);
-    await addAttendance(attendance);
-    setAttendanceLoading(false);
-    setRefresh(Math.random());
-    toast.success("Attendance added successfully");
+    try {
+      setAttendanceLoading(true);
+      await addAttendance(attendance);
+      setAttendanceLoading(false);
+      setRefresh(Math.random());
+      toast.success("Attendance added successfully");
+    } catch (error) {
+      setAttendanceLoading(false);
+      toast.error("Error adding attendance");
+      console.log(error);
+    }
   };
 
   const debouncedSetActiveGroup = debounce(

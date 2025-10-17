@@ -79,6 +79,7 @@ export default function Header() {
               className="text-sm/6 font-semibold text-gray-900 cursor-pointer"
               onClick={() => {
                 sessionStorage.removeItem("authUser");
+                sessionStorage.removeItem("accessToken");
                 navigate("/login");
               }}
             >

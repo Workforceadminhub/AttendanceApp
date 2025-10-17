@@ -1,89 +1,23 @@
-import { ADMIN_ENUMS } from "../utils/enums";
+import apiRequest from "../utils/apiClient";
 import { getNextSunday } from "../utils/getDate";
-import getDefaultSummary from "../utils/getDefaultSummary";
-import { specialDepartments } from "../utils/routeObject";
-import { supabase } from "./supabaseClient";
-import { fetchUnmarkedWorkers } from "./workers";
 
-const table = "attendance";
 // const table = "attendance2";
-const joinOps = "attendance.eq.Present,attendance.eq.Online";
 export const addAttendance = async (attendance) => {
-  const dateForAttendance = getNextSunday();
   try {
-    await supabase
-      .from(table)
-      .delete()
-      .in(
-        "workerid",
-        attendance.map((item) => item.workerid)
-      )
-      .eq("attendancedate", dateForAttendance);
+    const response = await apiRequest("POST", "/api/attendance/add", {
+      attendance,
+    });
 
-    const { data, error } = await supabase.from(table).insert(attendance);
-
-    if (error) {
-      throw error;
+    if (!response || response.error) {
+      throw new Error(response?.error || "Failed to fetch admin attendance");
     }
 
-    return data;
+    return response.data;
   } catch (error) {
-    console.error("Error adding attendance:", error.message);
-    return null;
+    console.error("Error fetching attendance:", error.message);
+    return null; // You can return null or handle errors differently
   }
 };
-
-function getDepartmentSummary(data) {
-  const departmentSummary = {};
-
-  data.forEach((record) => {
-    const department = record.department;
-    if (departmentSummary[department]) {
-      departmentSummary[department]++;
-    } else {
-      departmentSummary[department] = 1;
-    }
-  });
-
-  return departmentSummary;
-}
-
-function getDepartmentTotals(data) {
-  const departmentTotals = {};
-
-  data.forEach((record) => {
-    const department = record.department;
-    if (departmentTotals[department]) {
-      departmentTotals[department]++;
-    } else {
-      departmentTotals[department] = 1;
-    }
-  });
-
-  return departmentTotals;
-}
-
-function updateDefaultSummary(
-  defaultSummary,
-  totals,
-  presentSummary,
-  unfilledSummary
-) {
-  return defaultSummary.map((summary) => {
-    const strength = totals[summary.department] || 0;
-    const present = presentSummary[summary.department] || 0;
-    const unfilled = unfilledSummary.filter(item => item.department === summary.department).length || 0;
-    return {
-      ...summary,
-      total: strength,
-      present,
-      absent: strength - present - unfilled,
-      unfilled,
-      percentage:
-        strength > 0 ? `${((present / strength) * 100).toFixed(2)}%` : "0%",
-    };
-  });
-}
 
 export const fetchAdminAttendance = async (
   activeGroup,
@@ -91,167 +25,40 @@ export const fetchAdminAttendance = async (
   activeDate
 ) => {
   const dateForAttendance = activeDate || getNextSunday();
-  const authUser = sessionStorage.getItem("authUser");
-  if (!authUser) {
-    throw new Error("User not authenticated");
-  }
-  const parsedUser = JSON.parse(authUser);
-  const team = parsedUser.team || "";
-
   try {
-    const { data, error } = await supabase
-      .from(table)
-      .select("*")
-      .eq("attendancedate", dateForAttendance)
-      .or(joinOps);
+    const response = await apiRequest("GET", "/api/attendance/admin", {
+      activeGroup,
+      activeDate: dateForAttendance,
+      isChurchAdmin,
+    });
 
-    const unfilledData = await fetchUnmarkedWorkers(team, dateForAttendance);
-
-    if (error) {
-      throw error;
+    if (!response || response.error) {
+      throw new Error(response?.error || "Failed to fetch admin attendance");
     }
 
-    const { data: worker, error: workerError } = await supabase
-      .from("worker")
-      .select("*")
-      .or("status.eq.ACTIVE,status.is.null,status.eq.PENDING_DELETE");
-
-    const { data: routes, error: routesError } = await supabase
-      .from("admin")
-      .select("*");
-
-    if (routesError) {
-      throw routesError;
-    }
-    if (workerError) {
-      throw workerError;
-    }
-
-    let uniqueRoutes;
-    if (activeGroup === "All") {
-      uniqueRoutes = routes
-        .filter(
-          (item, index, self) =>
-            index ===
-            self.findIndex((obj) => obj.department === item.department)
-        )
-        .filter((item) => !specialDepartments?.includes(item.department));
-    }
-
-    if (activeGroup !== "All" && isChurchAdmin) {
-      uniqueRoutes = routes
-        .filter(
-          (item, index, self) =>
-            index ===
-            self.findIndex((obj) => obj.department === item.department)
-        )
-        .filter((item) => !specialDepartments?.includes(item.department))
-        .filter((item) => item.team === activeGroup);
-    }
-
-    if (activeGroup !== "All" && !isChurchAdmin) {
-      uniqueRoutes = routes
-        .filter(
-          (item, index, self) =>
-            index ===
-            self.findIndex((obj) => obj.department === item.department)
-        )
-        .filter((item) => !specialDepartments?.includes(item.department))
-        .filter((item) => item.department === activeGroup);
-    }
-
-    const departmentTotals = getDepartmentTotals(worker);
-    const presentSummary = getDepartmentSummary(data);
-    const defaultSummary = getDefaultSummary(uniqueRoutes);
-    const updatedSummary = updateDefaultSummary(
-      defaultSummary,
-      departmentTotals,
-      presentSummary,
-      unfilledData
-    );
-
-    if (team?.toLowerCase() === ADMIN_ENUMS.ADMIN_TEAM.toLowerCase())
-      return updatedSummary.sort((a, b) =>
-        a.department.localeCompare(b.department)
-      );
-
-    const filteredSummary = updatedSummary
-      .filter((item) => item.team === team)
-      .sort((a, b) => a.department.localeCompare(b.department));
-
-    return filteredSummary;
+    return response.data;
   } catch (error) {
     console.error("Error fetching attendance:", error.message);
-    return null;
+    return null; // You can return null or handle errors differently
   }
 };
 
 export const fetchAttendance = async (activeDate) => {
   const dateForAttendance = activeDate || getNextSunday();
-  const authUser = sessionStorage.getItem("authUser");
-  if (!authUser) {
-    throw new Error("User not authenticated");
-  }
-  const parsedUser = JSON.parse(authUser);
-  const team = parsedUser.team || "";
 
   try {
-    const { data, error } = await supabase
-      .from(table)
-      .select("*")
-      .eq("attendancedate", dateForAttendance)
-      .or(joinOps);
+    const response = await apiRequest("GET", "/api/attendance", {
+      activeDate: dateForAttendance,
+    });
 
-    const unfilledData = await fetchUnmarkedWorkers(team, dateForAttendance);
-    if (error) {
-      throw error;
+    if (!response || response.error) {
+      throw new Error(response?.error || "Failed to fetch attendance");
     }
 
-    const { data: worker, error: workerError } = await supabase
-      .from("worker")
-      .select("*")
-      .or("status.is.null,status.eq.ACTIVE,status.eq.PENDING_DELETE");
-
-    const { data: routes, error: routesError } = await supabase
-      .from("admin")
-      .select("*");
-
-    if (routesError) {
-      throw routesError;
-    }
-    if (workerError) {
-      throw workerError;
-    }
-
-    const uniqueRoutes = routes
-      .filter(
-        (item, index, self) =>
-          index === self.findIndex((obj) => obj.department === item.department)
-      )
-      .filter((item) => !specialDepartments?.includes(item.department));
-
-    const departmentTotals = getDepartmentTotals(worker);
-    const presentSummary = getDepartmentSummary(data);
-    const defaultSummary = getDefaultSummary(uniqueRoutes);
-    const updatedSummary = updateDefaultSummary(
-      defaultSummary,
-      departmentTotals,
-      presentSummary,
-      unfilledData
-    );
-
-    if (team?.toLowerCase() === ADMIN_ENUMS.ADMIN_TEAM.toLowerCase())
-      return updatedSummary.sort((a, b) =>
-        a.department.localeCompare(b.department)
-      );
-    const filteredSummary = updatedSummary
-      .filter((item) => item.team === team)
-      .sort((a, b) => a.department.localeCompare(b.department));
-
-    return filteredSummary;
+    return response.data;
   } catch (error) {
     console.error("Error fetching attendance:", error.message);
-    return null;
+    return null; // You can return null or handle errors differently
   }
 };
 

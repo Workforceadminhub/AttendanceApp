@@ -21,7 +21,6 @@ const Login = () => {
       // Query the database to check if the code exists
       setIsLoading(true);
       const data = await loginService(code);
-      console.log("Login response data:", data.user);
       if(data.accessToken){
         setMessage("Login successful!");
         setError("");

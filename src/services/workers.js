@@ -1,7 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "./supabaseClient";
 import { getNextSunday } from "../utils/getDate";
-import { WORKER_STATUS } from "../utils/enums";
 import apiRequest from "../utils/apiClient";
 
 export const fetchWorkers = async (department, activeDate) => {

@@ -1,8 +1,7 @@
-import { supabase } from "../services/supabaseClient";
+import apiRequest from "./apiClient";
 
 export const switchOffAttendance = async () => {
   // Logic to switch off attendance
-  const { data } = await supabase.from("expirytable").select().eq("id", 1);
-  const attendanceIsClosed = data && data.length > 0 ? data[0].isClosed : false;
-  return attendanceIsClosed;
+  const data = await apiRequest("PUT", "/api/attendance/close");
+  return data.data;
 };

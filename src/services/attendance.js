@@ -11,7 +11,7 @@ function getRandomNumber() {
 export const addAttendance = async (attendance) => {
   try {
     const mappedAttendance = attendance.map(i => {
-      return {...i, id: getRandomNumber()}
+      return {...i, id: String(getRandomNumber())}
     })
     const response = await apiRequest("POST", "/api/attendance/add", {
       attendance: mappedAttendance,

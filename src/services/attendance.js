@@ -1,11 +1,20 @@
 import apiRequest from "../utils/apiClient";
 import { getNextSunday } from "../utils/getDate";
 
+function getRandomNumber() {
+  const min = 300000;
+  const max = 10000000;
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
 // const table = "attendance2";
 export const addAttendance = async (attendance) => {
   try {
+    const mappedAttendance = attendance.map(i => {
+      return {...i, id: getRandomNumber()}
+    })
     const response = await apiRequest("POST", "/api/attendance/add", {
-      attendance,
+      attendance: mappedAttendance,
     });
 
     if (!response || response.error) {

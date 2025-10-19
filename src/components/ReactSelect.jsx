@@ -35,6 +35,21 @@ export default function ReactSelectDropdown({
         : base.boxShadow,
       cursor: disabled ? "not-allowed" : "default",
     }),
+    menu: (base) => ({
+      ...base,
+      zIndex: 999999,
+      maxHeight: "200px",
+      overflowY: "auto",
+      borderRadius: "8px",
+      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+      position: "absolute",
+    }),
+    menuList: (base) => ({
+      ...base,
+      maxHeight: "180px",
+      overflowY: "auto",
+      padding: "4px",
+    }),
     option: (base, { data, isFocused, isSelected }) => ({
       ...base,
       backgroundColor: isSelected
@@ -45,6 +60,9 @@ export default function ReactSelectDropdown({
       color: "#1a202c",
       width: isSelected ? "100%" : base.width,
       padding: "10px",
+      borderRadius: "4px",
+      margin: "2px 0",
+      cursor: "pointer",
     }),
     singleValue: (base, { data }) => ({
       ...base,
@@ -72,6 +90,8 @@ export default function ReactSelectDropdown({
         placeholder={title}
         styles={customStyles}
         isClearable={true}
+        menuPlacement="auto"
+        maxMenuHeight={200}
       />
     </div>
   );

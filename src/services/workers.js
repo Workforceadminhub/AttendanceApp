@@ -16,7 +16,7 @@ export const fetchWorkers = async (department, activeDate) => {
 
     return response.data;
   } catch (error) {
-    console.error("Error fetching workers:", error.message);
+    // Silent error handling
     return null; // You can return null or handle errors differently
   }
 };
@@ -32,7 +32,7 @@ export const fetchUnmarkedWorkers = async (team, activeDate) => {
     }
     return response.data;
   } catch (error) {
-    console.error("Error fetching workers:", error.message);
+    // Silent error handling
     return null; // You can return null or handle errors differently
   }
 };
@@ -50,7 +50,7 @@ export const fetchAdminWorkers = async (team, activeGroup, activeDate) => {
     }
     return response.data;
   } catch (error) {
-    console.error("Error fetching workers:", error.message);
+    // Silent error handling
     return null; // You can return null or handle errors differently
   }
 };
@@ -63,7 +63,7 @@ export const addNewWorker = async (worker) => {
     }
     return response.data;
   } catch (error) {
-    console.error("Error adding new worker:", error.message);
+    // Silent error handling
     return null;
   }
 };

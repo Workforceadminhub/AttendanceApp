@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const baseUrl = process.env.REACT_APP_BASE_URL;
+const baseUrl = process.env.REACT_APP_BASE_URL || "https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com";
 if (!baseUrl)
   throw new Error("❌ Base URL is not defined in environment variables");
 
@@ -44,7 +44,7 @@ export async function apiRequest(
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
       } else {
-        console.warn("⚠️ No access token found; request may fail.");
+        // No access token found
       }
     }
 
@@ -64,10 +64,7 @@ export async function apiRequest(
     const response = await api.request(options);
     return response.data;
   } catch (error) {
-    console.error(
-      `❌ API ${method} ${endpoint} failed:`,
-      error.response?.data || error.message
-    );
+    // Silent error handling
     throw new Error(error.response?.data?.message || "API request failed");
   }
 }

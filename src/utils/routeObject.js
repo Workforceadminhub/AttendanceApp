@@ -147,7 +147,8 @@ export const historyRoutes = Array.from(
 );
 
 export const getAdminSelectOptions = (isChurchAdmin, team) => {
-  const options = isChurchAdmin
+  const isSuperAdmin = team.department === "Super Admin";
+  const options = (isChurchAdmin || isSuperAdmin)
     ? Array.from(new Set(routeObject.map((item) => item.team))).map((team) => ({
         value: team,
         label: team,

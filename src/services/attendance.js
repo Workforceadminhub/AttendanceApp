@@ -14,7 +14,7 @@ export const addAttendance = async (attendance) => {
 
     return response.data;
   } catch (error) {
-    console.error("Error fetching attendance:", error.message);
+    // Silent error handling
     return null; // You can return null or handle errors differently
   }
 };
@@ -38,7 +38,7 @@ export const fetchAdminAttendance = async (
 
     return response.data;
   } catch (error) {
-    console.error("Error fetching attendance:", error.message);
+    // Silent error handling
     return null; // You can return null or handle errors differently
   }
 };
@@ -57,7 +57,7 @@ export const fetchAttendance = async (activeDate) => {
 
     return response.data;
   } catch (error) {
-    console.error("Error fetching attendance:", error.message);
+    // Silent error handling
     return null; // You can return null or handle errors differently
   }
 };

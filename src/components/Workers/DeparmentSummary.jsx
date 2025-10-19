@@ -41,8 +41,8 @@ export default function DepartmentSummary() {
       })
       .catch((error) => {
         setIsLoading(false);
-        console.log(error);
-        toast.error("Error loading summary");
+        // Silent error handling
+        toast.error(`Error loading summary: ${error.message}`);
       });
   };
 
@@ -55,8 +55,8 @@ export default function DepartmentSummary() {
       })
       .catch((error) => {
         setIsLoading(false);
-        console.log(error);
-        toast.error("Error loading summary");
+        // Silent error handling
+        toast.error(`Error loading summary: ${error.message}`);
       });
   };
 
@@ -78,7 +78,7 @@ export default function DepartmentSummary() {
     debouncedSetActiveGroup(selected?.value);
   };
 
-  console.log({ attendanceSummary });
+  // Log attendance summary silently
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">

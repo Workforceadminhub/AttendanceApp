@@ -6,6 +6,7 @@ import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useNavigate } from "react-router-dom";
 import { getUser } from "../utils/getUser";
 import { ADMIN_ENUMS } from "../utils/enums";
+import { clearFilterCache } from "../utils/filterCache";
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -20,7 +21,8 @@ export default function Header() {
       name: "Department summary",
       href: `/summary${authUser?.route || "/wadata"}`,
     },
-    { name: "Attendance", href: `/attendance${authUser?.route || "/wadata"}` },
+    // Only show Workers menu for Super Admin users
+    ...(authUser?.department === "Super Admin" ? [{ name: "Workers", href: `/workers${authUser?.route || "/wadata"}` }] : []),
   ];
 
   const adminNavigation = [
@@ -29,6 +31,8 @@ export default function Header() {
       name: "Department summary",
       href: "/attendance/summary",
     },
+    // Only show Workers menu for Super Admin users
+    ...(authUser?.department === "Super Admin" ? [{ name: "Workers", href: "/attendance/workers" }] : []),
   ];
 
   const navigation =
@@ -80,6 +84,7 @@ export default function Header() {
               onClick={() => {
                 sessionStorage.removeItem("authUser");
                 sessionStorage.removeItem("accessToken");
+                clearFilterCache(); // Clear filter cache on logout
                 navigate("/login");
               }}
             >
@@ -136,6 +141,8 @@ export default function Header() {
                     className="text-sm/6 font-semibold text-gray-900 cursor-pointer"
                     onClick={() => {
                       sessionStorage.removeItem("authUser");
+                      sessionStorage.removeItem("accessToken");
+                      clearFilterCache(); // Clear filter cache on logout
                       navigate("/login");
                     }}
                   >

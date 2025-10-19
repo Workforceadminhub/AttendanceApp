@@ -11,7 +11,7 @@ import { addAttendance } from "../../services/attendance";
 import { toast } from "react-toastify";
 import { getNextSunday } from "../../utils/getDate";
 import ReactSelectDropdown from "../ReactSelect";
-import TableLoadingState from "../TableLoadingState";
+// import TableLoadingState from "../TableLoadingState";
 import Layout from "../Layout";
 import { switchOffAttendance } from "../../utils/switchOffAttendance";
 import { getAdminSelectOptions } from "../../utils/routeObject";
@@ -22,7 +22,7 @@ import { debounce } from "lodash";
 import ViewHistoryButton from "../ViewHistoryButton";
 import { TrashIcon } from "@heroicons/react/24/outline";
 import Modal from "../Modal";
-import { getUser } from "../../utils/getUser";
+// import { getUser } from "../../utils/getUser";
 import LoadingState from "../LoadingState";
 
 // Separate component for the attendance dropdown to reduce duplication
@@ -107,9 +107,9 @@ export default function DepartmentAttendance() {
         setIsLoading(false);
       })
       .catch((error) => {
-        toast.error("Error loading attendance");
+        toast.error(`Error loading attendance: ${error.message}`);
         setIsLoading(false);
-        console.log(error);
+        // Silent error handling
       });
   };
 
@@ -121,9 +121,9 @@ export default function DepartmentAttendance() {
         setIsLoading(false);
       })
       .catch((error) => {
-        toast.error("Error loading attendance");
+        toast.error(`Error loading attendance: ${error.message}`);
         setIsLoading(false);
-        console.log(error);
+        // Silent error handling
       });
   };
 
@@ -189,7 +189,7 @@ export default function DepartmentAttendance() {
       toast.success("Attendance added successfully");
     } catch (error) {
       setAttendanceLoading(false);
-      toast.error("Error adding attendance");
+      toast.error(`Error adding attendance: ${error.message}`);
       console.log(error);
     }
   };
@@ -219,7 +219,7 @@ export default function DepartmentAttendance() {
           setModalOpen(false);
           setRefresh(Math.random());
         })
-        .catch(() => toast.error("Error removing worker"));
+        .catch((error) => toast.error(`Error removing worker: ${error.message}`));
     }
   };
 

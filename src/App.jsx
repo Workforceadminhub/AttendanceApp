@@ -23,6 +23,8 @@ import DepartmentSummaryHistory from "./components/Workers/History/DeparmentSumm
 import DashboardHistory from "./components/Workers/History/DashboardHistory";
 import NewWorker from "./components/Workers/NewWorker";
 import UnmarkedAttendance from "./components/Workers/Unmarked";
+import Workers from "./components/Workers/Workers";
+import AddWorker from "./pages/AddWorker";
 
 const App = () => {
   const queryClient = new QueryClient({
@@ -143,6 +145,48 @@ const App = () => {
               element={
                 <PrivateRoute>
                   <Dashboard />
+                </PrivateRoute>
+              }
+            />
+
+            {/* Super Admin Routes - Based on login response route: "/super-admin" */}
+            <Route
+              path="/attendance/super-admin"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/summary/super-admin"
+              element={
+                <PrivateRoute>
+                  <DepartmentSummary />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/super-admin"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/workers/super-admin"
+              element={
+                <PrivateRoute>
+                  <Workers />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/add-worker"
+              element={
+                <PrivateRoute>
+                  <AddWorker />
                 </PrivateRoute>
               }
             />

@@ -12,7 +12,7 @@ export default function AddWorker() {
   const [mode, setMode] = useState('single'); // 'single' or 'bulk'
   const [isLoading, setIsLoading] = useState(false);
   
-  // Single worker form state
+  // Single worker form state for Super Admin
   const [newWorker, setNewWorker] = useState({
     firstname: "",
     lastname: "",
@@ -342,8 +342,8 @@ export default function AddWorker() {
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Add New Workers</h1>
-            <p className="text-gray-600 mt-2">Add individual workers or upload multiple workers from Excel</p>
+            <h1 className="text-3xl font-bold text-gray-900">Super Admin - Add New Workers</h1>
+            <p className="text-gray-600 mt-2">Add individual workers or upload multiple workers from Excel using the Super Admin API endpoint</p>
           </div>
 
           {/* Mode Toggle */}
@@ -373,12 +373,30 @@ export default function AddWorker() {
           {/* Single Worker Form */}
           {mode === 'single' && (
             <div className="bg-white shadow rounded-lg p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">Add Single Worker</h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-900">Add Single Worker</h2>
+                <div className="bg-blue-50 px-3 py-1 rounded-full">
+                  <span className="text-blue-700 text-sm font-medium">Super Admin Form</span>
+                </div>
+              </div>
+              
+              {/* API Endpoint Info */}
+              <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                <h4 className="text-sm font-medium text-gray-900 mb-2">API Endpoint</h4>
+                <p className="text-xs text-gray-600 font-mono bg-white p-2 rounded border">
+                  POST /api/super/admin/workers
+                </p>
+              </div>
               
               <div className="space-y-6">
                 {/* Basic Information */}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
+                <div className="border-b border-gray-200 pb-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                    <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    Basic Information
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -462,8 +480,13 @@ export default function AddWorker() {
                 </div>
 
                 {/* Work Information */}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Work Information</h3>
+                <div className="border-b border-gray-200 pb-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                    <svg className="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2V6" />
+                    </svg>
+                    Work Information
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -525,7 +548,12 @@ export default function AddWorker() {
 
                 {/* Additional Information */}
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Additional Information</h3>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                    <svg className="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Additional Information
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -595,9 +623,24 @@ export default function AddWorker() {
                   <button
                     onClick={addNewWorker}
                     disabled={isLoading}
-                    className="px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                    className="px-8 py-3 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 flex items-center"
                   >
-                    {isLoading ? "Adding..." : "Add Worker"}
+                    {isLoading ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Adding Worker...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        Add Worker via Super Admin API
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -607,7 +650,12 @@ export default function AddWorker() {
           {/* Bulk Upload Section */}
           {mode === 'bulk' && (
             <div className="bg-white shadow rounded-lg p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">Bulk Upload Workers</h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-900">Bulk Upload Workers</h2>
+                <div className="bg-blue-50 px-3 py-1 rounded-full">
+                  <span className="text-blue-700 text-sm font-medium">Super Admin API</span>
+                </div>
+              </div>
               
               <div className="space-y-6">
                 {/* File Upload Section */}

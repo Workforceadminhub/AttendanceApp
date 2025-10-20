@@ -1,4 +1,4 @@
-import apiRequest from "./apiClient";
+import apiRequest from "../utils/apiClient";
 
 export const disableAttendance = async () => {
   // Logic to switch off attendance

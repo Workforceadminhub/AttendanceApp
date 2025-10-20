@@ -25,6 +25,7 @@ import NewWorker from "./components/Workers/NewWorker";
 import UnmarkedAttendance from "./components/Workers/Unmarked";
 import Workers from "./components/Workers/Workers";
 import AddWorker from "./pages/AddWorker";
+import Report from "./components/Report";
 
 const App = () => {
   const queryClient = new QueryClient({
@@ -66,6 +67,7 @@ const App = () => {
           <Routes>
             <Route index element={<Home />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/report" element={<Report />} />
             <Route path="/new/worker" element={<NewWorker />} />
             <Route
               path="/summary"

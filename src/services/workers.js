@@ -23,6 +23,7 @@ export const fetchWorkers = async (department, activeDate) => {
 
 export const fetchUnmarkedWorkers = async (team, activeDate) => {
   try {
+    const activeDate = getNextSunday()
     const response = await apiRequest("GET", "/api/unmarked/workers", {
       team,
       activeDate,

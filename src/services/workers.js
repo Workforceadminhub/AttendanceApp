@@ -23,10 +23,10 @@ export const fetchWorkers = async (department, activeDate) => {
 
 export const fetchUnmarkedWorkers = async (team, activeDate) => {
   try {
-    const activeDate = getNextSunday()
+    const dateForAttendance = activeDate || getNextSunday();
     const response = await apiRequest("GET", "/api/unmarked/workers", {
       team,
-      activeDate,
+      activeDate: dateForAttendance,
     });
     if (!response || response.error) {
       throw new Error(response?.error || "Failed to fetch unmarked workers");

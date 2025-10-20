@@ -1,11 +1,20 @@
 import apiRequest from "../utils/apiClient";
 import { getNextSunday } from "../utils/getDate";
 
+function getRandomNumber() {
+  const min = 300000;
+  const max = 10000000;
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
 // const table = "attendance2";
 export const addAttendance = async (attendance) => {
   try {
+    const mappedAttendance = attendance.map(i => {
+      return {...i, id: String(getRandomNumber())}
+    })
     const response = await apiRequest("POST", "/api/attendance/add", {
-      attendance,
+      attendance: mappedAttendance,
     });
 
     if (!response || response.error) {
@@ -14,7 +23,7 @@ export const addAttendance = async (attendance) => {
 
     return response.data;
   } catch (error) {
-    console.error("Error fetching attendance:", error.message);
+    // Silent error handling
     return null; // You can return null or handle errors differently
   }
 };
@@ -38,7 +47,7 @@ export const fetchAdminAttendance = async (
 
     return response.data;
   } catch (error) {
-    console.error("Error fetching attendance:", error.message);
+    // Silent error handling
     return null; // You can return null or handle errors differently
   }
 };
@@ -57,7 +66,7 @@ export const fetchAttendance = async (activeDate) => {
 
     return response.data;
   } catch (error) {
-    console.error("Error fetching attendance:", error.message);
+    // Silent error handling
     return null; // You can return null or handle errors differently
   }
 };

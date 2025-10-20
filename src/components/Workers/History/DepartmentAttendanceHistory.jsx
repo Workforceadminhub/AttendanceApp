@@ -64,9 +64,9 @@ export default function DepartmentAttendanceHistory() {
         setIsLoading(false);
       })
       .catch((error) => {
-        toast.error("Error marking attendance");
+        toast.error(`Error marking attendance: ${error.message}`);
         setIsLoading(false);
-        console.log(error);
+        // Silent error handling
       });
   };
 
@@ -77,9 +77,9 @@ export default function DepartmentAttendanceHistory() {
         setData(res);
       })
       .catch((error) => {
-        toast.error("Error marking attendance");
+        toast.error(`Error marking attendance: ${error.message}`);
         setIsLoading(false);
-        console.log(error);
+        // Silent error handling
       })
       .finally(() => setIsLoading(false));
   };
@@ -87,7 +87,7 @@ export default function DepartmentAttendanceHistory() {
   useEffect(() => {
     switchOffAttendance()
       .then((res) => setAttendanceIsClosed(res))
-      .catch((err) => console.log(err));
+      .catch((err) => {/* Silent error handling */});
 
     fetchHistoryOptions().then((res) =>
       setHistoryOptions(res.map((item) => ({ label: item, value: item })))

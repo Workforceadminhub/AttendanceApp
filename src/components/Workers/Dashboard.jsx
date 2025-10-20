@@ -39,8 +39,8 @@ export default function Dashboard() {
       })
       .catch((error) => {
         setIsLoading(false);
-        console.log(error);
-        toast.error("Error loading summart");
+        // Silent error handling
+        toast.error(`Error loading summary: ${error.message}`);
       });
   };
 
@@ -53,7 +53,7 @@ export default function Dashboard() {
       })
       .catch((error) => {
         setIsLoading(false);
-        toast.error("Error loading summart");
+        toast.error(`Error loading summary: ${error.message}`);
       });
   };
 

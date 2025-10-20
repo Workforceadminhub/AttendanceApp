@@ -46,8 +46,8 @@ export default function DepartmentSummaryHistory() {
       })
       .catch((error) => {
         setIsLoading(false);
-        console.log(error);
-        toast.error("Error loading summary");
+        // Silent error handling
+        toast.error(`Error loading summary: ${error.message}`);
       });
   };
 
@@ -60,8 +60,8 @@ export default function DepartmentSummaryHistory() {
       })
       .catch((error) => {
         setIsLoading(false);
-        console.log(error);
-        toast.error("Error loading summary");
+        // Silent error handling
+        toast.error(`Error loading summary: ${error.message}`);
       });
   };
 

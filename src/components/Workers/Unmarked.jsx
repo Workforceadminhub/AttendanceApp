@@ -3,7 +3,7 @@ import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
 import { useEffect, useMemo, useState } from "react";
 import {
-  fetchAdminWorkers,
+  // fetchAdminWorkers,
   fetchUnmarkedWorkers,
   removeWorker,
 } from "../../services/workers";
@@ -105,9 +105,9 @@ export default function UnmarkedAttendance() {
         setIsLoading(false);
       })
       .catch((error) => {
-        toast.error("Error marking attendance");
+        toast.error(`Error marking attendance: ${error.message}`);
         setIsLoading(false);
-        console.log(error);
+        // Silent error handling
       });
   };
 
@@ -119,16 +119,16 @@ export default function UnmarkedAttendance() {
         setIsLoading(false);
       })
       .catch((error) => {
-        toast.error("Error marking attendance");
+        toast.error(`Error marking attendance: ${error.message}`);
         setIsLoading(false);
-        console.log(error);
+        // Silent error handling
       });
   };
 
   useEffect(() => {
     switchOffAttendance()
       .then((res) => setAttendanceIsClosed(res))
-      .catch((err) => console.log(err));
+      .catch((err) => {/* Silent error handling */});
   }, []);
 
   useEffect(() => {
@@ -220,7 +220,7 @@ export default function UnmarkedAttendance() {
           setModalOpen(false);
           setRefresh(Math.random());
         })
-        .catch(() => toast.error("Error removing worker"));
+        .catch((error) => toast.error(`Error removing worker: ${error.message}`));
     }
   };
 

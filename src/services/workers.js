@@ -96,9 +96,10 @@ export const fetchPendingAdd = async () => {
     return response.data;
   } catch (error) {
     // Silent error handling
-    return null; // You can return null or handle errors differently
+    return null;
   }
 };
+
 export const fetchPendingRemove = async () => {
   try {
     const response = await apiRequest("GET", "api/super/admin/workers", {

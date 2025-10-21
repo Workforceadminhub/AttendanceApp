@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { getNextSunday } from "../utils/getDate";
 import apiRequest from "../utils/apiClient";
+import { WORKER_STATUS } from "../utils/enums";
 
 export const fetchWorkers = async (department, activeDate) => {
   try {
@@ -81,6 +82,35 @@ export const removeWorker = async (workerid, deleteData) => {
     return res.data;
   } catch (error) {
     throw error;
+  }
+};
+
+export const fetchPendingAdd = async () => {
+  try {
+    const response = await apiRequest("GET", "api/super/admin/workers", {
+      status: WORKER_STATUS.PENDING_ADD
+    });
+    if (!response || response.error) {
+      throw new Error(response?.error || "Failed to fetch admin workers");
+    }
+    return response.data;
+  } catch (error) {
+    // Silent error handling
+    return null; // You can return null or handle errors differently
+  }
+};
+export const fetchPendingRemove = async () => {
+  try {
+    const response = await apiRequest("GET", "api/super/admin/workers", {
+      status: WORKER_STATUS.PENDING_DELETE
+    });
+    if (!response || response.error) {
+      throw new Error(response?.error || "Failed to fetch admin workers");
+    }
+    return response.data;
+  } catch (error) {
+    // Silent error handling
+    return null; // You can return null or handle errors differently
   }
 };
 

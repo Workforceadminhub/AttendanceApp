@@ -40,10 +40,8 @@ export const teamsAndDepartments = [
   {
     team: "Directional Leaders",
     department: [
-      "Team Pastor",
-      "Team Lead",
       "Directional Leader",
-      "Admin/Subteam head",
+      "Pastoral Leader",
     ],
   },
   {
@@ -191,6 +189,10 @@ export const teamsAndDepartments = [
       "Shomolu 2 Community",
       "Sunrise Community",
       "Trailblazer Community",
+      "Shekinah Community",
+      "Rehoboth Community",
+      "Dominion Kingdom Community",
+      "Hephzibah Community",
     ],
   },
   {
@@ -206,15 +208,14 @@ export const teamsAndDepartments = [
 
 export const workerRoles = [
   "Worker",
-  "Cell Leader",
   "Small Group Leader",
+  "Cell Leader",
   "Assistant HOD",
   "Zonal Leader",
   "HOD",
-  "Sub Team Head",
+  "Sub team Head",
   "Community Leader",
   "District Pastor",
-  "Team Pastor/Head",
+  "Team Head/Pastoral Leader",
   "Directional Leader",
-  "Service Pastor",
 ];

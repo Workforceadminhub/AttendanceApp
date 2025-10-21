@@ -164,7 +164,7 @@ const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
       <div className="flex">
         <label className="text-lg text-red-500 mt-2 mr-2">*</label>
         <input
-          placeholder="Birthday, Example: 13th May"
+          placeholder="e.g. 10th June"
           className="border p-3 w-full rounded-md"
           value={formData.birthdate || ""}
           onChange={(e) => setFormData({ ...formData, birthdate: e.target.value })}

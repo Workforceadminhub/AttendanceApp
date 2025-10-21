@@ -6,6 +6,8 @@ export default function ReactSelectDropdown({
   options,
   onChange,
   defaultValue,
+  value,
+  placeholder,
   className = "sm:w-44 xs:w-40 md:w-52 lg:w-64 xl:w-64",
   disabled = false,
 }) {
@@ -73,21 +75,15 @@ export default function ReactSelectDropdown({
     }),
   };
 
-  // Default placeholder
-  const placeholderOption = { value: null, label: title };
-
   return (
     <div className={className}>
       <Select
-        options={[placeholderOption, ...options]}
+        options={options}
         onChange={(selectedOption) => onChange(selectedOption)}
-        defaultValue={
-          defaultValue
-            ? { value: defaultValue.value, label: defaultValue.label }
-            : placeholderOption
-        }
+        value={value}
+        defaultValue={defaultValue}
         isDisabled={disabled}
-        placeholder={title}
+        placeholder={placeholder || title}
         styles={customStyles}
         isClearable={true}
         menuPlacement="auto"

@@ -16,6 +16,7 @@ import {
   initializeFilterData,
 } from "../../utils/filterCache";
 import { useDebouncedSearch } from "../../hooks/useDebouncedSearch";
+import { teamsAndDepartments } from "../../utils/teams";
 import {
   TrashIcon,
   PencilIcon,
@@ -83,22 +84,28 @@ export default function ChurchAdminWorkers() {
 
   // Initialize filter data on component mount
   useEffect(() => {
-    const initializeFilters = async () => {
+    const initializeFilters = () => {
       try {
-        const accessToken = sessionStorage.getItem("accessToken");
-        if (accessToken) {
-          await initializeFilterData(accessToken);
-          const cachedData = getCachedFilterData();
-          if (cachedData && cachedData.teams && cachedData.departments) {
-            setFilterOptions(cachedData);
-          } else {
-            const options = getFilterOptions();
-            setFilterOptions(options || { teams: [], departments: [] });
-          }
-        } else {
-          // Fallback to empty options if no token
-          setFilterOptions({ teams: [], departments: [] });
-        }
+        // Create teams and departments options from teamsAndDepartments
+        const teams = [
+          { value: "All", label: "All Teams" },
+          ...teamsAndDepartments.map(team => ({
+            value: team.team,
+            label: team.team
+          }))
+        ];
+
+        const departments = [
+          { value: "All", label: "All Departments" },
+          ...teamsAndDepartments.flatMap(team => 
+            team.department.map(dept => ({
+              value: dept,
+              label: dept
+            }))
+          )
+        ];
+
+        setFilterOptions({ teams, departments });
       } catch (error) {
         console.error("Error initializing filter data:", error);
         // Fallback to empty options
@@ -322,6 +329,8 @@ export default function ChurchAdminWorkers() {
       department: "All",
       team: "All",
     });
+    // Reset to all departments when clearing filters
+    updateDepartmentsForTeam("All");
     setFilterModalOpen(false);
   };
 
@@ -417,6 +426,42 @@ Type "DELETE" to confirm (case-sensitive):`;
       ...prev,
       [filterType]: value,
     }));
+    
+    // If team changes, reset department to "All"
+    if (filterType === "team") {
+      setFilters((prev) => ({
+        ...prev,
+        department: "All",
+      }));
+    }
+  };
+
+  // Update departments when team changes
+  const updateDepartmentsForTeam = (selectedTeam) => {
+    if (selectedTeam === "All") {
+      // Show all departments
+      const allDepartments = [
+        { value: "All", label: "All Departments" },
+        ...teamsAndDepartments.flatMap(team => 
+          team.department.map(dept => ({
+            value: dept,
+            label: dept
+          }))
+        )
+      ];
+      setFilterOptions(prev => ({ ...prev, departments: allDepartments }));
+    } else {
+      // Show only departments for selected team
+      const teamData = teamsAndDepartments.find(team => team.team === selectedTeam);
+      const teamDepartments = [
+        { value: "All", label: "All Departments" },
+        ...(teamData?.department || []).map(dept => ({
+          value: dept,
+          label: dept
+        }))
+      ];
+      setFilterOptions(prev => ({ ...prev, departments: teamDepartments }));
+    }
   };
 
   // Helper function to split full name into first and last name
@@ -1000,9 +1045,10 @@ Type "DELETE" to confirm (case-sensitive):`;
                         filterOptions?.teams?.find((t) => t.value === filters.team)
                           ?.label || "All Teams",
                     }}
-                    onChange={(selected) =>
-                      handleFilterChange("team", selected?.value)
-                    }
+                    onChange={(selected) => {
+                      handleFilterChange("team", selected?.value);
+                      updateDepartmentsForTeam(selected?.value);
+                    }}
                     options={filterOptions?.teams || []}
                     className="w-full"
                   />

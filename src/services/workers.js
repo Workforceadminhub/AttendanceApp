@@ -88,7 +88,7 @@ export const removeWorker = async (workerid, deleteData) => {
 export const fetchPendingAdd = async () => {
   try {
     const response = await apiRequest("GET", "api/super/admin/workers", {
-      status: WORKER_STATUS.PENDING_ADD
+      status: WORKER_STATUS.PENDING_ADD,
     });
     if (!response || response.error) {
       throw new Error(response?.error || "Failed to fetch admin workers");
@@ -103,15 +103,15 @@ export const fetchPendingAdd = async () => {
 export const fetchPendingRemove = async () => {
   try {
     const response = await apiRequest("GET", "api/super/admin/workers", {
-      status: WORKER_STATUS.PENDING_DELETE
+      status: WORKER_STATUS.PENDING_DELETE,
     });
     if (!response || response.error) {
       throw new Error(response?.error || "Failed to fetch admin workers");
     }
     return response.data;
   } catch (error) {
-    // Silent error handling
-    return null; // You can return null or handle errors differently
+    console.log({ error });
+    return null;
   }
 };
 

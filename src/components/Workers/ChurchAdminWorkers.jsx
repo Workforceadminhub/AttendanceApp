@@ -15,11 +15,14 @@ import {
   getFilterOptions,
   initializeFilterData,
 } from "../../utils/filterCache";
+import { useDebouncedSearch } from "../../hooks/useDebouncedSearch";
 import {
   TrashIcon,
   PencilIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 import GenericModal from "../GenericModal";
 import LoadingState from "../LoadingState";
@@ -46,6 +49,37 @@ export default function ChurchAdminWorkers() {
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedRows, setExpandedRows] = useState(new Set());
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0,
+    hasNext: false,
+    hasPrev: false,
+  });
+  
+  // Debounced search hook
+  const { debouncedSearch, search: debouncedSearchTerm } = useDebouncedSearch();
+
+  // Normalize phone number for search (remove leading 0 if present)
+  const normalizePhoneNumber = (phoneNumber) => {
+    if (!phoneNumber) return phoneNumber;
+    // Remove leading 0 if present
+    return phoneNumber.startsWith('0') ? phoneNumber.substring(1) : phoneNumber;
+  };
+
+  // Check if search term looks like a phone number and normalize it
+  const normalizeSearchTerm = (term) => {
+    if (!term) return term;
+    
+    // Check if the term looks like a phone number (starts with 0 or is all digits)
+    const phoneRegex = /^0?\d{10,11}$/;
+    if (phoneRegex.test(term.trim())) {
+      return normalizePhoneNumber(term.trim());
+    }
+    
+    return term.trim();
+  };
 
   // Initialize filter data on component mount
   useEffect(() => {
@@ -75,35 +109,131 @@ export default function ChurchAdminWorkers() {
     initializeFilters();
   }, []);
 
-  // Query functions
-  const querySuperAdminWorkers = async (search = "") => {
+  // Query functions for Church Admin - uses same API as Super Admin but with Church Admin token
+  const queryChurchAdminWorkers = async (page = 1, limit = 20, search = "") => {
     setIsLoading(true);
     try {
-      const queryParams = new URLSearchParams({
-        activeDate: dateForAttendance,
-        isAdmin: true,
-      });
-      
+      const accessToken = sessionStorage.getItem("accessToken");
+
+      if (!accessToken) {
+        throw new Error("No access token found. Please log in again.");
+      }
+
+      const queryParams = new URLSearchParams();
+
+      // Add pagination parameters
+      queryParams.append("page", page.toString());
+      queryParams.append("limit", limit.toString());
+
+      // Add sorting parameter
+      queryParams.append("sortBy", "team");
+
+      // Add search parameter if provided
       if (search && search.trim()) {
         queryParams.append("search", search.trim());
       }
 
-      const response = await fetch(
-        `https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/workers?${queryParams.toString()}`,
-        {
-          headers: {
-            Authorization: `Bearer ${sessionStorage.getItem("accessToken")}`,
-            "Content-Type": "application/json",
-          },
+      // Add filter parameters if not "All"
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== "All") {
+          queryParams.append(key, value);
         }
-      );
+      });
+
+      const url = `https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/workers?${queryParams.toString()}`;
+
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: Failed to fetch workers`);
       }
 
       const result = await response.json();
-      setData(result.workers || []);
+      // Handle nested data structure: result.data.data contains the workers array
+      setData(result.data?.data || result.workers || []);
+      
+      // Handle pagination info if available
+      let paginationInfo = null;
+      if (result.data?.pagination) {
+        paginationInfo = result.data.pagination;
+      } else if (result.pagination) {
+        paginationInfo = result.pagination;
+      }
+      
+      // Set pagination info if available
+      if (paginationInfo) {
+        setPagination({
+          page: paginationInfo.page || page,
+          limit: paginationInfo.limit || limit,
+          total: paginationInfo.total || 0,
+          totalPages: paginationInfo.totalPages || 0,
+          hasNext: paginationInfo.hasNext || false,
+          hasPrev: paginationInfo.hasPrev || false,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching church admin workers:", error);
+      toast.error("Failed to fetch workers");
+      setData([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Query function for Super Admin (kept for compatibility)
+  const querySuperAdminWorkers = async (page = 1, limit = 20, search = "") => {
+    setIsLoading(true);
+    try {
+      const accessToken = sessionStorage.getItem("accessToken");
+
+      if (!accessToken) {
+        throw new Error("No access token found. Please log in again.");
+      }
+
+      const queryParams = new URLSearchParams();
+
+      // Add pagination parameters
+      queryParams.append("page", page.toString());
+      queryParams.append("limit", limit.toString());
+
+      // Add sorting parameter
+      queryParams.append("sortBy", "team");
+
+      // Add search parameter if provided
+      if (search && search.trim()) {
+        queryParams.append("search", search.trim());
+      }
+
+      // Add filter parameters if not "All"
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== "All") {
+          queryParams.append(key, value);
+        }
+      });
+
+      const url = `https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/workers?${queryParams.toString()}`;
+
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: Failed to fetch workers`);
+      }
+
+      const result = await response.json();
+      // Handle nested data structure: result.data.data contains the workers array
+      setData(result.data?.data || result.workers || []);
     } catch (error) {
       console.error("Error fetching super admin workers:", error);
       toast.error("Failed to fetch workers");
@@ -152,36 +282,26 @@ export default function ChurchAdminWorkers() {
 
   // Load data based on user type
   useEffect(() => {
-    if (isSuperAdmin || isChurchAdmin) {
-      querySuperAdminWorkers(searchTerm);
+    if (isSuperAdmin) {
+      querySuperAdminWorkers(1, 20, debouncedSearchTerm);
+    } else if (isChurchAdmin) {
+      queryChurchAdminWorkers(1, 20, debouncedSearchTerm);
     } else if (isAdminMember) {
-      queryAdminWorkers(searchTerm);
+      queryAdminWorkers(debouncedSearchTerm);
     } else {
-      queryWorkers(searchTerm);
+      queryWorkers(debouncedSearchTerm);
     }
-  }, [filters, searchTerm]);
+  }, [filters, debouncedSearchTerm]);
 
   const handleSearch = (term) => {
     setSearchTerm(term);
-    
-    if (isSuperAdmin || isChurchAdmin) {
-      querySuperAdminWorkers(term);
-    } else if (isAdminMember) {
-      queryAdminWorkers(term);
-    } else {
-      queryWorkers(term);
-    }
+    const normalizedTerm = normalizeSearchTerm(term);
+    debouncedSearch(normalizedTerm);
   };
 
   const clearSearch = () => {
     setSearchTerm("");
-    if (isSuperAdmin || isChurchAdmin) {
-      querySuperAdminWorkers();
-    } else if (isAdminMember) {
-      queryAdminWorkers();
-    } else {
-      queryWorkers();
-    }
+    debouncedSearch("");
   };
 
   const openFilterModal = () => {
@@ -195,6 +315,14 @@ export default function ChurchAdminWorkers() {
   const applyFilters = () => {
     setFilterModalOpen(false);
     // The useEffect will automatically trigger when filters change
+  };
+
+  const clearAllFilters = () => {
+    setFilters({
+      department: "All",
+      team: "All",
+    });
+    setFilterModalOpen(false);
   };
 
   const deleteWorker = async (workerId) => {
@@ -253,8 +381,10 @@ Type "DELETE" to confirm (case-sensitive):`;
       toast.success("Worker deleted successfully");
 
       // Refresh the data
-      if (isSuperAdmin || isChurchAdmin) {
-        querySuperAdminWorkers(searchTerm);
+      if (isSuperAdmin) {
+        querySuperAdminWorkers(1, 20, searchTerm);
+      } else if (isChurchAdmin) {
+        queryChurchAdminWorkers(1, 20, searchTerm);
       } else if (isAdminMember) {
         queryAdminWorkers(searchTerm);
       } else {
@@ -323,15 +453,17 @@ Type "DELETE" to confirm (case-sensitive):`;
               </button>
               <button
                 className="bg-gray-500 px-6 py-2 text-white rounded-lg text-sm font-medium min-w-[140px]"
-                onClick={() => {
-                  if (isSuperAdmin || isChurchAdmin) {
-                    querySuperAdminWorkers(searchTerm);
-                  } else if (isAdminMember) {
-                    queryAdminWorkers(searchTerm);
-                  } else {
-                    queryWorkers(searchTerm);
-                  }
-                }}
+                  onClick={() => {
+                    if (isSuperAdmin) {
+                      querySuperAdminWorkers(1, 20, searchTerm);
+                    } else if (isChurchAdmin) {
+                      queryChurchAdminWorkers(1, 20, searchTerm);
+                    } else if (isAdminMember) {
+                      queryAdminWorkers(searchTerm);
+                    } else {
+                      queryWorkers(searchTerm);
+                    }
+                  }}
               >
                 Refresh Workers
               </button>
@@ -576,22 +708,6 @@ Type "DELETE" to confirm (case-sensitive):`;
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                               <div>
                                 <label className="block text-sm font-medium text-gray-700">
-                                  First Name
-                                </label>
-                                <p className="mt-1 text-sm text-gray-900">
-                                  {person.firstname || "N/A"}
-                                </p>
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700">
-                                  Last Name
-                                </label>
-                                <p className="mt-1 text-sm text-gray-900">
-                                  {person.lastname || "N/A"}
-                                </p>
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700">
                                   Other Name
                                 </label>
                                 <p className="mt-1 text-sm text-gray-900">
@@ -604,38 +720,6 @@ Type "DELETE" to confirm (case-sensitive):`;
                                 </label>
                                 <p className="mt-1 text-sm text-gray-900">
                                   {person.email || "N/A"}
-                                </p>
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700">
-                                  Phone Number
-                                </label>
-                                <p className="mt-1 text-sm text-gray-900">
-                                  {person.phonenumber || "N/A"}
-                                </p>
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700">
-                                  Department
-                                </label>
-                                <p className="mt-1 text-sm text-gray-900">
-                                  {person.department || "N/A"}
-                                </p>
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700">
-                                  Team
-                                </label>
-                                <p className="mt-1 text-sm text-gray-900">
-                                  {person.team || "N/A"}
-                                </p>
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700">
-                                  Worker Role
-                                </label>
-                                <p className="mt-1 text-sm text-gray-900">
-                                  {person.workerrole || person.role || "N/A"}
                                 </p>
                               </div>
                               <div>
@@ -708,60 +792,265 @@ Type "DELETE" to confirm (case-sensitive):`;
             </div>
           </div>
 
+          {/* Pagination Controls */}
+          {pagination.total > 0 && (
+            <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+              <div className="flex-1 flex justify-between sm:hidden">
+                <button
+                  onClick={() => {
+                    if (isSuperAdmin) {
+                      querySuperAdminWorkers(
+                        pagination.page - 1,
+                        pagination.limit
+                      );
+                    } else if (isChurchAdmin) {
+                      queryChurchAdminWorkers(
+                        pagination.page - 1,
+                        pagination.limit
+                      );
+                    }
+                  }}
+                  disabled={!pagination.hasPrev}
+                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md ${
+                    pagination.hasPrev
+                      ? "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+                      : "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed"
+                  }`}
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => {
+                    if (isSuperAdmin) {
+                      querySuperAdminWorkers(
+                        pagination.page + 1,
+                        pagination.limit
+                      );
+                    } else if (isChurchAdmin) {
+                      queryChurchAdminWorkers(
+                        pagination.page + 1,
+                        pagination.limit
+                      );
+                    }
+                  }}
+                  disabled={!pagination.hasNext}
+                  className={`ml-3 relative inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md ${
+                    pagination.hasNext
+                      ? "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+                      : "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed"
+                  }`}
+                >
+                  Next
+                </button>
+              </div>
+              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700">
+                    Showing{" "}
+                    <span className="font-medium">
+                      {(pagination.page - 1) * pagination.limit + 1}
+                    </span>{" "}
+                    to{" "}
+                    <span className="font-medium">
+                      {Math.min(
+                        pagination.page * pagination.limit,
+                        pagination.total
+                      )}
+                    </span>{" "}
+                    of <span className="font-medium">{pagination.total}</span>{" "}
+                    results
+                  </p>
+                </div>
+                <div>
+                  <nav
+                    className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
+                    aria-label="Pagination"
+                  >
+                    <button
+                      onClick={() => {
+                        if (isSuperAdmin) {
+                          querySuperAdminWorkers(
+                            pagination.page - 1,
+                            pagination.limit
+                          );
+                        } else if (isChurchAdmin) {
+                          queryChurchAdminWorkers(
+                            pagination.page - 1,
+                            pagination.limit
+                          );
+                        }
+                      }}
+                      disabled={!pagination.hasPrev}
+                      className={`relative inline-flex items-center px-2 py-2 rounded-l-md border text-sm font-medium ${
+                        pagination.hasPrev
+                          ? "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
+                          : "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed"
+                      }`}
+                    >
+                      <span className="sr-only">Previous</span>
+                      <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
+                    </button>
+
+                    {/* Page numbers */}
+                    {(() => {
+                      const currentPage = pagination.page;
+                      const totalPages = pagination.totalPages;
+                      const pages = [];
+
+                      // Show first page
+                      if (currentPage > 3) {
+                        pages.push(1);
+                        if (currentPage > 4) {
+                          pages.push("...");
+                        }
+                      }
+
+                      // Show pages around current page
+                      for (
+                        let i = Math.max(1, currentPage - 2);
+                        i <= Math.min(totalPages, currentPage + 2);
+                        i++
+                      ) {
+                        pages.push(i);
+                      }
+
+                      // Show last page
+                      if (currentPage < totalPages - 2) {
+                        if (currentPage < totalPages - 3) {
+                          pages.push("...");
+                        }
+                        pages.push(totalPages);
+                      }
+
+                      return pages.map((page, index) => (
+                        <button
+                          key={index}
+                          onClick={() => {
+                            if (typeof page === "number") {
+                              if (isSuperAdmin) {
+                                querySuperAdminWorkers(page, pagination.limit);
+                              } else if (isChurchAdmin) {
+                                queryChurchAdminWorkers(page, pagination.limit);
+                              }
+                            }
+                          }}
+                          className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                            page === currentPage
+                              ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
+                              : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
+                          } ${
+                            typeof page === "string"
+                              ? "cursor-default"
+                              : "cursor-pointer"
+                          }`}
+                          disabled={typeof page === "string"}
+                        >
+                          {page}
+                        </button>
+                      ));
+                    })()}
+
+                    <button
+                      onClick={() => {
+                        if (isSuperAdmin) {
+                          querySuperAdminWorkers(
+                            pagination.page + 1,
+                            pagination.limit
+                          );
+                        } else if (isChurchAdmin) {
+                          queryChurchAdminWorkers(
+                            pagination.page + 1,
+                            pagination.limit
+                          );
+                        }
+                      }}
+                      disabled={!pagination.hasNext}
+                      className={`relative inline-flex items-center px-2 py-2 rounded-r-md border text-sm font-medium ${
+                        pagination.hasNext
+                          ? "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
+                          : "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed"
+                      }`}
+                    >
+                      <span className="sr-only">Next</span>
+                      <ChevronRightIcon className="h-5 w-5" aria-hidden="true" />
+                    </button>
+                  </nav>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Filter Modal */}
           <GenericModal
             isOpen={filterModalOpen}
             onClose={closeFilterModal}
             title="Filter Workers"
-            size="lg"
+            size="large"
           >
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Team
-                </label>
-                <ReactSelectDropdown
-                  options={filterOptions?.teams || []}
-                  value={filterOptions?.teams?.find(
-                    (option) => option.value === filters.team
-                  )}
-                  onChange={(selectedOption) =>
-                    handleFilterChange("team", selectedOption?.value || "All")
-                  }
-                  placeholder="Select Team"
-                />
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Team
+                  </label>
+                  <ReactSelectDropdown
+                    defaultValue={{
+                      value: filters.team,
+                      label:
+                        filterOptions?.teams?.find((t) => t.value === filters.team)
+                          ?.label || "All Teams",
+                    }}
+                    onChange={(selected) =>
+                      handleFilterChange("team", selected?.value)
+                    }
+                    options={filterOptions?.teams || []}
+                    className="w-full"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Department
+                  </label>
+                  <ReactSelectDropdown
+                    defaultValue={{
+                      value: filters.department,
+                      label:
+                        filterOptions?.departments?.find(
+                          (d) => d.value === filters.department
+                        )?.label || "All Departments",
+                    }}
+                    onChange={(selected) =>
+                      handleFilterChange("department", selected?.value)
+                    }
+                    options={filterOptions?.departments || []}
+                    className="w-full"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Department
-                </label>
-                <ReactSelectDropdown
-                  options={filterOptions?.departments || []}
-                  value={filterOptions?.departments?.find(
-                    (option) => option.value === filters.department
-                  )}
-                  onChange={(selectedOption) =>
-                    handleFilterChange(
-                      "department",
-                      selectedOption?.value || "All"
-                    )
-                  }
-                  placeholder="Select Department"
-                />
-              </div>
-              <div className="flex justify-end space-x-3 pt-4">
+
+              <div className="flex justify-between items-center pt-4 border-t border-gray-200">
                 <button
-                  onClick={closeFilterModal}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                  onClick={clearAllFilters}
+                  className="text-sm text-red-600 hover:text-red-800 font-medium"
                 >
-                  Cancel
+                  Clear All Filters
                 </button>
-                <button
-                  onClick={applyFilters}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-                >
-                  Apply Filters
-                </button>
+
+                <div className="flex space-x-3">
+                  <button
+                    onClick={closeFilterModal}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={applyFilters}
+                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    Apply Filters
+                  </button>
+                </div>
               </div>
             </div>
           </GenericModal>

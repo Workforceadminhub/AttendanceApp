@@ -359,15 +359,36 @@ export default function Workers() {
     updateDepartmentsForTeam("All");
   };
 
+  // Normalize phone number for search (remove leading 0 if present)
+  const normalizePhoneNumber = (phoneNumber) => {
+    if (!phoneNumber) return phoneNumber;
+    // Remove leading 0 if present
+    return phoneNumber.startsWith('0') ? phoneNumber.substring(1) : phoneNumber;
+  };
+
+  // Check if search term looks like a phone number and normalize it
+  const normalizeSearchTerm = (term) => {
+    if (!term) return term;
+    
+    // Check if the term looks like a phone number (starts with 0 or is all digits)
+    const phoneRegex = /^0?\d{10,11}$/;
+    if (phoneRegex.test(term.trim())) {
+      return normalizePhoneNumber(term.trim());
+    }
+    
+    return term.trim();
+  };
+
   // Search functionality
   const handleSearch = (term) => {
     setSearchTerm(term);
+    const normalizedTerm = normalizeSearchTerm(term);
     if (isSuperAdmin) {
-      querySuperAdminWorkers(1, pagination.limit, term);
+      querySuperAdminWorkers(1, pagination.limit, normalizedTerm);
     } else if (isAdminMember) {
-      queryAdminWorkers(term);
+      queryAdminWorkers(normalizedTerm);
     } else {
-      queryWorkers(term);
+      queryWorkers(normalizedTerm);
     }
   };
 

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
 import { toast } from "react-toastify";
+import { teamsAndDepartments } from "../utils/teams";
 
 export default function ViewWorker() {
   const navigate = useNavigate();
@@ -13,12 +14,17 @@ export default function ViewWorker() {
   const [editedWorker, setEditedWorker] = useState({});
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Check if user is super admin
+  // Check if user is super admin or church admin
   useEffect(() => {
     const authUser = JSON.parse(sessionStorage.getItem("authUser"));
-    if (!authUser || authUser.department !== "Super Admin") {
-      toast.error("Access denied. Super Admin access required.");
-      navigate("/workers/super-admin");
+    if (!authUser || (authUser.department !== "Super Admin" && authUser.department !== "Church Admin")) {
+      toast.error("Access denied. Super Admin or Church Admin access required.");
+      // Navigate to appropriate workers page based on user type
+      if (authUser?.department === "Church Admin") {
+        navigate("/church-admin/workers");
+      } else {
+        navigate("/workers/super-admin");
+      }
       return;
     }
   }, [navigate]);
@@ -71,8 +77,12 @@ export default function ViewWorker() {
   }, [workerId]);
 
   const handleCancel = () => {
-    setEditedWorker(worker);
-    setHasChanges(false);
+    const authUser = JSON.parse(sessionStorage.getItem("authUser"));
+    if (authUser?.department === "Church Admin") {
+      navigate("/church-admin/workers");
+    } else {
+      navigate("/workers/super-admin");
+    }
   };
 
   const handleSave = async () => {
@@ -210,7 +220,14 @@ export default function ViewWorker() {
                 The worker you're looking for doesn't exist or has been removed.
               </p>
               <button
-                onClick={() => navigate("/workers/super-admin")}
+                onClick={() => {
+                  const authUser = JSON.parse(sessionStorage.getItem("authUser"));
+                  if (authUser?.department === "Church Admin") {
+                    navigate("/church-admin/workers");
+                  } else {
+                    navigate("/workers/super-admin");
+                  }
+                }}
                 className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
               >
                 Back to Workers
@@ -240,7 +257,14 @@ export default function ViewWorker() {
               </div>
               <div className="flex space-x-3">
                 <button
-                  onClick={() => navigate("/workers/super-admin")}
+                  onClick={() => {
+                    const authUser = JSON.parse(sessionStorage.getItem("authUser"));
+                    if (authUser?.department === "Church Admin") {
+                      navigate("/church-admin/workers");
+                    } else {
+                      navigate("/workers/super-admin");
+                    }
+                  }}
                   className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
                 >
                   Back to Workers
@@ -339,12 +363,18 @@ export default function ViewWorker() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Team <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={editedWorker.team || ""}
                     onChange={(e) => handleInputChange("team", e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  >
+                    <option value="">Select Team</option>
+                    {teamsAndDepartments.map((team) => (
+                      <option key={team.team} value={team.team}>
+                        {team.team}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Department */}
@@ -352,12 +382,20 @@ export default function ViewWorker() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Department <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={editedWorker.department || ""}
                     onChange={(e) => handleInputChange("department", e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  >
+                    <option value="">Select Department</option>
+                    {teamsAndDepartments
+                      .find((team) => team.team === editedWorker.team)
+                      ?.department?.map((dept) => (
+                        <option key={dept} value={dept}>
+                          {dept}
+                        </option>
+                      ))}
+                  </select>
                 </div>
 
                 {/* Worker Role */}

@@ -59,6 +59,7 @@ export default function Workers() {
     hasPrev: false,
   });
   const [availableDepartments, setAvailableDepartments] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const [filterOptions, setFilterOptions] = useState({
     departments: [{ value: "All", label: "All Departments" }],
@@ -94,7 +95,7 @@ export default function Workers() {
 
   const fallbackFilterOptions = generateFallbackFilterOptions();
 
-  const querySuperAdminWorkers = async (page = 1, limit = 20) => {
+  const querySuperAdminWorkers = async (page = 1, limit = 20, search = "") => {
     setIsLoading(true);
     try {
       const accessToken = sessionStorage.getItem("accessToken");
@@ -111,6 +112,11 @@ export default function Workers() {
 
       // Add sorting parameter
       queryParams.append("sortBy", "team");
+
+      // Add search parameter if provided
+      if (search && search.trim()) {
+        queryParams.append("search", search.trim());
+      }
 
       // Add filter parameters if not "All"
       Object.entries(filters).forEach(([key, value]) => {
@@ -191,9 +197,9 @@ export default function Workers() {
     }
   };
 
-  const queryAdminWorkers = () => {
+  const queryAdminWorkers = (search = "") => {
     setIsLoading(true);
-    fetchAdminWorkers("All", "All", dateForAttendance)
+    fetchAdminWorkers("All", "All", dateForAttendance, search)
       .then((res) => {
         setData(res);
         setIsLoading(false);
@@ -204,9 +210,9 @@ export default function Workers() {
       });
   };
 
-  const queryWorkers = () => {
+  const queryWorkers = (search = "") => {
     setIsLoading(true);
-    fetchWorkers(team.department)
+    fetchWorkers(team.department, search)
       .then((res) => {
         setData(res);
         setIsLoading(false);
@@ -353,6 +359,29 @@ export default function Workers() {
     updateDepartmentsForTeam("All");
   };
 
+  // Search functionality
+  const handleSearch = (term) => {
+    setSearchTerm(term);
+    if (isSuperAdmin) {
+      querySuperAdminWorkers(1, pagination.limit, term);
+    } else if (isAdminMember) {
+      queryAdminWorkers(term);
+    } else {
+      queryWorkers(term);
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchTerm("");
+    if (isSuperAdmin) {
+      querySuperAdminWorkers();
+    } else if (isAdminMember) {
+      queryAdminWorkers();
+    } else {
+      queryWorkers();
+    }
+  };
+
   const openFilterModal = () => {
     setFilterModalOpen(true);
   };
@@ -372,12 +401,25 @@ export default function Workers() {
       return;
     }
 
-    // Confirm deletion
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this worker? This action cannot be undone."
-      )
-    ) {
+    // Strong confirmation dialog for deletion
+    const confirmMessage = `⚠️ PERMANENT DELETION WARNING ⚠️
+
+You are about to PERMANENTLY DELETE this worker from the system.
+
+🚨 THIS ACTION IS IRREVERSIBLE AND CANNOT BE UNDONE 🚨
+
+All worker data, records, and associated information will be permanently lost.
+
+Are you absolutely certain you want to proceed with this permanent deletion?
+
+Type "DELETE" to confirm (case-sensitive):`;
+
+    const userInput = window.prompt(confirmMessage);
+    
+    if (userInput !== "DELETE") {
+      if (userInput !== null) {
+        toast.error("Deletion cancelled. You must type 'DELETE' exactly to confirm.");
+      }
       return;
     }
 
@@ -424,8 +466,8 @@ export default function Workers() {
   };
 
   const handleEditWorker = (workerId) => {
-    // Navigate to edit worker page or open edit modal
-    navigate(`/workers/edit/${workerId}`);
+    // Navigate to view/edit worker page
+    navigate(`/worker/${workerId}`);
   };
 
   const toggleRowExpansion = (workerId) => {
@@ -456,93 +498,148 @@ export default function Workers() {
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <div className="flex-1">
               <h1 className="text-lg sm:text-xl font-semibold text-gray-900">
-                {team?.department} Workers
+                Workers
               </h1>
-              <p className="text-sm text-gray-600">
-                Manage and view all workers in your department
-              </p>
             </div>
-            <div className="self-start sm:self-center space-x-2">
+            <div className="self-start sm:self-center flex space-x-2">
               <button
-                className="bg-blue-500 px-4 text-white py-2 rounded-lg text-xs"
-                onClick={() => navigate("/new/worker")}
+                className="bg-green-500 px-6 py-2 text-white rounded-lg text-sm font-medium min-w-[140px]"
+                onClick={() => navigate("/add-worker")}
               >
                 Add New Worker
               </button>
-              <ViewHistoryButton
-                label="View History"
-                link={`/workers/history/${team.department}`}
-              />
+              <button
+                className="bg-gray-500 px-6 py-2 text-white rounded-lg text-sm font-medium min-w-[140px]"
+                onClick={() => querySuperAdminWorkers()}
+              >
+                Refresh Workers
+              </button>
+              <button
+                className="bg-blue-600 px-6 py-2 text-white rounded-lg text-sm font-medium min-w-[140px] hover:bg-blue-700"
+                onClick={() => navigate(`/workers/history/${team.department}`)}
+              >
+                View History
+              </button>
             </div>
           </div>
 
-          {/* Super Admin Filter Button */}
-          {isSuperAdmin && (
-            <div className="mt-6 flex justify-between items-center">
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={openFilterModal}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  <svg
-                    className="w-4 h-4 mr-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.707A1 1 0 013 7V4z"
-                    />
-                  </svg>
-                  Filter Workers
-                </button>
-
-                {/* Active Filters Display */}
-                {Object.values(filters).some((filter) => filter !== "All") && (
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-500">
-                      Active filters:
-                    </span>
-                    {Object.entries(filters)
-                      .filter(([_, value]) => value !== "All")
-                      .map(([key, value]) => (
-                        <span
-                          key={key}
-                          className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                        >
-                          {key}: {value}
-                          <button
-                            onClick={() => handleFilterChange(key, "All")}
-                            className="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full text-blue-400 hover:bg-blue-200 hover:text-blue-500"
-                          >
-                            <svg
-                              className="w-3 h-3"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M6 18L18 6M6 6l12 12"
-                              />
-                            </svg>
-                          </button>
-                        </span>
-                      ))}
-                    <button
-                      onClick={clearAllFilters}
-                      className="text-xs text-red-600 hover:text-red-800 font-medium"
+          {/* Search and Filter Section */}
+          <div className="mt-6">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg
+                      className="h-5 w-5 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
-                      Clear All
-                    </button>
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
                   </div>
-                )}
+                  <input
+                    type="text"
+                    placeholder="Search by first name, last name, or phone number..."
+                    value={searchTerm}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={clearSearch}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    >
+                      <svg
+                        className="h-5 w-5 text-gray-400 hover:text-gray-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  )}
+                </div>
               </div>
+              
+              {/* Filter Button */}
+              {isSuperAdmin && (
+                <div className="flex-shrink-0">
+                  <button
+                    onClick={openFilterModal}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    <svg
+                      className="w-4 h-4 mr-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.707A1 1 1 0 013 7V4z"
+                      />
+                    </svg>
+                    Filter Workers
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Active Filters Display */}
+          {isSuperAdmin && Object.values(filters).some((filter) => filter !== "All") && (
+            <div className="mt-4 flex items-center space-x-2">
+              <span className="text-sm text-gray-500">
+                Active filters:
+              </span>
+              {Object.entries(filters)
+                .filter(([_, value]) => value !== "All")
+                .map(([key, value]) => (
+                  <span
+                    key={key}
+                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                  >
+                    {key}: {value}
+                    <button
+                      onClick={() => handleFilterChange(key, "All")}
+                      className="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full text-blue-400 hover:bg-blue-200 hover:text-blue-500"
+                    >
+                      <svg
+                        className="w-3 h-3"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  </span>
+                ))}
+              <button
+                onClick={clearAllFilters}
+                className="text-xs text-red-600 hover:text-red-800 font-medium"
+              >
+                Clear All
+              </button>
             </div>
           )}
 
@@ -622,7 +719,7 @@ export default function Workers() {
                                   {person.team}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                  {person.role || "Worker"}
+                                  {person.workerrole || person.role || "Worker"}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                   <div className="flex space-x-2">
@@ -725,6 +822,14 @@ export default function Workers() {
                                         </label>
                                         <p className="mt-1 text-sm text-gray-900">
                                           {person.employment || "N/A"}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <label className="block text-sm font-medium text-gray-700">
+                                          Worker Role
+                                        </label>
+                                        <p className="mt-1 text-sm text-gray-900">
+                                          {person.workerrole || person.role || "N/A"}
                                         </p>
                                       </div>
                                       <div>
@@ -923,23 +1028,6 @@ export default function Workers() {
               )}
             </div>
 
-            {/* Action Buttons */}
-            <div className="mt-6 flex flex-col sm:flex-row gap-4 justify-end">
-              <div className="flex flex-col sm:flex-row gap-2">
-                <button
-                  className="bg-green-500 text-white px-4 py-2 rounded-lg w-full sm:w-auto"
-                  onClick={() => navigate("/add-worker")}
-                >
-                  Add New Worker
-                </button>
-                <button
-                  className="bg-gray-500 text-white px-4 py-2 rounded-lg w-full sm:w-auto"
-                  onClick={() => querySuperAdminWorkers()}
-                >
-                  Refresh Workers
-                </button>
-              </div>
-            </div>
           </div>
         </div>
 

@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
-// No longer needed
 import ReactSelectDropdown from "../components/ReactSelect";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
+import { teamsAndDepartments } from "../utils/teams";
 
 export default function AddWorker() {
   const navigate = useNavigate();
@@ -19,15 +19,16 @@ export default function AddWorker() {
     othername: "",
     email: "",
     phonenumber: "",
-    maritalstatus: "Single",
+    maritalstatus: "",
     department: "",
     team: "",
     workerrole: "",
     birthdate: "",
     agerange: "",
-    gender: "Male",
+    gender: "",
     address: "",
     occupation: "",
+    employment: "",
   });
 
   // Bulk upload state
@@ -42,7 +43,7 @@ export default function AddWorker() {
   // Filter options for dropdowns
   const [filterOptions, setFilterOptions] = useState({
     departments: [{ value: "All", label: "All Departments" }],
-    teams: [{ value: "All", label: "All Teams" }],
+    teams: teamsAndDepartments.map(team => ({ value: team.team, label: team.team })),
   });
 
   // Check if user is super admin
@@ -55,10 +56,31 @@ export default function AddWorker() {
     }
   }, [navigate]);
 
+  // Update departments when team changes
+  useEffect(() => {
+    if (newWorker.team) {
+      const selectedTeam = teamsAndDepartments.find(team => team.team === newWorker.team);
+      if (selectedTeam) {
+        setFilterOptions(prev => ({
+          ...prev,
+          departments: selectedTeam.department.map(dept => ({ value: dept, label: dept }))
+        }));
+      }
+    } else {
+      setFilterOptions(prev => ({
+        ...prev,
+        departments: [{ value: "All", label: "All Departments" }]
+      }));
+    }
+  }, [newWorker.team]);
+
   // Load filter options from cache
   useEffect(() => {
     const loadFilterOptions = () => {
       try {
+        // Clear old cache to ensure fresh data
+        localStorage.removeItem("filterCache");
+        
         const cachedData = localStorage.getItem("filterCache");
         if (cachedData) {
           const { data, timestamp } = JSON.parse(cachedData);
@@ -72,20 +94,10 @@ export default function AddWorker() {
           }
         }
 
-        // Fallback to basic options
+        // Fallback to proper teams data
         setFilterOptions({
-          departments: [
-            { value: "All", label: "All Departments" },
-            { value: "Engineering", label: "Engineering" },
-            { value: "Marketing", label: "Marketing" },
-            { value: "HR", label: "HR" },
-          ],
-          teams: [
-            { value: "All", label: "All Teams" },
-            { value: "Backend", label: "Backend" },
-            { value: "Frontend", label: "Frontend" },
-            { value: "DevOps", label: "DevOps" },
-          ],
+          departments: [{ value: "All", label: "All Departments" }],
+          teams: teamsAndDepartments.map(team => ({ value: team.team, label: team.team })),
         });
       } catch (error) {
         // Silent error handling
@@ -290,8 +302,15 @@ export default function AddWorker() {
         }
       });
 
-      // Only add if we have at least firstname and email
-      if (worker.firstname && worker.email) {
+      // Only add if we have all required fields (same as single worker form)
+      if (
+        worker.firstname &&
+        worker.lastname &&
+        worker.email &&
+        worker.phonenumber &&
+        worker.department &&
+        worker.team
+      ) {
         workers.push(worker);
       }
     });
@@ -302,6 +321,23 @@ export default function AddWorker() {
   const processBulkUpload = async () => {
     if (parsedWorkers.length === 0) {
       toast.error("No workers to upload");
+      return;
+    }
+
+    // Validate that all workers have required fields
+    const invalidWorkers = parsedWorkers.filter(worker => 
+      !worker.firstname || 
+      !worker.lastname || 
+      !worker.email || 
+      !worker.phonenumber || 
+      !worker.department || 
+      !worker.team
+    );
+
+    if (invalidWorkers.length > 0) {
+      toast.error(
+        `${invalidWorkers.length} workers are missing required fields (First Name, Last Name, Email, Phone Number, Department, Team). Please check your Excel file.`
+      );
       return;
     }
 
@@ -392,375 +428,371 @@ export default function AddWorker() {
             </p>
           </div>
 
-          {/* Mode Toggle */}
-          <div className="flex space-x-4 mb-8 border-b border-gray-200">
-            <button
-              onClick={() => setMode("single")}
-              className={`px-6 py-3 text-sm font-medium rounded-md transition-colors ${
-                mode === "single"
-                  ? "bg-blue-100 text-blue-700 border border-blue-300"
-                  : "bg-gray-100 text-gray-600 border border-gray-300"
-              }`}
-            >
-              Single Worker
-            </button>
-            <button
-              onClick={() => setMode("bulk")}
-              className={`px-6 py-3 text-sm font-medium rounded-md transition-colors ${
-                mode === "bulk"
-                  ? "bg-blue-100 text-blue-700 border border-blue-300"
-                  : "bg-gray-100 text-gray-600 border border-gray-300"
-              }`}
-            >
-              Bulk Upload
-            </button>
-          </div>
+          <>
+            {/* Mode Toggle */}
+            <div className="flex space-x-4 mb-8 border-b border-gray-200">
+              <button
+                onClick={() => setMode("single")}
+                className={`px-6 py-3 text-sm font-medium rounded-md transition-colors ${mode === "single"
+                    ? "bg-blue-100 text-blue-700 border border-blue-300"
+                    : "bg-gray-100 text-gray-600 border border-gray-300"
+                  }`}
+              >
+                Single Worker
+              </button>
+              <button
+                onClick={() => setMode("bulk")}
+                className={`px-6 py-3 text-sm font-medium rounded-md transition-colors ${mode === "bulk"
+                    ? "bg-blue-100 text-blue-700 border border-blue-300"
+                    : "bg-gray-100 text-gray-600 border border-gray-300"
+                  }`}
+              >
+                Bulk Upload
+              </button>
+            </div>
 
-          {/* Single Worker Form */}
-          {mode === "single" && (
-            <div className="bg-white shadow rounded-lg p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Add Single Worker
-                </h2>
-                <div className="bg-blue-50 px-3 py-1 rounded-full">
-                  <span className="text-blue-700 text-sm font-medium">
-                    Super Admin Form
-                  </span>
+            {/* Single Worker Form */}
+            {mode === "single" && (
+              <div className="bg-white shadow rounded-lg p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    Add Single Worker
+                  </h2>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* First Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      First Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newWorker.firstname}
+                      onChange={(e) =>
+                        setNewWorker({
+                          ...newWorker,
+                          firstname: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter first name"
+                    />
+                  </div>
+
+                  {/* Last Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Last Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newWorker.lastname}
+                      onChange={(e) =>
+                        setNewWorker({
+                          ...newWorker,
+                          lastname: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter last name"
+                    />
+                  </div>
+
+                  {/* Other Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Other Name
+                    </label>
+                    <input
+                      type="text"
+                      value={newWorker.othername}
+                      onChange={(e) =>
+                        setNewWorker({
+                          ...newWorker,
+                          othername: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter other name"
+                    />
+                  </div>
+
+                  {/* Gender */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Gender <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={newWorker.gender}
+                      onChange={(e) =>
+                        setNewWorker({ ...newWorker, gender: e.target.value })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select Gender</option>
+                      <option value="Female">Female</option>
+                      <option value="Male">Male</option>
+                    </select>
+                  </div>
+
+                  {/* Phone Number */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Phone Number <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      value={newWorker.phonenumber}
+                      onChange={(e) =>
+                        setNewWorker({
+                          ...newWorker,
+                          phonenumber: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter phone number"
+                    />
+                  </div>
+
+                  {/* Email */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Email Address <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={newWorker.email}
+                      onChange={(e) =>
+                        setNewWorker({ ...newWorker, email: e.target.value })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter email address"
+                    />
+                  </div>
+
+                  {/* Team */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Team <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={newWorker.team}
+                      onChange={(e) =>
+                        setNewWorker({
+                          ...newWorker,
+                          team: e.target.value,
+                          department: "", // Reset department when team changes
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select Team</option>
+                      {filterOptions.teams.map((team) => (
+                        <option key={team.value} value={team.value}>
+                          {team.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Department */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Department <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={newWorker.department}
+                      onChange={(e) =>
+                        setNewWorker({
+                          ...newWorker,
+                          department: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select Department</option>
+                      {filterOptions.departments.map((dept) => (
+                        <option key={dept.value} value={dept.value}>
+                          {dept.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Worker Role */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Worker Role <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={newWorker.workerrole}
+                      onChange={(e) =>
+                        setNewWorker({
+                          ...newWorker,
+                          workerrole: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select Worker Role</option>
+                      <option value="Worker">Worker</option>
+                      <option value="Assistant Small Group Leader">Assistant Small Group Leader</option>
+                      <option value="Small Group Leader">Small Group Leader</option>
+                      <option value="E-Group Leader">E-Group Leader</option>
+                      <option value="Assistant Cell Leader">Assistant Cell Leader</option>
+                      <option value="Cell Leader">Cell Leader</option>
+                      <option value="Interest Group Leader">Interest Group Leader</option>
+                      <option value="Assistant HOD">Assistant HOD</option>
+                      <option value="Zonal Leader">Zonal Leader</option>
+                      <option value="Admin">Admin</option>
+                      <option value="District Leader">District Leader</option>
+                      <option value="HOD">HOD</option>
+                      <option value="Assistant Sub Team Head">Assistant Sub Team Head</option>
+                      <option value="Sub Team Head">Sub Team Head</option>
+                      <option value="Assistant Community Leader">Assistant Community Leader</option>
+                      <option value="Community Leader">Community Leader</option>
+                      <option value="Pastoral Leader">Pastoral Leader</option>
+                      <option value="Directional Leader">Directional Leader</option>
+                    </select>
+                  </div>
+
+                  {/* Birth Date */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Birth Date <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newWorker.birthdate}
+                      onChange={(e) =>
+                        setNewWorker({
+                          ...newWorker,
+                          birthdate: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., 12th June, 1st January"
+                    />
+                  </div>
+
+                  {/* Marital Status */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Marital Status <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={newWorker.maritalstatus}
+                      onChange={(e) =>
+                        setNewWorker({
+                          ...newWorker,
+                          maritalstatus: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select Marital Status</option>
+                      <option value="Single">Single</option>
+                      <option value="Married">Married</option>
+                      <option value="Widow">Widow</option>
+                      <option value="Divorced">Divorced</option>
+                      <option value="Separated">Separated</option>
+                    </select>
+                  </div>
+
+                  {/* Age Range */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Age Range <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={newWorker.agerange}
+                      onChange={(e) =>
+                        setNewWorker({
+                          ...newWorker,
+                          agerange: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select Age Range</option>
+                      <option value="18-25">18-25</option>
+                      <option value="26-30">26-30</option>
+                      <option value="31-35">31-35</option>
+                      <option value="36-40">36-40</option>
+                      <option value="41-45">41-45</option>
+                      <option value="46-50">46-50</option>
+                      <option value="51 & Above">51 & Above</option>
+                    </select>
+                  </div>
+
+                  {/* Employment Status */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Employment Status <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={newWorker.employment}
+                      onChange={(e) =>
+                        setNewWorker({
+                          ...newWorker,
+                          employment: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select Employment Status</option>
+                      <option value="Employed">Employed</option>
+                      <option value="Self-Employed">Self-Employed</option>
+                      <option value="Student">Student</option>
+                      <option value="Unemployed">Unemployed</option>
+                    </select>
+                  </div>
+
+                  {/* Occupation */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Occupation
+                    </label>
+                    <input
+                      type="text"
+                      value={newWorker.occupation}
+                      onChange={(e) =>
+                        setNewWorker({
+                          ...newWorker,
+                          occupation: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter occupation"
+                    />
+                  </div>
+
+                  {/* Address */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Address <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      value={newWorker.address}
+                      onChange={(e) =>
+                        setNewWorker({
+                          ...newWorker,
+                          address: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter address"
+                      rows={3}
+                    />
+                  </div>
                 </div>
               </div>
-
-              {/* API Endpoint Info */}
-              <div className="bg-gray-50 p-4 rounded-lg mb-6">
-                <h4 className="text-sm font-medium text-gray-900 mb-2">
-                  API Endpoint
-                </h4>
-                <p className="text-xs text-gray-600 font-mono bg-white p-2 rounded border">
-                  POST /api/super/admin/workers
-                </p>
-              </div>
-
-              <div className="space-y-6">
-                {/* Basic Information */}
-                <div className="border-b border-gray-200 pb-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                    <svg
-                      className="w-5 h-5 mr-2 text-blue-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                      />
-                    </svg>
-                    Basic Information
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        First Name *
-                      </label>
-                      <input
-                        type="text"
-                        value={newWorker.firstname}
-                        onChange={(e) =>
-                          setNewWorker({
-                            ...newWorker,
-                            firstname: e.target.value,
-                          })
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Enter first name"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Last Name *
-                      </label>
-                      <input
-                        type="text"
-                        value={newWorker.lastname}
-                        onChange={(e) =>
-                          setNewWorker({
-                            ...newWorker,
-                            lastname: e.target.value,
-                          })
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Enter last name"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Other Name
-                      </label>
-                      <input
-                        type="text"
-                        value={newWorker.othername}
-                        onChange={(e) =>
-                          setNewWorker({
-                            ...newWorker,
-                            othername: e.target.value,
-                          })
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Enter other name"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Email Address *
-                      </label>
-                      <input
-                        type="email"
-                        value={newWorker.email}
-                        onChange={(e) =>
-                          setNewWorker({ ...newWorker, email: e.target.value })
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Enter email address"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Phone Number *
-                      </label>
-                      <input
-                        type="tel"
-                        value={newWorker.phonenumber}
-                        onChange={(e) =>
-                          setNewWorker({
-                            ...newWorker,
-                            phonenumber: e.target.value,
-                          })
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Enter phone number"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Gender
-                      </label>
-                      <select
-                        value={newWorker.gender}
-                        onChange={(e) =>
-                          setNewWorker({ ...newWorker, gender: e.target.value })
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Work Information */}
-                <div className="border-b border-gray-200 pb-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                    <svg
-                      className="w-5 h-5 mr-2 text-green-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2V6"
-                      />
-                    </svg>
-                    Work Information
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Team *
-                      </label>
-                      <ReactSelectDropdown
-                        defaultValue={{
-                          value: newWorker.team,
-                          label: newWorker.team || "Select Team",
-                        }}
-                        onChange={(selected) =>
-                          setNewWorker({
-                            ...newWorker,
-                            team: selected?.value || "",
-                          })
-                        }
-                        options={filterOptions.teams}
-                        className="w-full"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Department *
-                      </label>
-                      <ReactSelectDropdown
-                        defaultValue={{
-                          value: newWorker.department,
-                          label: newWorker.department || "Select Department",
-                        }}
-                        onChange={(selected) =>
-                          setNewWorker({
-                            ...newWorker,
-                            department: selected?.value || "",
-                          })
-                        }
-                        options={filterOptions.departments}
-                        className="w-full"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Worker Role
-                      </label>
-                      <input
-                        type="text"
-                        value={newWorker.workerrole}
-                        onChange={(e) =>
-                          setNewWorker({
-                            ...newWorker,
-                            workerrole: e.target.value,
-                          })
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Enter worker role"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Occupation
-                      </label>
-                      <input
-                        type="text"
-                        value={newWorker.occupation}
-                        onChange={(e) =>
-                          setNewWorker({
-                            ...newWorker,
-                            occupation: e.target.value,
-                          })
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Enter occupation"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Additional Information */}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                    <svg
-                      className="w-5 h-5 mr-2 text-purple-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                      />
-                    </svg>
-                    Additional Information
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Marital Status
-                      </label>
-                      <select
-                        value={newWorker.maritalstatus}
-                        onChange={(e) =>
-                          setNewWorker({
-                            ...newWorker,
-                            maritalstatus: e.target.value,
-                          })
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="Single">Single</option>
-                        <option value="Married">Married</option>
-                        <option value="Divorced">Divorced</option>
-                        <option value="Widowed">Widowed</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Birth Date
-                      </label>
-                      <input
-                        type="text"
-                        value={newWorker.birthdate}
-                        onChange={(e) =>
-                          setNewWorker({
-                            ...newWorker,
-                            birthdate: e.target.value,
-                          })
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="e.g., June 2012"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Age Range
-                      </label>
-                      <input
-                        type="text"
-                        value={newWorker.agerange}
-                        onChange={(e) =>
-                          setNewWorker({
-                            ...newWorker,
-                            agerange: e.target.value,
-                          })
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="e.g., 30-39"
-                      />
-                    </div>
-
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Address
-                      </label>
-                      <textarea
-                        value={newWorker.address}
-                        onChange={(e) =>
-                          setNewWorker({
-                            ...newWorker,
-                            address: e.target.value,
-                          })
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Enter address"
-                        rows={3}
-                      />
-                    </div>
-                  </div>
-                </div>
 
                 <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
                   <button
-                    onClick={() => navigate("/workers")}
+                    onClick={() => navigate("/workers/super-admin")}
                     className="px-6 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   >
                     Cancel
@@ -769,12 +801,12 @@ export default function AddWorker() {
                   <button
                     onClick={addNewWorker}
                     disabled={isLoading}
-                    className="px-8 py-3 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 flex items-center"
+                    className="inline-flex items-center justify-center px-6 py-3 border border-transparent rounded-lg shadow-md text-base font-semibold text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
                   >
                     {isLoading ? (
                       <>
                         <svg
-                          className="animate-spin -ml-1 mr-3 h-4 w-4 text-white"
+                          className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
                           xmlns="http://www.w3.org/2000/svg"
                           fill="none"
                           viewBox="0 0 24 24"
@@ -793,12 +825,12 @@ export default function AddWorker() {
                             d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                           ></path>
                         </svg>
-                        Adding Worker...
+                        Adding Workers...
                       </>
                     ) : (
                       <>
                         <svg
-                          className="w-4 h-4 mr-2"
+                          className="w-5 h-5 mr-2"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -810,27 +842,21 @@ export default function AddWorker() {
                             d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                           />
                         </svg>
-                        Add Worker via Super Admin API
+                        Add Workers
                       </>
                     )}
                   </button>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Bulk Upload Section */}
-          {mode === "bulk" && (
+            {/* Bulk Upload Section */}
+            {mode === "bulk" && (
             <div className="bg-white shadow rounded-lg p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">
                   Bulk Upload Workers
                 </h2>
-                <div className="bg-blue-50 px-3 py-1 rounded-full">
-                  <span className="text-blue-700 text-sm font-medium">
-                    Super Admin API
-                  </span>
-                </div>
               </div>
 
               <div className="space-y-6">
@@ -839,17 +865,49 @@ export default function AddWorker() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Upload Excel File
                   </label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                  <div 
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-colors duration-200"
+                    onClick={() => document.getElementById('file-upload').click()}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.add('border-blue-400', 'bg-blue-50');
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.remove('border-blue-400', 'bg-blue-50');
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.remove('border-blue-400', 'bg-blue-50');
+                      const files = e.dataTransfer.files;
+                      if (files.length > 0) {
+                        handleFileUpload({ target: { files } });
+                      }
+                    }}
+                  >
                     <input
+                      id="file-upload"
                       type="file"
                       accept=".xlsx,.xls,.csv"
                       onChange={handleFileUpload}
-                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      className="hidden"
                     />
-                    <p className="mt-2 text-sm text-gray-500">
-                      Supported formats: .xlsx, .xls, .csv. First row should
-                      contain headers.
-                    </p>
+                    <div className="flex flex-col items-center justify-center space-y-4">
+                      <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                      <div className="text-center">
+                        <p className="text-lg font-medium text-gray-700 mb-2">
+                          Click to upload or drag and drop
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          Supported formats: .xlsx, .xls, .csv
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          First row should contain headers
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -929,11 +987,10 @@ export default function AddWorker() {
                       <div
                         className="bg-blue-600 h-4 rounded-full transition-all duration-300"
                         style={{
-                          width: `${
-                            (bulkUploadProgress.completed /
+                          width: `${(bulkUploadProgress.completed /
                               bulkUploadProgress.total) *
                             100
-                          }%`,
+                            }%`,
                         }}
                       ></div>
                     </div>
@@ -959,51 +1016,11 @@ export default function AddWorker() {
                   </div>
                 )}
 
-                {/* Excel Format Instructions */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                  <h4 className="text-lg font-medium text-blue-900 mb-3">
-                    Excel File Format Guide
-                  </h4>
-                  <p className="text-sm text-blue-700 mb-4">
-                    Your Excel file should have these columns (header names are
-                    flexible):
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-700">
-                    <div>
-                      <strong className="text-blue-900">
-                        Required Fields:
-                      </strong>
-                      <ul className="list-disc list-inside ml-2 mt-1 space-y-1">
-                        <li>First Name</li>
-                        <li>Last Name</li>
-                        <li>Email</li>
-                        <li>Phone Number</li>
-                        <li>Team</li>
-                        <li>Department</li>
-                      </ul>
-                    </div>
-                    <div>
-                      <strong className="text-blue-900">
-                        Optional Fields:
-                      </strong>
-                      <ul className="list-disc list-inside ml-2 mt-1 space-y-1">
-                        <li>Other Name</li>
-                        <li>Marital Status</li>
-                        <li>Worker Role</li>
-                        <li>Birth Date</li>
-                        <li>Age Range</li>
-                        <li>Gender</li>
-                        <li>Address</li>
-                        <li>Occupation</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
 
                 {/* Bulk Upload Action Buttons */}
                 <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
                   <button
-                    onClick={() => navigate("/workers")}
+                    onClick={() => navigate("/workers/super-admin")}
                     className="px-6 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   >
                     Cancel
@@ -1022,6 +1039,7 @@ export default function AddWorker() {
               </div>
             </div>
           )}
+          </>
         </div>
       </Layout>
     </div>

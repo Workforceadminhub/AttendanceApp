@@ -124,6 +124,7 @@ export const fetchPendingRemove = async () => {
     }
     return response.data;
   } catch (error) {
+    // log
     console.log({ error });
     return null;
   }

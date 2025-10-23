@@ -24,7 +24,10 @@ import DashboardHistory from "./components/Workers/History/DashboardHistory";
 import NewWorker from "./components/Workers/NewWorker";
 import UnmarkedAttendance from "./components/Workers/Unmarked";
 import Workers from "./components/Workers/Workers";
+import ChurchAdminWorkers from "./components/Workers/ChurchAdminWorkers";
 import AddWorker from "./pages/AddWorker";
+import ChurchAdminAddWorker from "./pages/ChurchAdminAddWorker";
+import ViewWorker from "./pages/ViewWorker";
 import Report from "./components/Report";
 
 const App = () => {
@@ -189,6 +192,32 @@ const App = () => {
               element={
                 <PrivateRoute>
                   <AddWorker />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/worker/:workerId"
+              element={
+                <PrivateRoute>
+                  <ViewWorker />
+                </PrivateRoute>
+              }
+            />
+
+            {/* Church Admin Routes */}
+            <Route
+              path="/church-admin/workers"
+              element={
+                <PrivateRoute>
+                  <ChurchAdminWorkers />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/church-admin/add-worker"
+              element={
+                <PrivateRoute>
+                  <ChurchAdminAddWorker />
                 </PrivateRoute>
               }
             />

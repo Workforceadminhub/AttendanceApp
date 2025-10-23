@@ -3,14 +3,21 @@ import { getNextSunday } from "../utils/getDate";
 import apiRequest from "../utils/apiClient";
 import { WORKER_STATUS } from "../utils/enums";
 
-export const fetchWorkers = async (department, activeDate) => {
+export const fetchWorkers = async (department, activeDate, search = "") => {
   try {
     const dateForAttendance = activeDate || getNextSunday();
-    const response = await apiRequest("GET", "/api/workers", {
+    const params = {
       department,
       activeDate: dateForAttendance,
       isAdmin: false,
-    });
+    };
+    
+    // Add search parameter if provided
+    if (search && search.trim()) {
+      params.search = search.trim();
+    }
+    
+    const response = await apiRequest("GET", "/api/workers", params);
     if (!response || response.error) {
       throw new Error(response?.error || "Failed to fetch workers");
     }
@@ -39,14 +46,21 @@ export const fetchUnmarkedWorkers = async (team, activeDate) => {
   }
 };
 
-export const fetchAdminWorkers = async (team, activeGroup, activeDate) => {
+export const fetchAdminWorkers = async (team, activeGroup, activeDate, search = "") => {
   try {
-    const response = await apiRequest("GET", "/api/workers", {
+    const params = {
       team,
       activeGroup,
       activeDate,
       isAdmin: true,
-    });
+    };
+    
+    // Add search parameter if provided
+    if (search && search.trim()) {
+      params.search = search.trim();
+    }
+    
+    const response = await apiRequest("GET", "/api/workers", params);
     if (!response || response.error) {
       throw new Error(response?.error || "Failed to fetch admin workers");
     }

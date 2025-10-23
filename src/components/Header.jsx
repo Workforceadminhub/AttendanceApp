@@ -21,8 +21,9 @@ export default function Header() {
       name: "Department summary",
       href: `/summary${authUser?.route || "/wadata"}`,
     },
-    // Only show Workers menu for Super Admin users
+    // Show Workers menu for Super Admin and Church Admin users
     ...(authUser?.department === "Super Admin" ? [{ name: "Workers", href: `/workers${authUser?.route || "/wadata"}` }] : []),
+    ...(authUser?.department === "Church Admin" ? [{ name: "Workers", href: "/church-admin/workers" }] : []),
   ];
 
   const adminNavigation = [
@@ -31,8 +32,9 @@ export default function Header() {
       name: "Department summary",
       href: "/attendance/summary",
     },
-    // Only show Workers menu for Super Admin users
+    // Show Workers menu for Super Admin and Church Admin users
     ...(authUser?.department === "Super Admin" ? [{ name: "Workers", href: "/attendance/workers" }] : []),
+    ...(authUser?.department === "Church Admin" ? [{ name: "Workers", href: "/church-admin/workers" }] : []),
   ];
 
   const navigation =

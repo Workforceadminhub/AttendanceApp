@@ -28,6 +28,7 @@ import ChurchAdminWorkers from "./components/Workers/ChurchAdminWorkers";
 import AddWorker from "./pages/AddWorker";
 import ChurchAdminAddWorker from "./pages/ChurchAdminAddWorker";
 import ViewWorker from "./pages/ViewWorker";
+import PendingWorkers from "./pages/PendingWorkers";
 import Report from "./components/Report";
 
 const App = () => {
@@ -204,6 +205,14 @@ const App = () => {
               element={
                 <PrivateRoute>
                   <ViewWorker />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/pending-workers"
+              element={
+                <PrivateRoute>
+                  <PendingWorkers />
                 </PrivateRoute>
               }
             />

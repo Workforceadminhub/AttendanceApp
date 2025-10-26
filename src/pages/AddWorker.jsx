@@ -302,14 +302,10 @@ export default function AddWorker() {
         }
       });
 
-      // Only add if we have all required fields (same as single worker form)
+      // Only require first name and last name for super admin bulk upload
       if (
         worker.firstname &&
-        worker.lastname &&
-        worker.email &&
-        worker.phonenumber &&
-        worker.department &&
-        worker.team
+        worker.lastname
       ) {
         workers.push(worker);
       }
@@ -324,19 +320,15 @@ export default function AddWorker() {
       return;
     }
 
-    // Validate that all workers have required fields
+    // Validate that all workers have required fields (only first name and last name for super admin)
     const invalidWorkers = parsedWorkers.filter(worker => 
       !worker.firstname || 
-      !worker.lastname || 
-      !worker.email || 
-      !worker.phonenumber || 
-      !worker.department || 
-      !worker.team
+      !worker.lastname
     );
 
     if (invalidWorkers.length > 0) {
       toast.error(
-        `${invalidWorkers.length} workers are missing required fields (First Name, Last Name, Email, Phone Number, Department, Team). Please check your Excel file.`
+        `${invalidWorkers.length} workers are missing required fields (First Name, Last Name). Please check your Excel file.`
       );
       return;
     }

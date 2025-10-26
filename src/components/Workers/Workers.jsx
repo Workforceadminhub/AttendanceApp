@@ -52,7 +52,7 @@ export default function Workers() {
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 20,
+    limit: 50,
     total: 0,
     totalPages: 0,
     hasNext: false,
@@ -60,6 +60,9 @@ export default function Workers() {
   });
   const [availableDepartments, setAvailableDepartments] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedWorkers, setSelectedWorkers] = useState(new Set());
+  const [isSelectAll, setIsSelectAll] = useState(false);
+  const [allWorkers, setAllWorkers] = useState([]);
 
   const [filterOptions, setFilterOptions] = useState({
     departments: [{ value: "All", label: "All Departments" }],
@@ -95,7 +98,7 @@ export default function Workers() {
 
   const fallbackFilterOptions = generateFallbackFilterOptions();
 
-  const querySuperAdminWorkers = async (page = 1, limit = 20, search = "") => {
+  const querySuperAdminWorkers = async (page = 1, limit = 50, search = "") => {
     setIsLoading(true);
     try {
       const accessToken = sessionStorage.getItem("accessToken");
@@ -106,12 +109,11 @@ export default function Workers() {
 
       const queryParams = new URLSearchParams();
 
-      // Add pagination parameters
-      queryParams.append("page", page.toString());
-      queryParams.append("limit", limit.toString());
+      // Fetch entire list for client-side sorting
+      queryParams.append("limit", "3478");
 
-      // Add sorting parameter
-      queryParams.append("sortBy", "team");
+      // Add sorting parameter - commented out for now
+      // queryParams.append("sortBy", "team");
 
       // Add search parameter if provided
       if (search && search.trim()) {
@@ -162,20 +164,36 @@ export default function Workers() {
         workersData = [];
       }
 
-      // If no data is returned, set empty array instead of undefined
-      setData(workersData || []);
+      // Sort workers by ID on the client side since we fetched all data
+      const sortedWorkers = (workersData || []).sort((a, b) => {
+        const idA = parseInt(a.id || a.workerid || 0);
+        const idB = parseInt(b.id || b.workerid || 0);
+        return idA - idB;
+      });
 
-      // Set pagination info if available
-      if (paginationInfo) {
-        setPagination({
-          page: paginationInfo.page || page,
-          limit: paginationInfo.limit || limit,
-          total: paginationInfo.total || 0,
-          totalPages: paginationInfo.totalPages || 0,
-          hasNext: paginationInfo.hasNext || false,
-          hasPrev: paginationInfo.hasPrev || false,
-        });
-      }
+      // Store all workers for client-side pagination
+      setAllWorkers(sortedWorkers);
+
+      // Implement client-side pagination
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedWorkers = sortedWorkers.slice(startIndex, endIndex);
+
+      // Set the paginated data
+      setData(paginatedWorkers);
+
+      // Set pagination info for client-side pagination
+      const totalWorkers = sortedWorkers.length;
+      const totalPages = Math.ceil(totalWorkers / limit);
+      
+      setPagination({
+        page: page,
+        limit: limit,
+        total: totalWorkers,
+        totalPages: totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      });
 
       setIsLoading(false);
     } catch (error) {
@@ -225,12 +243,14 @@ export default function Workers() {
 
   useEffect(() => {
     if (isSuperAdmin) {
-      querySuperAdminWorkers();
+      querySuperAdminWorkers(1, 50);
     } else if (isAdminMember) {
       queryAdminWorkers();
     } else {
       queryWorkers();
     }
+    // Clear selection when data changes
+    clearSelection();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, isAdminMember, isSuperAdmin, team.team]);
 
@@ -281,14 +301,18 @@ export default function Workers() {
 
   useEffect(() => {
     if (isSuperAdmin) {
-      querySuperAdminWorkers();
+      querySuperAdminWorkers(1, 50);
     } else if (isAdminMember) {
       queryAdminWorkers();
     } else {
       queryWorkers();
     }
+    // Clear selection when data refreshes
+    clearSelection();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh]);
+
+
 
   // Check if user is super admin - restrict access to super admin only
   const isSuperAdminUser = authUser?.department === "Super Admin";
@@ -384,7 +408,7 @@ export default function Workers() {
     setSearchTerm(term);
     const normalizedTerm = normalizeSearchTerm(term);
     if (isSuperAdmin) {
-      querySuperAdminWorkers(1, pagination.limit, normalizedTerm);
+      querySuperAdminWorkers(1, 50, normalizedTerm);
     } else if (isAdminMember) {
       queryAdminWorkers(normalizedTerm);
     } else {
@@ -395,7 +419,7 @@ export default function Workers() {
   const clearSearch = () => {
     setSearchTerm("");
     if (isSuperAdmin) {
-      querySuperAdminWorkers();
+      querySuperAdminWorkers(1, 50);
     } else if (isAdminMember) {
       queryAdminWorkers();
     } else {
@@ -491,6 +515,143 @@ Type "DELETE" to confirm (case-sensitive):`;
     navigate(`/worker/${workerId}`);
   };
 
+  // Multi-select functionality
+  const handleSelectWorker = (workerId) => {
+    const newSelectedWorkers = new Set(selectedWorkers);
+    if (newSelectedWorkers.has(workerId)) {
+      newSelectedWorkers.delete(workerId);
+    } else {
+      newSelectedWorkers.add(workerId);
+    }
+    setSelectedWorkers(newSelectedWorkers);
+    setIsSelectAll(newSelectedWorkers.size === data.length && data.length > 0);
+  };
+
+  const handleSelectAll = () => {
+    if (isSelectAll) {
+      setSelectedWorkers(new Set());
+      setIsSelectAll(false);
+    } else {
+      const allWorkerIds = new Set(data.map(worker => worker.id));
+      setSelectedWorkers(allWorkerIds);
+      setIsSelectAll(true);
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedWorkers(new Set());
+    setIsSelectAll(false);
+  };
+
+  // Handle pagination from stored data
+  const handlePagination = (newPage) => {
+    if (allWorkers.length === 0) return;
+    
+    const startIndex = (newPage - 1) * pagination.limit;
+    const endIndex = startIndex + pagination.limit;
+    const paginatedWorkers = allWorkers.slice(startIndex, endIndex);
+    
+    setData(paginatedWorkers);
+    setPagination(prev => ({
+      ...prev,
+      page: newPage,
+      hasNext: newPage < prev.totalPages,
+      hasPrev: newPage > 1,
+    }));
+  };
+
+  const bulkDeleteWorkers = async () => {
+    if (selectedWorkers.size === 0) {
+      toast.error("No workers selected for deletion");
+      return;
+    }
+
+    // Strong confirmation dialog for bulk deletion
+    const confirmMessage = `⚠️ PERMANENT BULK DELETION WARNING ⚠️
+
+You are about to PERMANENTLY DELETE ${selectedWorkers.size} worker(s) from the system.
+
+🚨 THIS ACTION IS IRREVERSIBLE AND CANNOT BE UNDONE 🚨
+
+All worker data, records, and associated information will be permanently lost.
+
+Are you absolutely certain you want to proceed with this permanent bulk deletion?
+
+Type "DELETE ALL" to confirm (case-sensitive):`;
+
+    const userInput = window.prompt(confirmMessage);
+    
+    if (userInput !== "DELETE ALL") {
+      if (userInput !== null) {
+        toast.error("Bulk deletion cancelled. You must type 'DELETE ALL' exactly to confirm.");
+      }
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const accessToken = sessionStorage.getItem("accessToken");
+      const workerIds = Array.from(selectedWorkers);
+      let successCount = 0;
+      let errorCount = 0;
+      const errors = [];
+
+      // Delete each worker individually using the same endpoint as single delete
+      for (const workerId of workerIds) {
+        try {
+          const response = await fetch(
+            `https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/${workerId}/workers`,
+            {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                "Content-Type": "application/json",
+              },
+            }
+          );
+
+          if (!response.ok) {
+            const errorData = await response
+              .json()
+              .catch(() => ({ message: "Unknown error occurred" }));
+            throw new Error(
+              errorData.message ||
+                `HTTP ${response.status}: Failed to delete worker ${workerId}`
+            );
+          }
+          successCount++;
+        } catch (error) {
+          errorCount++;
+          errors.push(`Worker ${workerId}: ${error.message}`);
+        }
+      }
+
+      // Show results
+      if (successCount > 0) {
+        toast.success(`${successCount} worker(s) deleted successfully`);
+      }
+      if (errorCount > 0) {
+        toast.error(`Failed to delete ${errorCount} worker(s). Check console for details.`);
+        console.error("Bulk delete errors:", errors);
+      }
+
+      clearSelection();
+
+      // Refresh the data
+      if (isSuperAdmin) {
+        querySuperAdminWorkers();
+      } else if (isAdminMember) {
+        queryAdminWorkers();
+      } else {
+        queryWorkers();
+      }
+    } catch (error) {
+      toast.error(`Failed to delete workers: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const toggleRowExpansion = (workerId) => {
     const newExpandedRows = new Set(expandedRows);
     if (newExpandedRows.has(workerId)) {
@@ -531,7 +692,7 @@ Type "DELETE" to confirm (case-sensitive):`;
               </button>
               <button
                 className="bg-gray-500 px-6 py-2 text-white rounded-lg text-sm font-medium min-w-[140px]"
-                onClick={() => querySuperAdminWorkers()}
+                onClick={() => querySuperAdminWorkers(1, 50)}
               >
                 Refresh Workers
               </button>
@@ -542,6 +703,35 @@ Type "DELETE" to confirm (case-sensitive):`;
                 View History
               </button>
             </div>
+          </div>
+
+          {/* Bulk Actions Section */}
+          {selectedWorkers.size > 0 && (
+            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm font-medium text-yellow-800">
+                    {selectedWorkers.size} worker(s) selected
+                  </span>
+                  <button
+                    onClick={clearSelection}
+                    className="text-sm text-yellow-600 hover:text-yellow-800 font-medium"
+                  >
+                    Clear Selection
+                  </button>
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={bulkDeleteWorkers}
+                    disabled={isLoading}
+                    className="bg-red-600 px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoading ? "Deleting..." : `Delete Selected (${selectedWorkers.size})`}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           </div>
 
           {/* Search and Filter Section */}
@@ -677,6 +867,14 @@ Type "DELETE" to confirm (case-sensitive):`;
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <input
+                            type="checkbox"
+                            checked={isSelectAll}
+                            onChange={handleSelectAll}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          />
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           ID
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -717,6 +915,14 @@ Type "DELETE" to confirm (case-sensitive):`;
                           return (
                             <>
                               <tr key={person.id} className="hover:bg-gray-50">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedWorkers.has(person.id)}
+                                    onChange={() => handleSelectWorker(person.id)}
+                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                  />
+                                </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                   {person.id || person.workerid || idx + 1}
                                 </td>
@@ -779,7 +985,7 @@ Type "DELETE" to confirm (case-sensitive):`;
                               {/* Expanded Row */}
                               {isExpanded && (
                                 <tr className="bg-gray-50">
-                                  <td colSpan="8" className="px-6 py-4">
+                                  <td colSpan="9" className="px-6 py-4">
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                       <div>
                                         <label className="block text-sm font-medium text-gray-700">
@@ -873,7 +1079,7 @@ Type "DELETE" to confirm (case-sensitive):`;
                       {Array.isArray(data) && data.length === 0 && (
                         <tr>
                           <td
-                            colSpan="8"
+                            colSpan="9"
                             className="px-6 py-8 text-center text-gray-500"
                           >
                             <div className="flex flex-col items-center">
@@ -909,7 +1115,7 @@ Type "DELETE" to confirm (case-sensitive):`;
                       {!Array.isArray(data) && data && (
                         <tr>
                           <td
-                            colSpan="8"
+                            colSpan="9"
                             className="px-6 py-8 text-center text-gray-500"
                           >
                             <div className="flex flex-col items-center">
@@ -961,12 +1167,7 @@ Type "DELETE" to confirm (case-sensitive):`;
                     <div className="flex items-center space-x-1">
                       {/* Previous Button */}
                       <button
-                        onClick={() =>
-                          querySuperAdminWorkers(
-                            pagination.page - 1,
-                            pagination.limit
-                          )
-                        }
+                        onClick={() => handlePagination(pagination.page - 1)}
                         disabled={!pagination.hasPrev}
                         className={`px-3 py-1 text-sm font-medium rounded-md ${
                           pagination.hasPrev
@@ -977,48 +1178,105 @@ Type "DELETE" to confirm (case-sensitive):`;
                         ←
                       </button>
 
-                      {/* Page Numbers - Always show exactly 5 numbers */}
+                      {/* Page Numbers - Always show first and last page */}
                       {(() => {
                         const currentPage = pagination.page;
                         const totalPages = pagination.totalPages;
                         const pages = [];
 
-                        // Calculate which 5 pages to show
-                        let startPage, endPage;
-
-                        if (totalPages <= 5) {
-                          // If total pages is 5 or less, show all pages
-                          startPage = 1;
-                          endPage = totalPages;
-                        } else if (currentPage <= 3) {
-                          // If current page is in first 3, show pages 1-5
-                          startPage = 1;
-                          endPage = 5;
-                        } else if (currentPage >= totalPages - 2) {
-                          // If current page is in last 3, show last 5 pages
-                          startPage = totalPages - 4;
-                          endPage = totalPages;
+                        if (totalPages <= 7) {
+                          // If 7 or fewer pages, show all
+                          for (let i = 1; i <= totalPages; i++) {
+                            pages.push(
+                              <button
+                                key={i}
+                                onClick={() => handlePagination(i)}
+                                className={`px-3 py-1 text-sm font-medium rounded-md ${
+                                  currentPage === i
+                                    ? "bg-blue-600 text-white"
+                                    : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                                }`}
+                              >
+                                {i}
+                              </button>
+                            );
+                          }
                         } else {
-                          // Show current page in the middle with 2 pages on each side
-                          startPage = currentPage - 2;
-                          endPage = currentPage + 2;
-                        }
-
-                        // Generate the 5 page numbers
-                        for (let i = startPage; i <= endPage; i++) {
+                          // Always show first page
                           pages.push(
                             <button
-                              key={i}
-                              onClick={() =>
-                                querySuperAdminWorkers(i, pagination.limit)
-                              }
+                              key={1}
+                              onClick={() => handlePagination(1)}
                               className={`px-3 py-1 text-sm font-medium rounded-md ${
-                                currentPage === i
+                                currentPage === 1
                                   ? "bg-blue-600 text-white"
                                   : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
                               }`}
                             >
-                              {i}
+                              1
+                            </button>
+                          );
+
+                          // Show ellipsis if current page is far from start
+                          if (currentPage > 4) {
+                            pages.push(
+                              <span key="ellipsis1" className="px-2 py-1 text-sm text-gray-500">
+                                ...
+                              </span>
+                            );
+                          }
+
+                          // Show pages around current page
+                          let startPage = Math.max(2, currentPage - 1);
+                          let endPage = Math.min(totalPages - 1, currentPage + 1);
+
+                          // Adjust if we're near the beginning or end
+                          if (currentPage <= 3) {
+                            endPage = Math.min(5, totalPages - 1);
+                          }
+                          if (currentPage >= totalPages - 2) {
+                            startPage = Math.max(2, totalPages - 4);
+                          }
+
+                          for (let i = startPage; i <= endPage; i++) {
+                            if (i !== 1 && i !== totalPages) {
+                              pages.push(
+                                <button
+                                  key={i}
+                                  onClick={() => handlePagination(i)}
+                                  className={`px-3 py-1 text-sm font-medium rounded-md ${
+                                    currentPage === i
+                                      ? "bg-blue-600 text-white"
+                                      : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                                  }`}
+                                >
+                                  {i}
+                                </button>
+                              );
+                            }
+                          }
+
+                          // Show ellipsis if current page is far from end
+                          if (currentPage < totalPages - 3) {
+                            pages.push(
+                              <span key="ellipsis2" className="px-2 py-1 text-sm text-gray-500">
+                                ...
+                              </span>
+                            );
+                          }
+
+                          // Always show last page
+                          pages.push(
+                            <button
+                              key={totalPages}
+                              onClick={() => handlePagination(totalPages)}
+                              className={`px-3 py-1 text-sm font-medium rounded-md ${
+                                currentPage === totalPages
+                                  ? "bg-blue-600 text-white"
+                                  : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                              }`}
+                            >
+                              {totalPages}
                             </button>
                           );
                         }
@@ -1028,12 +1286,7 @@ Type "DELETE" to confirm (case-sensitive):`;
 
                       {/* Next Button */}
                       <button
-                        onClick={() =>
-                          querySuperAdminWorkers(
-                            pagination.page + 1,
-                            pagination.limit
-                          )
-                        }
+                        onClick={() => handlePagination(pagination.page + 1)}
                         disabled={!pagination.hasNext}
                         className={`px-3 py-1 text-sm font-medium rounded-md ${
                           pagination.hasNext
@@ -1050,7 +1303,6 @@ Type "DELETE" to confirm (case-sensitive):`;
             </div>
 
           </div>
-        </div>
 
         {/* Filter Modal */}
         <GenericModal

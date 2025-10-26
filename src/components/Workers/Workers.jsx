@@ -171,6 +171,11 @@ export default function Workers() {
         return idA - idB;
       });
 
+      // Debug: Log worker count and sample data
+      console.log("Total workers fetched:", sortedWorkers.length);
+      console.log("Sample worker data:", sortedWorkers.slice(0, 3));
+      console.log("Worker statuses:", [...new Set(sortedWorkers.map(w => w.status || w.workerstatus || 'unknown'))]);
+
       // Store all workers for client-side pagination
       setAllWorkers(sortedWorkers);
 

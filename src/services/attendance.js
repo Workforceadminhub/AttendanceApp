@@ -72,6 +72,10 @@ export const fetchAttendance = async (activeDate) => {
 };
 
 export function calculateTotals(data) {
+  // Debug: Log attendance data
+  console.log("Attendance data received:", data?.length, "items");
+  console.log("Sample attendance data:", data?.slice(0, 3));
+  
   const totals = data?.reduce(
     (acc, item) => {
       acc.present += item.present;
@@ -81,6 +85,9 @@ export function calculateTotals(data) {
     },
     { present: 0, absent: 0, total: 0 }
   );
+
+  // Debug: Log calculated totals
+  console.log("Calculated attendance totals:", totals);
 
   // Calculate the overall percentage
   const overallPercentage =

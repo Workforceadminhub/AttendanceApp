@@ -188,6 +188,7 @@ export default function DepartmentAttendance() {
       setRefresh(Math.random());
       toast.success("Attendance added successfully");
     } catch (error) {
+      // error handling
       setAttendanceLoading(false);
       toast.error(`Error adding attendance: ${error.message}`);
       console.log(error);

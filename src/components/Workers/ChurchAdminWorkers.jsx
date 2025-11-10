@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
@@ -7,14 +7,8 @@ import { toast } from "react-toastify";
 import { getNextSunday } from "../../utils/getDate";
 import ReactSelectDropdown from "../ReactSelect";
 import Layout from "../Layout";
-import { getAdminSelectOptions } from "../../utils/routeObject";
 import { ADMIN_ENUMS } from "../../utils/enums";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
-import {
-  getCachedFilterData,
-  getFilterOptions,
-  initializeFilterData,
-} from "../../utils/filterCache";
 import { useDebouncedSearch } from "../../hooks/useDebouncedSearch";
 import { teamsAndDepartments } from "../../utils/teams";
 import {

@@ -10,7 +10,6 @@ import Layout from "../Layout";
 import { getAdminSelectOptions } from "../../utils/routeObject";
 import { ADMIN_ENUMS } from "../../utils/enums";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
-import ViewHistoryButton from "../ViewHistoryButton";
 import {
   getCachedFilterData,
   getFilterOptions,
@@ -35,19 +34,19 @@ export default function Workers() {
   const [data, setData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const dateForAttendance = getNextSunday();
-  const [refresh, setRefresh] = useState(0);
+  const [refresh, ] = useState(0);
   const [filters, setFilters] = useState({
     department: "All",
     team: "All",
   });
   const team = getDepartmentByUser(location.pathname);
-  const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
+  // const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
   const isSuperAdmin = team.department === "Super Admin";
   const isAdminMember = checkAdminStatus(location.pathname);
-  const optionsAdmin = getAdminSelectOptions(
-    isChurchAdmin || isSuperAdmin,
-    team
-  );
+  // const optionsAdmin = getAdminSelectOptions(
+  //   isChurchAdmin || isSuperAdmin,
+  //   team
+  // );
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [pagination, setPagination] = useState({
@@ -151,11 +150,11 @@ export default function Workers() {
 
       // Handle the actual API response structure: result.data.data
       let workersData = [];
-      let paginationInfo = null;
+      // let paginationInfo = null;
 
       if (result.data && result.data.data && Array.isArray(result.data.data)) {
         workersData = result.data.data;
-        paginationInfo = result.data.pagination;
+        // paginationInfo = result.data.pagination;
       } else if (result.data && Array.isArray(result.data)) {
         workersData = result.data;
       } else if (Array.isArray(result)) {

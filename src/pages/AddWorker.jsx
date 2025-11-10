@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
-import ReactSelectDropdown from "../components/ReactSelect";
+// import ReactSelectDropdown from "../components/ReactSelect";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
 import { teamsAndDepartments } from "../utils/teams";
@@ -149,7 +149,7 @@ export default function AddWorker() {
         );
       }
 
-      const result = await response.json();
+      await response.json();
       toast.success("Worker added successfully");
 
       // Reset form
@@ -297,6 +297,7 @@ export default function AddWorker() {
         )) {
           if (aliases.includes(header)) {
             worker[field] = value;
+            // eslint-disable-next-line no-extra-label
             break routeLoop;
           }
         }

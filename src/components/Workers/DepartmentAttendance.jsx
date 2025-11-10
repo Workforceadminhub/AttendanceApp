@@ -431,7 +431,7 @@ export default function DepartmentAttendance() {
               </div>
             )}
 
-            {/* Save Button */}
+            {/* Save Button Mobile */}
             {!isAdminMember && (
               <div className="mt-6 flex justify-end">
                 <button

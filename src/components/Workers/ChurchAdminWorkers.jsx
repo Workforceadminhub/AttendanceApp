@@ -292,6 +292,7 @@ export default function ChurchAdminWorkers() {
     } else {
       queryWorkers(debouncedSearchTerm);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, debouncedSearchTerm]);
 
   const handleSearch = (term) => {

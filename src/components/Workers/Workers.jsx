@@ -7,8 +7,8 @@ import { toast } from "react-toastify";
 import { getNextSunday } from "../../utils/getDate";
 import ReactSelectDropdown from "../ReactSelect";
 import Layout from "../Layout";
-import { getAdminSelectOptions } from "../../utils/routeObject";
-import { ADMIN_ENUMS } from "../../utils/enums";
+// import { getAdminSelectOptions } from "../../utils/routeObject";
+// import { ADMIN_ENUMS } from "../../utils/enums";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
 import {
   getCachedFilterData,
@@ -288,6 +288,7 @@ export default function Workers() {
     };
 
     loadFilterOptions();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Initialize available departments on component mount

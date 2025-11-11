@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
 import { toast } from "react-toastify";
@@ -8,6 +8,7 @@ import { teamsAndDepartments } from "../utils/teams";
 export default function ViewWorker() {
   const navigate = useNavigate();
   const { workerId } = useParams();
+  const location = useLocation();
   const [worker, setWorker] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -77,6 +78,16 @@ export default function ViewWorker() {
   }, [workerId]);
 
   const handleCancel = () => {
+    // Check if user came from pending workers page
+    const urlParams = new URLSearchParams(location.search);
+    const from = urlParams.get('from');
+    
+    if (from === 'pending-workers') {
+      navigate("/pending-workers");
+      return;
+    }
+    
+    // Default navigation based on user department
     const authUser = JSON.parse(sessionStorage.getItem("authUser"));
     if (authUser?.department === "Church Admin") {
       navigate("/church-admin/workers");
@@ -220,14 +231,7 @@ export default function ViewWorker() {
                 The worker you're looking for doesn't exist or has been removed.
               </p>
               <button
-                onClick={() => {
-                  const authUser = JSON.parse(sessionStorage.getItem("authUser"));
-                  if (authUser?.department === "Church Admin") {
-                    navigate("/church-admin/workers");
-                  } else {
-                    navigate("/workers/super-admin");
-                  }
-                }}
+                onClick={handleCancel}
                 className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
               >
                 Back to Workers
@@ -257,14 +261,7 @@ export default function ViewWorker() {
               </div>
               <div className="flex space-x-3">
                 <button
-                  onClick={() => {
-                    const authUser = JSON.parse(sessionStorage.getItem("authUser"));
-                    if (authUser?.department === "Church Admin") {
-                      navigate("/church-admin/workers");
-                    } else {
-                      navigate("/workers/super-admin");
-                    }
-                  }}
+                  onClick={handleCancel}
                   className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
                 >
                   Back to Workers

@@ -99,11 +99,20 @@ export default function DepartmentAttendance() {
     []
   );
 
+  const sortWorkersById = (workers) => {
+    if (!Array.isArray(workers)) return [];
+    return [...workers].sort((a, b) => {
+      const idA = (a?.workerid ?? a?.workerId ?? a?.id ?? "").toString();
+      const idB = (b?.workerid ?? b?.workerId ?? b?.id ?? "").toString();
+      return idA.localeCompare(idB, undefined, { numeric: true, sensitivity: "base" });
+    });
+  };
+
   const queryAdminWorkers = () => {
     setIsLoading(true);
     fetchAdminWorkers(team.team, activeGroup)
       .then((res) => {
-        setData(res);
+        setData(sortWorkersById(res));
         setIsLoading(false);
       })
       .catch((error) => {
@@ -117,7 +126,7 @@ export default function DepartmentAttendance() {
     setIsLoading(true);
     fetchWorkers(team.department)
       .then((res) => {
-        setData(res);
+        setData(sortWorkersById(res));
         setIsLoading(false);
       })
       .catch((error) => {

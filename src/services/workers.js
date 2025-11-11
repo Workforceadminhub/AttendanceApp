@@ -99,33 +99,115 @@ export const removeWorker = async (workerid, deleteData) => {
   }
 };
 
-export const fetchPendingAdd = async () => {
+export const fetchPendingAdd = async (page = 1, limit = 100) => {
   try {
-    const response = await apiRequest("GET", "api/super/admin/workers", {
-      status: WORKER_STATUS.PENDING_ADD,
+    console.log("fetchPendingAdd called with:", { page, limit });
+    const accessToken = sessionStorage.getItem("accessToken");
+    
+    // Use the working endpoint directly
+    const endpoint = `https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/workers?status=PENDING_ADD&limit=${limit}&page=${page}&sortBy=team`;
+    
+    const response = await fetch(endpoint, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
     });
-    if (!response || response.error) {
-      throw new Error(response?.error || "Failed to fetch admin workers");
+
+    if (response.ok) {
+      const result = await response.json();
+      
+      // Handle different response structures
+      let workers = [];
+      if (result.data && Array.isArray(result.data)) {
+        workers = result.data;
+      } else if (Array.isArray(result)) {
+        workers = result;
+      } else if (result.data && result.data.data && Array.isArray(result.data.data)) {
+        workers = result.data.data;
+      }
+      
+      // Filter for pending add workers
+      const pendingWorkers = workers.filter(worker => 
+        worker.status === 'PENDING_ADD' || 
+        worker.status === 'pending_add' || 
+        worker.status === 'unknown' ||
+        !worker.status
+      );
+      
+      return {
+        data: pendingWorkers,
+        pagination: result.pagination || {
+          page: page,
+          limit: limit,
+          total: result.data?.length || pendingWorkers.length,
+          totalPages: Math.ceil((result.data?.length || pendingWorkers.length) / limit),
+          hasNext: page < Math.ceil((result.data?.length || pendingWorkers.length) / limit),
+          hasPrev: page > 1,
+        }
+      };
     }
-    return response.data;
+    
+    return { data: [], pagination: { page: 1, limit: 100, total: 0, totalPages: 0, hasNext: false, hasPrev: false } };
   } catch (error) {
-    // Silent error handling
-    return null;
+    console.error("Error fetching pending add workers:", error);
+    return { data: [], pagination: { page: 1, limit: 100, total: 0, totalPages: 0, hasNext: false, hasPrev: false } };
   }
 };
 
-export const fetchPendingRemove = async () => {
+export const fetchPendingRemove = async (page = 1, limit = 100) => {
   try {
-    const response = await apiRequest("GET", "api/super/admin/workers", {
-      status: WORKER_STATUS.PENDING_DELETE,
+    console.log("fetchPendingRemove called with:", { page, limit });
+    const accessToken = sessionStorage.getItem("accessToken");
+    
+    // Use the working endpoint directly
+    const endpoint = `https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/workers?status=PENDING_DELETE&limit=${limit}&page=${page}&sortBy=team`;
+    
+    const response = await fetch(endpoint, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
     });
-    if (!response || response.error) {
-      throw new Error(response?.error || "Failed to fetch admin workers");
+
+    if (response.ok) {
+      const result = await response.json();
+      
+      // Handle different response structures
+      let workers = [];
+      if (result.data && Array.isArray(result.data)) {
+        workers = result.data;
+      } else if (Array.isArray(result)) {
+        workers = result;
+      } else if (result.data && result.data.data && Array.isArray(result.data.data)) {
+        workers = result.data.data;
+      }
+      
+      // Filter for pending remove workers
+      const pendingWorkers = workers.filter(worker => 
+        worker.status === 'PENDING_DELETE' || 
+        worker.status === 'pending_delete'
+      );
+      
+      return {
+        data: pendingWorkers,
+        pagination: result.pagination || {
+          page: page,
+          limit: limit,
+          total: result.data?.length || pendingWorkers.length,
+          totalPages: Math.ceil((result.data?.length || pendingWorkers.length) / limit),
+          hasNext: page < Math.ceil((result.data?.length || pendingWorkers.length) / limit),
+          hasPrev: page > 1,
+        }
+      };
     }
-    return response.data;
+    
+    return { data: [], pagination: { page: 1, limit: 100, total: 0, totalPages: 0, hasNext: false, hasPrev: false } };
   } catch (error) {
-    console.log({ error });
-    return null;
+    console.error("Error fetching pending remove workers:", error);
+    return { data: [], pagination: { page: 1, limit: 100, total: 0, totalPages: 0, hasNext: false, hasPrev: false } };
   }
 };
 

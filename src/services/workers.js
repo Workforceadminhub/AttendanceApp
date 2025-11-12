@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { getNextSunday } from "../utils/getDate";
 import apiRequest from "../utils/apiClient";
-import { WORKER_STATUS } from "../utils/enums";
+// import { WORKER_STATUS } from "../utils/enums";
 
 export const fetchWorkers = async (department, activeDate, search = "") => {
   try {

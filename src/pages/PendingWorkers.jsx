@@ -9,8 +9,6 @@ import {
   CheckIcon, 
   XMarkIcon, 
   EyeIcon,
-  TrashIcon,
-  PencilIcon
 } from "@heroicons/react/24/outline";
 
 export default function PendingWorkers() {
@@ -110,6 +108,7 @@ export default function PendingWorkers() {
     console.log("useEffect triggered - fetching pending workers");
     hasFetched.current = true;
     fetchAllPendingWorkers();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array to run only once
 
   // Handle client-side pagination

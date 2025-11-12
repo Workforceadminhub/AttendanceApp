@@ -115,7 +115,7 @@ export default function ViewWorker() {
     // Find only the fields that have changed
     const changedFields = {};
     const fieldsToCheck = [
-      'firstname', 'lastname', 'othername', 'email', 'phonenumber',
+      'firstname', 'lastname', 'othername', 'fullname', 'fullnamereverse', 'email', 'phonenumber',
       'maritalstatus', 'department', 'team', 'workerrole', 'birthdate',
       'agerange', 'gender', 'address', 'occupation', 'employment'
     ];
@@ -174,7 +174,7 @@ export default function ViewWorker() {
     if (!worker) return false;
     
     const fieldsToCheck = [
-      'firstname', 'lastname', 'othername', 'email', 'phonenumber',
+      'firstname', 'lastname', 'othername', 'fullname', 'fullnamereverse', 'email', 'phonenumber',
       'maritalstatus', 'department', 'team', 'workerrole', 'birthdate',
       'agerange', 'gender', 'address', 'occupation', 'employment'
     ];
@@ -309,6 +309,32 @@ export default function ViewWorker() {
                     type="text"
                     value={editedWorker.othername || ""}
                     onChange={(e) => handleInputChange("othername", e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Full Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    value={editedWorker.fullname || ""}
+                    onChange={(e) => handleInputChange("fullname", e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Full Name Reverse */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Full Name Reverse
+                  </label>
+                  <input
+                    type="text"
+                    value={editedWorker.fullnamereverse || ""}
+                    onChange={(e) => handleInputChange("fullnamereverse", e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>

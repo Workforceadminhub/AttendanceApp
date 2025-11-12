@@ -5,6 +5,7 @@ import Layout from "../components/Layout";
 import { toast } from "react-toastify";
 import { fetchPendingAdd, fetchPendingRemove } from "../services/workers";
 import LoadingState from "../components/LoadingState";
+import { saveAs } from "file-saver";
 import { 
   CheckIcon, 
   XMarkIcon, 
@@ -245,14 +246,89 @@ export default function PendingWorkers() {
     }
   };
 
-  // Bulk approve
-  const bulkApprove = async () => {
+  // Bulk delete (permanently deletes workers)
+  const bulkDelete = async () => {
     if (selectedWorkers.size === 0) {
-      toast.error("No workers selected for approval");
+      toast.error("No workers selected for deletion");
       return;
     }
 
-    const confirmMessage = `Are you sure you want to approve ${selectedWorkers.size} worker(s)?`;
+    const confirmMessage = `⚠️ WARNING: This will permanently delete ${selectedWorkers.size} worker(s). This action cannot be undone.
+
+Are you absolutely certain you want to proceed with this permanent bulk deletion?
+
+Type "DELETE ALL" to confirm (case-sensitive):`;
+
+    const userInput = window.prompt(confirmMessage);
+    
+    if (userInput !== "DELETE ALL") {
+      if (userInput !== null) {
+        toast.error("Bulk deletion cancelled. You must type 'DELETE ALL' exactly to confirm.");
+      }
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const accessToken = sessionStorage.getItem("accessToken");
+      let successCount = 0;
+      let errorCount = 0;
+      const errors = [];
+
+      for (const workerId of selectedWorkers) {
+        try {
+          const response = await fetch(
+            `https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/${workerId}/workers`,
+            {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                "Content-Type": "application/json",
+              },
+            }
+          );
+
+          if (!response.ok) {
+            const errorData = await response
+              .json()
+              .catch(() => ({ message: "Unknown error occurred" }));
+            throw new Error(
+              errorData.message ||
+                `HTTP ${response.status}: Failed to delete worker ${workerId}`
+            );
+          }
+          successCount++;
+        } catch (error) {
+          errorCount++;
+          errors.push(`Worker ${workerId}: ${error.message}`);
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(`${successCount} worker(s) deleted successfully`);
+      }
+      if (errorCount > 0) {
+        toast.error(`Failed to delete ${errorCount} worker(s). Check console for details.`);
+        console.error("Bulk delete errors:", errors);
+      }
+
+      fetchAllPendingWorkers();
+      clearSelection();
+    } catch (error) {
+      toast.error(`Failed to delete workers: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Bulk reject (calls approve function - changes status to active)
+  const bulkReject = async () => {
+    if (selectedWorkers.size === 0) {
+      toast.error("No workers selected");
+      return;
+    }
+
+    const confirmMessage = `Are you sure you want to approve ${selectedWorkers.size} worker(s)? This will change their status to active.`;
     if (!window.confirm(confirmMessage)) return;
 
     setIsLoading(true);
@@ -299,62 +375,69 @@ export default function PendingWorkers() {
     }
   };
 
-  // Bulk reject
-  const bulkReject = async () => {
-    if (selectedWorkers.size === 0) {
-      toast.error("No workers selected for rejection");
-      return;
-    }
+  const currentWorkers = activeTab === "add" ? pendingAddWorkers : pendingRemoveWorkers;
 
-    const confirmMessage = `Are you sure you want to reject ${selectedWorkers.size} worker(s)?`;
-    if (!window.confirm(confirmMessage)) return;
-
-    setIsLoading(true);
+  // Export to CSV function
+  const exportToCSV = () => {
     try {
-      const accessToken = sessionStorage.getItem("accessToken");
-      let successCount = 0;
-      let errorCount = 0;
+      const workersToExport = activeTab === "add" ? allPendingAddWorkers : allPendingRemoveWorkers;
+      
+      if (workersToExport.length === 0) {
+        toast.error(`No pending ${activeTab === "add" ? "add" : "remove"} workers to export`);
+        return;
+      }
 
-      for (const workerId of selectedWorkers) {
-        try {
-          const response = await fetch(
-            `https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/${workerId}/workers`,
-            {
-              method: "PUT",
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ status: "REJECTED" })
-            }
-          );
+      // Define CSV headers
+      const headers = [
+        "ID",
+        "First Name",
+        "Last Name",
+        "Email",
+        "Phone Number",
+        "Department",
+        "Team",
+        "Status"
+      ];
 
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: Failed to reject worker`);
-          }
-          successCount++;
-        } catch (error) {
-          errorCount++;
+      // Convert workers data to CSV rows
+      const rows = workersToExport.map((worker) => [
+        worker.id || worker.workerid || "",
+        worker.firstname || "",
+        worker.lastname || "",
+        worker.email || "N/A",
+        worker.phonenumber || "N/A",
+        worker.department || "N/A",
+        worker.team || "N/A",
+        worker.status || "Unknown"
+      ]);
+
+      // Escape CSV values (handle commas, quotes, newlines)
+      const escapeCSV = (value) => {
+        if (value === null || value === undefined) return "";
+        const stringValue = String(value);
+        if (stringValue.includes(",") || stringValue.includes('"') || stringValue.includes("\n")) {
+          return `"${stringValue.replace(/"/g, '""')}"`;
         }
-      }
+        return stringValue;
+      };
 
-      if (successCount > 0) {
-        toast.success(`${successCount} worker(s) rejected successfully`);
-      }
-      if (errorCount > 0) {
-        toast.error(`Failed to reject ${errorCount} worker(s)`);
-      }
+      // Build CSV content
+      const csvContent = [
+        headers.map(escapeCSV).join(","),
+        ...rows.map((row) => row.map(escapeCSV).join(","))
+      ].join("\n");
 
-      fetchAllPendingWorkers();
-      clearSelection();
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const fileName = `pending_${activeTab === "add" ? "add" : "remove"}_workers_${new Date().toISOString().split("T")[0]}.csv`;
+      saveAs(blob, fileName);
+      
+      toast.success(`Exported ${workersToExport.length} worker(s) to CSV`);
     } catch (error) {
-      toast.error(`Failed to reject workers: ${error.message}`);
-    } finally {
-      setIsLoading(false);
+      console.error("CSV export failed:", error);
+      toast.error("Failed to export workers to CSV");
     }
   };
-
-  const currentWorkers = activeTab === "add" ? pendingAddWorkers : pendingRemoveWorkers;
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
@@ -370,8 +453,16 @@ export default function PendingWorkers() {
             </div>
             <div className="self-start sm:self-center flex space-x-2">
               <button
-                className="bg-gray-500 px-6 py-2 text-white rounded-lg text-sm font-medium min-w-[140px]"
+                className="bg-green-600 hover:bg-green-700 px-6 py-2 text-white rounded-lg text-sm font-medium min-w-[140px]"
+                onClick={exportToCSV}
+                disabled={isLoading}
+              >
+                Export CSV
+              </button>
+              <button
+                className="bg-gray-500 hover:bg-gray-600 px-6 py-2 text-white rounded-lg text-sm font-medium min-w-[140px]"
                 onClick={fetchAllPendingWorkers}
+                disabled={isLoading}
               >
                 Refresh
               </button>
@@ -423,16 +514,16 @@ export default function PendingWorkers() {
                 </div>
                 <div className="flex space-x-2">
                   <button
-                    onClick={bulkApprove}
+                    onClick={bulkDelete}
                     disabled={isLoading}
-                    className="bg-green-600 px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-red-600 px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isLoading ? "Processing..." : `Approve Selected (${selectedWorkers.size})`}
+                    {isLoading ? "Processing..." : `Delete Selected (${selectedWorkers.size})`}
                   </button>
                   <button
                     onClick={bulkReject}
                     disabled={isLoading}
-                    className="bg-red-600 px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-green-600 px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isLoading ? "Processing..." : `Reject Selected (${selectedWorkers.size})`}
                   </button>

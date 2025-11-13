@@ -322,8 +322,8 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
     }
   };
 
-  // Bulk reject (calls approve function - changes status to active)
-  const bulkReject = async () => {
+  // Bulk approve (calls approve function - changes status to active)
+  const bulkApprove = async () => {
     if (selectedWorkers.size === 0) {
       toast.error("No workers selected");
       return;
@@ -514,20 +514,33 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
                   </button>
                 </div>
                 <div className="flex space-x-2">
-                  <button
-                    onClick={bulkDelete}
-                    disabled={isLoading}
-                    className="bg-red-600 px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isLoading ? "Processing..." : `Delete Selected (${selectedWorkers.size})`}
-                  </button>
-                  <button
-                    onClick={bulkReject}
-                    disabled={isLoading}
-                    className="bg-green-600 px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isLoading ? "Processing..." : `Reject Selected (${selectedWorkers.size})`}
-                  </button>
+                  {activeTab === "remove" && (
+                    <button
+                      onClick={bulkDelete}
+                      disabled={isLoading}
+                      className="bg-red-600 px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isLoading ? "Processing..." : `Delete Selected (${selectedWorkers.size})`}
+                    </button>
+                  )}
+                  {activeTab === "add" && (
+                    <button
+                      onClick={bulkApprove}
+                      disabled={isLoading}
+                      className="bg-green-600 px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isLoading ? "Processing..." : `Approve Selected (${selectedWorkers.size})`}
+                    </button>
+                  )}
+                  {activeTab === "remove" && (
+                    <button
+                      onClick={bulkApprove}
+                      disabled={isLoading}
+                      className="bg-green-600 px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isLoading ? "Processing..." : `Reject Selected (${selectedWorkers.size})`}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -635,14 +648,16 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
                                 >
                                   <CheckIcon className="h-4 w-4" />
                                 </button>
-                                <button
-                                  onClick={() => rejectWorker(worker.id)}
-                                  disabled={isLoading}
-                                  className="text-red-600 hover:text-red-900 disabled:opacity-50"
-                                  title="Reject"
-                                >
-                                  <XMarkIcon className="h-4 w-4" />
-                                </button>
+                                {activeTab === "remove" && (
+                                  <button
+                                    onClick={() => rejectWorker(worker.id)}
+                                    disabled={isLoading}
+                                    className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                                    title="Reject"
+                                  >
+                                    <XMarkIcon className="h-4 w-4" />
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>

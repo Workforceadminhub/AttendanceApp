@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
@@ -10,6 +10,9 @@ import {
   CheckIcon, 
   XMarkIcon, 
   EyeIcon,
+  TrashIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
 } from "@heroicons/react/24/outline";
 
 export default function PendingWorkers() {
@@ -23,6 +26,10 @@ export default function PendingWorkers() {
   const [selectedWorkers, setSelectedWorkers] = useState(new Set());
   const [isSelectAll, setIsSelectAll] = useState(false);
   const hasFetched = useRef(false);
+  const [sortConfig, setSortConfig] = useState({
+    key: null,
+    direction: "asc", // 'asc' or 'desc'
+  });
   
   // Pagination state
   const [pagination, setPagination] = useState({
@@ -67,6 +74,47 @@ export default function PendingWorkers() {
     } catch (error) {
       console.error("Error fetching pending workers:", error);
       toast.error("Failed to fetch pending workers");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Delete single worker (permanent)
+  const deleteWorker = async (workerId) => {
+    const confirmDelete = window.confirm(
+      "⚠️ This will permanently delete this worker. This action cannot be undone.\n\nAre you sure you want to continue?"
+    );
+    if (!confirmDelete) return;
+
+    setIsLoading(true);
+    try {
+      const accessToken = sessionStorage.getItem("accessToken");
+      const response = await fetch(
+        `https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/${workerId}/workers`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response
+          .json()
+          .catch(() => ({ message: "Unknown error occurred" }));
+        throw new Error(
+          errorData.message ||
+            `HTTP ${response.status}: Failed to delete worker`
+        );
+      }
+
+      toast.success("Worker deleted successfully");
+      fetchAllPendingWorkers();
+      clearSelection();
+    } catch (error) {
+      toast.error(`Failed to delete worker: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -172,6 +220,47 @@ export default function PendingWorkers() {
   const clearSelection = () => {
     setSelectedWorkers(new Set());
     setIsSelectAll(false);
+  };
+
+  // Handle column sorting
+  const handleSort = (columnKey) => {
+    setSortConfig((prevConfig) => {
+      if (prevConfig.key === columnKey) {
+        // Toggle direction if same column
+        return {
+          key: columnKey,
+          direction: prevConfig.direction === "asc" ? "desc" : "asc",
+        };
+      } else {
+        // New column, start with ascending
+        return {
+          key: columnKey,
+          direction: "asc",
+        };
+      }
+    });
+  };
+
+  const getSortIcon = (columnKey) => {
+    if (sortConfig.key !== columnKey) {
+      return null;
+    }
+    return sortConfig.direction === "asc" ? (
+      <ArrowUpIcon className="h-3 w-3 inline-block ml-1" />
+    ) : (
+      <ArrowDownIcon className="h-3 w-3 inline-block ml-1" />
+    );
+  };
+
+  const getSortableValue = (worker, key) => {
+    switch (key) {
+      case "id":
+        return worker.id || worker.workerid || "";
+      case "name":
+        return `${worker.firstname || ""} ${worker.lastname || ""}`.trim();
+      default:
+        return worker[key];
+    }
   };
 
   // Approve worker
@@ -378,6 +467,35 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
 
   const currentWorkers = activeTab === "add" ? pendingAddWorkers : pendingRemoveWorkers;
 
+  const sortedWorkers = useMemo(() => {
+    const items = Array.isArray(currentWorkers) ? [...currentWorkers] : [];
+
+    if (!sortConfig.key) {
+      return items;
+    }
+
+    return items.sort((a, b) => {
+      const aValue = getSortableValue(a, sortConfig.key);
+      const bValue = getSortableValue(b, sortConfig.key);
+
+      if (aValue === null || aValue === undefined || aValue === "") return 1;
+      if (bValue === null || bValue === undefined || bValue === "") return -1;
+
+      const aNum = Number(aValue);
+      const bNum = Number(bValue);
+      if (!isNaN(aNum) && !isNaN(bNum)) {
+        return sortConfig.direction === "asc" ? aNum - bNum : bNum - aNum;
+      }
+
+      const aStr = String(aValue).toLowerCase();
+      const bStr = String(bValue).toLowerCase();
+
+      if (aStr < bStr) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aStr > bStr) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [currentWorkers, sortConfig]);
+
   // Export to CSV function
   const exportToCSV = () => {
     try {
@@ -514,32 +632,44 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
                   </button>
                 </div>
                 <div className="flex space-x-2">
-                  {activeTab === "remove" && (
-                    <button
-                      onClick={bulkDelete}
-                      disabled={isLoading}
-                      className="bg-red-600 px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isLoading ? "Processing..." : `Delete Selected (${selectedWorkers.size})`}
-                    </button>
-                  )}
+                  {/* Pending Add: Approve first, then Delete */}
                   {activeTab === "add" && (
-                    <button
-                      onClick={bulkApprove}
-                      disabled={isLoading}
-                      className="bg-green-600 px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isLoading ? "Processing..." : `Approve Selected (${selectedWorkers.size})`}
-                    </button>
+                    <>
+                      <button
+                        onClick={bulkApprove}
+                        disabled={isLoading}
+                        className="bg-green-600 px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isLoading ? "Processing..." : `Approve Selected (${selectedWorkers.size})`}
+                      </button>
+                      <button
+                        onClick={bulkDelete}
+                        disabled={isLoading}
+                        className="bg-red-600 px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isLoading ? "Processing..." : `Delete Selected (${selectedWorkers.size})`}
+                      </button>
+                    </>
                   )}
+
+                  {/* Pending Remove: Delete then Reject (approve removal) */}
                   {activeTab === "remove" && (
-                    <button
-                      onClick={bulkApprove}
-                      disabled={isLoading}
-                      className="bg-green-600 px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isLoading ? "Processing..." : `Reject Selected (${selectedWorkers.size})`}
-                    </button>
+                    <>
+                      <button
+                        onClick={bulkDelete}
+                        disabled={isLoading}
+                        className="bg-red-600 px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isLoading ? "Processing..." : `Delete Selected (${selectedWorkers.size})`}
+                      </button>
+                      <button
+                        onClick={bulkApprove}
+                        disabled={isLoading}
+                        className="bg-green-600 px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isLoading ? "Processing..." : `Reject Selected (${selectedWorkers.size})`}
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -567,25 +697,67 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
                           />
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          ID
+                          <button
+                            onClick={() => handleSort("id")}
+                            className="flex items-center hover:text-gray-700"
+                          >
+                            <span>ID</span>
+                            {getSortIcon("id")}
+                          </button>
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Name
+                          <button
+                            onClick={() => handleSort("name")}
+                            className="flex items-center hover:text-gray-700"
+                          >
+                            <span>Name</span>
+                            {getSortIcon("name")}
+                          </button>
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Email
+                          <button
+                            onClick={() => handleSort("email")}
+                            className="flex items-center hover:text-gray-700"
+                          >
+                            <span>Email</span>
+                            {getSortIcon("email")}
+                          </button>
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Phone
+                          <button
+                            onClick={() => handleSort("phonenumber")}
+                            className="flex items-center hover:text-gray-700"
+                          >
+                            <span>Phone</span>
+                            {getSortIcon("phonenumber")}
+                          </button>
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Department
+                          <button
+                            onClick={() => handleSort("department")}
+                            className="flex items-center hover:text-gray-700"
+                          >
+                            <span>Department</span>
+                            {getSortIcon("department")}
+                          </button>
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Team
+                          <button
+                            onClick={() => handleSort("team")}
+                            className="flex items-center hover:text-gray-700"
+                          >
+                            <span>Team</span>
+                            {getSortIcon("team")}
+                          </button>
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
+                          <button
+                            onClick={() => handleSort("status")}
+                            className="flex items-center hover:text-gray-700"
+                          >
+                            <span>Status</span>
+                            {getSortIcon("status")}
+                          </button>
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Actions
@@ -593,8 +765,8 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {Array.isArray(currentWorkers) &&
-                        currentWorkers.map((worker, idx) => (
+                      {Array.isArray(sortedWorkers) &&
+                        sortedWorkers.map((worker, idx) => (
                           <tr key={worker.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                               <input
@@ -648,6 +820,14 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
                                 >
                                   <CheckIcon className="h-4 w-4" />
                                 </button>
+                                <button
+                                  onClick={() => deleteWorker(worker.id)}
+                                  disabled={isLoading}
+                                  className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                                  title="Delete"
+                                >
+                                  <TrashIcon className="h-4 w-4" />
+                                </button>
                                 {activeTab === "remove" && (
                                   <button
                                     onClick={() => rejectWorker(worker.id)}
@@ -664,7 +844,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
                         ))}
 
                       {/* Show message when no data */}
-                      {Array.isArray(currentWorkers) && currentWorkers.length === 0 && (
+                      {Array.isArray(sortedWorkers) && sortedWorkers.length === 0 && (
                         <tr>
                           <td
                             colSpan="9"

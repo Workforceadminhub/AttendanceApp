@@ -73,14 +73,15 @@ export const fetchAdminWorkers = async (team, activeGroup, activeDate, search = 
 
 export const addNewWorker = async (worker) => {
   try {
-    const response = await apiRequest("POST", "/api/workers/add", worker);
+    // This is a public endpoint, no authentication required
+    const response = await apiRequest("POST", "/api/workers/add", worker, undefined, false);
     if (!response || response.error) {
-      throw new Error(response?.error || "Failed to add new worker");
+      throw new Error(response?.error || response?.message || "Failed to add new worker");
     }
-    return response.data;
+    return response.data || response;
   } catch (error) {
-    // Silent error handling
-    return null;
+    // Propagate error so it can be handled by the component
+    throw error;
   }
 };
 

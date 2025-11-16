@@ -29,6 +29,7 @@ import AddWorker from "./pages/AddWorker";
 import ChurchAdminAddWorker from "./pages/ChurchAdminAddWorker";
 import ViewWorker from "./pages/ViewWorker";
 import PendingWorkers from "./pages/PendingWorkers";
+import AllWorkers from "./pages/AllWorkers";
 import Report from "./components/Report";
 
 const App = () => {
@@ -213,6 +214,14 @@ const App = () => {
               element={
                 <PrivateRoute>
                   <PendingWorkers />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/all-workers"
+              element={
+                <PrivateRoute>
+                  <AllWorkers />
                 </PrivateRoute>
               }
             />

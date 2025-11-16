@@ -78,12 +78,17 @@ export default function ViewWorker() {
   }, [workerId]);
 
   const handleCancel = () => {
-    // Check if user came from pending workers page
+    // Check if user came from pending workers or all workers page
     const urlParams = new URLSearchParams(location.search);
     const from = urlParams.get('from');
     
     if (from === 'pending-workers') {
       navigate("/pending-workers");
+      return;
+    }
+    
+    if (from === 'all-workers') {
+      navigate("/all-workers");
       return;
     }
     
@@ -135,6 +140,19 @@ export default function ViewWorker() {
     setIsSaving(true);
     try {
       const accessToken = sessionStorage.getItem("accessToken");
+      
+      // Normalize workerrole for case-sensitive values before sending
+      // Convert singular to plural for backend
+      const fieldsToSend = { ...changedFields };
+      if (fieldsToSend.workerrole) {
+        const roleLower = fieldsToSend.workerrole.toLowerCase().trim();
+        if (roleLower === "pastoral leader" || roleLower === "pastoral leaders") {
+          fieldsToSend.workerrole = "Pastoral Leaders";
+        } else if (roleLower === "directional leader" || roleLower === "directional leaders") {
+          fieldsToSend.workerrole = "Directional Leaders";
+        }
+      }
+      
       const response = await fetch(
         "https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/workers",
         {
@@ -145,7 +163,7 @@ export default function ViewWorker() {
           },
           body: JSON.stringify({
             id: parseInt(workerId),
-            ...changedFields,
+            ...fieldsToSend,
           }),
         }
       );

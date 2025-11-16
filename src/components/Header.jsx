@@ -23,6 +23,7 @@ export default function Header() {
     },
     // Show Workers menu for Super Admin and Church Admin users
     ...(authUser?.department === "Super Admin" ? [{ name: "Workers", href: `/workers${authUser?.route || "/wadata"}` }] : []),
+    ...(authUser?.department === "Super Admin" ? [{ name: "All Workers", href: "/all-workers" }] : []),
     ...(authUser?.department === "Super Admin" ? [{ name: "Pending Workers", href: "/pending-workers" }] : []),
     ...(authUser?.department === "Church Admin" ? [{ name: "Workers", href: "/church-admin/workers" }] : []),
   ];

@@ -86,6 +86,18 @@ export default function ChurchAdminAddWorker() {
     try {
       const accessToken = sessionStorage.getItem("accessToken");
       
+      // Normalize workerrole for case-sensitive values before sending
+      // Convert singular to plural for backend
+      const workerToSend = { ...newWorker };
+      if (workerToSend.workerrole) {
+        const roleLower = workerToSend.workerrole.toLowerCase().trim();
+        if (roleLower === "pastoral leader" || roleLower === "pastoral leaders") {
+          workerToSend.workerrole = "Pastoral Leaders";
+        } else if (roleLower === "directional leader" || roleLower === "directional leaders") {
+          workerToSend.workerrole = "Directional Leaders";
+        }
+      }
+      
       const response = await fetch(
         "https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/workers",
         {
@@ -94,7 +106,7 @@ export default function ChurchAdminAddWorker() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${accessToken}`,
           },
-          body: JSON.stringify(newWorker),
+          body: JSON.stringify(workerToSend),
         }
       );
 
@@ -184,6 +196,17 @@ export default function ChurchAdminAddWorker() {
           address: row["Address"] || row["address"] || "",
         };
 
+        // Normalize workerrole for case-sensitive values
+        // Convert singular to plural for backend
+        if (worker.workerrole) {
+          const roleLower = worker.workerrole.toLowerCase().trim();
+          if (roleLower === "pastoral leader" || roleLower === "pastoral leaders") {
+            worker.workerrole = "Pastoral Leaders";
+          } else if (roleLower === "directional leader" || roleLower === "directional leaders") {
+            worker.workerrole = "Directional Leaders";
+          }
+        }
+
         // Validate required fields
         const requiredFields = ['firstname', 'lastname', 'email', 'phonenumber', 'department', 'team'];
         const missingFields = requiredFields.filter(field => !worker[field]);
@@ -221,7 +244,19 @@ export default function ChurchAdminAddWorker() {
 
     for (let i = 0; i < validWorkers.length; i++) {
       try {
-        const worker = validWorkers[i];
+        const worker = { ...validWorkers[i] };
+
+        // Normalize workerrole for case-sensitive values before sending
+        // Convert singular to plural for backend
+        if (worker.workerrole) {
+          const roleLower = worker.workerrole.toLowerCase().trim();
+          if (roleLower === "pastoral leader" || roleLower === "pastoral leaders") {
+            worker.workerrole = "Pastoral Leaders";
+          } else if (roleLower === "directional leader" || roleLower === "directional leaders") {
+            worker.workerrole = "Directional Leaders";
+          }
+        }
+
         const response = await fetch(
           "https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/workers",
           {

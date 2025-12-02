@@ -49,6 +49,7 @@ export const fetchAdminAttendance = async (
 
 export const fetchAttendance = async (activeDate) => {
   const dateForAttendance = activeDate || getNextSunday();
+  // force merge
 
   try {
     const response = await apiRequest("GET", "/api/attendance", {

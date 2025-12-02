@@ -128,6 +128,18 @@ export default function AddWorker() {
     try {
       const accessToken = sessionStorage.getItem("accessToken");
 
+      // Normalize workerrole for case-sensitive values before sending
+      // Convert singular to plural for backend
+      const workerToSend = { ...newWorker };
+      if (workerToSend.workerrole) {
+        const roleLower = workerToSend.workerrole.toLowerCase().trim();
+        if (roleLower === "pastoral leader" || roleLower === "pastoral leaders") {
+          workerToSend.workerrole = "Pastoral Leaders";
+        } else if (roleLower === "directional leader" || roleLower === "directional leaders") {
+          workerToSend.workerrole = "Directional Leaders";
+        }
+      }
+
       const response = await fetch(
         "https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/workers",
         {
@@ -136,7 +148,7 @@ export default function AddWorker() {
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(newWorker),
+          body: JSON.stringify(workerToSend),
         }
       );
 
@@ -303,6 +315,17 @@ export default function AddWorker() {
         }
       });
 
+      // Normalize workerrole for case-sensitive values
+      // Convert singular to plural for backend
+      if (worker.workerrole) {
+        const roleLower = worker.workerrole.toLowerCase().trim();
+        if (roleLower === "pastoral leader" || roleLower === "pastoral leaders") {
+          worker.workerrole = "Pastoral Leaders";
+        } else if (roleLower === "directional leader" || roleLower === "directional leaders") {
+          worker.workerrole = "Directional Leaders";
+        }
+      }
+
       // Only require first name and last name for super admin bulk upload
       if (
         worker.firstname &&
@@ -345,7 +368,18 @@ export default function AddWorker() {
     const errors = [];
 
     for (let i = 0; i < parsedWorkers.length; i++) {
-      const worker = parsedWorkers[i];
+      const worker = { ...parsedWorkers[i] };
+
+      // Normalize workerrole for case-sensitive values before sending
+      // Convert singular to plural for backend
+      if (worker.workerrole) {
+        const roleLower = worker.workerrole.toLowerCase().trim();
+        if (roleLower === "pastoral leader" || roleLower === "pastoral leaders") {
+          worker.workerrole = "Pastoral Leaders";
+        } else if (roleLower === "directional leader" || roleLower === "directional leaders") {
+          worker.workerrole = "Directional Leaders";
+        }
+      }
 
       try {
         const response = await fetch(

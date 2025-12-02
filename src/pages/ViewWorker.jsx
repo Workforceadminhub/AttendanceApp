@@ -102,17 +102,15 @@ export default function ViewWorker() {
   };
 
   const handleSave = async () => {
-    // Validate required fields
+    // Validate required fields (relaxed for Super Admin: only basic identity and placement)
     if (
       !editedWorker.firstname ||
       !editedWorker.lastname ||
-      !editedWorker.email ||
-      !editedWorker.phonenumber ||
       !editedWorker.department ||
       !editedWorker.team
     ) {
       toast.error(
-        "Please fill in all required fields (First Name, Last Name, Email, Phone Number, Department, Team)"
+        "Please fill in all required fields (First Name, Last Name, Department, Team)"
       );
       return;
     }

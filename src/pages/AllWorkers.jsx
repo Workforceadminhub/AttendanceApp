@@ -5,6 +5,7 @@ import Layout from "../components/Layout";
 import { toast } from "react-toastify";
 import LoadingState from "../components/LoadingState";
 import { EyeIcon, ArrowUpIcon, ArrowDownIcon } from "@heroicons/react/24/outline";
+import { saveAs } from "file-saver";
 
 export default function AllWorkers() {
   const navigate = useNavigate();
@@ -206,6 +207,67 @@ export default function AllWorkers() {
     );
   };
 
+  // Export current (filtered) workers to CSV
+  const exportToCSV = () => {
+    try {
+      if (!filteredWorkers.length) {
+        toast.error("No workers to export");
+        return;
+      }
+
+      const headers = [
+        "ID",
+        "First Name",
+        "Last Name",
+        "Email",
+        "Phone Number",
+        "Department",
+        "Team",
+        "Status",
+      ];
+
+      const rows = filteredWorkers.map((worker, idx) => [
+        worker.id || worker.workerid || idx + 1,
+        worker.firstname || "",
+        worker.lastname || "",
+        worker.email || "N/A",
+        worker.phonenumber || "N/A",
+        worker.department || "N/A",
+        worker.team || "N/A",
+        worker.status || "Unknown",
+      ]);
+
+      const escapeCSV = (value) => {
+        if (value === null || value === undefined) return "";
+        const stringValue = String(value);
+        if (
+          stringValue.includes(",") ||
+          stringValue.includes('"') ||
+          stringValue.includes("\n")
+        ) {
+          return `"${stringValue.replace(/"/g, '""')}"`;
+        }
+        return stringValue;
+      };
+
+      const csvContent = [
+        headers.map(escapeCSV).join(","),
+        ...rows.map((row) => row.map(escapeCSV).join(",")),
+      ].join("\n");
+
+      const blob = new Blob([csvContent], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const fileName = `all_workers_${new Date().toISOString().split("T")[0]}.csv`;
+      saveAs(blob, fileName);
+
+      toast.success(`Exported ${filteredWorkers.length} worker(s) to CSV`);
+    } catch (error) {
+      console.error("CSV export failed:", error);
+      toast.error("Failed to export workers to CSV");
+    }
+  };
+
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
       <Header />
@@ -222,6 +284,13 @@ export default function AllWorkers() {
               </p>
             </div>
             <div className="flex space-x-2">
+              <button
+                onClick={exportToCSV}
+                disabled={isLoading || !filteredWorkers.length}
+                className="bg-green-600 hover:bg-green-700 px-4 py-2 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+              >
+                Export CSV
+              </button>
               <button
                 onClick={clearAllFilters}
                 className="bg-gray-500 hover:bg-gray-600 px-4 py-2 text-white rounded-lg text-sm font-medium"

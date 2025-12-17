@@ -46,3 +46,6 @@ amplifytools.xcconfig
 **.sample
 #amplify-do-not-edit-end
 .qodo
+
+# Cursor IDE
+.cursor

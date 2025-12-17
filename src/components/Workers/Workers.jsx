@@ -24,6 +24,7 @@ import {
 } from "@heroicons/react/24/outline";
 import GenericModal from "../GenericModal";
 import LoadingState from "../LoadingState";
+import { saveAs } from "file-saver";
 
 export default function Workers() {
   const navigate = useNavigate();
@@ -676,6 +677,114 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
     return { firstName, lastName };
   };
 
+  // Export teams to CSV
+  const exportTeamsToCSV = () => {
+    try {
+      if (!allWorkers.length) {
+        toast.error("No workers to export");
+        return;
+      }
+
+      // Group workers by team
+      const workersByTeam = {};
+      allWorkers.forEach((worker) => {
+        const team = worker.team || "Unassigned";
+        if (!workersByTeam[team]) {
+          workersByTeam[team] = [];
+        }
+        workersByTeam[team].push(worker);
+      });
+
+      // Sort teams alphabetically
+      const sortedTeams = Object.keys(workersByTeam).sort();
+
+      // Build CSV content
+      const headers = [
+        "Team",
+        "Worker ID",
+        "First Name",
+        "Last Name",
+        "Other Name",
+        "Email",
+        "Phone Number",
+        "Department",
+        "Role",
+        "Employment Status",
+        "Marital Status",
+        "Birthdate",
+        "Age Range",
+        "Gender",
+        "Address",
+        "Status",
+      ];
+
+      const escapeCSV = (value) => {
+        if (value === null || value === undefined) return "";
+        const stringValue = String(value);
+        if (
+          stringValue.includes(",") ||
+          stringValue.includes('"') ||
+          stringValue.includes("\n")
+        ) {
+          return `"${stringValue.replace(/"/g, '""')}"`;
+        }
+        return stringValue;
+      };
+
+      const rows = [];
+      
+      // Add rows for each team
+      sortedTeams.forEach((team) => {
+        const teamWorkers = workersByTeam[team];
+        teamWorkers.forEach((worker, idx) => {
+          const firstName =
+            worker.firstname || splitName(worker.fullname).firstName;
+          const lastName =
+            worker.lastname || splitName(worker.fullname).lastName;
+          
+          rows.push([
+            idx === 0 ? team : "", // Only show team name in first row of each team
+            worker.id || worker.workerid || "",
+            firstName || "",
+            lastName || "",
+            worker.othername || "",
+            worker.email || "N/A",
+            worker.phonenumber || "N/A",
+            worker.department || "N/A",
+            worker.workerrole || worker.role || "Worker",
+            worker.employment || "N/A",
+            worker.maritalstatus || "N/A",
+            worker.birthdate || "N/A",
+            worker.agerange || "N/A",
+            worker.gender || "N/A",
+            worker.address || "N/A",
+            worker.status || "Unknown",
+          ]);
+        });
+      });
+
+      const csvContent = [
+        headers.map(escapeCSV).join(","),
+        ...rows.map((row) => row.map(escapeCSV).join(",")),
+      ].join("\n");
+
+      const blob = new Blob([csvContent], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const fileName = `teams_export_${new Date().toISOString().split("T")[0]}.csv`;
+      saveAs(blob, fileName);
+
+      const totalWorkers = allWorkers.length;
+      const totalTeams = sortedTeams.length;
+      toast.success(
+        `Exported ${totalWorkers} worker(s) across ${totalTeams} team(s) to CSV`
+      );
+    } catch (error) {
+      console.error("Teams CSV export failed:", error);
+      toast.error("Failed to export teams to CSV");
+    }
+  };
+
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
       <Header />
@@ -694,6 +803,13 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
                 onClick={() => navigate("/add-worker")}
               >
                 Add New Worker
+              </button>
+              <button
+                className="bg-purple-600 px-6 py-2 text-white rounded-lg text-sm font-medium min-w-[140px] hover:bg-purple-700"
+                onClick={exportTeamsToCSV}
+                disabled={isLoading || !allWorkers.length}
+              >
+                Export Teams
               </button>
               <button
                 className="bg-gray-500 px-6 py-2 text-white rounded-lg text-sm font-medium min-w-[140px]"

@@ -98,3 +98,4 @@ export function calculateTotals(data) {
     { name: "Total percentage", stat: overallPercentage },
   ];
 }
+// merge

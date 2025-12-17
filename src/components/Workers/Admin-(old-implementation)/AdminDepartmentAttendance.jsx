@@ -12,7 +12,6 @@ import { ADMIN_ENUMS } from "../../../utils/enums";
 import { getAdminSelectOptions } from "../../../utils/routeObject";
 import TableLoadingState from "../../TableLoadingState";
 import Layout from "../../Layout";
-import { switchOffAttendance } from "../../../utils/switchOffAttendance";
 
 export default function AdminDepartmentAttendance() {
   const location = useLocation();
@@ -27,7 +26,6 @@ export default function AdminDepartmentAttendance() {
   const team = getDepartmentByUser(location.pathname);
   const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
   const optionsAdmin = getAdminSelectOptions(isChurchAdmin, team);
-  const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
 
   const options = useMemo(
     () => [
@@ -47,12 +45,6 @@ export default function AdminDepartmentAttendance() {
     ],
     []
   );
-
-  useEffect(() => {
-    switchOffAttendance()
-      .then((res) => setAttendanceIsClosed(res))
-      .catch((err) => console.log(err));
-  }, []);
 
   useEffect(() => {
     setIsLoading(true);

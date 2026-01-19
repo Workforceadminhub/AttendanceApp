@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { fetchAdminWorkers, fetchWorkers } from "../../services/workers";
 import { toast } from "react-toastify";
 import { getNextSunday } from "../../utils/getDate";
@@ -797,31 +797,31 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
                 Workers
               </h1>
             </div>
-            <div className="self-start sm:self-center flex space-x-2">
+            <div className="self-start sm:self-center flex flex-wrap gap-2">
               <button
-                className="bg-green-500 px-6 py-2 text-white rounded-lg text-sm font-medium min-w-[140px]"
-                onClick={() => navigate("/add-worker")}
+                className="bg-yellow-500 px-3 py-1.5 sm:px-4 sm:py-2 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-yellow-600"
+                onClick={() => navigate("/pending-workers")}
               >
-                Add New Worker
+                Pending Workers
               </button>
               <button
-                className="bg-purple-600 px-6 py-2 text-white rounded-lg text-sm font-medium min-w-[140px] hover:bg-purple-700"
+                className="bg-green-500 px-3 py-1.5 sm:px-4 sm:py-2 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-green-600"
+                onClick={() => navigate("/add-worker")}
+              >
+                Add Worker
+              </button>
+              <button
+                className="bg-purple-600 px-3 py-1.5 sm:px-4 sm:py-2 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-purple-700"
                 onClick={exportTeamsToCSV}
                 disabled={isLoading || !allWorkers.length}
               >
-                Export Teams
+                Export
               </button>
               <button
-                className="bg-gray-500 px-6 py-2 text-white rounded-lg text-sm font-medium min-w-[140px]"
+                className="bg-gray-500 px-3 py-1.5 sm:px-4 sm:py-2 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-600"
                 onClick={() => querySuperAdminWorkers(1, 50)}
               >
-                Refresh Workers
-              </button>
-              <button
-                className="bg-blue-600 px-6 py-2 text-white rounded-lg text-sm font-medium min-w-[140px] hover:bg-blue-700"
-                onClick={() => navigate(`/workers/history/${team.department}`)}
-              >
-                View History
+                Refresh
               </button>
             </div>
           </div>
@@ -1034,8 +1034,8 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
                           const isExpanded = expandedRows.has(person.id);
 
                           return (
-                            <>
-                              <tr key={person.id} className="hover:bg-gray-50">
+                            <React.Fragment key={person.id}>
+                              <tr className="hover:bg-gray-50">
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                   <input
                                     type="checkbox"
@@ -1192,7 +1192,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
                                   </td>
                                 </tr>
                               )}
-                            </>
+                            </React.Fragment>
                           );
                         })}
 

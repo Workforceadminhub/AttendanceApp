@@ -28,6 +28,7 @@ export const routeObject = [
   { department: "Interactors", route: "/interactor", team: "Membership" },
   { department: "New Convert", route: "/newconvert", team: "Membership" },
   { department: "Weddings", route: "/weddings", team: "Membership" },
+  { department: "Sub team heads Membership", route: "/sthm", team: "Membership" },
   { department: "Admin and Facility", route: "/adminfacility", team: "General Service" },
   { department: "Communications (DMU)", route: "/dmu", team: "General Service" },
   { department: "Finance", route: "/finance", team: "General Service" },

@@ -1,6 +1,19 @@
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { getUser } from "../utils/getUser";
 import Header from "./Header";
 
 export default function Home() {
+  const navigate = useNavigate();
+  const authUser = getUser();
+
+  useEffect(() => {
+    // Redirect Super Admin to workers page if logged in
+    if (authUser?.department === "Super Admin") {
+      navigate("/workers/super-admin", { replace: true });
+    }
+  }, [authUser, navigate]);
+
   return (
     <div className="bg-white">
       <Header />

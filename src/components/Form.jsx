@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { teamsAndDepartments, workerRoles } from "../utils/teams";
+import BirthDatePicker from "./BirthDatePicker";
 
 const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
   const navigate = useNavigate();
@@ -163,11 +164,11 @@ const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
       {/* Date of Birth */}
       <div className="flex">
         <label className="text-lg text-red-500 mt-2 mr-2">*</label>
-        <input
-          placeholder="e.g. 10th June"
-          className="border p-3 w-full rounded-md"
+        <BirthDatePicker
           value={formData.birthdate || ""}
-          onChange={(e) => setFormData({ ...formData, birthdate: e.target.value })}
+          onChange={(value) => setFormData({ ...formData, birthdate: value })}
+          placeholder="Select birth date (e.g. 12th January)"
+          className="w-full"
         />
       </div>
       {/* Age Range */}

@@ -161,21 +161,6 @@ export default function AllWorkers() {
     }));
   };
 
-  // Clear all filters
-  const clearAllFilters = () => {
-    setColumnFilters({
-      id: "",
-      firstname: "",
-      lastname: "",
-      email: "",
-      phonenumber: "",
-      department: "",
-      team: "",
-      status: "",
-    });
-    setSortConfig({ key: null, direction: "asc" });
-  };
-
   // Handle column sorting
   const handleSort = (columnKey) => {
     setSortConfig((prevConfig) => {
@@ -285,17 +270,17 @@ export default function AllWorkers() {
             </div>
             <div className="flex space-x-2">
               <button
+                onClick={() => navigate("/team-mismatch")}
+                className="bg-orange-500 hover:bg-orange-600 px-4 py-2 text-white rounded-lg text-sm font-medium"
+              >
+                Team Mismatch
+              </button>
+              <button
                 onClick={exportToCSV}
                 disabled={isLoading || !filteredWorkers.length}
                 className="bg-green-600 hover:bg-green-700 px-4 py-2 text-white rounded-lg text-sm font-medium disabled:opacity-50"
               >
-                Export CSV
-              </button>
-              <button
-                onClick={clearAllFilters}
-                className="bg-gray-500 hover:bg-gray-600 px-4 py-2 text-white rounded-lg text-sm font-medium"
-              >
-                Clear Filters
+                Export
               </button>
               <button
                 onClick={fetchAllWorkers}

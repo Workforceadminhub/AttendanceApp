@@ -96,6 +96,7 @@ export const teamsAndDepartments = [
       "Interactors",
       "Membership Admin",
       "New Convert",
+      "Sub team heads Membership",
       "Weddings",
     ],
   },
@@ -123,7 +124,7 @@ export const teamsAndDepartments = [
     team: "Mission",
     department: [
       "Evangelism",
-      "God's Encounter",
+      "God's encounter",
       "HSAP",
       "Invest and Invite",
       "Publicity",
@@ -195,7 +196,7 @@ export const teamsAndDepartments = [
   {
     team: "Senior Leadership",
     department: [
-      "Directional Leaders",
+      "Directional leader",
       "Pastoral Leaders",
     ],
   },

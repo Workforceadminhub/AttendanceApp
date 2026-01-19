@@ -30,7 +30,10 @@ import ChurchAdminAddWorker from "./pages/ChurchAdminAddWorker";
 import ViewWorker from "./pages/ViewWorker";
 import PendingWorkers from "./pages/PendingWorkers";
 import AllWorkers from "./pages/AllWorkers";
+import TeamMismatch from "./pages/TeamMismatch";
 import Report from "./components/Report";
+import SuperAdminOverview from "./pages/SuperAdminOverview";
+import ManageDepartments from "./pages/ManageDepartments";
 
 const App = () => {
   const queryClient = new QueryClient({
@@ -76,7 +79,14 @@ const App = () => {
           <Routes>
             <Route index element={<Home />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/report" element={<Report />} />
+            <Route
+              path="/report"
+              element={
+                <PrivateRoute>
+                  <Report />
+                </PrivateRoute>
+              }
+            />
             <Route path="/new/worker" element={<NewWorker />} />
             <Route
               path="/summary"
@@ -162,6 +172,14 @@ const App = () => {
 
             {/* Super Admin Routes - Based on login response route: "/super-admin" */}
             <Route
+              path="/overview/super-admin"
+              element={
+                <PrivateRoute>
+                  <SuperAdminOverview />
+                </PrivateRoute>
+              }
+            />
+            <Route
               path="/attendance/super-admin"
               element={
                 <PrivateRoute>
@@ -222,6 +240,22 @@ const App = () => {
               element={
                 <PrivateRoute>
                   <AllWorkers />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/team-mismatch"
+              element={
+                <PrivateRoute>
+                  <TeamMismatch />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/manage-departments"
+              element={
+                <PrivateRoute>
+                  <ManageDepartments />
                 </PrivateRoute>
               }
             />

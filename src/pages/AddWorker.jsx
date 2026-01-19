@@ -6,6 +6,7 @@ import Layout from "../components/Layout";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
 import { teamsAndDepartments } from "../utils/teams";
+import BirthDatePicker from "../components/BirthDatePicker";
 
 export default function AddWorker() {
   const navigate = useNavigate();
@@ -690,17 +691,15 @@ export default function AddWorker() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Birth Date <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
+                    <BirthDatePicker
                       value={newWorker.birthdate}
-                      onChange={(e) =>
+                      onChange={(value) =>
                         setNewWorker({
                           ...newWorker,
-                          birthdate: e.target.value,
+                          birthdate: value,
                         })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="e.g., 12th June, 1st January"
+                      placeholder="Select birth date (e.g. 12th January)"
                     />
                   </div>
 

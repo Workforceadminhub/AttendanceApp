@@ -26,7 +26,12 @@ const Login = () => {
         setError("");
         sessionStorage.setItem("authUser", JSON.stringify(data.user));
         sessionStorage.setItem("accessToken", data.accessToken);
-        navigate(`/attendance${data.user.route}`);
+        // Redirect Super Admin to overview page, others to attendance route
+        if (data.user.department === "Super Admin") {
+          navigate("/overview/super-admin");
+        } else {
+          navigate(`/attendance${data.user.route}`);
+        }
       }
       setIsLoading(false);
     } catch (err) {
@@ -43,7 +48,7 @@ const Login = () => {
         </h1>
         <div>
           <div className="mb-4">
-            <label for="id" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="id" className="block text-sm font-medium text-gray-700">
               ID
             </label>
             <input
@@ -60,7 +65,6 @@ const Login = () => {
             type="button"
             onClick={handleLogin}
             onKeyDown={handleKeyPress}
-            onE
             className="w-full bg-black text-white py-2 px-4 rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-600"
           >
             {isLoading ? "Logging in..." : "Login"}

@@ -4,6 +4,7 @@ import Header from "../components/Header";
 import Layout from "../components/Layout";
 import { toast } from "react-toastify";
 import { teamsAndDepartments } from "../utils/teams";
+import BirthDatePicker from "../components/BirthDatePicker";
 
 export default function ViewWorker() {
   const navigate = useNavigate();
@@ -89,6 +90,11 @@ export default function ViewWorker() {
     
     if (from === 'all-workers') {
       navigate("/all-workers");
+      return;
+    }
+    
+    if (from === 'team-mismatch') {
+      navigate("/team-mismatch");
       return;
     }
     
@@ -474,12 +480,10 @@ export default function ViewWorker() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Birth Date <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <BirthDatePicker
                     value={editedWorker.birthdate || ""}
-                    onChange={(e) => handleInputChange("birthdate", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., 12th June, 1st January"
+                    onChange={(value) => handleInputChange("birthdate", value)}
+                    placeholder="Select birth date (e.g. 12th January)"
                   />
                 </div>
 

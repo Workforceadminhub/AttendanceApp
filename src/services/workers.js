@@ -129,7 +129,6 @@ export const fetchPendingAdd = async (page = 1, limit = 100) => {
         workers = result.data.data;
       }
       
-      // Filters for pending add workers
       const pendingWorkers = workers.filter(worker => 
         worker.status === 'PENDING_ADD' || 
         worker.status === 'pending_add' || 

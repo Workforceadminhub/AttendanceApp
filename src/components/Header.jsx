@@ -22,7 +22,16 @@ export default function Header() {
     ...(authUser?.department === "Super Admin" ? [{ name: "All Workers", href: "/all-workers" }] : []),
     ...(authUser?.department === "Super Admin" ? [{ name: "Departments", href: "/manage-departments" }] : []),
     ...(authUser?.department === "Super Admin" ? [{ name: "Report", href: "/report" }] : []),
+    ...(authUser?.department === "Church Admin" ? [{ name: "Dashboard", href: "/attendance/dashboard" }] : []),
+    ...(authUser?.department === "Church Admin" ? [{ name: "Department Overview", href: "/attendance/summary" }] : []),
     ...(authUser?.department === "Church Admin" ? [{ name: "Workers", href: "/church-admin/workers" }] : []),
+    // Show Dashboard and Department Overview for normal admin users (not Super Admin or Church Admin)
+    ...(authUser?.department !== "Super Admin" && authUser?.department !== "Church Admin" && authUser?.department
+      ? [
+          { name: "Dashboard", href: authUser?.route ? `/dashboard${authUser.route}` : "/attendance/dashboard" },
+          { name: "Department Overview", href: authUser?.route ? `/summary${authUser.route}` : "/attendance/summary" },
+        ]
+      : []),
   ];
 
   const adminNavigation = [
@@ -31,7 +40,16 @@ export default function Header() {
     ...(authUser?.department === "Super Admin" ? [{ name: "Workers", href: "/workers/super-admin" }] : []),
     ...(authUser?.department === "Super Admin" ? [{ name: "Departments", href: "/manage-departments" }] : []),
     ...(authUser?.department === "Super Admin" ? [{ name: "Report", href: "/report" }] : []),
+    ...(authUser?.department === "Church Admin" ? [{ name: "Dashboard", href: "/attendance/dashboard" }] : []),
+    ...(authUser?.department === "Church Admin" ? [{ name: "Department Overview", href: "/attendance/summary" }] : []),
     ...(authUser?.department === "Church Admin" ? [{ name: "Workers", href: "/church-admin/workers" }] : []),
+    // Show Dashboard and Department Overview for normal admin users (not Super Admin or Church Admin)
+    ...(authUser?.department !== "Super Admin" && authUser?.department !== "Church Admin" && authUser?.department
+      ? [
+          { name: "Dashboard", href: authUser?.route ? `/dashboard${authUser.route}` : "/attendance/dashboard" },
+          { name: "Department Overview", href: authUser?.route ? `/summary${authUser.route}` : "/attendance/summary" },
+        ]
+      : []),
   ];
 
   const navigation =

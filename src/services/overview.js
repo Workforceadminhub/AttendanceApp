@@ -283,7 +283,7 @@ export const prepareTeamChartData = (teamStats) => {
 export const fetchAttendanceStats = async () => {
   try {
     const lastAttendanceDate = getNextSunday();
-    const attendance = await fetchAdminAttendance("All", false);
+    const attendance = await fetchAdminAttendance("All", true);
     if (!attendance) {
       return {
         totalStrength: 0,
@@ -317,6 +317,7 @@ export const fetchAttendanceStats = async () => {
 
 /**
  * Fetches attendance statistics per team
+ * Uses a single "All" API call and parses data client-side to avoid 503 errors
  * @returns {Promise<Array>} Array of team attendance statistics
  */
 export const fetchTeamAttendanceStats = async () => {
@@ -324,41 +325,60 @@ export const fetchTeamAttendanceStats = async () => {
     const lastAttendanceDate = getNextSunday();
     const teamNames = teamsAndDepartments.map((t) => t.team);
 
-    // Fetch attendance for each team in parallel
-    const teamAttendancePromises = teamNames.map(async (teamName) => {
-      try {
-        const attendance = await fetchAdminAttendance(teamName, false);
-        if (!attendance || attendance.length === 0) {
-          return {
-            team: teamName,
-            present: 0,
-            absent: 0,
-            total: 0,
-            percentage: "0%",
-          };
-        }
-
-        const totals = calculateTotals(attendance);
-        return {
-          team: teamName,
-          present: totals.find((t) => t.name === "Total present")?.stat || 0,
-          absent: totals.find((t) => t.name === "Total absent")?.stat || 0,
-          total: totals.find((t) => t.name === "Total strength")?.stat || 0,
-          percentage: totals.find((t) => t.name === "Total percentage")?.stat || "0%",
-        };
-      } catch (error) {
-        console.error(`Error fetching attendance for team ${teamName}:`, error);
-        return {
+    // Fetch all attendance data with a single API call
+    const allAttendance = await fetchAdminAttendance("All", true);
+    
+    if (!allAttendance || allAttendance.length === 0) {
+      return {
+        teamAttendanceStats: teamNames.map((teamName) => ({
           team: teamName,
           present: 0,
           absent: 0,
           total: 0,
           percentage: "0%",
+        })),
+        lastAttendanceDate,
+      };
+    }
+
+    // Aggregate attendance by team
+    const teamAttendanceMap = {};
+    allAttendance.forEach((record) => {
+      const team = record.team || "Unknown";
+      if (!teamAttendanceMap[team]) {
+        teamAttendanceMap[team] = {
+          team,
+          present: 0,
+          absent: 0,
+          total: 0,
         };
       }
+      teamAttendanceMap[team].present += record.present || 0;
+      teamAttendanceMap[team].absent += record.absent || 0;
+      teamAttendanceMap[team].total += record.total || 0;
     });
 
-    const teamAttendanceStats = await Promise.all(teamAttendancePromises);
+    // Map to team stats with percentages
+    const teamAttendanceStats = teamNames.map((teamName) => {
+      const teamData = teamAttendanceMap[teamName] || {
+        team: teamName,
+        present: 0,
+        absent: 0,
+        total: 0,
+      };
+      
+      const percentage = teamData.total > 0
+        ? ((teamData.present / teamData.total) * 100).toFixed(2) + "%"
+        : "0%";
+
+      return {
+        team: teamName,
+        present: teamData.present,
+        absent: teamData.absent,
+        total: teamData.total,
+        percentage,
+      };
+    });
 
     return {
       teamAttendanceStats: teamAttendanceStats.sort((a, b) => b.total - a.total),
@@ -375,215 +395,204 @@ export const fetchTeamAttendanceStats = async () => {
 
 /**
  * Fetches attendance statistics grouped by directorate
+ * Uses a single "All" API call and parses data client-side to avoid 503 errors
  * @returns {Promise<Object>} Object with directorate attendance data and totals
  */
 export const fetchDirectorateAttendanceStats = async () => {
   try {
     const lastAttendanceDate = getNextSunday();
     
-    // Get all regular teams (excluding virtual ones)
-    const regularTeams = directorateMapping
-      .filter((d) => !d.isVirtual)
-      .flatMap((d) => d.teams);
+    // Fetch all attendance data with a single API call
+    const allAttendance = await fetchAdminAttendance("All", true);
     
-    // Get source teams for virtual directorates
-    const virtualSourceTeams = directorateMapping
-      .filter((d) => d.isVirtual && d.sourceTeam)
-      .map((d) => d.sourceTeam);
+    console.log("Fetched all attendance data:", allAttendance?.length || 0, "records");
     
-    // Fetch attendance for regular teams in parallel
-    const regularTeamPromises = regularTeams.map(async (teamName) => {
-      try {
-        const attendance = await fetchAdminAttendance(teamName, false);
-        if (!attendance || attendance.length === 0) {
-          return {
+    if (!allAttendance || allAttendance.length === 0) {
+      return {
+        directorateStats: directorateMapping.map((dir) => ({
+          directorate: dir.directorate,
+          teams: dir.teams.map((teamName) => ({
+            team: teamName,
+            present: 0,
+            absent: 0,
+            total: 0,
+            percentage: "0%",
+          })),
+          total: 0,
+          present: 0,
+          absent: 0,
+          percentage: "0%",
+        })),
+        grandTotals: { total: 0, present: 0, absent: 0, percentage: "0%" },
+        lastAttendanceDate,
+      };
+    }
+
+    // Create a map to aggregate attendance by team
+    const teamAttendanceMap = {};
+    
+    // Process each attendance record and group by team
+    allAttendance.forEach((record) => {
+      const team = record.team || "Unknown";
+      const dept = record.department || "";
+      
+      // Initialize team if not exists
+      if (!teamAttendanceMap[team]) {
+        teamAttendanceMap[team] = {
+          team,
+          present: 0,
+          absent: 0,
+          total: 0,
+          departments: {},
+        };
+      }
+      
+      // Add to team totals
+      teamAttendanceMap[team].present += record.present || 0;
+      teamAttendanceMap[team].absent += record.absent || 0;
+      teamAttendanceMap[team].total += record.total || 0;
+      
+      // Also track by department for virtual teams
+      if (dept) {
+        if (!teamAttendanceMap[team].departments[dept]) {
+          teamAttendanceMap[team].departments[dept] = {
+            department: dept,
+            present: 0,
+            absent: 0,
+            total: 0,
+          };
+        }
+        teamAttendanceMap[team].departments[dept].present += record.present || 0;
+        teamAttendanceMap[team].departments[dept].absent += record.absent || 0;
+        teamAttendanceMap[team].departments[dept].total += record.total || 0;
+      }
+    });
+
+    console.log("Team attendance map:", Object.keys(teamAttendanceMap));
+
+    // Create directorate team data map
+    const directorateTeamMap = {};
+
+    // Process regular teams (non-virtual directorates)
+    directorateMapping.filter((d) => !d.isVirtual).forEach((dir) => {
+      dir.teams.forEach((teamName) => {
+        // Try to find matching team in attendance data
+        const teamData = teamAttendanceMap[teamName];
+        if (teamData) {
+          directorateTeamMap[teamName] = {
+            team: teamName,
+            present: teamData.present,
+            absent: teamData.absent,
+            total: teamData.total,
+          };
+        } else {
+          directorateTeamMap[teamName] = {
             team: teamName,
             present: 0,
             absent: 0,
             total: 0,
           };
         }
-
-        const totals = calculateTotals(attendance);
-        return {
-          team: teamName,
-          present: totals.find((t) => t.name === "Total present")?.stat || 0,
-          absent: totals.find((t) => t.name === "Total absent")?.stat || 0,
-          total: totals.find((t) => t.name === "Total strength")?.stat || 0,
-        };
-      } catch (error) {
-        console.error(`Error fetching attendance for team ${teamName}:`, error);
-        return {
-          team: teamName,
-          present: 0,
-          absent: 0,
-          total: 0,
-        };
-      }
+      });
     });
 
-    // Fetch virtual source teams attendance
-    const virtualTeamPromises = virtualSourceTeams.map((teamName) => 
-      fetchAdminAttendance(teamName, false)
-    );
-
-    const [regularTeamResults, ...virtualTeamResults] = await Promise.all([
-      Promise.all(regularTeamPromises),
-      ...virtualTeamPromises,
-    ]);
-
-    // Debug: Log virtual source teams and their results
-    console.log("Virtual source teams:", virtualSourceTeams);
-    console.log("Virtual team results count:", virtualTeamResults.length);
-    virtualTeamResults.forEach((result, index) => {
-      console.log(`Virtual team ${index} (${virtualSourceTeams[index]}):`, result?.length || 0, "records");
-      if (result && result.length > 0) {
-        console.log(`Sample record from ${virtualSourceTeams[index]}:`, result[0]);
-      }
-    });
-    
-    // Create a map for quick lookup of regular teams
-    const teamAttendanceMap = {};
-    regularTeamResults.forEach((result) => {
-      teamAttendanceMap[result.team] = result;
-    });
-
-    // Debug: Log regular teams
-    console.log("Regular teams attendance:", regularTeamResults);
-
-    // Process Next Gen attendance to separate Kidzone and Stir House
-    const nextGenAttendance = virtualTeamResults[0]; // First virtual team is Next Gen
+    // Process Next Gen -> Kidzone and Stir House
+    const nextGenData = teamAttendanceMap["Next Gen"];
     let kidzoneData = { team: "Kidzone", present: 0, absent: 0, total: 0 };
     let stirhouseData = { team: "Stir House", present: 0, absent: 0, total: 0 };
 
-    console.log("Next Gen attendance records:", nextGenAttendance?.length || 0);
-    
-    if (nextGenAttendance && nextGenAttendance.length > 0) {
-      nextGenAttendance.forEach((record) => {
-        const dept = record.department || "";
-        console.log("Next Gen record department:", dept, "present:", record.present, "absent:", record.absent, "total:", record.total);
-        
-        // Check if this record belongs to Kidzone
+    if (nextGenData && nextGenData.departments) {
+      Object.values(nextGenData.departments).forEach((deptData) => {
+        const dept = deptData.department || "";
         if (kidzoneDeparts.some((kd) => dept.toLowerCase().includes(kd.toLowerCase()) || kd.toLowerCase().includes(dept.toLowerCase()))) {
-          kidzoneData.present += record.present || 0;
-          kidzoneData.absent += record.absent || 0;
-          kidzoneData.total += record.total || 0;
-        }
-        // Check if this record belongs to Stirhouse
-        else if (stirhouseDepts.some((sd) => dept.toLowerCase().includes(sd.toLowerCase()) || sd.toLowerCase().includes(dept.toLowerCase()))) {
-          stirhouseData.present += record.present || 0;
-          stirhouseData.absent += record.absent || 0;
-          stirhouseData.total += record.total || 0;
+          kidzoneData.present += deptData.present || 0;
+          kidzoneData.absent += deptData.absent || 0;
+          kidzoneData.total += deptData.total || 0;
+        } else if (stirhouseDepts.some((sd) => dept.toLowerCase().includes(sd.toLowerCase()) || sd.toLowerCase().includes(dept.toLowerCase()))) {
+          stirhouseData.present += deptData.present || 0;
+          stirhouseData.absent += deptData.absent || 0;
+          stirhouseData.total += deptData.total || 0;
         }
       });
     }
+    directorateTeamMap["Kidzone"] = kidzoneData;
+    directorateTeamMap["Stir House"] = stirhouseData;
 
-    console.log("Kidzone data:", kidzoneData);
-    console.log("Stir House data:", stirhouseData);
-
-    // Add Kidzone and Stir House to the map
-    teamAttendanceMap["Kidzone"] = kidzoneData;
-    teamAttendanceMap["Stir House"] = stirhouseData;
-
-    // Process General Service attendance to separate departments
-    const generalServiceAttendance = virtualTeamResults[1]; // Second virtual team is General Service
-    
-    // Initialize General Services department data
-    const generalServicesData = {
-      "Admin and Facility": { team: "Admin and Facility", present: 0, absent: 0, total: 0 },
-      "Communications (DMU)": { team: "Communications (DMU)", present: 0, absent: 0, total: 0 },
-      "Finance": { team: "Finance", present: 0, absent: 0, total: 0 },
-    };
-
-    if (generalServiceAttendance && generalServiceAttendance.length > 0) {
-      generalServiceAttendance.forEach((record) => {
-        const dept = record.department || "";
-        
-        // Match department to the appropriate category
-        Object.keys(generalServicesDepts).forEach((key) => {
+    // Process General Service -> Admin and Facility, Communications (DMU), Finance
+    const generalServiceData = teamAttendanceMap["General Service"];
+    if (generalServiceData && generalServiceData.departments) {
+      Object.keys(generalServicesDepts).forEach((key) => {
+        let data = { team: key, present: 0, absent: 0, total: 0 };
+        Object.values(generalServiceData.departments).forEach((deptData) => {
+          const dept = deptData.department || "";
           if (generalServicesDepts[key].some((d) => 
             dept.toLowerCase().includes(d.toLowerCase()) || d.toLowerCase().includes(dept.toLowerCase())
           )) {
-            generalServicesData[key].present += record.present || 0;
-            generalServicesData[key].absent += record.absent || 0;
-            generalServicesData[key].total += record.total || 0;
+            data.present += deptData.present || 0;
+            data.absent += deptData.absent || 0;
+            data.total += deptData.total || 0;
           }
         });
+        directorateTeamMap[key] = data;
+      });
+    } else {
+      Object.keys(generalServicesDepts).forEach((key) => {
+        directorateTeamMap[key] = { team: key, present: 0, absent: 0, total: 0 };
       });
     }
 
-    // Add General Services departments to the map
-    Object.keys(generalServicesData).forEach((key) => {
-      teamAttendanceMap[key] = generalServicesData[key];
-    });
-
-    // Process Interactive Groups attendance to separate departments
-    const interactiveGroupsAttendance = virtualTeamResults[2]; // Third virtual team is Interactive Groups
-    
-    // Initialize Interactive Groups department data
-    const interactiveGroupsData = {
-      "Men of Harvest": { team: "Men of Harvest", present: 0, absent: 0, total: 0 },
-      "Singles Ministry": { team: "Singles Ministry", present: 0, absent: 0, total: 0 },
-      "Women of Wisdom": { team: "Women of Wisdom", present: 0, absent: 0, total: 0 },
-    };
-
-    if (interactiveGroupsAttendance && interactiveGroupsAttendance.length > 0) {
-      interactiveGroupsAttendance.forEach((record) => {
-        const dept = record.department || "";
-        
-        // Match department to the appropriate category
-        Object.keys(interactiveGroupsDepts).forEach((key) => {
+    // Process Interactive Groups -> Men of Harvest, Singles Ministry, Women of Wisdom
+    const interactiveGroupsData = teamAttendanceMap["Interactive Groups"];
+    if (interactiveGroupsData && interactiveGroupsData.departments) {
+      Object.keys(interactiveGroupsDepts).forEach((key) => {
+        let data = { team: key, present: 0, absent: 0, total: 0 };
+        Object.values(interactiveGroupsData.departments).forEach((deptData) => {
+          const dept = deptData.department || "";
           if (interactiveGroupsDepts[key].some((d) => 
             dept.toLowerCase().includes(d.toLowerCase()) || d.toLowerCase().includes(dept.toLowerCase())
           )) {
-            interactiveGroupsData[key].present += record.present || 0;
-            interactiveGroupsData[key].absent += record.absent || 0;
-            interactiveGroupsData[key].total += record.total || 0;
+            data.present += deptData.present || 0;
+            data.absent += deptData.absent || 0;
+            data.total += deptData.total || 0;
           }
         });
+        directorateTeamMap[key] = data;
+      });
+    } else {
+      Object.keys(interactiveGroupsDepts).forEach((key) => {
+        directorateTeamMap[key] = { team: key, present: 0, absent: 0, total: 0 };
       });
     }
 
-    // Add Interactive Groups departments to the map
-    Object.keys(interactiveGroupsData).forEach((key) => {
-      teamAttendanceMap[key] = interactiveGroupsData[key];
-    });
-
-    // Process Senior Leadership attendance to separate departments
-    const seniorLeadershipAttendance = virtualTeamResults[3]; // Fourth virtual team is Senior Leadership
-    
-    // Initialize Senior Leadership department data
-    const seniorLeadershipData = {
-      "Directional Leaders": { team: "Directional Leaders", present: 0, absent: 0, total: 0 },
-      "Pastoral Leaders": { team: "Pastoral Leaders", present: 0, absent: 0, total: 0 },
-    };
-
-    if (seniorLeadershipAttendance && seniorLeadershipAttendance.length > 0) {
-      seniorLeadershipAttendance.forEach((record) => {
-        const dept = record.department || "";
-        
-        // Match department to the appropriate category
-        Object.keys(seniorLeadershipDepts).forEach((key) => {
+    // Process Senior Leadership -> Directional Leaders, Pastoral Leaders
+    const seniorLeadershipData = teamAttendanceMap["Senior Leadership"];
+    if (seniorLeadershipData && seniorLeadershipData.departments) {
+      Object.keys(seniorLeadershipDepts).forEach((key) => {
+        let data = { team: key, present: 0, absent: 0, total: 0 };
+        Object.values(seniorLeadershipData.departments).forEach((deptData) => {
+          const dept = deptData.department || "";
           if (seniorLeadershipDepts[key].some((d) => 
             dept.toLowerCase().includes(d.toLowerCase()) || d.toLowerCase().includes(dept.toLowerCase())
           )) {
-            seniorLeadershipData[key].present += record.present || 0;
-            seniorLeadershipData[key].absent += record.absent || 0;
-            seniorLeadershipData[key].total += record.total || 0;
+            data.present += deptData.present || 0;
+            data.absent += deptData.absent || 0;
+            data.total += deptData.total || 0;
           }
         });
+        directorateTeamMap[key] = data;
+      });
+    } else {
+      Object.keys(seniorLeadershipDepts).forEach((key) => {
+        directorateTeamMap[key] = { team: key, present: 0, absent: 0, total: 0 };
       });
     }
 
-    // Add Senior Leadership departments to the map
-    Object.keys(seniorLeadershipData).forEach((key) => {
-      teamAttendanceMap[key] = seniorLeadershipData[key];
-    });
+    console.log("Directorate team map:", directorateTeamMap);
 
     // Group by directorate
     const directorateStats = directorateMapping.map((dir) => {
       const teamsData = dir.teams.map((teamName) => {
-        const teamData = teamAttendanceMap[teamName] || {
+        const teamData = directorateTeamMap[teamName] || {
           team: teamName,
           present: 0,
           absent: 0,

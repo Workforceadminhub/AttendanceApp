@@ -79,6 +79,7 @@ export default function Dashboard() {
       setAttendanceSummary(calculateTotals(filtered));
       setIsLoading(false);
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const debouncedSetActiveGroup = debounce(

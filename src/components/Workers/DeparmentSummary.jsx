@@ -15,6 +15,8 @@ import Layout from "../Layout";
 import { ADMIN_ENUMS } from "../../utils/enums";
 import ReactSelectDropdown from "../ReactSelect";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
+import { filterByUserPermissions } from "../../utils/filterByPermissions";
+import { getUser } from "../../utils/getUser";
 import { toast } from "react-toastify";
 import { debounce } from "lodash";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
@@ -27,16 +29,19 @@ export default function DepartmentSummary() {
     getDefaultSummary(routeObject)
   );
   const location = useLocation();
-  const team = getDepartmentByUser(location.pathname);
+  const pathname = location.pathname;
+  const team = getDepartmentByUser(pathname);
   const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
-  const isAdminMember = checkAdminStatus(location.pathname);
-  const options = getAdminSelectOptions(isChurchAdmin, team);
+  const isAdminMember = checkAdminStatus(pathname);
+  const authUser = getUser();
+  const options = getAdminSelectOptions(isChurchAdmin, team, authUser);
 
   const queryAdminAttendance = () => {
     setIsLoading(true);
     fetchAdminAttendance(activeGroup, isChurchAdmin)
       .then((attendance) => {
-        setAttendanceSummary(attendance);
+        const filtered = filterByUserPermissions(attendance ?? [], authUser, pathname);
+        setAttendanceSummary(filtered);
         setIsLoading(false);
       })
       .catch((error) => {
@@ -50,7 +55,8 @@ export default function DepartmentSummary() {
     setIsLoading(true);
     fetchAttendance()
       .then((attendance) => {
-        setAttendanceSummary(attendance);
+        const filtered = filterByUserPermissions(attendance ?? [], authUser, pathname);
+        setAttendanceSummary(filtered);
         setIsLoading(false);
       })
       .catch((error) => {

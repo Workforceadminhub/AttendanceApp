@@ -15,6 +15,8 @@ import { ADMIN_ENUMS } from "../../utils/enums";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
 import ReactSelectDropdown from "../ReactSelect";
 import { getAdminSelectOptions } from "../../utils/routeObject";
+import { filterByUserPermissions } from "../../utils/filterByPermissions";
+import { getUser } from "../../utils/getUser";
 import { debounce } from "lodash";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
 import ViewHistoryButton from "../ViewHistoryButton";
@@ -25,16 +27,19 @@ export default function Dashboard() {
   const [activeGroup, setActiveGroup] = useState("All");
   const dateForAttendance = getNextSunday();
   const location = useLocation();
-  const team = getDepartmentByUser(location.pathname);
+  const pathname = location.pathname;
+  const team = getDepartmentByUser(pathname);
   const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
-  const isAdminMember = checkAdminStatus(location.pathname);
-  const options = getAdminSelectOptions(isChurchAdmin, team);
+  const isAdminMember = checkAdminStatus(pathname);
+  const authUser = getUser();
+  const options = getAdminSelectOptions(isChurchAdmin, team, authUser);
 
   const queryAdminAttendance = () => {
     setIsLoading(true);
     fetchAdminAttendance(activeGroup, isChurchAdmin)
       .then((attendance) => {
-        setAttendanceSummary(calculateTotals(attendance));
+        const filtered = filterByUserPermissions(attendance ?? [], authUser, pathname);
+        setAttendanceSummary(calculateTotals(filtered));
         setIsLoading(false);
       })
       .catch((error) => {
@@ -48,7 +53,8 @@ export default function Dashboard() {
     setIsLoading(true);
     fetchAttendance()
       .then((attendance) => {
-        setAttendanceSummary(calculateTotals(attendance));
+        const filtered = filterByUserPermissions(attendance ?? [], authUser, pathname);
+        setAttendanceSummary(calculateTotals(filtered));
         setIsLoading(false);
       })
       .catch((error) => {
@@ -69,7 +75,8 @@ export default function Dashboard() {
   useEffect(() => {
     setIsLoading(true);
     fetchAttendance().then((attendance) => {
-      setAttendanceSummary(calculateTotals(attendance));
+      const filtered = filterByUserPermissions(attendance ?? [], authUser, pathname);
+      setAttendanceSummary(calculateTotals(filtered));
       setIsLoading(false);
     });
   }, []);

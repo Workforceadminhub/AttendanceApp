@@ -24,12 +24,14 @@ export default function Header() {
     ...(authUser?.department === "Super Admin" ? [{ name: "Report", href: "/report" }] : []),
     ...(authUser?.department === "Church Admin" ? [{ name: "Dashboard", href: "/attendance/dashboard" }] : []),
     ...(authUser?.department === "Church Admin" ? [{ name: "Department Overview", href: "/attendance/summary" }] : []),
+    ...(authUser?.department === "Church Admin" ? [{ name: "Attendance", href: "/attendance" }] : []),
     ...(authUser?.department === "Church Admin" ? [{ name: "Workers", href: "/church-admin/workers" }] : []),
-    // Show Dashboard and Department Overview for normal admin users (not Super Admin or Church Admin)
+    // Show Dashboard, Department Overview and Attendance for normal admin users (not Super Admin or Church Admin)
     ...(authUser?.department !== "Super Admin" && authUser?.department !== "Church Admin" && authUser?.department
       ? [
           { name: "Dashboard", href: authUser?.route ? `/dashboard${authUser.route}` : "/attendance/dashboard" },
           { name: "Department Overview", href: authUser?.route ? `/summary${authUser.route}` : "/attendance/summary" },
+          { name: "Attendance", href: authUser?.route ? `/attendance${authUser.route}` : "/attendance" },
         ]
       : []),
   ];
@@ -42,12 +44,14 @@ export default function Header() {
     ...(authUser?.department === "Super Admin" ? [{ name: "Report", href: "/report" }] : []),
     ...(authUser?.department === "Church Admin" ? [{ name: "Dashboard", href: "/attendance/dashboard" }] : []),
     ...(authUser?.department === "Church Admin" ? [{ name: "Department Overview", href: "/attendance/summary" }] : []),
+    ...(authUser?.department === "Church Admin" ? [{ name: "Attendance", href: "/attendance" }] : []),
     ...(authUser?.department === "Church Admin" ? [{ name: "Workers", href: "/church-admin/workers" }] : []),
-    // Show Dashboard and Department Overview for normal admin users (not Super Admin or Church Admin)
+    // Show Dashboard, Department Overview and Attendance for normal admin users (not Super Admin or Church Admin)
     ...(authUser?.department !== "Super Admin" && authUser?.department !== "Church Admin" && authUser?.department
       ? [
           { name: "Dashboard", href: authUser?.route ? `/dashboard${authUser.route}` : "/attendance/dashboard" },
           { name: "Department Overview", href: authUser?.route ? `/summary${authUser.route}` : "/attendance/summary" },
+          { name: "Attendance", href: authUser?.route ? `/attendance${authUser.route}` : "/attendance" },
         ]
       : []),
   ];
@@ -57,10 +61,15 @@ export default function Header() {
       ? adminNavigation
       : nav;
 
-  // Determine the home/landing page based on user role
-  const homePage = authUser?.department === "Super Admin" 
-    ? "/overview/super-admin" 
-    : "/dashboard";
+  // Determine the home/landing page based on user role (logo link - must be a valid route)
+  const homePage =
+    authUser?.department === "Super Admin"
+      ? "/overview/super-admin"
+      : authUser?.department === "Church Admin"
+        ? "/attendance/dashboard"
+        : authUser?.route
+          ? `/dashboard${authUser.route}`
+          : "/attendance/dashboard";
 
   return (
     <header className="bg-white">

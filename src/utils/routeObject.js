@@ -147,16 +147,34 @@ export const historyRoutes = Array.from(
   )
 );
 
-export const getAdminSelectOptions = (isChurchAdmin, team) => {
+/**
+ * @param {boolean} isChurchAdmin
+ * @param {object} team - { team, department }
+ * @param {object} [authUser] - Optional. If has permissions array, options are filtered to those departments only (for non-Super Admin).
+ */
+export const getAdminSelectOptions = (isChurchAdmin, team, authUser) => {
   const isSuperAdmin = team.department === "Super Admin";
-  const options = (isChurchAdmin || isSuperAdmin)
-    ? Array.from(new Set(routeObject.map((item) => item.team))).map((team) => ({
-        value: team,
-        label: team,
+  const permissions = authUser?.permissions;
+  const filterByPermissions = Array.isArray(permissions) && permissions.length > 0 && !isSuperAdmin;
+
+  let options = (isChurchAdmin || isSuperAdmin)
+    ? Array.from(new Set(routeObject.map((item) => item.team))).map((t) => ({
+        value: t,
+        label: t,
       }))
     : routeObject
         .filter((item) => item.team === team.department)
         .map((item) => ({ value: item.department, label: item.department }));
+
+  if (filterByPermissions) {
+    const allowed = new Set(permissions);
+    options = (isChurchAdmin || isSuperAdmin)
+      ? options.filter((opt) => {
+          const deptsInTeam = routeObject.filter((item) => item.team === opt.value).map((d) => d.department);
+          return deptsInTeam.some((d) => allowed.has(d));
+        })
+      : options.filter((opt) => allowed.has(opt.value));
+  }
 
   return options;
 };

@@ -26,15 +26,20 @@ export const addAttendance = async (attendance) => {
 export const fetchAdminAttendance = async (
   activeGroup,
   isChurchAdmin,
-  activeDate
+  activeDate,
+  permissions = []
 ) => {
   const dateForAttendance = activeDate || getNextSunday();
   try {
-    const response = await apiRequest("GET", "/api/attendance/admin", {
+    const params = {
       activeGroup,
       activeDate: dateForAttendance,
       isChurchAdmin,
-    });
+    };
+    if (Array.isArray(permissions) && permissions.length > 0) {
+      params.permissions = permissions;
+    }
+    const response = await apiRequest("GET", "/api/attendance/admin", params);
 
     if (!response || response.error) {
       throw new Error(response?.error || "Failed to fetch admin attendance");
@@ -47,14 +52,15 @@ export const fetchAdminAttendance = async (
   }
 };
 
-export const fetchAttendance = async (activeDate) => {
+export const fetchAttendance = async (activeDate, permissions = []) => {
   const dateForAttendance = activeDate || getNextSunday();
-  // force merge
 
   try {
-    const response = await apiRequest("GET", "/api/attendance", {
-      activeDate: dateForAttendance,
-    });
+    const params = { activeDate: dateForAttendance };
+    if (Array.isArray(permissions) && permissions.length > 0) {
+      params.permissions = permissions;
+    }
+    const response = await apiRequest("GET", "/api/attendance", params);
 
     if (!response || response.error) {
       throw new Error(response?.error || "Failed to fetch attendance");

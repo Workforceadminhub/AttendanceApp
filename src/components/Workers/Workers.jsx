@@ -235,7 +235,8 @@ export default function Workers() {
 
   const queryWorkers = (search = "") => {
     setIsLoading(true);
-    fetchWorkers(team.department, search)
+    const permissions = authUser?.permissions ?? [];
+    fetchWorkers(team.department, dateForAttendance, permissions, search)
       .then((res) => {
         setData(res);
         setIsLoading(false);

@@ -38,7 +38,8 @@ export default function DepartmentSummary() {
 
   const queryAdminAttendance = () => {
     setIsLoading(true);
-    fetchAdminAttendance(activeGroup, isChurchAdmin)
+    const permissions = authUser?.permissions ?? [];
+    fetchAdminAttendance(activeGroup, isChurchAdmin, undefined, permissions)
       .then((attendance) => {
         const filtered = filterByUserPermissions(attendance ?? [], authUser, pathname);
         setAttendanceSummary(filtered);
@@ -53,7 +54,8 @@ export default function DepartmentSummary() {
 
   const queryAttendance = () => {
     setIsLoading(true);
-    fetchAttendance()
+    const permissions = authUser?.permissions ?? [];
+    fetchAttendance(undefined, permissions)
       .then((attendance) => {
         const filtered = filterByUserPermissions(attendance ?? [], authUser, pathname);
         setAttendanceSummary(filtered);

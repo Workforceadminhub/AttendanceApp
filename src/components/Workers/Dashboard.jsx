@@ -36,7 +36,8 @@ export default function Dashboard() {
 
   const queryAdminAttendance = () => {
     setIsLoading(true);
-    fetchAdminAttendance(activeGroup, isChurchAdmin)
+    const permissions = authUser?.permissions ?? [];
+    fetchAdminAttendance(activeGroup, isChurchAdmin, undefined, permissions)
       .then((attendance) => {
         const filtered = filterByUserPermissions(attendance ?? [], authUser, pathname);
         setAttendanceSummary(calculateTotals(filtered));
@@ -51,7 +52,8 @@ export default function Dashboard() {
 
   const queryAttendance = () => {
     setIsLoading(true);
-    fetchAttendance()
+    const permissions = authUser?.permissions ?? [];
+    fetchAttendance(undefined, permissions)
       .then((attendance) => {
         const filtered = filterByUserPermissions(attendance ?? [], authUser, pathname);
         setAttendanceSummary(calculateTotals(filtered));
@@ -74,7 +76,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     setIsLoading(true);
-    fetchAttendance().then((attendance) => {
+    const permissions = authUser?.permissions ?? [];
+    fetchAttendance(undefined, permissions).then((attendance) => {
       const filtered = filterByUserPermissions(attendance ?? [], authUser, pathname);
       setAttendanceSummary(calculateTotals(filtered));
       setIsLoading(false);

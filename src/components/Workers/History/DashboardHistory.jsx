@@ -12,6 +12,7 @@ import {
   fetchAdminAttendance,
   fetchAttendance,
 } from "../../../services/attendance";
+import { getUser } from "../../../utils/getUser";
 import { fetchHistoryOptions } from "../../../services/history";
 import { DEBOUNCE_INTERVAL } from "../../../utils/constants";
 import Header from "../../Header";
@@ -29,13 +30,15 @@ export default function DashboardHistory() {
   const team = getDepartmentByUser(location.pathname);
   const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
   const isAdminMember = checkAdminStatus(location.pathname);
-  const options = getAdminSelectOptions(isChurchAdmin, team);
+  const authUser = getUser();
+  const options = getAdminSelectOptions(isChurchAdmin, team, authUser);
   const [activeHistory, setActiveHistory] = useState(dateForAttendance);
   const [historyOptions, setHistoryOptions] = useState([]);
 
   const queryAdminAttendance = () => {
     setIsLoading(true);
-    fetchAdminAttendance(activeGroup, isChurchAdmin, activeHistory)
+    const permissions = authUser?.permissions ?? [];
+    fetchAdminAttendance(activeGroup, isChurchAdmin, activeHistory, permissions)
       .then((attendance) => {
         setAttendanceSummary(calculateTotals(attendance));
         setIsLoading(false);
@@ -49,7 +52,8 @@ export default function DashboardHistory() {
 
   const queryAttendance = () => {
     setIsLoading(true);
-    fetchAttendance(activeHistory)
+    const permissions = authUser?.permissions ?? [];
+    fetchAttendance(activeHistory, permissions)
       .then((attendance) => {
         setAttendanceSummary(calculateTotals(attendance));
         setIsLoading(false);
@@ -71,7 +75,8 @@ export default function DashboardHistory() {
 
   useEffect(() => {
     setIsLoading(true);
-    fetchAttendance().then((attendance) => {
+    const permissions = authUser?.permissions ?? [];
+    fetchAttendance(undefined, permissions).then((attendance) => {
       setAttendanceSummary(calculateTotals(attendance));
       setIsLoading(false);
     });

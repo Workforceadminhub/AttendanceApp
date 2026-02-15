@@ -22,7 +22,7 @@ import { debounce } from "lodash";
 import ViewHistoryButton from "../ViewHistoryButton";
 import { TrashIcon } from "@heroicons/react/24/outline";
 import Modal from "../Modal";
-// import { getUser } from "../../utils/getUser";
+import { getUser } from "../../utils/getUser";
 import LoadingState from "../LoadingState";
 
 // Separate component for the attendance dropdown to reduce duplication
@@ -69,7 +69,8 @@ export default function DepartmentAttendance() {
   const team = getDepartmentByUser(location.pathname);
   const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
   const isAdminMember = checkAdminStatus(location.pathname);
-  const optionsAdmin = getAdminSelectOptions(isChurchAdmin, team);
+  const authUser = getUser();
+  const optionsAdmin = getAdminSelectOptions(isChurchAdmin, team, authUser);
   const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [workerId, setWorkerId] = useState(0);
@@ -124,7 +125,8 @@ export default function DepartmentAttendance() {
 
   const queryWorkers = () => {
     setIsLoading(true);
-    fetchWorkers(team.department)
+    const permissions = authUser?.permissions ?? [];
+    fetchWorkers(team.department, dateForAttendance, permissions, "")
       .then((res) => {
         setData(sortWorkersById(res));
         setIsLoading(false);

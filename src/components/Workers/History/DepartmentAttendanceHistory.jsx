@@ -8,6 +8,7 @@ import { ADMIN_ENUMS } from "../../../utils/enums";
 import { checkAdminStatus } from "../../../utils/checkAdminStatus";
 import { getAdminSelectOptions } from "../../../utils/routeObject";
 import { fetchAdminWorkers, fetchWorkers } from "../../../services/workers";
+import { getUser } from "../../../utils/getUser";
 import { switchOffAttendance } from "../../../utils/switchOffAttendance";
 import { addAttendance } from "../../../services/attendance";
 import Header from "../../Header";
@@ -33,7 +34,8 @@ export default function DepartmentAttendanceHistory() {
   const team = getDepartmentByUser(location.pathname);
   const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
   const isAdminMember = checkAdminStatus(location.pathname);
-  const optionsAdmin = getAdminSelectOptions(isChurchAdmin, team);
+  const authUser = getUser();
+  const optionsAdmin = getAdminSelectOptions(isChurchAdmin, team, authUser);
   const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
   const [historyOptions, setHistoryOptions] = useState([]);
 
@@ -72,7 +74,8 @@ export default function DepartmentAttendanceHistory() {
 
   const queryWorkers = () => {
     setIsLoading(true);
-    fetchWorkers(team.department, activeHistory)
+    const permissions = authUser?.permissions ?? [];
+    fetchWorkers(team.department, activeHistory, permissions, "")
       .then((res) => {
         setData(res);
       })

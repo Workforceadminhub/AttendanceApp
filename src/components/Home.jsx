@@ -8,9 +8,15 @@ export default function Home() {
   const authUser = getUser();
 
   useEffect(() => {
-    // Redirect Super Admin to workers page if logged in
-    if (authUser?.department === "Super Admin") {
-      navigate("/workers/super-admin", { replace: true });
+    // Redirect logged-in users to their dashboard
+    if (authUser) {
+      if (authUser.department === "Super Admin") {
+        navigate("/overview/super-admin", { replace: true });
+      } else if (authUser.route) {
+        navigate(`/dashboard${authUser.route}`, { replace: true });
+      } else {
+        navigate("/attendance/dashboard", { replace: true });
+      }
     }
   }, [authUser, navigate]);
 

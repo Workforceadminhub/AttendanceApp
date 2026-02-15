@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { getNextSunday } from "../utils/getDate";
 import apiRequest from "../utils/apiClient";
+import { resolveDepartmentParams } from "../utils/routeObject";
 // import { WORKER_STATUS } from "../utils/enums";
 
 export const fetchWorkers = async (department, activeDate, search = "") => {
@@ -24,8 +25,7 @@ export const fetchWorkers = async (department, activeDate, search = "") => {
 
     return response.data;
   } catch (error) {
-    // Silent error handling
-    return null; // You can return null or handle errors differently
+    throw error;
   }
 };
 
@@ -41,8 +41,7 @@ export const fetchUnmarkedWorkers = async (team, activeDate) => {
     }
     return response.data;
   } catch (error) {
-    // Silent error handling
-    return null; // You can return null or handle errors differently
+    throw error;
   }
 };
 
@@ -66,8 +65,7 @@ export const fetchAdminWorkers = async (team, activeGroup, activeDate, search = 
     }
     return response.data;
   } catch (error) {
-    // Silent error handling
-    return null; // You can return null or handle errors differently
+    throw error;
   }
 };
 
@@ -100,116 +98,187 @@ export const removeWorker = async (workerid, deleteData) => {
   }
 };
 
-export const fetchPendingAdd = async (page = 1, limit = 100) => {
+const PENDING_EMPTY_RESPONSE = { data: [], pagination: { page: 1, limit: 100, total: 0, totalPages: 0, hasNext: false, hasPrev: false } };
+
+const filterByStatus = (workers, status) => {
+  if (status === "PENDING_ADD") {
+    return workers.filter(
+      (w) =>
+        w.status === "PENDING_ADD" ||
+        w.status === "pending_add" ||
+        w.status === "unknown" ||
+        !w.status
+    );
+  }
+  return workers.filter(
+    (w) =>
+      w.status === "PENDING_DELETE" || w.status === "pending_delete"
+  );
+};
+
+const fetchPendingWorkers = async (status, page = 1, limit = 100) => {
   try {
-    console.log("fetchPendingAdd called with:", { page, limit });
-    const accessToken = sessionStorage.getItem("accessToken");
-    
-    // Use the working endpoint directly
-    const endpoint = `https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/workers?status=PENDING_ADD&limit=${limit}&page=${page}&sortBy=team`;
-    
-    const response = await fetch(endpoint, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
+    const result = await apiRequest("GET", "/api/super/admin/workers", {
+      status,
+      limit,
+      page,
+      sortBy: "team",
     });
 
-    if (response.ok) {
-      const result = await response.json();
-      
-      // Handle different response structures
-      let workers = [];
-      if (result.data && Array.isArray(result.data)) {
-        workers = result.data;
-      } else if (Array.isArray(result)) {
-        workers = result;
-      } else if (result.data && result.data.data && Array.isArray(result.data.data)) {
-        workers = result.data.data;
-      }
-      
-      const pendingWorkers = workers.filter(worker => 
-        worker.status === 'PENDING_ADD' || 
-        worker.status === 'pending_add' || 
-        worker.status === 'unknown' ||
-        !worker.status
-      );
-      
-      return {
-        data: pendingWorkers,
-        pagination: result.pagination || {
-          page: page,
-          limit: limit,
-          total: result.data?.length || pendingWorkers.length,
-          totalPages: Math.ceil((result.data?.length || pendingWorkers.length) / limit),
-          hasNext: page < Math.ceil((result.data?.length || pendingWorkers.length) / limit),
-          hasPrev: page > 1,
-        }
-      };
+    let workers = [];
+    if (result?.data && Array.isArray(result.data)) {
+      workers = result.data;
+    } else if (Array.isArray(result)) {
+      workers = result;
+    } else if (result?.data?.data && Array.isArray(result.data.data)) {
+      workers = result.data.data;
     }
-    
-    return { data: [], pagination: { page: 1, limit: 100, total: 0, totalPages: 0, hasNext: false, hasPrev: false } };
+
+    const pendingWorkers = filterByStatus(workers, status);
+    return {
+      data: pendingWorkers,
+      pagination: result?.pagination || {
+        page,
+        limit,
+        total: result?.data?.length ?? pendingWorkers.length,
+        totalPages: Math.ceil((result?.data?.length ?? pendingWorkers.length) / limit),
+        hasNext: page < Math.ceil((result?.data?.length ?? pendingWorkers.length) / limit),
+        hasPrev: page > 1,
+      },
+    };
   } catch (error) {
-    console.error("Error fetching pending add workers:", error);
-    return { data: [], pagination: { page: 1, limit: 100, total: 0, totalPages: 0, hasNext: false, hasPrev: false } };
+    return PENDING_EMPTY_RESPONSE;
   }
 };
 
-export const fetchPendingRemove = async (page = 1, limit = 100) => {
-  try {
-    console.log("fetchPendingRemove called with:", { page, limit });
-    const accessToken = sessionStorage.getItem("accessToken");
-    
-    // Use the working endpoint directly
-    const endpoint = `https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/workers?status=PENDING_DELETE&limit=${limit}&page=${page}&sortBy=team`;
-    
-    const response = await fetch(endpoint, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-    });
+export const fetchPendingAdd = (page = 1, limit = 100) =>
+  fetchPendingWorkers("PENDING_ADD", page, limit);
 
-    if (response.ok) {
-      const result = await response.json();
-      
-      // Handle different response structures
-      let workers = [];
-      if (result.data && Array.isArray(result.data)) {
-        workers = result.data;
-      } else if (Array.isArray(result)) {
-        workers = result;
-      } else if (result.data && result.data.data && Array.isArray(result.data.data)) {
-        workers = result.data.data;
-      }
-      
-      // Filter for pending remove workers
-      const pendingWorkers = workers.filter(worker => 
-        worker.status === 'PENDING_DELETE' || 
-        worker.status === 'pending_delete'
-      );
-      
-      return {
-        data: pendingWorkers,
-        pagination: result.pagination || {
-          page: page,
-          limit: limit,
-          total: result.data?.length || pendingWorkers.length,
-          totalPages: Math.ceil((result.data?.length || pendingWorkers.length) / limit),
-          hasNext: page < Math.ceil((result.data?.length || pendingWorkers.length) / limit),
-          hasPrev: page > 1,
-        }
-      };
+export const fetchPendingRemove = (page = 1, limit = 100) =>
+  fetchPendingWorkers("PENDING_DELETE", page, limit);
+
+
+// ========== Phase 7 - New Worker Functions ==========
+
+/**
+ * Fetches attendance history for a specific worker within a date range.
+ * Phase 7 spec: GET /api/workers/:workerId/attendance-history?startDate&endDate
+ * @param {string} workerId - The worker's unique ID
+ * @param {string} startDate - ISO date string for range start
+ * @param {string} endDate - ISO date string for range end
+ * @returns {Promise<Object|null>} Worker attendance history or null on error
+ */
+export const fetchWorkerAttendanceHistory = async (workerId, startDate, endDate) => {
+  try {
+    const params = {};
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    const response = await apiRequest("GET", `/api/workers/${workerId}/attendance-history`, params);
+
+    if (!response || response.error) {
+      throw new Error(response?.error || "Failed to fetch worker attendance history");
     }
-    
-    return { data: [], pagination: { page: 1, limit: 100, total: 0, totalPages: 0, hasNext: false, hasPrev: false } };
+
+    return response.data ?? response;
   } catch (error) {
-    console.error("Error fetching pending remove workers:", error);
-    return { data: [], pagination: { page: 1, limit: 100, total: 0, totalPages: 0, hasNext: false, hasPrev: false } };
+    throw error;
   }
 };
+
+/**
+ * Fetches inactive workers (attendance below threshold).
+ * Phase 7 spec: GET /api/analytics/inactive-workers?threshold&departmentRoute&teamName
+ * @param {string} [department] - Department name, team name, or "All"
+ * @param {number} [threshold=60] - Attendance percentage threshold (workers below this are inactive)
+ * @returns {Promise<Object|null>} { count, threshold, inactiveWorkers } or null on error
+ */
+export const fetchInactiveWorkers = async (department, threshold = 60) => {
+  try {
+    const { departmentRoute, teamName } = resolveDepartmentParams(department || "All");
+    const params = { threshold };
+    if (departmentRoute) params.departmentRoute = departmentRoute;
+    if (teamName) params.teamName = teamName;
+    const response = await apiRequest("GET", "/api/analytics/inactive-workers", params);
+
+    if (!response || response.error) {
+      throw new Error(response?.error || "Failed to fetch inactive workers");
+    }
+
+    const data = response.data ?? response;
+    if (Array.isArray(data)) {
+      return { count: data.length, threshold, inactiveWorkers: data };
+    }
+    return data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Fetches top/bottom performers (attendance leaderboard).
+ * Phase 7 spec: GET /api/analytics/attendance-leaderboard?departmentRoute&teamName&limit&startDate&endDate
+ * @param {string} [department] - Department name, team name, or "All"
+ * @param {string} [startDate] - ISO date string for range start
+ * @param {string} [endDate] - ISO date string for range end
+ * @param {number} [limit=3] - Number of performers per section
+ * @returns {Promise<Object|null>} { topPerformers: [], bottomPerformers: [] } or null on error
+ */
+export const fetchTopPerformers = async (department, startDate, endDate, limit = 3) => {
+  try {
+    const { departmentRoute, teamName } = resolveDepartmentParams(department || "All");
+    const params = { limit };
+    if (departmentRoute) params.departmentRoute = departmentRoute;
+    if (teamName) params.teamName = teamName;
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    const response = await apiRequest("GET", "/api/analytics/attendance-leaderboard", params);
+
+    if (!response || response.error) {
+      throw new Error(response?.error || "Failed to fetch leaderboard");
+    }
+
+    const data = response.data ?? response;
+    if (data.topPerformers !== undefined) return data;
+    if (data.top !== undefined) {
+      return { topPerformers: data.top, bottomPerformers: data.bottom ?? [] };
+    }
+    return data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Fetches workers with birthdays.
+ * Phase 7 spec: GET /api/workers/birthdays?departmentRoute&teamName
+ * Returns { today: [], upcoming: [] } with today/upcoming (next 30 days)
+ * @param {string} [department] - Department name, team name, or "All"
+ * @returns {Promise<Object|null>} { today: [], upcoming: [] } or null on error
+ */
+export const fetchBirthdays = async (department) => {
+  try {
+    const { departmentRoute, teamName } = resolveDepartmentParams(department || "All");
+    const params = {};
+    if (departmentRoute) params.departmentRoute = departmentRoute;
+    if (teamName) params.teamName = teamName;
+    const response = await apiRequest("GET", "/api/workers/birthdays", params);
+
+    if (!response || response.error) {
+      throw new Error(response?.error || "Failed to fetch birthdays");
+    }
+
+    const data = response.data ?? response;
+    if (data.today !== undefined) return data;
+    if (Array.isArray(data)) {
+      return { today: [], upcoming: data };
+    }
+    return data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// ========== End Phase 7 - New Worker Functions ==========
 
 
 export const useFetchWorkers = (department) => {

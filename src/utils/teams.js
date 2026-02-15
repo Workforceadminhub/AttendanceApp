@@ -1,3 +1,19 @@
+/**
+ * Normalize worker role for backend compatibility (case-sensitive values).
+ * Converts "Pastoral Leader(s)" and "Directional Leader(s)" to plural form.
+ */
+export const normalizeWorkerRole = (role) => {
+  if (!role || typeof role !== "string") return role;
+  const roleLower = role.toLowerCase().trim();
+  if (roleLower === "pastoral leader" || roleLower === "pastoral leaders") {
+    return "Pastoral Leaders";
+  }
+  if (roleLower === "directional leader" || roleLower === "directional leaders") {
+    return "Directional Leaders";
+  }
+  return role;
+};
+
 export const teams = [
   {
     label: "Maturity (Prayer, Midweek)",

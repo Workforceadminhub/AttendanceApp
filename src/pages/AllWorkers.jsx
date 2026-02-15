@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 import LoadingState from "../components/LoadingState";
 import { EyeIcon, ArrowUpIcon, ArrowDownIcon } from "@heroicons/react/24/outline";
 import { saveAs } from "file-saver";
+import apiRequest from "../utils/apiClient";
 
 export default function AllWorkers() {
   const navigate = useNavigate();
@@ -45,34 +46,9 @@ export default function AllWorkers() {
   const fetchAllWorkers = async () => {
     setIsLoading(true);
     try {
-      const accessToken = sessionStorage.getItem("accessToken");
-      
-      if (!accessToken) {
-        throw new Error("No access token found. Please log in again.");
-      }
-
-      // Fetch all workers with a large limit
-      const url = `https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/workers?limit=10000`;
-
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
+      const result = await apiRequest("GET", "/api/super/admin/workers", {
+        limit: 10000,
       });
-
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ message: "Unknown error occurred" }));
-        throw new Error(
-          errorData.message ||
-            `HTTP ${response.status}: Failed to fetch workers`
-        );
-      }
-
-      const result = await response.json();
 
       // Handle different response structures
       let workersData = [];
@@ -87,7 +63,6 @@ export default function AllWorkers() {
       setAllWorkers(workersData);
       setFilteredWorkers(workersData);
     } catch (error) {
-      console.error("Error fetching all workers:", error);
       toast.error("Failed to fetch workers");
       setAllWorkers([]);
       setFilteredWorkers([]);
@@ -248,7 +223,6 @@ export default function AllWorkers() {
 
       toast.success(`Exported ${filteredWorkers.length} worker(s) to CSV`);
     } catch (error) {
-      console.error("CSV export failed:", error);
       toast.error("Failed to export workers to CSV");
     }
   };

@@ -14,7 +14,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { fetchOverviewData } from "../services/overview";
+import { fetchWorkerStats, fetchAttendanceData } from "../services/overview";
 import { enableAttendance } from "../services/enableAttendance";
 import { disableAttendance } from "../services/disableAttendance";
 import {
@@ -38,15 +38,25 @@ const BAR_COLORS = {
 
 export default function SuperAdminOverview() {
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(true);
-  const [overviewData, setOverviewData] = useState(null);
+  // Progressive loading: split into section-level loading states
+  const [isWorkersLoading, setIsWorkersLoading] = useState(true);
+  const [isAttendanceLoading, setIsAttendanceLoading] = useState(true);
+  const [workerData, setWorkerData] = useState(null);
+  const [attendanceInfo, setAttendanceInfo] = useState(null);
   const [activeTab, setActiveTab] = useState("team"); // 'team' or 'department'
   const [sortConfig, setSortConfig] = useState({ key: "total", direction: "desc" });
   
-  // Attendance control state
-  const [attendanceEnabled, setAttendanceEnabled] = useState(false);
+  // Attendance control state (persist to localStorage so status survives page refresh)
+  const [attendanceEnabled, setAttendanceEnabled] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("attendanceEnabled") || "false");
+    } catch {
+      return false;
+    }
+  });
   const [isTogglingAttendance, setIsTogglingAttendance] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+
 
   // Check if user is super admin
   useEffect(() => {
@@ -58,22 +68,37 @@ export default function SuperAdminOverview() {
     }
   }, [navigate]);
 
-  // Fetch overview data
+  // Progressive loading: fetch workers and attendance data independently
+  // Workers data doesn't depend on date range, so only fetch once on mount
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
+    const loadWorkers = async () => {
+      setIsWorkersLoading(true);
       try {
-        const data = await fetchOverviewData();
-        setOverviewData(data);
+        const data = await fetchWorkerStats();
+        setWorkerData(data);
       } catch (error) {
-        console.error("Error loading overview data:", error);
-        toast.error("Failed to load overview data");
+        toast.error("Failed to load worker data");
       } finally {
-        setIsLoading(false);
+        setIsWorkersLoading(false);
       }
     };
+    loadWorkers();
+  }, []);
 
-    loadData();
+  // Attendance data always uses the current Sunday (via getNextSunday fallback)
+  useEffect(() => {
+    const loadAttendance = async () => {
+      setIsAttendanceLoading(true);
+      try {
+        const data = await fetchAttendanceData();
+        setAttendanceInfo(data);
+      } catch (error) {
+        toast.error("Failed to load attendance data");
+      } finally {
+        setIsAttendanceLoading(false);
+      }
+    };
+    loadAttendance();
   }, []);
 
   // Handle sorting
@@ -141,21 +166,22 @@ export default function SuperAdminOverview() {
     </div>
   );
 
-  // Handle attendance toggle
+  // Handle attendance toggle (persist to localStorage)
   const handleAttendanceToggle = async () => {
     setIsTogglingAttendance(true);
     try {
       if (attendanceEnabled) {
         await disableAttendance();
         setAttendanceEnabled(false);
+        localStorage.setItem("attendanceEnabled", "false");
         toast.success("Attendance has been disabled successfully");
       } else {
         await enableAttendance();
         setAttendanceEnabled(true);
+        localStorage.setItem("attendanceEnabled", "true");
         toast.success("Attendance has been enabled successfully");
       }
     } catch (error) {
-      console.error("Error toggling attendance:", error);
       toast.error(`Failed to ${attendanceEnabled ? "disable" : "enable"} attendance`);
     } finally {
       setIsTogglingAttendance(false);
@@ -225,21 +251,10 @@ export default function SuperAdminOverview() {
     </div>
   );
 
-  if (isLoading) {
-    return (
-      <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-        <Header />
-        <Layout>
-          <div className="flex items-center justify-center min-h-[60vh]">
-            <LoadingState />
-          </div>
-        </Layout>
-      </div>
-    );
-  }
-
-  const { overallStats, teamStats, departmentStats, teamChartData, attendanceStats, directorateStats, grandTotals } =
-    overviewData || {};
+  // Destructure worker data
+  const { overallStats, teamStats, departmentStats, teamChartData } = workerData || {};
+  // Destructure attendance data
+  const { attendanceStats, directorateStats, grandTotals } = attendanceInfo || {};
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-8 bg-gray-50 min-h-screen">
@@ -302,48 +317,59 @@ export default function SuperAdminOverview() {
           {/* Confirmation Modal */}
           {showConfirmModal && <ConfirmationModal />}
 
-          {/* Metric Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
-            <MetricCard
-              title="Total Workforce"
-              value={overallStats?.totalWorkers || 0}
-              icon={UsersIcon}
-              color="bg-blue-500"
-            />
-            <MetricCard
-              title="Present Workers"
-              value={attendanceStats?.totalPresent || 0}
-              icon={CheckCircleIcon}
-              color="bg-green-500"
-              subtext={attendanceStats?.lastAttendanceDate || ""}
-            />
-            <MetricCard
-              title="% of Present"
-              value={attendanceStats?.attendanceRate || "0%"}
-              icon={ChartBarIcon}
-              color="bg-teal-500"
-              subtext={attendanceStats?.lastAttendanceDate || ""}
-            />
-            <MetricCard
-              title="Absent Workers"
-              value={attendanceStats?.totalAbsent || 0}
-              icon={ClockIcon}
-              color="bg-gray-500"
-              subtext={attendanceStats?.lastAttendanceDate || ""}
-            />
-            <MetricCard
-              title="Pending Approvals"
-              value={overallStats?.pendingApprovals || 0}
-              icon={UserPlusIcon}
-              color="bg-yellow-500"
-            />
-            <MetricCard
-              title="Pending Deletions"
-              value={overallStats?.pendingDeletions || 0}
-              icon={UserMinusIcon}
-              color="bg-red-500"
-            />
-          </div>
+          {/* Metric Cards — show spinners per section until data loads */}
+          {isWorkersLoading || isAttendanceLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-2/3 mb-4"></div>
+                  <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+              <MetricCard
+                title="Total Workforce"
+                value={overallStats?.totalWorkers || 0}
+                icon={UsersIcon}
+                color="bg-blue-500"
+              />
+              <MetricCard
+                title="Present Workers"
+                value={attendanceStats?.totalPresent || 0}
+                icon={CheckCircleIcon}
+                color="bg-green-500"
+                subtext={attendanceStats?.lastAttendanceDate || ""}
+              />
+              <MetricCard
+                title="% of Present"
+                value={attendanceStats?.attendanceRate || "0%"}
+                icon={ChartBarIcon}
+                color="bg-teal-500"
+                subtext={attendanceStats?.lastAttendanceDate || ""}
+              />
+              <MetricCard
+                title="Absent Workers"
+                value={attendanceStats?.totalAbsent || 0}
+                icon={ClockIcon}
+                color="bg-gray-500"
+                subtext={attendanceStats?.lastAttendanceDate || ""}
+              />
+              <MetricCard
+                title="Pending Approvals"
+                value={overallStats?.pendingApprovals || 0}
+                icon={UserPlusIcon}
+                color="bg-yellow-500"
+              />
+              <MetricCard
+                title="Pending Deletions"
+                value={overallStats?.pendingDeletions || 0}
+                icon={UserMinusIcon}
+                color="bg-red-500"
+              />
+            </div>
+          )}
 
           {/* Directorate Attendance Section */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200">
@@ -352,110 +378,115 @@ export default function SuperAdminOverview() {
                 Attendance Report ({attendanceStats?.lastAttendanceDate || ""})
               </h3>
             </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Directorate
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Teams
-                    </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Team Strength
-                    </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Present
-                    </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      % of Present
-                    </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Absent
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {directorateStats?.map((directorate, dirIndex) => {
-                    // Alternating background colors for directorates
-                    const directorateColors = [
-                      "bg-blue-50",
-                      "bg-green-50", 
-                      "bg-yellow-50",
-                      "bg-purple-50",
-                      "bg-pink-50",
-                      "bg-indigo-50",
-                      "bg-orange-50",
-                      "bg-teal-50",
-                    ];
-                    const bgColor = directorateColors[dirIndex % directorateColors.length];
-                    
-                    return directorate.teams.map((team, teamIndex) => (
-                      <tr key={`${directorate.directorate}-${team.team}`} className={`${bgColor} hover:opacity-80`}>
-                        <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
-                          {teamIndex === 0 ? directorate.directorate : ""}
+            {isAttendanceLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <LoadingState />
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Directorate
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Teams
+                      </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Team Strength
+                      </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Present
+                      </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        % of Present
+                      </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Absent
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {directorateStats?.map((directorate, dirIndex) => {
+                      const directorateColors = [
+                        "bg-blue-50",
+                        "bg-green-50",
+                        "bg-yellow-50",
+                        "bg-purple-50",
+                        "bg-pink-50",
+                        "bg-indigo-50",
+                        "bg-orange-50",
+                        "bg-teal-50",
+                      ];
+                      const bgColor = directorateColors[dirIndex % directorateColors.length];
+
+                      return directorate.teams.map((team, teamIndex) => (
+                        <tr key={`${directorate.directorate}-${team.team}`} className={`${bgColor} hover:opacity-80`}>
+                          <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
+                            {teamIndex === 0 ? directorate.directorate : ""}
+                          </td>
+                          <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
+                            {team.team}
+                          </td>
+                          <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-900 text-center font-medium">
+                            {team.total}
+                          </td>
+                          <td className="px-6 py-3 whitespace-nowrap text-center">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              {team.present}
+                            </span>
+                          </td>
+                          <td className="px-6 py-3 whitespace-nowrap text-center">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              {team.percentage}
+                            </span>
+                          </td>
+                          <td className="px-6 py-3 whitespace-nowrap text-center">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                              {team.absent}
+                            </span>
+                          </td>
+                        </tr>
+                      ));
+                    })}
+                    {/* Grand Total Row */}
+                    {grandTotals && (
+                      <tr className="bg-gray-100 font-bold">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900" colSpan="2">
+                          TOTAL
                         </td>
-                        <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
-                          {team.team}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center font-bold">
+                          {grandTotals.total}
                         </td>
-                        <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-900 text-center font-medium">
-                          {team.total}
-                        </td>
-                        <td className="px-6 py-3 whitespace-nowrap text-center">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            {team.present}
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-200 text-green-900">
+                            {grandTotals.present}
                           </span>
                         </td>
-                        <td className="px-6 py-3 whitespace-nowrap text-center">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {team.percentage}
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-200 text-blue-900">
+                            {grandTotals.percentage}
                           </span>
                         </td>
-                        <td className="px-6 py-3 whitespace-nowrap text-center">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                            {team.absent}
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-200 text-red-900">
+                            {grandTotals.absent}
                           </span>
                         </td>
                       </tr>
-                    ));
-                  })}
-                  {/* Grand Total Row */}
-                  {grandTotals && (
-                    <tr className="bg-gray-100 font-bold">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900" colSpan="2">
-                        TOTAL
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center font-bold">
-                        {grandTotals.total}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-200 text-green-900">
-                          {grandTotals.present}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-200 text-blue-900">
-                          {grandTotals.percentage}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-200 text-red-900">
-                          {grandTotals.absent}
-                        </span>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-              {(!directorateStats || directorateStats.length === 0) && (
-                <div className="text-center py-12 text-gray-500">
-                  <UsersIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                  <p className="text-lg font-medium">No attendance data available</p>
-                  <p className="text-sm">Attendance data will appear here once loaded.</p>
-                </div>
-              )}
-            </div>
+                    )}
+                  </tbody>
+                </table>
+                {(!directorateStats || directorateStats.length === 0) && (
+                  <div className="text-center py-12 text-gray-500">
+                    <UsersIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                    <p className="text-lg font-medium">No attendance data available</p>
+                    <p className="text-sm">Attendance data will appear here once loaded.</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Charts Section */}
@@ -465,7 +496,11 @@ export default function SuperAdminOverview() {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Workers by Team
               </h3>
-              {teamChartData && teamChartData.length > 0 ? (
+              {isWorkersLoading ? (
+                <div className="h-80 flex items-center justify-center">
+                  <LoadingState />
+                </div>
+              ) : teamChartData && teamChartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={320} debounce={50}>
                   <BarChart
                     data={teamChartData}
@@ -523,98 +558,104 @@ export default function SuperAdminOverview() {
             </div>
 
             {/* Table Content */}
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      #
-                    </th>
-                    <th
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
-                      onClick={() => handleSort(activeTab === "team" ? "team" : "department")}
-                    >
-                      {activeTab === "team" ? "Team" : "Department"}
-                      {getSortIcon(activeTab === "team" ? "team" : "department")}
-                    </th>
-                    {activeTab === "department" && (
+            {isWorkersLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <LoadingState />
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Team
+                        #
                       </th>
-                    )}
-                    <th
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
-                      onClick={() => handleSort("total")}
-                    >
-                      Total {getSortIcon("total")}
-                    </th>
-                    <th
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
-                      onClick={() => handleSort("active")}
-                    >
-                      Active {getSortIcon("active")}
-                    </th>
-                    <th
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
-                      onClick={() => handleSort("pendingAdd")}
-                    >
-                      Pending Add {getSortIcon("pendingAdd")}
-                    </th>
-                    <th
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
-                      onClick={() => handleSort("pendingDelete")}
-                    >
-                      Pending Delete {getSortIcon("pendingDelete")}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {getSortedData(activeTab === "team" ? teamStats : departmentStats)?.map(
-                    (item, index) => (
-                      <tr key={item.team || item.department} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {index + 1}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {activeTab === "team" ? item.team : item.department}
-                        </td>
-                        {activeTab === "department" && (
+                      <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
+                        onClick={() => handleSort(activeTab === "team" ? "team" : "department")}
+                      >
+                        {activeTab === "team" ? "Team" : "Department"}
+                        {getSortIcon(activeTab === "team" ? "team" : "department")}
+                      </th>
+                      {activeTab === "department" && (
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Team
+                        </th>
+                      )}
+                      <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
+                        onClick={() => handleSort("total")}
+                      >
+                        Total {getSortIcon("total")}
+                      </th>
+                      <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
+                        onClick={() => handleSort("active")}
+                      >
+                        Active {getSortIcon("active")}
+                      </th>
+                      <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
+                        onClick={() => handleSort("pendingAdd")}
+                      >
+                        Pending Add {getSortIcon("pendingAdd")}
+                      </th>
+                      <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
+                        onClick={() => handleSort("pendingDelete")}
+                      >
+                        Pending Delete {getSortIcon("pendingDelete")}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {getSortedData(activeTab === "team" ? teamStats : departmentStats)?.map(
+                      (item, index) => (
+                        <tr key={item.team || item.department} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.team}
+                            {index + 1}
                           </td>
-                        )}
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">
-                          {item.total}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            {item.active}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                            {item.pendingAdd}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                            {item.pendingDelete}
-                          </span>
-                        </td>
-                      </tr>
-                    )
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {activeTab === "team" ? item.team : item.department}
+                          </td>
+                          {activeTab === "department" && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {item.team}
+                            </td>
+                          )}
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">
+                            {item.total}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              {item.active}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                              {item.pendingAdd}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                              {item.pendingDelete}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    )}
+                  </tbody>
+                </table>
+                {(!teamStats || teamStats.length === 0) &&
+                  (!departmentStats || departmentStats.length === 0) && (
+                    <div className="text-center py-12 text-gray-500">
+                      <UsersIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                      <p className="text-lg font-medium">No data available</p>
+                      <p className="text-sm">Worker data will appear here once loaded.</p>
+                    </div>
                   )}
-                </tbody>
-              </table>
-              {(!teamStats || teamStats.length === 0) &&
-                (!departmentStats || departmentStats.length === 0) && (
-                  <div className="text-center py-12 text-gray-500">
-                    <UsersIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <p className="text-lg font-medium">No data available</p>
-                    <p className="text-sm">Worker data will appear here once loaded.</p>
-                  </div>
-                )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </Layout>

@@ -1,5 +1,7 @@
 // No longer needed
 
+import apiRequest from "./apiClient";
+
 const FILTER_CACHE_KEY = 'workers_filter_cache';
 const CACHE_TIMESTAMP_KEY = 'filter_cache_timestamp';
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
@@ -36,23 +38,11 @@ export const extractFilterData = (workers) => {
 /**
  * Fetch all workers data for filter extraction
  */
-export const fetchWorkersForFilters = async (accessToken) => {
+export const fetchWorkersForFilters = async () => {
   try {
-    // Use direct fetch to match the exact API call structure
-    const response = await fetch('https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/workers?limit=5000', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
+    const result = await apiRequest("GET", "/api/super/admin/workers", {
+      limit: 4000,
     });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Unknown error occurred' }));
-      throw new Error(errorData.message || `HTTP ${response.status}: Failed to fetch workers for filters`);
-    }
-
-    const result = await response.json();
 
     // Handle the API response structure based on your curl example
     let workersData = [];
@@ -130,7 +120,7 @@ export const initializeFilterData = async (accessToken) => {
     clearFilterCache();
     
     // Fetch workers data
-    const workers = await fetchWorkersForFilters(accessToken);
+    const workers = await fetchWorkersForFilters();
     
     if (workers.length === 0) {
       return null;

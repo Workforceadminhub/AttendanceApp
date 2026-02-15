@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useNavigate, useParams, useLocation, Link } from "react-router-dom";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
 import { toast } from "react-toastify";
-import { teamsAndDepartments } from "../utils/teams";
+import { teamsAndDepartments, normalizeWorkerRole } from "../utils/teams";
 import BirthDatePicker from "../components/BirthDatePicker";
+import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
+import { getDepartmentRoute } from "../utils/routeObject";
+import apiRequest from "../utils/apiClient";
 
 export default function ViewWorker() {
   const navigate = useNavigate();
@@ -16,44 +19,29 @@ export default function ViewWorker() {
   const [editedWorker, setEditedWorker] = useState({});
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Check if user is super admin or church admin
+  const { isSuperAdmin, isChurchAdmin, isHOD, isTeamAdmin, isSubTeamAdmin } = getUserRole();
+
+  // Check if user can edit workers (Super Admin, Church Admin, HOD, Team Admin, Sub Team Admin)
+  const canEditWorkers =
+    isSuperAdmin || isChurchAdmin || isHOD || isTeamAdmin || isSubTeamAdmin;
+
   useEffect(() => {
-    const authUser = JSON.parse(sessionStorage.getItem("authUser"));
-    if (!authUser || (authUser.department !== "Super Admin" && authUser.department !== "Church Admin")) {
-      toast.error("Access denied. Super Admin or Church Admin access required.");
-      // Navigate to appropriate workers page based on user type
-      if (authUser?.department === "Church Admin") {
-        navigate("/church-admin/workers");
-      } else {
-        navigate("/workers/super-admin");
-      }
+    if (!canEditWorkers) {
+      toast.error("Access denied. You do not have permission to edit workers.");
+      navigate("/login");
       return;
     }
-  }, [navigate]);
+  }, [canEditWorkers, navigate]);
 
   // Fetch worker details
   useEffect(() => {
     const fetchWorkerDetails = async () => {
       try {
-        const accessToken = sessionStorage.getItem("accessToken");
-        const response = await fetch(
-          `https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/${workerId}/workers/details`,
-          {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              "Content-Type": "application/json",
-            },
-          }
+        const responseData = await apiRequest(
+          "GET",
+          `/api/super/admin/${workerId}/workers/details`
         );
 
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: Failed to fetch worker details`);
-        }
-
-        const responseData = await response.json();
-        console.log("API Response:", responseData); // Debug log
-        
         // Handle different possible response structures
         let workerData = responseData;
         if (responseData.data) {
@@ -61,13 +49,22 @@ export default function ViewWorker() {
         } else if (responseData.worker) {
           workerData = responseData.worker;
         }
-        
-        console.log("Worker Data:", workerData); // Debug log
+
+        // For non-Super/Church Admin: verify worker is in accessible department
+        const authUser = JSON.parse(sessionStorage.getItem("authUser"));
+        if (authUser?.department !== "Super Admin" && authUser?.department !== "Church Admin") {
+          const workerDept = workerData.department || workerData.department_name;
+          if (!canAccessDepartment(workerDept)) {
+            toast.error("Access denied. This worker is not in a department you manage.");
+            navigate(getHODCancelPath());
+            return;
+          }
+        }
+
         setWorker(workerData);
         setEditedWorker(workerData);
       } catch (error) {
         toast.error("Failed to fetch worker details");
-        console.error("Error fetching worker:", error);
       } finally {
         setIsLoading(false);
       }
@@ -76,35 +73,45 @@ export default function ViewWorker() {
     if (workerId) {
       fetchWorkerDetails();
     }
-  }, [workerId]);
+  }, [workerId, navigate]);
+
+  const getHODCancelPath = () => {
+    const authUser = JSON.parse(sessionStorage.getItem("authUser"));
+    if (!authUser) return "/login";
+    if (authUser.department === "Church Admin") return "/church-admin/workers";
+    if (authUser.department === "Super Admin") return "/workers/super-admin";
+    const route = getDepartmentRoute(authUser.department);
+    return `/department/${route || encodeURIComponent(authUser.department)}`;
+  };
 
   const handleCancel = () => {
-    // Check if user came from pending workers or all workers page
+    // Check if user came from a specific page
     const urlParams = new URLSearchParams(location.search);
-    const from = urlParams.get('from');
-    
-    if (from === 'pending-workers') {
+    const from = urlParams.get("from");
+
+    if (from === "pending-workers") {
       navigate("/pending-workers");
       return;
     }
-    
-    if (from === 'all-workers') {
+
+    if (from === "all-workers") {
       navigate("/all-workers");
       return;
     }
-    
-    if (from === 'team-mismatch') {
+
+    if (from === "team-mismatch") {
       navigate("/team-mismatch");
       return;
     }
-    
-    // Default navigation based on user department
-    const authUser = JSON.parse(sessionStorage.getItem("authUser"));
-    if (authUser?.department === "Church Admin") {
-      navigate("/church-admin/workers");
-    } else {
-      navigate("/workers/super-admin");
+
+    if (from?.startsWith("department:")) {
+      const dept = decodeURIComponent(from.replace("department:", ""));
+      const route = getDepartmentRoute(dept);
+      navigate(`/department/${route || encodeURIComponent(dept)}`);
+      return;
     }
+
+    navigate(getHODCancelPath());
   };
 
   const handleSave = async () => {
@@ -143,50 +150,21 @@ export default function ViewWorker() {
 
     setIsSaving(true);
     try {
-      const accessToken = sessionStorage.getItem("accessToken");
-      
-      // Normalize workerrole for case-sensitive values before sending
-      // Convert singular to plural for backend
       const fieldsToSend = { ...changedFields };
-      if (fieldsToSend.workerrole) {
-        const roleLower = fieldsToSend.workerrole.toLowerCase().trim();
-        if (roleLower === "pastoral leader" || roleLower === "pastoral leaders") {
-          fieldsToSend.workerrole = "Pastoral Leaders";
-        } else if (roleLower === "directional leader" || roleLower === "directional leaders") {
-          fieldsToSend.workerrole = "Directional Leaders";
-        }
+      if (fieldsToSend.workerrole !== undefined) {
+        fieldsToSend.workerrole = normalizeWorkerRole(fieldsToSend.workerrole);
       }
-      
-      const response = await fetch(
-        "https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/workers",
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            id: parseInt(workerId),
-            ...fieldsToSend,
-          }),
-        }
-      );
 
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ message: "Unknown error occurred" }));
-        throw new Error(
-          errorData.message || `HTTP ${response.status}: Failed to update worker`
-        );
-      }
+      await apiRequest("PUT", "/api/super/admin/workers", {
+        id: parseInt(workerId),
+        ...fieldsToSend,
+      });
 
       toast.success("Worker updated successfully");
       setWorker(editedWorker);
       setHasChanges(false);
     } catch (error) {
       toast.error("Failed to update worker");
-      console.error("Error updating worker:", error);
     } finally {
       setIsSaving(false);
     }
@@ -219,8 +197,6 @@ export default function ViewWorker() {
   // Debug: Log the current worker data
   useEffect(() => {
     if (worker) {
-      console.log("Current worker data:", worker);
-      console.log("Edited worker data:", editedWorker);
     }
   }, [worker, editedWorker]);
 
@@ -282,6 +258,12 @@ export default function ViewWorker() {
                 </p>
               </div>
               <div className="flex space-x-3">
+                <Link
+                  to={`/worker/${workerId}/attendance`}
+                  className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
+                >
+                  View Attendance History
+                </Link>
                 <button
                   onClick={handleCancel}
                   className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"

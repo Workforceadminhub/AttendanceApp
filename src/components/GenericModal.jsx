@@ -10,8 +10,8 @@ const GenericModal = ({
   if (!isOpen) return null;
 
   const sizeClasses = {
-    small: "w-96",
-    medium: "w-[500px]",
+    small: "w-96 max-w-[90vw]",
+    medium: "w-[500px] max-w-[90vw]",
     large: "w-[700px] max-w-[90vw]"
   };
 

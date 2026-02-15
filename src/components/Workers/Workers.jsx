@@ -15,6 +15,7 @@ import {
   getFilterOptions,
   initializeFilterData,
 } from "../../utils/filterCache";
+import apiRequest from "../../utils/apiClient";
 import { teamsAndDepartments } from "../../utils/teams";
 import {
   TrashIcon,
@@ -101,62 +102,23 @@ export default function Workers() {
   const querySuperAdminWorkers = async (page = 1, limit = 50, search = "") => {
     setIsLoading(true);
     try {
-      const accessToken = sessionStorage.getItem("accessToken");
-
-      if (!accessToken) {
-        throw new Error("No access token found. Please log in again.");
-      }
-
-      const queryParams = new URLSearchParams();
-
-      // Fetch entire list for client-side sorting
-      queryParams.append("limit", "3478");
-
-      // Add sorting parameter - commented out for now
-      // queryParams.append("sortBy", "team");
-
-      // Add search parameter if provided
+      const params = { limit: 3478 };
       if (search && search.trim()) {
-        queryParams.append("search", search.trim());
+        params.search = search.trim();
       }
-
-      // Add filter parameters if not "All"
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== "All") {
-          queryParams.append(key, value);
+          params[key] = value;
         }
       });
 
-      const url = `https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/workers?${queryParams.toString()}`;
-
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ message: "Unknown error occurred" }));
-        throw new Error(
-          errorData.message ||
-            `HTTP ${response.status}: Failed to fetch workers`
-        );
-      }
-
-      const result = await response.json();
+      const result = await apiRequest("GET", "/api/super/admin/workers", params);
 
       // Handle the actual API response structure: result.data.data
       let workersData = [];
-      // let paginationInfo = null;
-
-      if (result.data && result.data.data && Array.isArray(result.data.data)) {
+      if (result?.data?.data && Array.isArray(result.data.data)) {
         workersData = result.data.data;
-        // paginationInfo = result.data.pagination;
-      } else if (result.data && Array.isArray(result.data)) {
+      } else if (result?.data && Array.isArray(result.data)) {
         workersData = result.data;
       } else if (Array.isArray(result)) {
         workersData = result;
@@ -170,11 +132,6 @@ export default function Workers() {
         const idB = parseInt(b.id || b.workerid || 0);
         return idA - idB;
       });
-
-      // Debug: Log worker count and sample data
-      console.log("Total workers fetched:", sortedWorkers.length);
-      console.log("Sample worker data:", sortedWorkers.slice(0, 3));
-      console.log("Worker statuses:", [...new Set(sortedWorkers.map(w => w.status || w.workerstatus || 'unknown'))]);
 
       // Store all workers for client-side pagination
       setAllWorkers(sortedWorkers);
@@ -476,28 +433,7 @@ Type "DELETE" to confirm (case-sensitive):`;
 
     setIsLoading(true);
     try {
-      const accessToken = sessionStorage.getItem("accessToken");
-
-      const response = await fetch(
-        `https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/${workerId}/workers`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ message: "Unknown error occurred" }));
-        throw new Error(
-          errorData.message ||
-            `HTTP ${response.status}: Failed to delete worker`
-        );
-      }
+      await apiRequest("DELETE", `/api/super/admin/${workerId}/workers`);
 
       toast.success("Worker deleted successfully");
 
@@ -596,49 +532,24 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
 
     setIsLoading(true);
     try {
-      const accessToken = sessionStorage.getItem("accessToken");
       const workerIds = Array.from(selectedWorkers);
       let successCount = 0;
       let errorCount = 0;
-      const errors = [];
 
-      // Delete each worker individually using the same endpoint as single delete
       for (const workerId of workerIds) {
         try {
-          const response = await fetch(
-            `https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/${workerId}/workers`,
-            {
-              method: "DELETE",
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                "Content-Type": "application/json",
-              },
-            }
-          );
-
-          if (!response.ok) {
-            const errorData = await response
-              .json()
-              .catch(() => ({ message: "Unknown error occurred" }));
-            throw new Error(
-              errorData.message ||
-                `HTTP ${response.status}: Failed to delete worker ${workerId}`
-            );
-          }
+          await apiRequest("DELETE", `/api/super/admin/${workerId}/workers`);
           successCount++;
         } catch (error) {
           errorCount++;
-          errors.push(`Worker ${workerId}: ${error.message}`);
         }
       }
 
-      // Show results
       if (successCount > 0) {
         toast.success(`${successCount} worker(s) deleted successfully`);
       }
       if (errorCount > 0) {
-        toast.error(`Failed to delete ${errorCount} worker(s). Check console for details.`);
-        console.error("Bulk delete errors:", errors);
+        toast.error(`Failed to delete ${errorCount} worker(s).`);
       }
 
       clearSelection();
@@ -780,7 +691,6 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
         `Exported ${totalWorkers} worker(s) across ${totalTeams} team(s) to CSV`
       );
     } catch (error) {
-      console.error("Teams CSV export failed:", error);
       toast.error("Failed to export teams to CSV");
     }
   };

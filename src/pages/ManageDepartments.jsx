@@ -10,9 +10,11 @@ import {
   addDepartment,
   updateDepartment,
   toggleDepartmentStatus,
+  deleteDepartment,
 } from "../services/departments";
 import {
   PencilIcon,
+  TrashIcon,
   ArrowUpIcon,
   ArrowDownIcon,
 } from "@heroicons/react/24/outline";
@@ -65,7 +67,6 @@ export default function ManageDepartments() {
       const data = await fetchDepartments();
       setDepartments(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Error fetching departments:", error);
       toast.error("Failed to fetch departments");
     } finally {
       setIsLoading(false);
@@ -197,6 +198,28 @@ export default function ManageDepartments() {
       loadDepartments();
     } catch (error) {
       toast.error(`Failed to ${action} department: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Delete department
+  const handleDelete = async (department) => {
+    if (
+      !window.confirm(
+        `Are you sure you want to delete "${department.name}"? This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await deleteDepartment(department.id);
+      toast.success("Department deleted successfully");
+      loadDepartments();
+    } catch (error) {
+      toast.error(`Failed to delete department: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -413,6 +436,14 @@ export default function ManageDepartments() {
                                 } disabled:opacity-50`}
                               >
                                 {department.isactive ? "Disable" : "Enable"}
+                              </button>
+                              <button
+                                onClick={() => handleDelete(department)}
+                                disabled={isLoading}
+                                className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                                title="Delete"
+                              >
+                                <TrashIcon className="h-4 w-4" />
                               </button>
                             </div>
                           </td>

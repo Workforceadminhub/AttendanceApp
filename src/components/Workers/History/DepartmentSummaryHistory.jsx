@@ -1,64 +1,73 @@
 // import { useNavigate } from "react-router-dom";
 
 import { useEffect, useState } from "react";
-import Header from "../Header";
+import { useLocation } from "react-router-dom";
+import { toast } from "react-toastify";
+import { debounce } from "lodash";
+import getDefaultSummary from "../../../utils/getDefaultSummary";
+import { getAdminSelectOptions, routeObject } from "../../../utils/routeObject";
+import { getNextSunday } from "../../../utils/getDate";
+import { getDepartmentByUser } from "../../../utils/getDepartment";
+import { ADMIN_ENUMS } from "../../../utils/enums";
+import { checkAdminStatus } from "../../../utils/checkAdminStatus";
 import {
   fetchAdminAttendance,
   fetchAttendance,
-} from "../../services/attendance";
-import { getAdminSelectOptions, routeObject } from "../../utils/routeObject";
-import getDefaultSummary from "../../utils/getDefaultSummary";
-import { getDepartmentByUser } from "../../utils/getDepartment";
-import { useLocation } from "react-router-dom";
-import TableLoadingState from "../TableLoadingState";
-import Layout from "../Layout";
-import { ADMIN_ENUMS } from "../../utils/enums";
-import ReactSelectDropdown from "../ReactSelect";
-import { checkAdminStatus } from "../../utils/checkAdminStatus";
-import { toast } from "react-toastify";
-import { debounce } from "lodash";
-import { DEBOUNCE_INTERVAL } from "../../utils/constants";
-import ViewHistoryButton from "../ViewHistoryButton";
+} from "../../../services/attendance";
+import { fetchHistoryOptions } from "../../../services/history";
+import { DEBOUNCE_INTERVAL } from "../../../utils/constants";
+import Layout from "../../Layout";
+import ReactSelectDropdown from "../../ReactSelect";
+import TableLoadingState from "../../TableLoadingState";
+import Header from "../../Header";
+import ViewHistoryButton from "../../ViewHistoryButton";
 
-export default function DepartmentSummary() {
+export default function DepartmentSummaryHistory() {
   const [isLoading, setIsLoading] = useState(false);
   const [activeGroup, setActiveGroup] = useState("All");
   const [attendanceSummary, setAttendanceSummary] = useState(
     getDefaultSummary(routeObject)
   );
   const location = useLocation();
+  const dateForAttendance = getNextSunday();
   const team = getDepartmentByUser(location.pathname);
   const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
   const isAdminMember = checkAdminStatus(location.pathname);
   const options = getAdminSelectOptions(isChurchAdmin, team);
+  const [activeHistory, setActiveHistory] = useState(dateForAttendance);
+  const [historyOptions, setHistoryOptions] = useState([]);
 
   const queryAdminAttendance = () => {
     setIsLoading(true);
-    fetchAdminAttendance(activeGroup, isChurchAdmin)
+    fetchAdminAttendance(activeGroup, isChurchAdmin, activeHistory)
       .then((attendance) => {
         setAttendanceSummary(attendance);
         setIsLoading(false);
       })
       .catch((error) => {
         setIsLoading(false);
-        // Silent error handling
         toast.error(`Error loading summary: ${error.message}`);
       });
   };
 
   const queryAttendance = () => {
     setIsLoading(true);
-    fetchAttendance()
+    fetchAttendance(activeHistory)
       .then((attendance) => {
         setAttendanceSummary(attendance);
         setIsLoading(false);
       })
       .catch((error) => {
         setIsLoading(false);
-        // Silent error handling
         toast.error(`Error loading summary: ${error.message}`);
       });
   };
+
+  useEffect(() => {
+    fetchHistoryOptions().then((res) =>
+      setHistoryOptions(res.map((item) => ({ label: item, value: item })))
+    );
+  }, []);
 
   useEffect(() => {
     if (isAdminMember) {
@@ -67,7 +76,7 @@ export default function DepartmentSummary() {
       queryAttendance();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeGroup, isChurchAdmin, isAdminMember]);
+  }, [activeGroup, isChurchAdmin, isAdminMember, activeHistory]);
 
   const debouncedSetActiveGroup = debounce(
     (value) => setActiveGroup(value),
@@ -78,7 +87,14 @@ export default function DepartmentSummary() {
     debouncedSetActiveGroup(selected?.value);
   };
 
-  // Log attendance summary silently
+  const debouncedSetActiveHistory = debounce(
+    (value) => setActiveHistory(value),
+    DEBOUNCE_INTERVAL
+  );
+
+  const handleHistoryChange = (selected) => {
+    debouncedSetActiveHistory(selected?.value);
+  };
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
@@ -90,29 +106,32 @@ export default function DepartmentSummary() {
               {`${team.team} summary` || "Department summary"}
             </h1>
           </div>
-          {isAdminMember && (
-            <ViewHistoryButton
-              label="View History"
-              link={
-                isChurchAdmin
-                  ? `/summary/history/admin`
-                  : `/summary/history/admin/${team.department}`
-              }
-            />
-          )}
+          <ViewHistoryButton label="Back to Summary" link={-1} />
         </div>
         <div className="mt-8">
           {isAdminMember && (
-            <ReactSelectDropdown
-              title={isChurchAdmin ? "Select Team" : "Select Department"}
-              defaultValue={{ value: "All", label: "All teams/departments" }}
-              onChange={handleChange}
-              options={[
-                { value: "All", label: "All teams/departments" },
-                ...options,
-              ]}
-              className="lg:w-[25%] md:w-[30%] xl:w-[25%] sm:w-[45%] xs:w-[50%]"
-            />
+            <div className="mt-8 flex space-x-2">
+              <ReactSelectDropdown
+                title={isChurchAdmin ? "Select Team" : "Select Department"}
+                defaultValue={{ value: "All", label: "All teams/departments" }}
+                onChange={handleChange}
+                options={[
+                  { value: "All", label: "All teams/departments" },
+                  ...options,
+                ]}
+                className="w-[25%]"
+              />
+              <ReactSelectDropdown
+                title={"Select Sunday"}
+                defaultValue={{
+                  value: dateForAttendance,
+                  label: dateForAttendance,
+                }}
+                onChange={handleHistoryChange}
+                options={[...historyOptions]}
+                className="w-[25%]"
+              />
+            </div>
           )}
         </div>
         <div className="mt-8 flow-root">
@@ -155,12 +174,6 @@ export default function DepartmentSummary() {
                       scope="col"
                       className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
                     >
-                      Unfilled
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
                       Percentage
                     </th>
                   </tr>
@@ -185,9 +198,6 @@ export default function DepartmentSummary() {
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                           {item.absent}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {item.unfilled}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                           {item.percentage}

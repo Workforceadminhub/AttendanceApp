@@ -94,3 +94,23 @@ export const toggleDepartmentStatus = async (id, isactive) => {
     throw error;
   }
 };
+
+/**
+ * Delete a department
+ * @param {number} id - Department ID
+ * @returns {Promise<Object>} Deletion result
+ */
+export const deleteDepartment = async (id) => {
+  try {
+    const response = await apiRequest(
+      "DELETE",
+      `/api/departments/${id}/delete`
+    );
+    if (!response || response.error) {
+      throw new Error(response?.error || "Failed to delete department");
+    }
+    return response.data || response;
+  } catch (error) {
+    throw error;
+  }
+};

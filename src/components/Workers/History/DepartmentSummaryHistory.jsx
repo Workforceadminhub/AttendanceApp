@@ -46,7 +46,6 @@ export default function DepartmentSummaryHistory() {
       })
       .catch((error) => {
         setIsLoading(false);
-        // Silent error handling
         toast.error(`Error loading summary: ${error.message}`);
       });
   };
@@ -60,7 +59,6 @@ export default function DepartmentSummaryHistory() {
       })
       .catch((error) => {
         setIsLoading(false);
-        // Silent error handling
         toast.error(`Error loading summary: ${error.message}`);
       });
   };

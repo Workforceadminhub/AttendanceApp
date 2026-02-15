@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { debounce } from "lodash";
-import { getNextSunday } from "../../../utils/getDate";
+import { getNextSunday, getSundayDisplayDate } from "../../../utils/getDate";
 import { getDepartmentByUser } from "../../../utils/getDepartment";
 import { ADMIN_ENUMS } from "../../../utils/enums";
 import { checkAdminStatus } from "../../../utils/checkAdminStatus";
@@ -106,7 +106,7 @@ export default function DashboardHistory() {
         <div className="flex justify-between">
           <div className="flex flex-col space-y-4 font-bold">
             {/* <Select title="Select service" options={services} /> */}
-            {`${team?.team} Dashboard`} - {dateForAttendance}
+            {`${team?.team} Dashboard`} - {getSundayDisplayDate()}
           </div>
           <ViewHistoryButton
             label="Back to Dashboard"

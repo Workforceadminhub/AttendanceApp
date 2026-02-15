@@ -24,13 +24,21 @@ const Login = () => {
       if(data.accessToken){
         setMessage("Login successful!");
         setError("");
-        sessionStorage.setItem("authUser", JSON.stringify(data.user));
+        // Phase 7: Store permissionLevel and assignedDepartments (from user or top-level response)
+        const authUser = {
+          ...data.user,
+          permissionLevel: data.permissionLevel ?? data.user?.permissionLevel,
+          assignedDepartments: data.assignedDepartments ?? data.user?.assignedDepartments ?? [],
+        };
+        sessionStorage.setItem("authUser", JSON.stringify(authUser));
         sessionStorage.setItem("accessToken", data.accessToken);
-        // Redirect Super Admin to overview page, others to attendance route
+        // Redirect all users to their dashboard
         if (data.user.department === "Super Admin") {
           navigate("/overview/super-admin");
+        } else if (data.user.route) {
+          navigate(`/dashboard${data.user.route}`);
         } else {
-          navigate(`/attendance${data.user.route}`);
+          navigate("/attendance/dashboard");
         }
       }
       setIsLoading(false);

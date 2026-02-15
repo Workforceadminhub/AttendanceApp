@@ -1,15 +1,15 @@
 // import { useNavigate } from "react-router-dom";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Header from "../Header";
 import {
   fetchAdminAttendance,
   fetchAttendance,
 } from "../../services/attendance";
-import { getAdminSelectOptions, routeObject } from "../../utils/routeObject";
+import { getAdminSelectOptions, getDepartmentRoute, routeObject } from "../../utils/routeObject";
 import getDefaultSummary from "../../utils/getDefaultSummary";
 import { getDepartmentByUser } from "../../utils/getDepartment";
-import { useLocation } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import TableLoadingState from "../TableLoadingState";
 import Layout from "../Layout";
 import { ADMIN_ENUMS } from "../../utils/enums";
@@ -21,6 +21,8 @@ import { toast } from "react-toastify";
 import { debounce } from "lodash";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
 import ViewHistoryButton from "../ViewHistoryButton";
+import DateRangeFilter from "../DateRangeFilter";
+import { format } from "date-fns";
 
 export default function DepartmentSummary() {
   const [isLoading, setIsLoading] = useState(false);
@@ -28,6 +30,7 @@ export default function DepartmentSummary() {
   const [attendanceSummary, setAttendanceSummary] = useState(
     getDefaultSummary(routeObject)
   );
+  const [dateRange, setDateRange] = useState({ startDate: null, endDate: null });
   const location = useLocation();
   const pathname = location.pathname;
   const team = getDepartmentByUser(pathname);
@@ -36,9 +39,20 @@ export default function DepartmentSummary() {
   const authUser = getUser();
   const options = getAdminSelectOptions(isChurchAdmin, team, authUser);
 
+  const startDateStr = dateRange.startDate
+    ? format(dateRange.startDate, "yyyy-MM-dd")
+    : null;
+  const endDateStr = dateRange.endDate
+    ? format(dateRange.endDate, "yyyy-MM-dd")
+    : null;
+
+  const handleDateRangeChange = useCallback(({ startDate, endDate }) => {
+    setDateRange({ startDate, endDate });
+  }, []);
+
   const queryAdminAttendance = () => {
     setIsLoading(true);
-    fetchAdminAttendance(activeGroup, isChurchAdmin)
+    fetchAdminAttendance(activeGroup, isChurchAdmin, null, startDateStr, endDateStr)
       .then((attendance) => {
         const filtered = filterByUserPermissions(attendance ?? [], authUser, pathname);
         setAttendanceSummary(filtered);
@@ -46,14 +60,13 @@ export default function DepartmentSummary() {
       })
       .catch((error) => {
         setIsLoading(false);
-        // Silent error handling
         toast.error(`Error loading summary: ${error.message}`);
       });
   };
 
   const queryAttendance = () => {
     setIsLoading(true);
-    fetchAttendance()
+    fetchAttendance(null, startDateStr, endDateStr)
       .then((attendance) => {
         const filtered = filterByUserPermissions(attendance ?? [], authUser, pathname);
         setAttendanceSummary(filtered);
@@ -61,7 +74,6 @@ export default function DepartmentSummary() {
       })
       .catch((error) => {
         setIsLoading(false);
-        // Silent error handling
         toast.error(`Error loading summary: ${error.message}`);
       });
   };
@@ -73,7 +85,7 @@ export default function DepartmentSummary() {
       queryAttendance();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeGroup, isChurchAdmin, isAdminMember]);
+  }, [activeGroup, isChurchAdmin, isAdminMember, startDateStr, endDateStr]);
 
   const debouncedSetActiveGroup = debounce(
     (value) => setActiveGroup(value),
@@ -107,7 +119,8 @@ export default function DepartmentSummary() {
             />
           )}
         </div>
-        <div className="mt-8">
+        <div className="mt-8 flex flex-wrap items-center gap-4">
+          <DateRangeFilter onDateRangeChange={handleDateRangeChange} />
           {isAdminMember && (
             <ReactSelectDropdown
               title={isChurchAdmin ? "Select Team" : "Select Department"}
@@ -181,7 +194,12 @@ export default function DepartmentSummary() {
                           {index + 1}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {item.department}
+                          <Link
+                            to={`/department/${getDepartmentRoute(item.department) || encodeURIComponent(item.department)}`}
+                            className="text-blue-600 hover:underline"
+                          >
+                            {item.department}
+                          </Link>
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                           {item.total}

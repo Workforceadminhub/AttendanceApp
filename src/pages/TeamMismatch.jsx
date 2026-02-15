@@ -12,6 +12,7 @@ import {
   CheckCircleIcon,
 } from "@heroicons/react/24/outline";
 import { teamsAndDepartments } from "../utils/teams";
+import apiRequest from "../utils/apiClient";
 
 // Check if a worker has a team-department mismatch
 const isMismatched = (worker) => {
@@ -66,33 +67,9 @@ export default function TeamMismatch() {
   const fetchAllWorkers = async () => {
     setIsLoading(true);
     try {
-      const accessToken = sessionStorage.getItem("accessToken");
-
-      if (!accessToken) {
-        throw new Error("No access token found. Please log in again.");
-      }
-
-      const url = `https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/workers?limit=10000`;
-
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
+      const result = await apiRequest("GET", "/api/super/admin/workers", {
+        limit: 10000,
       });
-
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ message: "Unknown error occurred" }));
-        throw new Error(
-          errorData.message ||
-            `HTTP ${response.status}: Failed to fetch workers`
-        );
-      }
-
-      const result = await response.json();
 
       // Handle different response structures
       let workersData = [];
@@ -110,7 +87,6 @@ export default function TeamMismatch() {
       const mismatched = workersData.filter(isMismatched);
       setMismatchedWorkers(mismatched);
     } catch (error) {
-      console.error("Error fetching workers:", error);
       toast.error("Failed to fetch workers");
       setAllWorkers([]);
       setMismatchedWorkers([]);
@@ -133,30 +109,10 @@ export default function TeamMismatch() {
 
     setIsFixing(true);
     try {
-      const accessToken = sessionStorage.getItem("accessToken");
-      const response = await fetch(
-        "https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/workers",
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            id: parseInt(worker.id),
-            team: suggestedTeam,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ message: "Unknown error occurred" }));
-        throw new Error(
-          errorData.message || `HTTP ${response.status}: Failed to update worker`
-        );
-      }
+      await apiRequest("PUT", "/api/super/admin/workers", {
+        id: parseInt(worker.id),
+        team: suggestedTeam,
+      });
 
       toast.success(`Fixed team for ${worker.firstname} ${worker.lastname}`);
       fetchAllWorkers();
@@ -180,7 +136,6 @@ export default function TeamMismatch() {
 
     setIsFixing(true);
     try {
-      const accessToken = sessionStorage.getItem("accessToken");
       let successCount = 0;
       let errorCount = 0;
 
@@ -195,24 +150,10 @@ export default function TeamMismatch() {
         }
 
         try {
-          const response = await fetch(
-            "https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/workers",
-            {
-              method: "PUT",
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                id: parseInt(workerId),
-                team: suggestedTeam,
-              }),
-            }
-          );
-
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: Failed to update worker`);
-          }
+          await apiRequest("PUT", "/api/super/admin/workers", {
+            id: parseInt(workerId),
+            team: suggestedTeam,
+          });
           successCount++;
         } catch (error) {
           errorCount++;

@@ -10,6 +10,7 @@ import Layout from "../Layout";
 import { ADMIN_ENUMS } from "../../utils/enums";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
 import { useDebouncedSearch } from "../../hooks/useDebouncedSearch";
+import apiRequest from "../../utils/apiClient";
 import { teamsAndDepartments } from "../../utils/teams";
 import {
   TrashIcon,
@@ -102,7 +103,6 @@ export default function ChurchAdminWorkers() {
 
         setFilterOptions({ teams, departments });
       } catch (error) {
-        console.error("Error initializing filter data:", error);
         // Fallback to empty options
         setFilterOptions({ teams: [], departments: [] });
       }
@@ -115,48 +115,17 @@ export default function ChurchAdminWorkers() {
   const queryChurchAdminWorkers = async (page = 1, limit = 20, search = "") => {
     setIsLoading(true);
     try {
-      const accessToken = sessionStorage.getItem("accessToken");
-
-      if (!accessToken) {
-        throw new Error("No access token found. Please log in again.");
-      }
-
-      const queryParams = new URLSearchParams();
-
-      // Add pagination parameters
-      queryParams.append("page", page.toString());
-      queryParams.append("limit", limit.toString());
-
-      // Add sorting parameter
-      queryParams.append("sortBy", "team");
-
-      // Add search parameter if provided
+      const params = { page, limit, sortBy: "team" };
       if (search && search.trim()) {
-        queryParams.append("search", search.trim());
+        params.search = search.trim();
       }
-
-      // Add filter parameters if not "All"
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== "All") {
-          queryParams.append(key, value);
+          params[key] = value;
         }
       });
 
-      const url = `https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/workers?${queryParams.toString()}`;
-
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: Failed to fetch workers`);
-      }
-
-      const result = await response.json();
+      const result = await apiRequest("GET", "/api/super/admin/workers", params);
       // Handle nested data structure: result.data.data contains the workers array
       setData(result.data?.data || result.workers || []);
       
@@ -180,7 +149,6 @@ export default function ChurchAdminWorkers() {
         });
       }
     } catch (error) {
-      console.error("Error fetching church admin workers:", error);
       toast.error("Failed to fetch workers");
       setData([]);
     } finally {
@@ -192,52 +160,20 @@ export default function ChurchAdminWorkers() {
   const querySuperAdminWorkers = async (page = 1, limit = 20, search = "") => {
     setIsLoading(true);
     try {
-      const accessToken = sessionStorage.getItem("accessToken");
-
-      if (!accessToken) {
-        throw new Error("No access token found. Please log in again.");
-      }
-
-      const queryParams = new URLSearchParams();
-
-      // Add pagination parameters
-      queryParams.append("page", page.toString());
-      queryParams.append("limit", limit.toString());
-
-      // Add sorting parameter
-      queryParams.append("sortBy", "team");
-
-      // Add search parameter if provided
+      const params = { page, limit, sortBy: "team" };
       if (search && search.trim()) {
-        queryParams.append("search", search.trim());
+        params.search = search.trim();
       }
-
-      // Add filter parameters if not "All"
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== "All") {
-          queryParams.append(key, value);
+          params[key] = value;
         }
       });
 
-      const url = `https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/workers?${queryParams.toString()}`;
-
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: Failed to fetch workers`);
-      }
-
-      const result = await response.json();
+      const result = await apiRequest("GET", "/api/super/admin/workers", params);
       // Handle nested data structure: result.data.data contains the workers array
       setData(result.data?.data || result.workers || []);
     } catch (error) {
-      console.error("Error fetching super admin workers:", error);
       toast.error("Failed to fetch workers");
       setData([]);
     } finally {
@@ -256,7 +192,6 @@ export default function ChurchAdminWorkers() {
       );
       setData(result);
     } catch (error) {
-      console.error("Error fetching admin workers:", error);
       toast.error("Failed to fetch workers");
       setData([]);
     } finally {
@@ -278,7 +213,6 @@ export default function ChurchAdminWorkers() {
       );
       setData(result);
     } catch (error) {
-      console.error("Error fetching workers:", error);
       toast.error("Failed to fetch workers");
       setData([]);
     } finally {
@@ -364,28 +298,7 @@ Type "DELETE" to confirm (case-sensitive):`;
 
     setIsLoading(true);
     try {
-      const accessToken = sessionStorage.getItem("accessToken");
-
-      const response = await fetch(
-        `https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/${workerId}/workers`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ message: "Unknown error occurred" }));
-        throw new Error(
-          errorData.message ||
-            `HTTP ${response.status}: Failed to delete worker`
-        );
-      }
+      await apiRequest("DELETE", `/api/super/admin/${workerId}/workers`);
 
       toast.success("Worker deleted successfully");
 
@@ -401,7 +314,6 @@ Type "DELETE" to confirm (case-sensitive):`;
       }
     } catch (error) {
       toast.error("Failed to delete worker");
-      console.error("Delete error:", error);
     } finally {
       setIsLoading(false);
     }

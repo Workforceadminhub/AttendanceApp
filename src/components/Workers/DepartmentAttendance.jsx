@@ -119,7 +119,6 @@ export default function DepartmentAttendance() {
       .catch((error) => {
         toast.error(`Error loading attendance: ${error.message}`);
         setIsLoading(false);
-        // Silent error handling
       });
   };
 
@@ -134,14 +133,13 @@ export default function DepartmentAttendance() {
       .catch((error) => {
         toast.error(`Error loading attendance: ${error.message}`);
         setIsLoading(false);
-        // Silent error handling
       });
   };
 
   useEffect(() => {
     switchOffAttendance()
       .then((res) => setAttendanceIsClosed(res))
-      .catch((err) => console.log(err));
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -202,7 +200,6 @@ export default function DepartmentAttendance() {
       // error handling
       setAttendanceLoading(false);
       toast.error(`Error adding attendance: ${error.message}`);
-      console.log(error);
     }
   };
 

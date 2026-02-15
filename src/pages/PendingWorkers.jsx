@@ -6,6 +6,8 @@ import { toast } from "react-toastify";
 import { fetchPendingAdd, fetchPendingRemove } from "../services/workers";
 import LoadingState from "../components/LoadingState";
 import { saveAs } from "file-saver";
+import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
+import apiRequest from "../utils/apiClient";
 import { 
   CheckIcon, 
   XMarkIcon, 
@@ -41,29 +43,35 @@ export default function PendingWorkers() {
     hasPrev: false,
   });
 
-  // Check if user is super admin
+  const { isSuperAdmin, isChurchAdmin, isTeamAdmin, isSubTeamAdmin } = getUserRole();
+  const canAccessPendingWorkers =
+    isSuperAdmin || isChurchAdmin || isTeamAdmin || isSubTeamAdmin;
+
   useEffect(() => {
-    const authUser = JSON.parse(sessionStorage.getItem("authUser"));
-    if (!authUser || authUser.department !== "Super Admin") {
-      toast.error("Access denied. Super Admin access required.");
+    if (!canAccessPendingWorkers) {
+      toast.error("Access denied. Admin access required.");
       navigate("/login");
       return;
     }
-  }, [navigate]);
+  }, [canAccessPendingWorkers, navigate]);
+
+  const filterByAccess = (workers) => {
+    if (isSuperAdmin || isChurchAdmin) return workers;
+    return workers.filter((w) => canAccessDepartment(w.department || w.department_name));
+  };
 
   // Fetch all pending workers (no pagination from API)
   const fetchAllPendingWorkers = async () => {
     if (isLoading) return; // Prevent multiple simultaneous calls
     setIsLoading(true);
     try {
-      console.log("Making API calls for pending workers...");
       const [addWorkers, removeWorkers] = await Promise.all([
         fetchPendingAdd(1, 1000), // Fetch large number to get all
         fetchPendingRemove(1, 1000)
       ]);
       
-      const allAddWorkers = addWorkers?.data || [];
-      const allRemoveWorkers = removeWorkers?.data || [];
+      const allAddWorkers = filterByAccess(addWorkers?.data || []);
+      const allRemoveWorkers = filterByAccess(removeWorkers?.data || []);
       
       setAllPendingAddWorkers(allAddWorkers);
       setAllPendingRemoveWorkers(allRemoveWorkers);
@@ -72,7 +80,6 @@ export default function PendingWorkers() {
       updatePaginationForTab(activeTab, allAddWorkers, allRemoveWorkers);
       
     } catch (error) {
-      console.error("Error fetching pending workers:", error);
       toast.error("Failed to fetch pending workers");
     } finally {
       setIsLoading(false);
@@ -88,27 +95,7 @@ export default function PendingWorkers() {
 
     setIsLoading(true);
     try {
-      const accessToken = sessionStorage.getItem("accessToken");
-      const response = await fetch(
-        `https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/${workerId}/workers`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ message: "Unknown error occurred" }));
-        throw new Error(
-          errorData.message ||
-            `HTTP ${response.status}: Failed to delete worker`
-        );
-      }
+      await apiRequest("DELETE", `/api/super/admin/${workerId}/workers`);
 
       toast.success("Worker deleted successfully");
       fetchAllPendingWorkers();
@@ -152,10 +139,8 @@ export default function PendingWorkers() {
 
   useEffect(() => {
     if (hasFetched.current) {
-      console.log("Already fetched, skipping...");
       return;
     }
-    console.log("useEffect triggered - fetching pending workers");
     hasFetched.current = true;
     fetchAllPendingWorkers();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -267,27 +252,7 @@ export default function PendingWorkers() {
   const approveWorker = async (workerId) => {
     setIsLoading(true);
     try {
-      const accessToken = sessionStorage.getItem("accessToken");
-      const response = await fetch(
-        `https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/${workerId}/workers/approve`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ message: "Unknown error occurred" }));
-        throw new Error(
-          errorData.message ||
-            `HTTP ${response.status}: Failed to approve worker`
-        );
-      }
+      await apiRequest("PUT", `/api/super/admin/${workerId}/workers/approve`);
 
       toast.success("Worker approved successfully");
       fetchAllPendingWorkers();
@@ -303,28 +268,9 @@ export default function PendingWorkers() {
   const rejectWorker = async (workerId) => {
     setIsLoading(true);
     try {
-      const accessToken = sessionStorage.getItem("accessToken");
-      const response = await fetch(
-        `https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/${workerId}/workers`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ status: "REJECTED" })
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ message: "Unknown error occurred" }));
-        throw new Error(
-          errorData.message ||
-            `HTTP ${response.status}: Failed to reject worker`
-        );
-      }
+      await apiRequest("PUT", `/api/super/admin/${workerId}/workers`, {
+        status: "REJECTED",
+      });
 
       toast.success("Worker rejected successfully");
       fetchAllPendingWorkers();
@@ -360,37 +306,15 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
 
     setIsLoading(true);
     try {
-      const accessToken = sessionStorage.getItem("accessToken");
       let successCount = 0;
       let errorCount = 0;
-      const errors = [];
 
       for (const workerId of selectedWorkers) {
         try {
-          const response = await fetch(
-            `https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/${workerId}/workers`,
-            {
-              method: "DELETE",
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                "Content-Type": "application/json",
-              },
-            }
-          );
-
-          if (!response.ok) {
-            const errorData = await response
-              .json()
-              .catch(() => ({ message: "Unknown error occurred" }));
-            throw new Error(
-              errorData.message ||
-                `HTTP ${response.status}: Failed to delete worker ${workerId}`
-            );
-          }
+          await apiRequest("DELETE", `/api/super/admin/${workerId}/workers`);
           successCount++;
         } catch (error) {
           errorCount++;
-          errors.push(`Worker ${workerId}: ${error.message}`);
         }
       }
 
@@ -398,8 +322,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
         toast.success(`${successCount} worker(s) deleted successfully`);
       }
       if (errorCount > 0) {
-        toast.error(`Failed to delete ${errorCount} worker(s). Check console for details.`);
-        console.error("Bulk delete errors:", errors);
+        toast.error(`Failed to delete ${errorCount} worker(s).`);
       }
 
       fetchAllPendingWorkers();
@@ -423,26 +346,12 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
 
     setIsLoading(true);
     try {
-      const accessToken = sessionStorage.getItem("accessToken");
       let successCount = 0;
       let errorCount = 0;
 
       for (const workerId of selectedWorkers) {
         try {
-          const response = await fetch(
-            `https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/${workerId}/workers/approve`,
-            {
-              method: "PUT",
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                "Content-Type": "application/json",
-              },
-            }
-          );
-
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: Failed to approve worker`);
-          }
+          await apiRequest("PUT", `/api/super/admin/${workerId}/workers/approve`);
           successCount++;
         } catch (error) {
           errorCount++;
@@ -553,7 +462,6 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
       
       toast.success(`Exported ${workersToExport.length} worker(s) to CSV`);
     } catch (error) {
-      console.error("CSV export failed:", error);
       toast.error("Failed to export workers to CSV");
     }
   };

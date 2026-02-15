@@ -4,8 +4,9 @@ import Header from "../components/Header";
 import Layout from "../components/Layout";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
-import { teamsAndDepartments } from "../utils/teams";
+import { teamsAndDepartments, normalizeWorkerRole } from "../utils/teams";
 import BirthDatePicker from "../components/BirthDatePicker";
+import apiRequest from "../utils/apiClient";
 
 export default function ChurchAdminAddWorker() {
   const navigate = useNavigate();
@@ -85,38 +86,11 @@ export default function ChurchAdminAddWorker() {
 
     setIsLoading(true);
     try {
-      const accessToken = sessionStorage.getItem("accessToken");
-      
-      // Normalize workerrole for case-sensitive values before sending
-      // Convert singular to plural for backend
-      const workerToSend = { ...newWorker };
-      if (workerToSend.workerrole) {
-        const roleLower = workerToSend.workerrole.toLowerCase().trim();
-        if (roleLower === "pastoral leader" || roleLower === "pastoral leaders") {
-          workerToSend.workerrole = "Pastoral Leaders";
-        } else if (roleLower === "directional leader" || roleLower === "directional leaders") {
-          workerToSend.workerrole = "Directional Leaders";
-        }
-      }
-      
-      const response = await fetch(
-        "https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/workers",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify(workerToSend),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: "Unknown error occurred" }));
-        throw new Error(errorData.message || `HTTP ${response.status}: Failed to add worker`);
-      }
-
-      await response.json();
+      const workerToSend = {
+        ...newWorker,
+        workerrole: normalizeWorkerRole(newWorker.workerrole),
+      };
+      await apiRequest("POST", "/api/super/admin/workers", workerToSend);
       toast.success("Worker added successfully!");
       
       // Reset form
@@ -139,7 +113,6 @@ export default function ChurchAdminAddWorker() {
       });
       
     } catch (error) {
-      console.error("Error adding worker:", error);
       toast.error(error.message || "Failed to add worker");
     } finally {
       setIsLoading(false);
@@ -167,7 +140,6 @@ export default function ChurchAdminAddWorker() {
         const workers = convertToWorkerObjects(jsonData);
         setParsedWorkers(workers);
       } catch (error) {
-        console.error("Error parsing file:", error);
         toast.error("Error parsing file. Please check the format.");
       }
     };
@@ -197,16 +169,7 @@ export default function ChurchAdminAddWorker() {
           address: row["Address"] || row["address"] || "",
         };
 
-        // Normalize workerrole for case-sensitive values
-        // Convert singular to plural for backend
-        if (worker.workerrole) {
-          const roleLower = worker.workerrole.toLowerCase().trim();
-          if (roleLower === "pastoral leader" || roleLower === "pastoral leaders") {
-            worker.workerrole = "Pastoral Leaders";
-          } else if (roleLower === "directional leader" || roleLower === "directional leaders") {
-            worker.workerrole = "Directional Leaders";
-          }
-        }
+        worker.workerrole = normalizeWorkerRole(worker.workerrole);
 
         // Validate required fields
         const requiredFields = ['firstname', 'lastname', 'email', 'phonenumber', 'department', 'team'];
@@ -240,43 +203,15 @@ export default function ChurchAdminAddWorker() {
     setIsLoading(true);
     setBulkUploadProgress({ total: validWorkers.length, completed: 0, errors: [] });
 
-    const accessToken = sessionStorage.getItem("accessToken");
     const errors = [];
 
     for (let i = 0; i < validWorkers.length; i++) {
       try {
         const worker = { ...validWorkers[i] };
 
-        // Normalize workerrole for case-sensitive values before sending
-        // Convert singular to plural for backend
-        if (worker.workerrole) {
-          const roleLower = worker.workerrole.toLowerCase().trim();
-          if (roleLower === "pastoral leader" || roleLower === "pastoral leaders") {
-            worker.workerrole = "Pastoral Leaders";
-          } else if (roleLower === "directional leader" || roleLower === "directional leaders") {
-            worker.workerrole = "Directional Leaders";
-          }
-        }
+        worker.workerrole = normalizeWorkerRole(worker.workerrole);
 
-        const response = await fetch(
-          "https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com/api/super/admin/workers",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${accessToken}`,
-            },
-            body: JSON.stringify(worker),
-          }
-        );
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ message: "Unknown error occurred" }));
-          errors.push({
-            worker: `${worker.firstname} ${worker.lastname}`,
-            error: errorData.message || `HTTP ${response.status}: Failed to add worker`,
-          });
-        }
+        await apiRequest("POST", "/api/super/admin/workers", worker);
       } catch (error) {
         errors.push({
           worker: `${validWorkers[i].firstname} ${validWorkers[i].lastname}`,

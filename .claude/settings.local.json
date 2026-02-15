@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(find:*)",
+      "Bash(npx react-scripts build:*)",
+      "Bash(node -e:*)",
+      "Bash(ls:*)"
+    ]
+  }
+}

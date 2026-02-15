@@ -18,7 +18,6 @@ export default function Report() {
         const result = res.data
         setDates(result || []);
       } catch (err) {
-        console.error("Failed to fetch attendance dates:", err);
       }
     }
     fetchDates();
@@ -29,7 +28,7 @@ export default function Report() {
     if (!selectedDate) return;
     exportAttendance(selectedDate)
       .then((res) => setData(res))
-      .catch((err) => console.error(err));
+      .catch(() => {});
   }, [selectedDate]);
 
   return (

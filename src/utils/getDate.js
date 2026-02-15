@@ -50,4 +50,28 @@ export function getNextSunday() {
   return formattedDay;
 }
 
+/**
+ * Returns the Sunday's date formatted as "Sunday, 14 February 2026".
+ * If dateStr (YYYY-MM-DD) is provided, uses the Sunday of that week; otherwise uses the most recent Sunday.
+ */
+export function getSundayDisplayDate(dateStr) {
+  let date;
+  if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    date = new Date(dateStr + "T12:00:00");
+  } else {
+    date = new Date();
+  }
+  const dayOfWeek = date.getDay();
+  const diff = dayOfWeek === 0 ? 0 : dayOfWeek;
+  const sunday = new Date(date);
+  sunday.setDate(date.getDate() - diff);
+
+  const dayName = sunday.toLocaleDateString("en-GB", { weekday: "long" });
+  const dayNum = sunday.getDate();
+  const month = sunday.toLocaleDateString("en-GB", { month: "long" });
+  const year = sunday.getFullYear();
+
+  return `${dayName}, ${dayNum} ${month} ${year}`;
+}
+
 export default getDayAndYear;

@@ -1,12 +1,88 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogPanel } from "@headlessui/react";
-import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
+import { Bars3Icon, XMarkIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 import { useNavigate } from "react-router-dom";
 import { getUser } from "../utils/getUser";
-import { ADMIN_ENUMS } from "../utils/enums";
 import { clearFilterCache } from "../utils/filterCache";
+import { getUserRole } from "../utils/getUserRole";
+
+function NavDropdown({ label, items }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex items-center gap-1 text-sm/6 font-semibold text-gray-900 cursor-pointer"
+      >
+        {label}
+        <ChevronDownIcon
+          className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+          <div className="py-1">
+            {items.map((item) => (
+              <a
+                key={item.name}
+                href={item.href}
+                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                onClick={() => setOpen(false)}
+              >
+                {item.name}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MobileDropdown({ label, items }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div>
+      <button
+        onClick={() => setOpen((prev) => !prev)}
+        className="-mx-3 flex w-full items-center justify-between rounded-lg px-3 py-2 text-base/7 font-semibold text-gray-900 hover:bg-gray-50"
+      >
+        {label}
+        <ChevronDownIcon
+          className={`h-5 w-5 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
+        <div className="ml-4 space-y-1">
+          {items.map((item) => (
+            <a
+              key={item.name}
+              href={item.href}
+              className="-mx-3 block rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+            >
+              {item.name}
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -15,61 +91,70 @@ export default function Header() {
 
   if (!authUser) navigate("/login");
 
-  const nav = [
-    // Show Workers menu for Super Admin and Church Admin users
-    ...(authUser?.department === "Super Admin" ? [{ name: "Overview", href: "/overview/super-admin" }] : []),
-    ...(authUser?.department === "Super Admin" ? [{ name: "Workers", href: `/workers${authUser?.route || "/wadata"}` }] : []),
-    ...(authUser?.department === "Super Admin" ? [{ name: "All Workers", href: "/all-workers" }] : []),
-    ...(authUser?.department === "Super Admin" ? [{ name: "Departments", href: "/manage-departments" }] : []),
-    ...(authUser?.department === "Super Admin" ? [{ name: "Report", href: "/report" }] : []),
-    ...(authUser?.department === "Church Admin" ? [{ name: "Dashboard", href: "/attendance/dashboard" }] : []),
-    ...(authUser?.department === "Church Admin" ? [{ name: "Department Overview", href: "/attendance/summary" }] : []),
-    ...(authUser?.department === "Church Admin" ? [{ name: "Attendance", href: "/attendance" }] : []),
-    ...(authUser?.department === "Church Admin" ? [{ name: "Workers", href: "/church-admin/workers" }] : []),
-    // Show Dashboard, Department Overview and Attendance for normal admin users (not Super Admin or Church Admin)
-    ...(authUser?.department !== "Super Admin" && authUser?.department !== "Church Admin" && authUser?.department
-      ? [
-          { name: "Dashboard", href: authUser?.route ? `/dashboard${authUser.route}` : "/attendance/dashboard" },
-          { name: "Department Overview", href: authUser?.route ? `/summary${authUser.route}` : "/attendance/summary" },
-          { name: "Attendance", href: authUser?.route ? `/attendance${authUser.route}` : "/attendance" },
-        ]
-      : []),
+  // Phase 7: Use getUserRole for cleaner role detection
+  const { isSuperAdmin, isChurchAdmin: isChurchAdminRole, isTeamAdmin, isSubTeamAdmin, isHOD } =
+    getUserRole();
+  const isAdmin = isSuperAdmin || isChurchAdminRole || isTeamAdmin || isSubTeamAdmin;
+  const canAccessApprovals = isAdmin;
+
+  // HOD: Home, Summary, Attendance
+  const hodNav = [
+    { name: "Home", href: authUser?.route ? `/dashboard${authUser.route}` : "/attendance/dashboard" },
+    { name: "Summary", href: authUser?.route ? `/summary${authUser.route}` : "/attendance/summary" },
+    { name: "Attendance", href: authUser?.route ? `/attendance${authUser.route}` : "/attendance/dashboard" },
   ];
 
-  const adminNavigation = [
-    // Show Workers menu for Super Admin and Church Admin users
-    ...(authUser?.department === "Super Admin" ? [{ name: "Overview", href: "/overview/super-admin" }] : []),
-    ...(authUser?.department === "Super Admin" ? [{ name: "Workers", href: "/workers/super-admin" }] : []),
-    ...(authUser?.department === "Super Admin" ? [{ name: "Departments", href: "/manage-departments" }] : []),
-    ...(authUser?.department === "Super Admin" ? [{ name: "Report", href: "/report" }] : []),
-    ...(authUser?.department === "Church Admin" ? [{ name: "Dashboard", href: "/attendance/dashboard" }] : []),
-    ...(authUser?.department === "Church Admin" ? [{ name: "Department Overview", href: "/attendance/summary" }] : []),
-    ...(authUser?.department === "Church Admin" ? [{ name: "Attendance", href: "/attendance" }] : []),
-    ...(authUser?.department === "Church Admin" ? [{ name: "Workers", href: "/church-admin/workers" }] : []),
-    // Show Dashboard, Department Overview and Attendance for normal admin users (not Super Admin or Church Admin)
-    ...(authUser?.department !== "Super Admin" && authUser?.department !== "Church Admin" && authUser?.department
-      ? [
-          { name: "Dashboard", href: authUser?.route ? `/dashboard${authUser.route}` : "/attendance/dashboard" },
-          { name: "Department Overview", href: authUser?.route ? `/summary${authUser.route}` : "/attendance/summary" },
-          { name: "Attendance", href: authUser?.route ? `/attendance${authUser.route}` : "/attendance" },
-        ]
-      : []),
-  ];
-
-  const navigation =
-    authUser?.department?.toLowerCase() === ADMIN_ENUMS.ADMIN_DEPARTMENT.toLowerCase()
-      ? adminNavigation
-      : nav;
-
-  // Determine the home/landing page based on user role (logo link - must be a valid route)
-  const homePage =
-    authUser?.department === "Super Admin"
-      ? "/overview/super-admin"
-      : authUser?.department === "Church Admin"
+  // Admin navigation with dropdown groups
+  const adminNavTop = [
+    { name: "Home", href: isSuperAdmin ? "/overview/super-admin" : isChurchAdminRole ? "/attendance/dashboard" : authUser?.route ? `/dashboard${authUser.route}` : "/attendance/dashboard" },
+    { name: "Summary", href: "/attendance/summary" },
+    {
+      name: "Attendance",
+      href: isSuperAdmin
+        ? "/attendance/super-admin"
+        : isChurchAdminRole
         ? "/attendance/dashboard"
         : authUser?.route
-          ? `/dashboard${authUser.route}`
-          : "/attendance/dashboard";
+        ? `/attendance${authUser.route}`
+        : "/attendance/dashboard",
+    },
+  ];
+
+  // Workers dropdown items
+  const workersDropdown = [
+    ...(isSuperAdmin ? [{ name: "Workers", href: "/workers/super-admin" }] : []),
+    ...(isSuperAdmin ? [{ name: "All Workers", href: "/all-workers" }] : []),
+    ...(isChurchAdminRole ? [{ name: "Workers", href: "/church-admin/workers" }] : []),
+    ...(canAccessApprovals ? [{ name: "Approvals", href: "/pending-workers" }] : []),
+    ...(isSuperAdmin ? [{ name: "Team Mismatch", href: "/team-mismatch" }] : []),
+  ];
+
+  // Settings/Admin dropdown items
+  const settingsDropdown = [
+    ...(isSuperAdmin ? [{ name: "Dashboard", href: "/dashboard/super-admin" }] : []),
+    ...(isSuperAdmin ? [{ name: "Departments", href: "/manage-departments" }] : []),
+    ...(isSuperAdmin ? [{ name: "Admins", href: "/manage-admins" }] : []),
+    ...(isSuperAdmin ? [{ name: "Report", href: "/report" }] : []),
+    ...(isSuperAdmin || isChurchAdminRole ? [{ name: "Audit Log", href: "/admin/audit-log" }] : []),
+  ];
+
+  // Flat navigation for mobile menu
+  const flatNav = [
+    ...adminNavTop,
+    ...workersDropdown,
+    ...settingsDropdown,
+  ];
+
+  const navigation = isHOD && !isAdmin ? hodNav : flatNav;
+
+  // Determine the home/landing page (overview for super admin)
+  const homePage = isSuperAdmin
+    ? "/overview/super-admin"
+    : isChurchAdminRole
+    ? "/attendance/dashboard"
+    : authUser?.route
+    ? `/dashboard${authUser.route}`
+    : "/attendance/dashboard";
 
   return (
     <header className="bg-white">
@@ -92,17 +177,38 @@ export default function Header() {
             <Bars3Icon aria-hidden="true" className="size-6" />
           </button>
         </div>
-        <div className="hidden lg:flex lg:gap-x-12">
-          {navigation.map((item) => (
-            <a
-              key={item.name}
-              href={item.href}
-              className="text-sm/6 font-semibold text-gray-900 cursor-pointer"
-              {...(item.href.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-            >
-              {item.name}
-            </a>
-          ))}
+        <div className="hidden lg:flex lg:items-center lg:gap-x-8">
+          {isHOD && !isAdmin ? (
+            // HOD: flat links
+            hodNav.map((item) => (
+              <a
+                key={item.name}
+                href={item.href}
+                className="text-sm/6 font-semibold text-gray-900 cursor-pointer"
+              >
+                {item.name}
+              </a>
+            ))
+          ) : (
+            // Admin: top-level links + dropdowns
+            <>
+              {adminNavTop.map((item) => (
+                <a
+                  key={item.name}
+                  href={item.href}
+                  className="text-sm/6 font-semibold text-gray-900 cursor-pointer"
+                >
+                  {item.name}
+                </a>
+              ))}
+              {workersDropdown.length > 0 && (
+                <NavDropdown label="Workers" items={workersDropdown} />
+              )}
+              {settingsDropdown.length > 0 && (
+                <NavDropdown label="Settings" items={settingsDropdown} />
+              )}
+            </>
+          )}
           {!authUser ? (
             <a
               href="/login"
@@ -150,16 +256,35 @@ export default function Header() {
           <div className="mt-6 flow-root">
             <div className="-my-6 divide-y divide-gray-500/10">
               <div className="space-y-2 py-6">
-                {navigation.map((item) => (
-                  <a
-                    key={item.name}
-                    href={item.href}
-                    className="-mx-3 block rounded-lg px-3 py-2 text-base/7 font-semibold text-gray-900 hover:bg-gray-50"
-                    {...(item.href.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                  >
-                    {item.name}
-                  </a>
-                ))}
+                {isHOD && !isAdmin ? (
+                  hodNav.map((item) => (
+                    <a
+                      key={item.name}
+                      href={item.href}
+                      className="-mx-3 block rounded-lg px-3 py-2 text-base/7 font-semibold text-gray-900 hover:bg-gray-50"
+                    >
+                      {item.name}
+                    </a>
+                  ))
+                ) : (
+                  <>
+                    {adminNavTop.map((item) => (
+                      <a
+                        key={item.name}
+                        href={item.href}
+                        className="-mx-3 block rounded-lg px-3 py-2 text-base/7 font-semibold text-gray-900 hover:bg-gray-50"
+                      >
+                        {item.name}
+                      </a>
+                    ))}
+                    {workersDropdown.length > 0 && (
+                      <MobileDropdown label="Workers" items={workersDropdown} />
+                    )}
+                    {settingsDropdown.length > 0 && (
+                      <MobileDropdown label="Settings" items={settingsDropdown} />
+                    )}
+                  </>
+                )}
               </div>
               <div className="py-6">
                 {!authUser ? (

@@ -6,11 +6,11 @@ import "react-toastify/dist/ReactToastify.css";
 import NotFound from "./components/NotFound";
 import Login from "./components/Login";
 import Dashboard from "./components/Workers/Dashboard";
-import DepartmentSummary from "./components/Workers/DeparmentSummary";
+import DepartmentSummary from "./components/Workers/DepartmentSummary";
 import Home from "./components/Home";
 import DepartmentAttendance from "./components/Workers/DepartmentAttendance";
 import PrivateRoute from "./components/PrivateRoute";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
   adminRoutes,
   attendanceRoutes,
@@ -19,7 +19,7 @@ import {
   summaryRoutes,
 } from "./utils/routeObject";
 import DepartmentAttendanceHistory from "./components/Workers/History/DepartmentAttendanceHistory";
-import DepartmentSummaryHistory from "./components/Workers/History/DeparmentSummaryHistory";
+import DepartmentSummaryHistory from "./components/Workers/History/DepartmentSummaryHistory";
 import DashboardHistory from "./components/Workers/History/DashboardHistory";
 import NewWorker from "./components/Workers/NewWorker";
 import UnmarkedAttendance from "./components/Workers/Unmarked";
@@ -34,6 +34,11 @@ import TeamMismatch from "./pages/TeamMismatch";
 import Report from "./components/Report";
 import SuperAdminOverview from "./pages/SuperAdminOverview";
 import ManageDepartments from "./pages/ManageDepartments";
+import ManageAdmins from "./pages/ManageAdmins";
+import DepartmentDetail from "./pages/DepartmentDetail";
+import HODBulkAddWorker from "./pages/HODBulkAddWorker";
+import WorkerAttendanceHistory from "./pages/WorkerAttendanceHistory";
+import AuditLog from "./pages/AuditLog";
 
 const App = () => {
   const queryClient = new QueryClient({
@@ -43,34 +48,10 @@ const App = () => {
         refetchOnMount: false,
         refetchOnReconnect: false,
         staleTime: 5 * 60 * 1000, // 5 minutes
-        cacheTime: 10 * 60 * 1000, // 10 minutes
+        gcTime: 10 * 60 * 1000, // 10 minutes
       },
     },
   });
-
-  const [isClose, setIsClose] = useState(true);
-  const [loading, setLoading] = useState(true);
-  const date = "no";
-
-  useEffect(() => {
-    if (date === "yes") {
-      setIsClose(true);
-      setLoading(false);
-    } else {
-      setIsClose(false);
-      setLoading(false);
-    }
-  }, [date]);
-
-  if (isClose) {
-    return loading ? (
-      <div>Loading...</div>
-    ) : (
-      <div className="bg-gray-100 h-screen flex items-center justify-center">
-        <h1 className="text-4xl font-bold text-gray-800">Attendance Closed</h1>
-      </div>
-    );
-  }
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -259,6 +240,14 @@ const App = () => {
                 </PrivateRoute>
               }
             />
+            <Route
+              path="/manage-admins"
+              element={
+                <PrivateRoute>
+                  <ManageAdmins />
+                </PrivateRoute>
+              }
+            />
 
             {/* Church Admin Routes */}
             <Route
@@ -274,6 +263,40 @@ const App = () => {
               element={
                 <PrivateRoute>
                   <ChurchAdminAddWorker />
+                </PrivateRoute>
+              }
+            />
+
+            {/* Phase 7: New routes */}
+            <Route
+              path="/department/:departmentRoute"
+              element={
+                <PrivateRoute>
+                  <DepartmentDetail />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/department/:departmentRoute/bulk-add"
+              element={
+                <PrivateRoute>
+                  <HODBulkAddWorker />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/worker/:workerId/attendance"
+              element={
+                <PrivateRoute>
+                  <WorkerAttendanceHistory />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/admin/audit-log"
+              element={
+                <PrivateRoute>
+                  <AuditLog />
                 </PrivateRoute>
               }
             />

@@ -5,14 +5,15 @@ const loginService = async (code) => {
   try {
     const response = await apiRequest("POST", "/auth/signin", { password: code }, undefined, false);
     
-    // If login is successful and we have an access token, initialize filter data
+    // If login is successful, store token before initializing filter data
     if (response && response.accessToken) {
+      sessionStorage.setItem("accessToken", response.accessToken);
       // Initialize filter data in the background
       initializeFilterData(response.accessToken).catch(error => {
         // Silent error handling
       });
     }
-    
+
     return response;
   } catch (error) {
     // Silent error handling

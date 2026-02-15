@@ -1,8 +1,7 @@
 import { fetchAdminAttendance, calculateTotals } from "./attendance";
 import { getNextSunday } from "../utils/getDate";
 import { teamsAndDepartments } from "../utils/teams";
-
-const BASE_URL = "https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com";
+import apiRequest, { API_BASE_URL } from "../utils/apiClient";
 
 // Directorate to Teams mapping
 const directorateMapping = [
@@ -16,7 +15,7 @@ const directorateMapping = [
   },
   {
     directorate: "NEXT GEN",
-    teams: ["Kidzone", "Stir House"], // Virtual teams - aggregated from departments
+    teams: ["Kidszone", "Stir House"], // Virtual teams - aggregated from departments
     isVirtual: true,
     sourceTeam: "Next Gen",
   },
@@ -44,7 +43,7 @@ const directorateMapping = [
   },
 ];
 
-// Departments that belong to Kidzone and Stir House
+// Departments that belong to Kidszone and Stir House
 const kidzoneDeparts = [
   "Administration - Kidszone",
   "Learning and Development - Kidszone",
@@ -92,7 +91,7 @@ export const fetchAllWorkersForOverview = async () => {
     }
 
     const response = await fetch(
-      `${BASE_URL}/api/super/admin/workers?limit=10000`,
+      `${API_BASE_URL}/api/super/admin/workers?limit=10000`,
       {
         method: "GET",
         headers: {
@@ -120,7 +119,6 @@ export const fetchAllWorkersForOverview = async () => {
 
     return workersData;
   } catch (error) {
-    console.error("Error fetching workers for overview:", error);
     throw error;
   }
 };
@@ -278,12 +276,13 @@ export const prepareTeamChartData = (teamStats) => {
 
 /**
  * Fetches attendance statistics for overview (overall totals)
+ * @param {string} [activeDate] - Optional date for attendance (defaults to getNextSunday)
  * @returns {Promise<Object>} Attendance statistics
  */
-export const fetchAttendanceStats = async () => {
+export const fetchAttendanceStats = async (activeDate) => {
   try {
-    const lastAttendanceDate = getNextSunday();
-    const attendance = await fetchAdminAttendance("All", true);
+    const lastAttendanceDate = activeDate || getNextSunday();
+    const attendance = await fetchAdminAttendance("All", true, lastAttendanceDate);
     if (!attendance) {
       return {
         totalStrength: 0,
@@ -304,7 +303,6 @@ export const fetchAttendanceStats = async () => {
       lastAttendanceDate,
     };
   } catch (error) {
-    console.error("Error fetching attendance stats:", error);
     return {
       totalStrength: 0,
       totalPresent: 0,
@@ -318,15 +316,16 @@ export const fetchAttendanceStats = async () => {
 /**
  * Fetches attendance statistics per team
  * Uses a single "All" API call and parses data client-side to avoid 503 errors
+ * @param {string} [activeDate] - Optional date for attendance (defaults to getNextSunday)
  * @returns {Promise<Array>} Array of team attendance statistics
  */
-export const fetchTeamAttendanceStats = async () => {
+export const fetchTeamAttendanceStats = async (activeDate) => {
   try {
-    const lastAttendanceDate = getNextSunday();
+    const lastAttendanceDate = activeDate || getNextSunday();
     const teamNames = teamsAndDepartments.map((t) => t.team);
 
     // Fetch all attendance data with a single API call
-    const allAttendance = await fetchAdminAttendance("All", true);
+    const allAttendance = await fetchAdminAttendance("All", true, lastAttendanceDate);
     
     if (!allAttendance || allAttendance.length === 0) {
       return {
@@ -385,7 +384,6 @@ export const fetchTeamAttendanceStats = async () => {
       lastAttendanceDate,
     };
   } catch (error) {
-    console.error("Error fetching team attendance stats:", error);
     return {
       teamAttendanceStats: [],
       lastAttendanceDate: getNextSunday(),
@@ -396,16 +394,16 @@ export const fetchTeamAttendanceStats = async () => {
 /**
  * Fetches attendance statistics grouped by directorate
  * Uses a single "All" API call and parses data client-side to avoid 503 errors
+ * @param {string} [activeDate] - Optional date for attendance (defaults to getNextSunday)
  * @returns {Promise<Object>} Object with directorate attendance data and totals
  */
-export const fetchDirectorateAttendanceStats = async () => {
+export const fetchDirectorateAttendanceStats = async (activeDate) => {
   try {
-    const lastAttendanceDate = getNextSunday();
+    const lastAttendanceDate = activeDate || getNextSunday();
     
     // Fetch all attendance data with a single API call
-    const allAttendance = await fetchAdminAttendance("All", true);
+    const allAttendance = await fetchAdminAttendance("All", true, lastAttendanceDate);
     
-    console.log("Fetched all attendance data:", allAttendance?.length || 0, "records");
     
     if (!allAttendance || allAttendance.length === 0) {
       return {
@@ -468,7 +466,6 @@ export const fetchDirectorateAttendanceStats = async () => {
       }
     });
 
-    console.log("Team attendance map:", Object.keys(teamAttendanceMap));
 
     // Create directorate team data map
     const directorateTeamMap = {};
@@ -496,9 +493,9 @@ export const fetchDirectorateAttendanceStats = async () => {
       });
     });
 
-    // Process Next Gen -> Kidzone and Stir House
+    // Process Next Gen -> Kidszone and Stir House
     const nextGenData = teamAttendanceMap["Next Gen"];
-    let kidzoneData = { team: "Kidzone", present: 0, absent: 0, total: 0 };
+    let kidzoneData = { team: "Kidszone", present: 0, absent: 0, total: 0 };
     let stirhouseData = { team: "Stir House", present: 0, absent: 0, total: 0 };
 
     if (nextGenData && nextGenData.departments) {
@@ -515,7 +512,7 @@ export const fetchDirectorateAttendanceStats = async () => {
         }
       });
     }
-    directorateTeamMap["Kidzone"] = kidzoneData;
+    directorateTeamMap["Kidszone"] = kidzoneData;
     directorateTeamMap["Stir House"] = stirhouseData;
 
     // Process General Service -> Admin and Facility, Communications (DMU), Finance
@@ -587,7 +584,6 @@ export const fetchDirectorateAttendanceStats = async () => {
       });
     }
 
-    console.log("Directorate team map:", directorateTeamMap);
 
     // Group by directorate
     const directorateStats = directorateMapping.map((dir) => {
@@ -646,7 +642,6 @@ export const fetchDirectorateAttendanceStats = async () => {
       lastAttendanceDate,
     };
   } catch (error) {
-    console.error("Error fetching directorate attendance stats:", error);
     return {
       directorateStats: [],
       grandTotals: { total: 0, present: 0, absent: 0, percentage: "0%" },
@@ -656,38 +651,113 @@ export const fetchDirectorateAttendanceStats = async () => {
 };
 
 /**
- * Fetches complete overview data
+ * Fetches worker statistics only (metric cards, charts, breakdown tables).
+ * Separated for progressive loading — resolves independently of attendance data.
+ * @returns {Promise<Object>} Worker stats: overallStats, teamStats, departmentStats, chartData
+ */
+export const fetchWorkerStats = async () => {
+  const workers = await fetchAllWorkersForOverview();
+  const overallStats = calculateOverallStats(workers);
+  const teamStats = aggregateByTeam(workers);
+  const departmentStats = aggregateByDepartment(workers);
+  const statusChartData = prepareStatusChartData(overallStats);
+  const teamChartData = prepareTeamChartData(teamStats);
+
+  return {
+    workers,
+    overallStats,
+    teamStats,
+    departmentStats,
+    statusChartData,
+    teamChartData,
+  };
+};
+
+/**
+ * Fetches attendance data only (attendance report table, directorate stats).
+ * Separated for progressive loading — resolves independently of worker data.
+ * @param {string} [activeDate] - Optional date for attendance
+ * @returns {Promise<Object>} Attendance data: attendanceStats, directorateStats, grandTotals
+ */
+export const fetchAttendanceData = async (activeDate) => {
+  const [attendanceStats, teamAttendanceData, directorateAttendanceData] = await Promise.all([
+    fetchAttendanceStats(activeDate),
+    fetchTeamAttendanceStats(activeDate),
+    fetchDirectorateAttendanceStats(activeDate),
+  ]);
+
+  return {
+    attendanceStats,
+    teamAttendanceStats: teamAttendanceData.teamAttendanceStats,
+    directorateStats: directorateAttendanceData.directorateStats,
+    grandTotals: directorateAttendanceData.grandTotals,
+  };
+};
+
+/**
+ * Fetches complete overview data (legacy — kept for backwards compatibility)
+ * @param {Object} [params] - Optional params { startDate, endDate } for date-filtered attendance
  * @returns {Promise<Object>} Complete overview data including workers and attendance
  */
-export const fetchOverviewData = async () => {
+export const fetchOverviewData = async (params = {}) => {
   try {
-    const [workers, attendanceStats, teamAttendanceData, directorateAttendanceData] = await Promise.all([
-      fetchAllWorkersForOverview(),
-      fetchAttendanceStats(),
-      fetchTeamAttendanceStats(),
-      fetchDirectorateAttendanceStats(),
+    const { startDate, endDate } = params;
+    const activeDate = endDate || startDate || null;
+
+    const [workerData, attendanceData] = await Promise.all([
+      fetchWorkerStats(),
+      fetchAttendanceData(activeDate),
     ]);
 
-    const overallStats = calculateOverallStats(workers);
-    const teamStats = aggregateByTeam(workers);
-    const departmentStats = aggregateByDepartment(workers);
-    const statusChartData = prepareStatusChartData(overallStats);
-    const teamChartData = prepareTeamChartData(teamStats);
-
     return {
-      workers,
-      overallStats,
-      teamStats,
-      departmentStats,
-      statusChartData,
-      teamChartData,
-      attendanceStats,
-      teamAttendanceStats: teamAttendanceData.teamAttendanceStats,
-      directorateStats: directorateAttendanceData.directorateStats,
-      grandTotals: directorateAttendanceData.grandTotals,
+      ...workerData,
+      ...attendanceData,
     };
   } catch (error) {
-    console.error("Error fetching overview data:", error);
     throw error;
   }
 };
+
+// ========== Phase 7 - Audit Log Functions ==========
+
+/**
+ * Fetches audit log entries with pagination and filtering.
+ * Phase 7 spec: GET /api/audit-logs?startDate&endDate&departmentRoute&limit&offset&action
+ * @param {number} [page=1] - Page number (converted to offset)
+ * @param {number} [limit=50] - Number of entries per page
+ * @param {Object} [filters={}] - Optional filters { startDate, endDate, departmentRoute, teamName, action }
+ * @returns {Promise<Object|null>} Audit log data { data: [], logs: [], pagination: {}, total } or null on error
+ */
+export const fetchAuditLogs = async (page = 1, limit = 50, filters = {}) => {
+  try {
+    const offset = (page - 1) * limit;
+    const params = {
+      limit,
+      offset,
+      ...filters,
+    };
+
+    const response = await apiRequest("GET", "/api/audit-logs", params);
+
+    if (!response || response.error) {
+      throw new Error(response?.error || "Failed to fetch audit logs");
+    }
+
+    const data = response.data ?? response;
+    if (Array.isArray(data.logs) && !Array.isArray(data.data)) {
+      data.data = data.logs;
+    }
+    if (data.total !== undefined && !data.pagination?.total) {
+      data.pagination = data.pagination || {};
+      data.pagination.total = data.total;
+      data.pagination.totalPages = Math.ceil(data.total / limit);
+      data.pagination.hasNext = page * limit < data.total;
+      data.pagination.hasPrev = page > 1;
+    }
+    return data;
+  } catch (error) {
+    return null;
+  }
+};
+
+// ========== End Phase 7 - Audit Log Functions ==========

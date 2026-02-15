@@ -114,6 +114,7 @@ export const routeObject = [
   { department: "Venue Management - Feyisayo Phillip team", route: "/vmgtfeyi", team: "Programs" },
   { department: "Pastoral Leaders", route: "/pastoralleader", team: "Senior Leadership" },
   { department: "Directional Leaders", route: "/directionalleader", team: "Senior Leadership" },
+  { department: "Learning and Development", route: "/ld", team: "Next Gen" },
 ];
 
 export const attendanceRoutes = routeObject.map(
@@ -177,4 +178,41 @@ export const getAdminSelectOptions = (isChurchAdmin, team, authUser) => {
   }
 
   return options;
+};
+
+/**
+ * Phase 7: Get department route (without leading slash) from department name.
+ * @param {string} departmentName - Department name (e.g. "Call Centre")
+ * @returns {string|null} Route (e.g. "mincc") or null if not found
+ */
+export const getDepartmentRoute = (departmentName) => {
+  if (!departmentName) return null;
+  const entry = routeObject.find((r) => r.department === departmentName);
+  return entry ? entry.route.replace(/^\//, "") : null;
+};
+
+/**
+ * Phase 7: Get department name from route.
+ * @param {string} route - Route with or without leading slash (e.g. "mincc" or "/mincc")
+ * @returns {string|null} Department name or null if not found
+ */
+export const getDepartmentNameFromRoute = (route) => {
+  if (!route) return null;
+  const normalized = route.startsWith("/") ? route : `/${route}`;
+  const entry = routeObject.find((r) => r.route === normalized || r.route.replace(/^\//, "") === route);
+  return entry?.department ?? null;
+};
+
+/**
+ * Phase 7: Resolve department/team string to API params { departmentRoute?, teamName? }.
+ * @param {string} value - "All", department name, or team name
+ * @returns {{ departmentRoute?: string, teamName?: string }}
+ */
+export const resolveDepartmentParams = (value) => {
+  if (!value || value === "All") return {};
+  const dept = routeObject.find((r) => r.department === value);
+  if (dept) return { departmentRoute: dept.route.replace(/^\//, "") };
+  const teams = [...new Set(routeObject.map((r) => r.team))];
+  if (teams.includes(value)) return { teamName: value };
+  return { departmentRoute: value.startsWith("/") ? value.slice(1) : value };
 };

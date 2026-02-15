@@ -11,6 +11,18 @@ const api = axios.create({
 
 
 /**
+ * Serialize params for GET: array values become a single JSON string so the server
+ * receives one query param (e.g. permissions=["Workforce Admin"]) instead of repeated keys.
+ */
+function serializeParams(data) {
+  const out = {};
+  for (const [key, value] of Object.entries(data)) {
+    out[key] = Array.isArray(value) ? JSON.stringify(value) : value;
+  }
+  return out;
+}
+
+/**
  * Get auth token from storage (adjust to your setup)
  */
 function getAuthToken() {
@@ -55,7 +67,8 @@ export async function apiRequest(
     };
 
     if (method.toUpperCase() === "GET") {
-      options.params = data;
+      // Serialize array params as JSON so the server receives one param (e.g. permissions as array)
+      options.params = data && typeof data === "object" ? serializeParams(data) : data;
     } else {
       options.data = data;
     }

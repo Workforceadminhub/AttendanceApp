@@ -75,11 +75,30 @@ export default function DepartmentAttendance() {
   const [modalOpen, setModalOpen] = useState(false);
   const [workerId, setWorkerId] = useState(0);
   const [activeDelete, setActiveDelete] = useState(false);
+  const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState("All");
   const [deleteData, setDeleteData] = useState({
     nameofrequester: "",
     reasonfordelete: "",
     roleofrequester: "",
   });
+
+  // Unique departments from response – show filter when more than one
+  const departmentsFromData = useMemo(() => {
+    if (!Array.isArray(data)) return [];
+    const set = new Set();
+    data.forEach((w) => {
+      if (w?.department) set.add(w.department);
+    });
+    return Array.from(set).sort();
+  }, [data]);
+
+  const showDepartmentFilter = departmentsFromData.length > 1;
+
+  const filteredData = useMemo(() => {
+    if (!Array.isArray(data)) return [];
+    if (selectedDepartmentFilter === "All") return data;
+    return data.filter((w) => w?.department === selectedDepartmentFilter);
+  }, [data, selectedDepartmentFilter]);
 
   const options = useMemo(
     () => [
@@ -159,6 +178,17 @@ export default function DepartmentAttendance() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh]);
+
+  // Reset department filter if selected department no longer in data
+  useEffect(() => {
+    if (
+      selectedDepartmentFilter !== "All" &&
+      departmentsFromData.length > 0 &&
+      !departmentsFromData.includes(selectedDepartmentFilter)
+    ) {
+      setSelectedDepartmentFilter("All");
+    }
+  }, [departmentsFromData, selectedDepartmentFilter]);
 
   function updateOrAddWorker(array, newWorker) {
     // Find the index of an object with the same workerid
@@ -300,6 +330,33 @@ export default function DepartmentAttendance() {
             </div>
           )}
 
+          {/* Department filter when response has multiple departments */}
+          {showDepartmentFilter && (
+            <div className="mt-6">
+              <ReactSelectDropdown
+                title="Filter by department"
+                value={{
+                  value: selectedDepartmentFilter,
+                  label:
+                    selectedDepartmentFilter === "All"
+                      ? "All departments"
+                      : selectedDepartmentFilter,
+                }}
+                onChange={(selected) =>
+                  setSelectedDepartmentFilter(selected?.value ?? "All")
+                }
+                options={[
+                  { value: "All", label: "All departments" },
+                  ...departmentsFromData.map((dept) => ({
+                    value: dept,
+                    label: dept,
+                  })),
+                ]}
+                className="lg:w-[25%] md:w-[30%] xl:w-[25%] sm:w-[45%] xs:w-[50%]"
+              />
+            </div>
+          )}
+
           {/* Table Section */}
           <div className="mt-6">
             {isLoading ? (
@@ -330,7 +387,7 @@ export default function DepartmentAttendance() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {data?.map((person, idx) => (
+                        {filteredData?.map((person, idx) => (
                           <tr key={person.id}>
                             <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
                               {idx + 1}
@@ -388,7 +445,7 @@ export default function DepartmentAttendance() {
                 {/* Mobile Cards */}
                 <div className="sm:hidden">
                   <div className="space-y-4">
-                    {data?.map((person, idx) => (
+                    {filteredData?.map((person, idx) => (
                       <div
                         key={person.id}
                         className="bg-white rounded-lg shadow p-4 space-y-3"

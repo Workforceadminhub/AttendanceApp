@@ -22,7 +22,6 @@ import { getDepartmentRoute, routeObject } from "../utils/routeObject";
 import { fetchAttendance } from "../services/attendance";
 import { fetchAdminWorkers } from "../services/workers";
 import { getNextSunday, getSundaysInYear } from "../utils/getDate";
-import { format } from "date-fns";
 
 export default function AdminSummaryDetail() {
   const location = useLocation();

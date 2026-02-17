@@ -36,7 +36,9 @@ import SuperAdminOverview from "./pages/SuperAdminOverview";
 import ManageDepartments from "./pages/ManageDepartments";
 import ManageAdmins from "./pages/ManageAdmins";
 import DepartmentDetail from "./pages/DepartmentDetail";
+import DepartmentWorkers from "./pages/DepartmentWorkers";
 import HODBulkAddWorker from "./pages/HODBulkAddWorker";
+import HODAddWorker from "./pages/HODAddWorker";
 import WorkerAttendanceHistory from "./pages/WorkerAttendanceHistory";
 import AuditLog from "./pages/AuditLog";
 
@@ -273,6 +275,22 @@ const App = () => {
               element={
                 <PrivateRoute>
                   <DepartmentDetail />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/department/:departmentRoute/workers"
+              element={
+                <PrivateRoute>
+                  <DepartmentWorkers />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/department/:departmentRoute/add-worker"
+              element={
+                <PrivateRoute>
+                  <HODAddWorker />
                 </PrivateRoute>
               }
             />

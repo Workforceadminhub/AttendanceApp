@@ -45,6 +45,24 @@ export const fetchUnmarkedWorkers = async (team, activeDate) => {
   }
 };
 
+/** Unmarked workers for a specific department (Dashboard). */
+export const fetchUnmarkedWorkersByDepartment = async (departmentRoute, activeDate) => {
+  try {
+    const dateForAttendance = activeDate || getNextSunday();
+    const route = departmentRoute?.replace?.(/^\//, "") ?? departmentRoute;
+    const response = await apiRequest("GET", "/api/unmarked/workers", {
+      departmentRoute: route || departmentRoute,
+      activeDate: dateForAttendance,
+    });
+    if (!response || response.error) {
+      throw new Error(response?.error || "Failed to fetch unmarked workers");
+    }
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const fetchAdminWorkers = async (team, activeGroup, activeDate, search = "") => {
   try {
     const params = {
@@ -224,6 +242,7 @@ export const fetchInactiveWorkers = async (department, threshold = 60) => {
  * @returns {Promise<Object|null>} { topPerformers: [], bottomPerformers: [] } or null on error
  */
 export const fetchTopPerformers = async (department, startDate, endDate, limit = 3) => {
+  const empty = { topPerformers: [], bottomPerformers: [] };
   try {
     const { departmentRoute, teamName } = resolveDepartmentParams(department || "All");
     const params = { limit };
@@ -234,7 +253,7 @@ export const fetchTopPerformers = async (department, startDate, endDate, limit =
     const response = await apiRequest("GET", "/api/analytics/attendance-leaderboard", params);
 
     if (!response || response.error) {
-      throw new Error(response?.error || "Failed to fetch leaderboard");
+      return empty;
     }
 
     const data = response.data ?? response;
@@ -244,7 +263,7 @@ export const fetchTopPerformers = async (department, startDate, endDate, limit =
     }
     return data;
   } catch (error) {
-    throw error;
+    return empty;
   }
 };
 

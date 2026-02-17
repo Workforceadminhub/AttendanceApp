@@ -9,7 +9,7 @@ import {
 } from "../../services/workers";
 import { addAttendance } from "../../services/attendance";
 import { toast } from "react-toastify";
-import { getNextSunday } from "../../utils/getDate";
+import { getNextSunday, getSundayDisplayDate } from "../../utils/getDate";
 import ReactSelectDropdown from "../ReactSelect";
 // import TableLoadingState from "../TableLoadingState";
 import Layout from "../Layout";
@@ -17,6 +17,8 @@ import { switchOffAttendance } from "../../utils/switchOffAttendance";
 import { getAdminSelectOptions } from "../../utils/routeObject";
 import { ADMIN_ENUMS } from "../../utils/enums";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
+import { getUserRole } from "../../utils/getUserRole";
+import { fetchDepartments } from "../../services/departments";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
 import { debounce } from "lodash";
 import ViewHistoryButton from "../ViewHistoryButton";
@@ -69,16 +71,41 @@ export default function DepartmentAttendance() {
   const team = getDepartmentByUser(location.pathname);
   const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
   const isAdminMember = checkAdminStatus(location.pathname);
-  const optionsAdmin = getAdminSelectOptions(isChurchAdmin, team);
+  const authUser = getUser();
+  const { isSubTeamAdmin, assignedDepartments } = getUserRole();
+  const optionsAdmin = getAdminSelectOptions(isChurchAdmin, team, authUser);
   const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [workerId, setWorkerId] = useState(0);
   const [activeDelete, setActiveDelete] = useState(false);
+  const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState("All");
   const [deleteData, setDeleteData] = useState({
     nameofrequester: "",
     reasonfordelete: "",
     roleofrequester: "",
   });
+  const [apiDepartments, setApiDepartments] = useState([]);
+
+  // Unique departments from response – show filter when more than one (non–sub-team-admin)
+  const departmentsFromData = useMemo(() => {
+    if (!Array.isArray(data)) return [];
+    const set = new Set();
+    data.forEach((w) => {
+      if (w?.department) set.add(w.department);
+    });
+    return Array.from(set).sort();
+  }, [data]);
+
+  // Sub-team-admin: departments from API (filtered to assigned); others: from data when multiple
+  const availableDepartments = isSubTeamAdmin ? apiDepartments : departmentsFromData;
+  const showDepartmentFilter =
+    isSubTeamAdmin ? availableDepartments.length > 0 : departmentsFromData.length > 1;
+
+  const filteredData = useMemo(() => {
+    if (!Array.isArray(data)) return [];
+    if (selectedDepartmentFilter === "All") return data;
+    return data.filter((w) => w?.department === selectedDepartmentFilter);
+  }, [data, selectedDepartmentFilter]);
 
   const options = useMemo(
     () => [
@@ -123,7 +150,40 @@ export default function DepartmentAttendance() {
 
   const queryWorkers = () => {
     setIsLoading(true);
-    fetchWorkers(team.department)
+    const permissions = authUser?.permissions ?? [];
+
+    if (isSubTeamAdmin && selectedDepartmentFilter !== "All") {
+      fetchWorkers(selectedDepartmentFilter, dateForAttendance, permissions, "")
+        .then((res) => {
+          setData(sortWorkersById(res));
+          setIsLoading(false);
+        })
+        .catch((error) => {
+          toast.error(`Error loading attendance: ${error.message}`);
+          setIsLoading(false);
+        });
+      return;
+    }
+
+    if (isSubTeamAdmin && apiDepartments.length > 0) {
+      Promise.all(
+        apiDepartments.map((d) =>
+          fetchWorkers(d.name, dateForAttendance, permissions, "")
+        )
+      )
+        .then((results) => {
+          const merged = results.flat();
+          setData(sortWorkersById(merged));
+          setIsLoading(false);
+        })
+        .catch((error) => {
+          toast.error(`Error loading attendance: ${error.message}`);
+          setIsLoading(false);
+        });
+      return;
+    }
+
+    fetchWorkers(team.department, dateForAttendance, permissions, "")
       .then((res) => {
         setData(sortWorkersById(res));
         setIsLoading(false);
@@ -140,6 +200,26 @@ export default function DepartmentAttendance() {
       .catch(() => {});
   }, []);
 
+  // Sub-team-admin: fetch departments from API and keep only assigned
+  useEffect(() => {
+    if (!isSubTeamAdmin || isAdminMember) return;
+    let cancelled = false;
+    fetchDepartments()
+      .then((list) => {
+        if (cancelled || !Array.isArray(list)) return;
+        const assigned = (assignedDepartments || []).map((r) =>
+          (r || "").replace(/^\//, "").toLowerCase()
+        );
+        const filtered = list.filter((d) => {
+          const route = (d?.route || "").replace(/^\//, "").toLowerCase();
+          return assigned.length === 0 || assigned.includes(route);
+        });
+        setApiDepartments(filtered);
+      })
+      .catch(() => setApiDepartments([]));
+    return () => { cancelled = true; };
+  }, [isSubTeamAdmin, isAdminMember, assignedDepartments]);
+
   useEffect(() => {
     if (isAdminMember) {
       queryAdminWorkers();
@@ -147,7 +227,14 @@ export default function DepartmentAttendance() {
       queryWorkers();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeGroup, isAdminMember, isChurchAdmin, team.team]);
+  }, [
+    activeGroup,
+    isAdminMember,
+    isChurchAdmin,
+    team.team,
+    isSubTeamAdmin ? selectedDepartmentFilter : null,
+    isSubTeamAdmin ? apiDepartments.length : 0,
+  ]);
 
   useEffect(() => {
     if (isAdminMember) {
@@ -157,6 +244,24 @@ export default function DepartmentAttendance() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh]);
+
+  // Reset department filter if selected department no longer in available list
+  const availableDepartmentNames = useMemo(
+    () =>
+      isSubTeamAdmin
+        ? apiDepartments.map((d) => d.name)
+        : departmentsFromData,
+    [isSubTeamAdmin, apiDepartments, departmentsFromData]
+  );
+  useEffect(() => {
+    if (
+      selectedDepartmentFilter !== "All" &&
+      availableDepartmentNames.length > 0 &&
+      !availableDepartmentNames.includes(selectedDepartmentFilter)
+    ) {
+      setSelectedDepartmentFilter("All");
+    }
+  }, [availableDepartmentNames, selectedDepartmentFilter]);
 
   function updateOrAddWorker(array, newWorker) {
     // Find the index of an object with the same workerid
@@ -242,39 +347,18 @@ export default function DepartmentAttendance() {
                 {team?.department} attendance
               </h1>
               <p className="text-sm text-gray-600">
-                {dateForAttendance} -{" "}
+                {getSundayDisplayDate()} -{" "}
                 {dateForAttendance?.includes("Sunday")
                   ? "Sunday service"
                   : "Midweek service"}
               </p>
             </div>
-            {isAdminMember ? (
+            {isAdminMember && (
               <div className="self-start sm:self-center space-x-2">
                 <ViewHistoryButton
                   label="View History"
                   link={`/attendance/history/admin/${team.department}`}
                 />
-              </div>
-            ) : (
-              <div>
-                <button
-                  className="bg-blue-500 px-4 text-white py-2 rounded-lg sm:text-xs xs:text-xs md:text-sm lg:text-sm xl:text-sm"
-                  onClick={() => {
-                    navigate("/new/worker");
-                  }}
-                >
-                  Add New Worker
-                </button>
-                <button
-                  className="bg-red-500 px-4 text-white py-2 rounded-lg ml-3 text-xs"
-                  onClick={() => {
-                    setActiveDelete(!activeDelete);
-                  }}
-                >
-                  {activeDelete
-                    ? "Complete Request"
-                    : "Request to Delete Workers"}
-                </button>
               </div>
             )}
           </div>
@@ -292,6 +376,38 @@ export default function DepartmentAttendance() {
                 options={[
                   { value: "All", label: "All teams/departments" },
                   ...optionsAdmin,
+                ]}
+                className="lg:w-[25%] md:w-[30%] xl:w-[25%] sm:w-[45%] xs:w-[50%]"
+              />
+            </div>
+          )}
+
+          {/* Department filter: for sub-team-admin always from API; otherwise when response has multiple departments */}
+          {showDepartmentFilter && (
+            <div className="mt-6">
+              <ReactSelectDropdown
+                title="Filter by department"
+                value={{
+                  value: selectedDepartmentFilter,
+                  label:
+                    selectedDepartmentFilter === "All"
+                      ? "All departments"
+                      : selectedDepartmentFilter,
+                }}
+                onChange={(selected) =>
+                  setSelectedDepartmentFilter(selected?.value ?? "All")
+                }
+                options={[
+                  { value: "All", label: "All departments" },
+                  ...(isSubTeamAdmin
+                    ? apiDepartments.map((d) => ({
+                        value: d.name,
+                        label: d.name,
+                      }))
+                    : departmentsFromData.map((dept) => ({
+                        value: dept,
+                        label: dept,
+                      }))),
                 ]}
                 className="lg:w-[25%] md:w-[30%] xl:w-[25%] sm:w-[45%] xs:w-[50%]"
               />
@@ -316,6 +432,11 @@ export default function DepartmentAttendance() {
                           <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                             Name
                           </th>
+                          {isSubTeamAdmin && (
+                            <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                              Department
+                            </th>
+                          )}
                           <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                             Phone number
                           </th>
@@ -336,6 +457,11 @@ export default function DepartmentAttendance() {
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                               {person.fullname}
                             </td>
+                            {isSubTeamAdmin && (
+                              <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                {person.department ?? "—"}
+                              </td>
+                            )}
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                               {person.phonenumber
                                 ? person.phonenumber.startsWith("0")
@@ -410,6 +536,9 @@ export default function DepartmentAttendance() {
                         </div>
                         <div className="text-sm text-gray-500">
                           <p>Birthday: {person.birthdate}</p>
+                          {isSubTeamAdmin && person.department && (
+                            <p>Department: {person.department}</p>
+                          )}
                         </div>
                         <div className="pt-2 flex space-x-3">
                           <AttendanceDropdown

@@ -5,24 +5,32 @@ import LoadingState from "./LoadingState";
 
 /**
  * Displays top and bottom attendance performers for a department.
+ * When `data` is provided (frontend-computed leaderboard), uses it and does not fetch.
  *
  * @param {Object} props
  * @param {string} props.department - Department name to filter by
  * @param {string} props.startDate - ISO date string for range start
  * @param {string} props.endDate - ISO date string for range end
- * @param {number} [props.limit=10] - Number of performers to show per section
+ * @param {number} [props.limit=5] - Number of performers to show per section
+ * @param {Object} [props.data] - Optional precomputed { topPerformers, bottomPerformers } (skips API)
+ * @param {boolean} [props.isLoading] - Optional loading state when data is computed elsewhere
  */
 export default function AttendanceLeaderboard({
   department,
   startDate,
   endDate,
-  limit = 10,
+  limit = 5,
+  data: dataProp,
+  isLoading: isLoadingProp,
 }) {
-  const { data, isLoading } = useQuery({
+  const { data: fetchedData, isLoading: isFetching } = useQuery({
     queryKey: ["leaderboard", department, startDate, endDate, limit],
     queryFn: () => fetchTopPerformers(department, startDate, endDate, limit),
-    enabled: !!department && !!startDate && !!endDate,
+    enabled: !!department && !!startDate && !!endDate && !dataProp,
   });
+
+  const data = dataProp ?? fetchedData;
+  const isLoading = dataProp != null ? isLoadingProp : isFetching;
 
   const topPerformers = data?.topPerformers ?? data?.top ?? [];
   const bottomPerformers = data?.bottomPerformers ?? data?.bottom ?? [];
@@ -110,13 +118,25 @@ export default function AttendanceLeaderboard({
     </div>
   );
 
+  const bothEmpty = topPerformers.length === 0 && bottomPerformers.length === 0;
+
   return (
     <div className="bg-white rounded-lg border shadow p-6">
       <h2 className="text-lg font-semibold text-gray-900 mb-4">
         Attendance Leaderboard
       </h2>
-      {renderTable(`Top ${limit} Performers`, topPerformers, true)}
-      {renderTable(`Bottom ${limit} Performers`, bottomPerformers, false)}
+      {bothEmpty ? (
+        <p className="text-sm text-gray-500">
+          {dataProp != null
+            ? "No worker-level attendance data for this month."
+            : "Leaderboard data is not available for this month. It will appear when the backend is ready."}
+        </p>
+      ) : (
+        <>
+          {renderTable(`Top ${limit} Performers`, topPerformers, true)}
+          {renderTable(`Bottom ${limit} Performers`, bottomPerformers, false)}
+        </>
+      )}
     </div>
   );
 }

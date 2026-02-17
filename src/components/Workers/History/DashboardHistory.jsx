@@ -79,7 +79,7 @@ export default function DashboardHistory() {
     fetchHistoryOptions().then((res) =>
       setHistoryOptions(res.map((item) => ({ label: item, value: item })))
     );
-  }, []);
+  }, [authUser?.permissions]);
 
   const debouncedSetActiveGroup = debounce(
     (value) => setActiveGroup(value),
@@ -106,7 +106,7 @@ export default function DashboardHistory() {
         <div className="flex justify-between">
           <div className="flex flex-col space-y-4 font-bold">
             {/* <Select title="Select service" options={services} /> */}
-            {`${team?.team} Dashboard`} - {getSundayDisplayDate()}
+            {`${isAdminMember ? team?.team : team?.department} Dashboard`} - {getSundayDisplayDate()}
           </div>
           <ViewHistoryButton
             label="Back to Dashboard"

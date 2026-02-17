@@ -149,10 +149,14 @@ export const fetchAttendanceTrends = async (department, startDate, endDate) => {
       throw new Error(response?.error || "Failed to fetch attendance trends");
     }
 
-    return response.data;
+    const raw = response.data ?? response;
+    if (Array.isArray(raw)) return raw;
+    if (Array.isArray(raw?.data)) return raw.data;
+    if (Array.isArray(raw?.trends)) return raw.trends;
+    return [];
   } catch (error) {
     // Silent error handling
-    return null;
+    return [];
   }
 };
 

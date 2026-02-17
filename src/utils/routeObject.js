@@ -114,7 +114,7 @@ export const routeObject = [
   { department: "Venue Management - Feyisayo Phillip team", route: "/vmgtfeyi", team: "Programs" },
   { department: "Pastoral Leaders", route: "/pastoralleader", team: "Senior Leadership" },
   { department: "Directional Leaders", route: "/directionalleader", team: "Senior Leadership" },
-  { department: "Learning and Development", route: "/ld", team: "Next Gen" },
+  { department: "Learning and Development", route: "/ld", team: "Ministry" },
 ];
 
 export const attendanceRoutes = routeObject.map(

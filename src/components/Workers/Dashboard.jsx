@@ -1,12 +1,12 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   calculateTotals,
   fetchAdminAttendance,
   fetchAttendance,
 } from "../../services/attendance";
 import Header from "../Header";
-import { getNextSunday, getSundayDisplayDate } from "../../utils/getDate";
-import { useLocation } from "react-router-dom";
+import { getNextSunday, getSundayDisplayDate, getSundaysInYear } from "../../utils/getDate";
+import { Link, useLocation } from "react-router-dom";
 import { getDepartmentByUser } from "../../utils/getDepartment";
 import LoadingState from "../LoadingState";
 import Layout from "../Layout";
@@ -14,22 +14,63 @@ import { toast } from "react-toastify";
 import { ADMIN_ENUMS } from "../../utils/enums";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
 import ReactSelectDropdown from "../ReactSelect";
-import { getAdminSelectOptions } from "../../utils/routeObject";
+import { getAdminSelectOptions, routeObject } from "../../utils/routeObject";
 import { filterByUserPermissions } from "../../utils/filterByPermissions";
 import { getUser } from "../../utils/getUser";
+import { getUserRole } from "../../utils/getUserRole";
 import { debounce } from "lodash";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
-import ViewHistoryButton from "../ViewHistoryButton";
-import DateRangeFilter from "../DateRangeFilter";
 import BirthdayWidget from "../BirthdayWidget";
 import InactiveWorkersWidget from "../InactiveWorkersWidget";
-import AttendanceLeaderboard from "../AttendanceLeaderboard";
-import { format } from "date-fns";
+import {
+  ClipboardDocumentCheckIcon,
+  TableCellsIcon,
+  UserGroupIcon,
+  ExclamationTriangleIcon,
+  ClockIcon,
+} from "@heroicons/react/24/outline";
+
+/**
+ * Checks if the attendance window is currently open.
+ * Attendance opens at 12:00 AM Sunday and closes at 6:00 PM Sunday.
+ */
+function getAttendanceWindowStatus() {
+  const now = new Date();
+  const day = now.getDay(); // 0 = Sunday
+  const hour = now.getHours();
+
+  if (day === 0 && hour < 18) {
+    // Sunday before 6pm — open
+    const closesAt = new Date(now);
+    closesAt.setHours(18, 0, 0, 0);
+    const diffMs = closesAt - now;
+    const hoursLeft = Math.floor(diffMs / (1000 * 60 * 60));
+    const minsLeft = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    return {
+      isOpen: true,
+      message: `Attendance is open — closes at 6:00 PM today (${hoursLeft}h ${minsLeft}m remaining)`,
+    };
+  }
+
+  // Calculate next Sunday 12:00 AM
+  const daysUntilSunday = day === 0 ? 7 : 7 - day;
+  const nextSunday = new Date(now);
+  nextSunday.setDate(now.getDate() + daysUntilSunday);
+  nextSunday.setHours(0, 0, 0, 0);
+
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return {
+    isOpen: false,
+    message: `Attendance is closed — opens Sunday ${nextSunday.getDate()} ${months[nextSunday.getMonth()]} at 12:00 AM`,
+  };
+}
 
 export default function Dashboard() {
   const [attendanceSummary, setAttendanceSummary] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeGroup, setActiveGroup] = useState("All");
+  const [unmarkedCount, setUnmarkedCount] = useState(null);
+  const [unmarkedLoading, setUnmarkedLoading] = useState(false);
   const location = useLocation();
   const pathname = location.pathname;
   const team = getDepartmentByUser(pathname);
@@ -38,57 +79,85 @@ export default function Dashboard() {
   const authUser = getUser();
   const options = getAdminSelectOptions(isChurchAdmin, team, authUser);
 
+  // Extract route suffix from pathname (e.g. "/dashboard/wadata" -> "/wadata")
+  const routeSuffix = pathname.replace(/^\/dashboard/, "") || "";
+  const departmentInfo = routeObject.find((r) => r.route === routeSuffix);
 
-  // Phase 7: Date range state
-  const [dateRange, setDateRange] = useState({
-    startDate: null,
-    endDate: null,
-  });
+  const defaultDate = getNextSunday();
+  const [selectedDate, setSelectedDate] = useState(defaultDate);
 
-  const handleDateRangeChange = useCallback(({ startDate, endDate }) => {
-    setDateRange({ startDate, endDate });
+  // Attendance window status (updates every minute)
+  const [attendanceStatus, setAttendanceStatus] = useState(getAttendanceWindowStatus);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setAttendanceStatus(getAttendanceWindowStatus());
+    }, 60000); // update every minute
+    return () => clearInterval(interval);
   }, []);
 
-  const startDateStr = dateRange.startDate
-    ? format(dateRange.startDate, "yyyy-MM-dd")
-    : null;
-  const endDateStr = dateRange.endDate
-    ? format(dateRange.endDate, "yyyy-MM-dd")
-    : null;
+  // Generate Sunday options for the dropdown
+  const sundayOptions = useMemo(() => {
+    const sundays = getSundaysInYear();
+    return sundays.map((s) => ({
+      value: s,
+      label: getSundayDisplayDate(s),
+    }));
+  }, []);
 
-  // Phase 7: Use date range endDate when available, else latest service date
-  const dateForAttendance = endDateStr || getNextSunday();
+  const setUnmarkedFromAttendance = (filtered) => {
+    const dept = departmentInfo?.department;
+    if (dept == null) {
+      setUnmarkedCount(null);
+      return;
+    }
+    const deptItem = (filtered ?? []).find(
+      (item) => (item.department || item.department_name) === dept
+    );
+    const n = deptItem?.unfilled;
+    setUnmarkedCount(typeof n === "number" ? n : n != null && Array.isArray(n) ? n.length : 0);
+  };
 
   const queryAdminAttendance = () => {
     setIsLoading(true);
-    fetchAdminAttendance(activeGroup, isChurchAdmin, dateForAttendance)
+    setUnmarkedLoading(true);
+    const permissions = authUser?.permissions ?? [];
+    fetchAdminAttendance(activeGroup, isChurchAdmin, selectedDate, null, null, permissions)
       .then((attendance) => {
         const filtered = filterByUserPermissions(attendance ?? [], authUser, pathname);
         setAttendanceSummary(calculateTotals(filtered));
+        setUnmarkedFromAttendance(filtered);
         setIsLoading(false);
+        setUnmarkedLoading(false);
       })
       .catch((error) => {
         setIsLoading(false);
-        // Silent error handling
+        setUnmarkedLoading(false);
+        setUnmarkedCount(null);
         toast.error(`Error loading summary: ${error.message}`);
       });
   };
 
   const queryAttendance = () => {
     setIsLoading(true);
-    fetchAttendance(dateForAttendance)
+    setUnmarkedLoading(true);
+    const permissions = authUser?.permissions ?? [];
+    fetchAttendance(selectedDate, null, null, permissions)
       .then((attendance) => {
         const filtered = filterByUserPermissions(attendance ?? [], authUser, pathname);
         setAttendanceSummary(calculateTotals(filtered));
+        setUnmarkedFromAttendance(filtered);
         setIsLoading(false);
+        setUnmarkedLoading(false);
       })
       .catch((error) => {
         setIsLoading(false);
+        setUnmarkedLoading(false);
+        setUnmarkedCount(null);
         toast.error(`Error loading summary: ${error.message}`);
       });
   };
 
-  // Phase 7: Refetch when activeGroup, date range, or admin status changes
+  // Refetch when activeGroup, selectedDate, or admin status changes
   useEffect(() => {
     if (isAdminMember) {
       queryAdminAttendance();
@@ -96,7 +165,7 @@ export default function Dashboard() {
       queryAttendance();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeGroup, isChurchAdmin, isAdminMember, dateForAttendance]);
+  }, [activeGroup, isChurchAdmin, isAdminMember, selectedDate]);
 
   const debouncedSetActiveGroup = debounce(
     (value) => setActiveGroup(value),
@@ -107,6 +176,19 @@ export default function Dashboard() {
     debouncedSetActiveGroup(selected?.value);
   };
 
+  const debouncedSetSelectedDate = debounce(
+    (value) => setSelectedDate(value),
+    DEBOUNCE_INTERVAL
+  );
+
+  const handleDateChange = (selected) => {
+    if (selected?.value) {
+      debouncedSetSelectedDate(selected.value);
+    } else {
+      debouncedSetSelectedDate(defaultDate);
+    }
+  };
+
   // Determine department for widgets
   const widgetDepartment = isAdminMember
     ? activeGroup === "All"
@@ -114,31 +196,62 @@ export default function Dashboard() {
       : activeGroup
     : team?.department || "All";
 
+  // Quick links (hide Mark Attendance for sub team head)
+  const { isSubTeamAdmin } = getUserRole();
+  const quickLinks = useMemo(() => {
+    const links = [];
+    if (departmentInfo) {
+      if (!isSubTeamAdmin) {
+        links.push({
+          label: "Mark Attendance",
+          href: `/attendance${departmentInfo.route}`,
+          icon: ClipboardDocumentCheckIcon,
+          color: "bg-green-50 text-green-700 hover:bg-green-100",
+        });
+      }
+      links.push({
+        label: "View Summary",
+        href: `/summary${departmentInfo.route}`,
+        icon: TableCellsIcon,
+        color: "bg-blue-50 text-blue-700 hover:bg-blue-100",
+      });
+      links.push({
+        label: "View Workers",
+        href: `/department/${departmentInfo.route.replace(/^\//, "")}/workers`,
+        icon: UserGroupIcon,
+        color: "bg-purple-50 text-purple-700 hover:bg-purple-100",
+      });
+    }
+    return links;
+  }, [departmentInfo, isSubTeamAdmin]);
+
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
       <Header />
       <Layout>
-        {/* <h3 className="text-base font-semibold text-gray-900">Last 30 days</h3> */}
-        <div className="flex justify-between">
+        <div className="flex justify-between items-start">
           <div className="flex flex-col space-y-4 font-bold">
-            {/* <Select title="Select service" options={services} /> */}
-            {`${team?.team} Dashboard`} - {getSundayDisplayDate(endDateStr)}
+            {`${isAdminMember ? team?.team : team?.department} Dashboard`} - {getSundayDisplayDate(selectedDate)}
           </div>
-          {isAdminMember && (
-            <ViewHistoryButton
-              label="View History"
-              link={
-                isChurchAdmin
-                  ? `/dashboard/history/admin`
-                  : `/dashboard/history/admin/${team.department}`
-              }
-            />
+        </div>
+
+        {/* Attendance Window Status Banner */}
+        <div
+          className={`mt-4 flex items-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium ${
+            attendanceStatus.isOpen
+              ? "border-green-200 bg-green-50 text-green-800"
+              : "border-gray-200 bg-gray-50 text-gray-600"
+          }`}
+        >
+          <ClockIcon className={`h-5 w-5 flex-shrink-0 ${attendanceStatus.isOpen ? "text-green-600" : "text-gray-400"}`} />
+          <span>{attendanceStatus.message}</span>
+          {attendanceStatus.isOpen && (
+            <span className="ml-auto inline-flex h-2 w-2 rounded-full bg-green-500 animate-pulse" />
           )}
         </div>
 
-        {/* Phase 7: Date Range Filter and Team/Department Selector - same line */}
+        {/* Filters row */}
         <div className="mt-6 flex flex-wrap items-center gap-4">
-          <DateRangeFilter onDateRangeChange={handleDateRangeChange} />
           {isAdminMember && (
             <div className="shrink-0">
               <ReactSelectDropdown
@@ -153,6 +266,18 @@ export default function Dashboard() {
               />
             </div>
           )}
+          <div className="shrink-0">
+            <ReactSelectDropdown
+              title="Select Sunday"
+              defaultValue={{
+                value: defaultDate,
+                label: getSundayDisplayDate(defaultDate),
+              }}
+              onChange={handleDateChange}
+              options={sundayOptions}
+              className="lg:w-[280px] md:w-[250px] sm:w-[220px] min-w-[220px]"
+            />
+          </div>
         </div>
 
         {isLoading && (
@@ -161,6 +286,7 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Summary Cards */}
         <dl className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {attendanceSummary.map((item) => (
             <div
@@ -177,22 +303,54 @@ export default function Dashboard() {
           ))}
         </dl>
 
-        {/* Phase 7: Attendance Leaderboard & Birthday Widget - 2-column grid */}
-        {isAdminMember && (
-          <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {startDateStr && endDateStr && (
-              <AttendanceLeaderboard
-                department={widgetDepartment}
-                startDate={startDateStr}
-                endDate={endDateStr}
-              />
-            )}
-            <BirthdayWidget department={widgetDepartment} />
-            <div className="lg:col-span-2">
-              <InactiveWorkersWidget department={widgetDepartment} />
-            </div>
+        {/* Unmarked Workers Alert */}
+        {!unmarkedLoading && unmarkedCount !== null && unmarkedCount > 0 && departmentInfo && (
+          <div className="mt-6">
+            <Link
+              to={`/attendance${departmentInfo.route}`}
+              className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-4 shadow-sm hover:bg-amber-100 transition-colors"
+            >
+              <div className="flex-shrink-0">
+                <ExclamationTriangleIcon className="h-6 w-6 text-amber-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-amber-800">
+                  {unmarkedCount} Unmarked Worker{unmarkedCount !== 1 ? "s" : ""}
+                </p>
+                <p className="text-xs text-amber-600">
+                  Workers without attendance for {getSundayDisplayDate(selectedDate)}
+                </p>
+              </div>
+              <span className="text-sm font-medium text-amber-700 whitespace-nowrap">
+                Mark Now &rarr;
+              </span>
+            </Link>
           </div>
         )}
+
+        {/* Quick Links */}
+        {quickLinks.length > 0 && (
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {quickLinks.map((link) => (
+              <Link
+                key={link.label}
+                to={link.href}
+                className={`flex items-center gap-3 rounded-lg border px-4 py-3 shadow-sm transition-colors ${link.color}`}
+              >
+                <link.icon className="h-5 w-5 flex-shrink-0" />
+                <span className="text-sm font-medium">{link.label}</span>
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {/* Birthday & Inactive Workers Widgets - for all users */}
+        <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <BirthdayWidget department={widgetDepartment} />
+          {isAdminMember && (
+            <InactiveWorkersWidget department={widgetDepartment} />
+          )}
+        </div>
       </Layout>
     </div>
   );

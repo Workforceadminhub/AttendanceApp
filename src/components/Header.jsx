@@ -97,17 +97,27 @@ export default function Header() {
   const isAdmin = isSuperAdmin || isChurchAdminRole || isTeamAdmin || isSubTeamAdmin;
   const canAccessApprovals = isAdmin;
 
-  // HOD: Home, Summary, Attendance
+  // Summary links to current user's department when they have a route, else summary list
+  const summaryHref = authUser?.route
+    ? `/department/${authUser.route.replace(/^\//, "")}`
+    : "/summary";
+
+  // HOD: Home, Summary, Workers, Attendance
+  const hodWorkersHref = authUser?.route
+    ? `/department/${authUser.route.replace(/^\//, "")}/workers`
+    : "/attendance/dashboard";
+
   const hodNav = [
     { name: "Home", href: authUser?.route ? `/dashboard${authUser.route}` : "/attendance/dashboard" },
-    { name: "Summary", href: authUser?.route ? `/summary${authUser.route}` : "/attendance/summary" },
+    { name: "Summary", href: summaryHref },
+    { name: "Workers", href: hodWorkersHref },
     { name: "Attendance", href: authUser?.route ? `/attendance${authUser.route}` : "/attendance/dashboard" },
   ];
 
   // Admin navigation with dropdown groups
   const adminNavTop = [
     { name: "Home", href: isSuperAdmin ? "/overview/super-admin" : isChurchAdminRole ? "/attendance/dashboard" : authUser?.route ? `/dashboard${authUser.route}` : "/attendance/dashboard" },
-    { name: "Summary", href: "/attendance/summary" },
+    { name: "Summary", href: summaryHref },
     {
       name: "Attendance",
       href: isSuperAdmin
@@ -137,15 +147,6 @@ export default function Header() {
     ...(isSuperAdmin ? [{ name: "Report", href: "/report" }] : []),
     ...(isSuperAdmin || isChurchAdminRole ? [{ name: "Audit Log", href: "/admin/audit-log" }] : []),
   ];
-
-  // Flat navigation for mobile menu
-  const flatNav = [
-    ...adminNavTop,
-    ...workersDropdown,
-    ...settingsDropdown,
-  ];
-
-  const navigation = isHOD && !isAdmin ? hodNav : flatNav;
 
   // Determine the home/landing page (overview for super admin)
   const homePage = isSuperAdmin

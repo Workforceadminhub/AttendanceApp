@@ -28,7 +28,8 @@ export const fetchAdminAttendance = async (
   isChurchAdmin,
   activeDate,
   startDate,
-  endDate
+  endDate,
+  permissions = []
 ) => {
   const dateForAttendance = activeDate || getNextSunday();
   try {
@@ -37,6 +38,9 @@ export const fetchAdminAttendance = async (
       activeDate: dateForAttendance,
       isChurchAdmin,
     };
+    if (Array.isArray(permissions) && permissions.length > 0) {
+      params.permissions = permissions;
+    }
     if (startDate) params.startDate = startDate;
     if (endDate) params.endDate = endDate;
 
@@ -53,11 +57,14 @@ export const fetchAdminAttendance = async (
   }
 };
 
-export const fetchAttendance = async (activeDate, startDate, endDate) => {
+export const fetchAttendance = async (activeDate, startDate, endDate, permissions = []) => {
   const dateForAttendance = activeDate || getNextSunday();
 
   try {
     const params = { activeDate: dateForAttendance };
+    if (Array.isArray(permissions) && permissions.length > 0) {
+      params.permissions = permissions;
+    }
     if (startDate) params.startDate = startDate;
     if (endDate) params.endDate = endDate;
 

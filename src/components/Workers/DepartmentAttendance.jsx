@@ -24,7 +24,7 @@ import { debounce } from "lodash";
 import ViewHistoryButton from "../ViewHistoryButton";
 import { TrashIcon } from "@heroicons/react/24/outline";
 import Modal from "../Modal";
-// import { getUser } from "../../utils/getUser";
+import { getUser } from "../../utils/getUser";
 import LoadingState from "../LoadingState";
 
 // Separate component for the attendance dropdown to reduce duplication
@@ -382,7 +382,7 @@ export default function DepartmentAttendance() {
             </div>
           )}
 
-          {/* Department filter: for sub-team-admin always from API; otherwise when response has multiple departments */}
+          {/* Department filter: for sub-team-admin from API; otherwise when response has multiple departments */}
           {showDepartmentFilter && (
             <div className="mt-6">
               <ReactSelectDropdown
@@ -449,7 +449,7 @@ export default function DepartmentAttendance() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {data?.map((person, idx) => (
+                        {filteredData?.map((person, idx) => (
                           <tr key={person.id}>
                             <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
                               {idx + 1}
@@ -512,7 +512,7 @@ export default function DepartmentAttendance() {
                 {/* Mobile Cards */}
                 <div className="sm:hidden">
                   <div className="space-y-4">
-                    {data?.map((person, idx) => (
+                    {filteredData?.map((person, idx) => (
                       <div
                         key={person.id}
                         className="bg-white rounded-lg shadow p-4 space-y-3"

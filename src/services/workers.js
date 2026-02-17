@@ -4,11 +4,12 @@ import apiRequest from "../utils/apiClient";
 import { resolveDepartmentParams } from "../utils/routeObject";
 // import { WORKER_STATUS } from "../utils/enums";
 
-export const fetchWorkers = async (department, activeDate, search = "") => {
+export const fetchWorkers = async (department, activeDate, permissions, search = "") => {
   try {
     const dateForAttendance = activeDate || getNextSunday();
     const params = {
       department,
+      permissions,
       activeDate: dateForAttendance,
       isAdmin: false,
     };
@@ -300,9 +301,9 @@ export const fetchBirthdays = async (department) => {
 // ========== End Phase 7 - New Worker Functions ==========
 
 
-export const useFetchWorkers = (department) => {
+export const useFetchWorkers = (department, activeDate, permissions = [], search = "") => {
   return useQuery({
-    queryKey: [department],
-    queryFn: () => fetchWorkers(department),
+    queryKey: [department, activeDate, permissions, search],
+    queryFn: () => fetchWorkers(department, activeDate, permissions, search),
   });
 };

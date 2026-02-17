@@ -22,6 +22,7 @@ import {
 } from "@heroicons/react/24/outline";
 import GenericModal from "../GenericModal";
 import LoadingState from "../LoadingState";
+import { getUser } from "../../utils/getUser";
 
 export default function ChurchAdminWorkers() {
   const navigate = useNavigate();
@@ -199,11 +200,15 @@ export default function ChurchAdminWorkers() {
   };
 
   const queryWorkers = async (search = "") => {
+    const user = getUser();
+    const permissions = user.permissions;
     setIsLoading(true);
     try {
       const result = await fetchWorkers(
         filters.department,
         dateForAttendance,
+        // we get permissions from logged in user
+        permissions,
         search
       );
       setData(result);

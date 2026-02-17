@@ -116,7 +116,7 @@ export default function PendingWorkers() {
         `/${workerId}/workers`,
         undefined,
         Array.isArray(permissions) && permissions.length > 0
-          ? { params: { permissions: permissions.join(",") } }
+          ? { params: { permissions: JSON.stringify(permissions) } }
           : undefined
       );
 
@@ -280,7 +280,7 @@ export default function PendingWorkers() {
         `/${workerId}/workers/approve`,
         undefined,
         Array.isArray(permissions) && permissions.length > 0
-          ? { params: { permissions: permissions.join(",") } }
+          ? { params: { permissions: JSON.stringify(permissions) } }
           : undefined
       );
 

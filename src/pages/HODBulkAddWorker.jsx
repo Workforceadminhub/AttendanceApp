@@ -7,7 +7,9 @@ import * as XLSX from "xlsx";
 import { routeObject, getDepartmentNameFromRoute, getDepartmentRoute } from "../utils/routeObject";
 import { normalizeWorkerRole } from "../utils/teams";
 import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
-import apiRequest from "../utils/apiClient";
+import { addNewWorker } from "../services/workers";
+import { getUser } from "../utils/getUser";
+import { downloadSampleWorkersExcel, DROPDOWN_OPTIONS } from "../utils/sampleWorkersExcel";
 
 export default function HODBulkAddWorker() {
   const navigate = useNavigate();
@@ -75,7 +77,7 @@ export default function HODBulkAddWorker() {
           phonenumber: row["Phone"] || row["phonenumber"] || row["Phone Number"] || "",
           department: decodedDepartment,
           team,
-          workerrole: row["Worker Role"] || row["workerrole"] || row["Role"] || row["role"] || "Worker",
+          workerrole: row["Worker Role"] || row["workerrole"] || row["Role"] || row["role"] || "",
           birthdate: row["Birth Date"] || row["birthdate"] || "",
           agerange: row["Age Range"] || row["agerange"] || "",
           gender: row["Gender"] || row["gender"] || "",
@@ -85,14 +87,77 @@ export default function HODBulkAddWorker() {
           address: row["Address"] || row["address"] || "",
         };
 
-        worker.workerrole = normalizeWorkerRole(worker.workerrole);
-
-        const requiredFields = ["firstname", "lastname", "email", "phonenumber"];
-        const missingFields = requiredFields.filter((field) => !worker[field]);
+        // Other Name is the only optional field
+        const requiredFields = [
+          "firstname",
+          "lastname",
+          "email",
+          "phonenumber",
+          "gender",
+          "workerrole",
+          "birthdate",
+          "maritalstatus",
+          "agerange",
+          "employment",
+          "occupation",
+          "address",
+        ];
+        const missingFields = requiredFields.filter((field) => {
+          const val = worker[field];
+          return val === undefined || val === null || String(val).trim() === "";
+        });
 
         if (missingFields.length > 0) {
-          return { ...worker, _error: `Missing: ${missingFields.join(", ")}`, _row: index + 2 };
+          const labels = {
+            firstname: "First Name",
+            lastname: "Last Name",
+            othername: "Other Name",
+            email: "Email",
+            phonenumber: "Phone",
+            gender: "Gender",
+            workerrole: "Worker Role",
+            birthdate: "Birth Date",
+            maritalstatus: "Marital Status",
+            agerange: "Age Range",
+            employment: "Employment Status",
+            occupation: "Occupation",
+            address: "Address",
+          };
+          const missingLabels = missingFields.map((f) => labels[f] || f);
+          return { ...worker, _error: `Missing: ${missingLabels.join(", ")}`, _row: index + 2 };
         }
+
+        const phoneDigits = (worker.phonenumber || "").replace(/\D/g, "");
+        if (phoneDigits.length < 11) {
+          return { ...worker, _error: "Phone number must be at least 11 digits", _row: index + 2 };
+        }
+        if (phoneDigits.length > 11) {
+          return { ...worker, _error: "Phone number must be at most 11 digits", _row: index + 2 };
+        }
+
+        // Validate dropdown fields: value must match one of the allowed options (case-insensitive)
+        const dropdownChecks = [
+          { key: "gender", label: "Gender", options: DROPDOWN_OPTIONS.Gender },
+          { key: "workerrole", label: "Worker Role", options: DROPDOWN_OPTIONS["Worker Role"] },
+          { key: "maritalstatus", label: "Marital Status", options: DROPDOWN_OPTIONS["Marital Status"] },
+          { key: "agerange", label: "Age Range", options: DROPDOWN_OPTIONS["Age Range"] },
+          { key: "employment", label: "Employment Status", options: DROPDOWN_OPTIONS["Employment Status"] },
+        ];
+        for (const { key, label, options } of dropdownChecks) {
+          const val = String(worker[key] || "").trim();
+          if (!val) continue;
+          const match = options.find((o) => o.toLowerCase() === val.toLowerCase());
+          if (!match) {
+            return {
+              ...worker,
+              _error: `Invalid ${label}: "${val}". Use one of: ${options.join(", ")}`,
+              _row: index + 2,
+            };
+          }
+          worker[key] = match; // use canonical casing from list
+        }
+
+        if (worker.workerrole) worker.workerrole = normalizeWorkerRole(worker.workerrole);
 
         return worker;
       })
@@ -116,14 +181,39 @@ export default function HODBulkAddWorker() {
     setIsLoading(true);
     setBulkUploadProgress({ total: validWorkers.length, completed: 0, errors: [] });
     const errors = [];
+    const authUser = getUser();
+    const nameofrequester = authUser?.fullname || authUser?.name || authUser?.code || "Requester";
+
+    const backendKeys = [
+      "firstname",
+      "lastname",
+      "othername",
+      "email",
+      "phonenumber",
+      "maritalstatus",
+      "department",
+      "team",
+      "workerrole",
+      "birthdate",
+      "agerange",
+      "gender",
+      "address",
+      "occupation",
+      "employment",
+    ];
 
     for (let i = 0; i < validWorkers.length; i++) {
       try {
-        const worker = { ...validWorkers[i] };
+        const raw = validWorkers[i];
+        const worker = {};
+        backendKeys.forEach((key) => {
+          worker[key] = raw[key];
+        });
+        worker.phonenumber = (raw.phonenumber || "").replace(/\D/g, "");
+        worker.workerrole = normalizeWorkerRole(worker.workerrole || "Worker");
+        worker.nameofrequester = nameofrequester;
 
-        worker.workerrole = normalizeWorkerRole(worker.workerrole);
-
-        await apiRequest("POST", "/api/super/admin/workers", worker);
+        await addNewWorker(worker);
       } catch (error) {
         errors.push({
           worker: `${validWorkers[i].firstname} ${validWorkers[i].lastname}`,
@@ -141,7 +231,9 @@ export default function HODBulkAddWorker() {
     setIsLoading(false);
 
     if (errors.length === 0) {
-      toast.success(`Successfully added ${validWorkers.length} workers!`);
+      toast.success(
+        `${validWorkers.length} worker addition request(s) submitted. The request has been sent to your subteam head and team lead for approval. Once approved, the request would be effected.`
+      );
       setParsedWorkers([]);
       setUploadedFile(null);
     } else {
@@ -166,17 +258,19 @@ export default function HODBulkAddWorker() {
         file.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
         file.type === "application/vnd.ms-excel" ||
         file.name.endsWith(".xlsx") ||
-        file.name.endsWith(".xls")
+        file.name.endsWith(".xls") ||
+        file.name.endsWith(".csv")
       ) {
         setUploadedFile(file);
         handleBulkUpload({ target: { files: [file] } });
       } else {
-        toast.error("Please upload an Excel file (.xlsx or .xls)");
+        toast.error("Please upload an Excel or CSV file (.xlsx, .xls, or .csv)");
       }
     }
   };
 
   const backUrl = `/department/${getDepartmentRoute(decodedDepartment) || encodeURIComponent(decodedDepartment)}`;
+  const workersUrl = `${backUrl}/workers`;
 
   if (!canAddWorkers) return null;
 
@@ -186,25 +280,30 @@ export default function HODBulkAddWorker() {
       <Layout>
         <div className="max-w-4xl mx-auto">
           <div className="mb-6">
-            <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-              <Link to="/attendance/summary" className="hover:underline">
-                Summary
-              </Link>
-              <span>/</span>
-              <Link to={backUrl} className="hover:underline">
-                {decodedDepartment}
-              </Link>
-              <span>/</span>
-              <span className="font-semibold text-gray-900">Bulk Add Workers</span>
-            </div>
+            <Link
+              to={workersUrl}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Back to Workers
+            </Link>
           </div>
 
           <div className="bg-white rounded-lg shadow border p-6">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Bulk Add Workers</h1>
-            <p className="text-gray-600 mb-6">
-              Add workers to <strong>{decodedDepartment}</strong> (Team: {team}). Department and
-              team are fixed for all rows.
-            </p>
+            <div className="flex items-start justify-between gap-4 mb-6">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Bulk Add Workers</h1>
+              </div>
+              <button
+                type="button"
+                onClick={() => downloadSampleWorkersExcel()}
+                className="shrink-0 text-sm text-blue-600 hover:underline font-medium"
+              >
+                Download Sample file
+              </button>
+            </div>
 
             <div
               className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 hover:bg-blue-50 transition-colors cursor-pointer"
@@ -229,14 +328,13 @@ export default function HODBulkAddWorker() {
                 <div>
                   <p className="text-lg font-medium text-gray-900">Upload Excel File</p>
                   <p className="text-sm text-gray-500">
-                    Drag and drop or click to browse. Required columns: First Name, Last Name,
-                    Email, Phone.
+                    Drag and drop or click to browse.
                   </p>
                 </div>
                 <input
                   id="hod-bulk-upload"
                   type="file"
-                  accept=".xlsx,.xls"
+                  accept=".xlsx,.xls,.csv"
                   onChange={handleBulkUpload}
                   className="hidden"
                 />
@@ -338,7 +436,7 @@ export default function HODBulkAddWorker() {
 
             <div className="flex justify-end gap-3 pt-6 mt-6 border-t border-gray-200">
               <Link
-                to={backUrl}
+                to={workersUrl}
                 className="px-6 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
               >
                 Cancel

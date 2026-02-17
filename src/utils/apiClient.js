@@ -13,10 +13,13 @@ const api = axios.create({
 /**
  * Serialize params for GET: array values become a single JSON string so the server
  * receives one query param (e.g. permissions=["Workforce Admin"]) instead of repeated keys.
+ * Always uses JSON.stringify for arrays to handle department names with commas correctly.
  */
 function serializeParams(data) {
   const out = {};
   for (const [key, value] of Object.entries(data)) {
+    if (value === undefined || value === null) continue;
+    // Always JSON.stringify arrays (including permissions) to handle commas in values
     out[key] = Array.isArray(value) ? JSON.stringify(value) : value;
   }
   return out;
@@ -69,8 +72,16 @@ export async function apiRequest(
     if (method.toUpperCase() === "GET") {
       // Serialize array params as JSON so the server receives one param (e.g. permissions as array)
       options.params = data && typeof data === "object" ? serializeParams(data) : data;
+      // Also serialize params from config if present
+      if (config?.params && typeof config.params === "object") {
+        options.params = { ...options.params, ...serializeParams(config.params) };
+      }
     } else {
       options.data = data;
+      // Serialize params in config for non-GET requests too (e.g. DELETE with query params)
+      if (config?.params && typeof config.params === "object") {
+        options.params = serializeParams(config.params);
+      }
     }
 
     const response = await api.request(options);

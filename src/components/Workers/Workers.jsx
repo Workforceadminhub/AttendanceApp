@@ -179,7 +179,10 @@ export default function Workers() {
 
   const queryAdminWorkers = (search = "") => {
     setIsLoading(true);
-    fetchAdminWorkers("All", "All", dateForAttendance, search)
+    const rawPermissions = authUser?.permissions ?? [];
+    // Filter out team name from permissions (team name shouldn't be in permissions array)
+    const permissions = rawPermissions.filter((perm) => perm !== authUser?.team);
+    fetchAdminWorkers("All", "All", dateForAttendance, search, permissions)
       .then((res) => {
         setData(res);
         setIsLoading(false);
@@ -192,7 +195,9 @@ export default function Workers() {
 
   const queryWorkers = (search = "") => {
     setIsLoading(true);
-    const permissions = authUser?.permissions ?? [];
+    const rawPermissions = authUser?.permissions ?? [];
+    // Filter out team name from permissions (team name shouldn't be in permissions array)
+    const permissions = rawPermissions.filter((perm) => perm !== authUser?.team);
     fetchWorkers(team.department, dateForAttendance, permissions, search)
       .then((res) => {
         setData(res);
@@ -202,6 +207,11 @@ export default function Workers() {
         toast.error(`Error loading workers: ${error.message}`);
         setIsLoading(false);
       });
+  };
+
+  const clearSelection = () => {
+    setSelectedWorkers(new Set());
+    setIsSelectAll(false);
   };
 
   useEffect(() => {
@@ -275,18 +285,6 @@ export default function Workers() {
     clearSelection();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh]);
-
-
-
-  // Check if user is super admin - restrict access to super admin only
-  const isSuperAdminUser = authUser?.department === "Super Admin";
-
-  // Redirect non-super admin users
-  if (!isSuperAdminUser) {
-    navigate("/login");
-    return null;
-  }
-
   const handleFilterChange = (filterType, value) => {
     setFilters((prev) => {
       const newFilters = {
@@ -481,11 +479,6 @@ Type "DELETE" to confirm (case-sensitive):`;
     }
   };
 
-  const clearSelection = () => {
-    setSelectedWorkers(new Set());
-    setIsSelectAll(false);
-  };
-
   // Handle pagination from stored data
   const handlePagination = (newPage) => {
     if (allWorkers.length === 0) return;
@@ -597,6 +590,24 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
         return;
       }
 
+      const authUser = JSON.parse(sessionStorage.getItem("authUser") || "null");
+      const safe = (value) =>
+        String(value || "department")
+          .trim()
+          .replace(/[^a-z0-9_-]+/gi, "_")
+          .replace(/_+/g, "_")
+          .replace(/^_+|_+$/g, "");
+      const ts = (() => {
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        const hh = String(d.getHours()).padStart(2, "0");
+        const min = String(d.getMinutes()).padStart(2, "0");
+        return `${yyyy}-${mm}-${dd}_${hh}-${min}`;
+      })();
+      const deptNameForFile = authUser?.department || authUser?.team || "department";
+
       // Group workers by team
       const workersByTeam = {};
       allWorkers.forEach((worker) => {
@@ -683,7 +694,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
       const blob = new Blob([csvContent], {
         type: "text/csv;charset=utf-8;",
       });
-      const fileName = `teams_export_${new Date().toISOString().split("T")[0]}.csv`;
+      const fileName = `${safe(deptNameForFile)}_workers_${ts}.csv`;
       saveAs(blob, fileName);
 
       const totalWorkers = allWorkers.length;

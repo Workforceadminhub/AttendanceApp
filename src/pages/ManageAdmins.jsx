@@ -13,6 +13,7 @@ import {
   deleteAdmin,
 } from "../services/admins";
 import { fetchDepartments } from "../services/departments";
+import { routeObject } from "../utils/routeObject";
 import {
   TrashIcon,
   ArrowUpIcon,
@@ -20,6 +21,7 @@ import {
   PencilSquareIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  UserCircleIcon,
 } from "@heroicons/react/24/outline";
 
 const selectStyles = {
@@ -72,6 +74,10 @@ export default function ManageAdmins() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState(null);
+  const [viewPermissionsAdmin, setViewPermissionsAdmin] = useState(null);
+  const [isAssignRoleModalOpen, setIsAssignRoleModalOpen] = useState(false);
+  const [assignRoleAdmin, setAssignRoleAdmin] = useState(null);
+  const [assignRoleRole, setAssignRoleRole] = useState("");
 
   // Sorting
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
@@ -109,12 +115,44 @@ export default function ManageAdmins() {
     return [...new Set(teams)].sort();
   }, [departments]);
 
-  const departmentOptions = useMemo(() => {
-    const depts = departments
-      .map((d) => d.name)
-      .filter((name) => name && name.trim() !== "");
-    return [...new Set(depts)].sort();
-  }, [departments]);
+  // Group departments by team for permissions UI
+  const permissionsByTeam = useMemo(() => {
+    const groups = {};
+    routeObject.forEach((item) => {
+      if (!groups[item.team]) groups[item.team] = [];
+      groups[item.team].push(item.department);
+    });
+    // Sort teams alphabetically, sort departments within each team
+    return Object.keys(groups)
+      .sort()
+      .map((team) => ({ team, departments: groups[team].sort() }));
+  }, []);
+
+  // All department names from routeObject for "Check All" across all teams
+  const allPermissionDepts = useMemo(
+    () => permissionsByTeam.flatMap((g) => g.departments),
+    [permissionsByTeam]
+  );
+
+  const [collapsedPermTeams, setCollapsedPermTeams] = useState({});
+
+  // Default all permission teams (in add/edit modals) to collapsed on first load
+  useEffect(() => {
+    setCollapsedPermTeams((prev) => {
+      // If we've already initialized (or user has toggled), keep existing state
+      if (prev && Object.keys(prev).length > 0) return prev;
+
+      const initial = {};
+      permissionsByTeam.forEach((group) => {
+        initial[group.team] = true;
+      });
+      return initial;
+    });
+  }, [permissionsByTeam]);
+
+  const togglePermTeamCollapse = (team) => {
+    setCollapsedPermTeams((prev) => ({ ...prev, [team]: !prev[team] }));
+  };
 
   // Check if user is super admin
   useEffect(() => {
@@ -170,11 +208,6 @@ export default function ManageAdmins() {
         ? prev.permissions.filter((p) => p !== permission)
         : [...prev.permissions, permission],
     }));
-  };
-
-  const handleEditInputChange = (e) => {
-    const { name, value } = e.target;
-    setEditFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleEditPermissionToggle = (permission) => {
@@ -260,6 +293,37 @@ export default function ManageAdmins() {
     });
     setUpdateRole(false);
     setIsEditModalOpen(true);
+  };
+
+  // Quick "Assign Role" action – opens dedicated modal with only role field
+  const handleAssignRole = (admin) => {
+    setAssignRoleAdmin(admin);
+    setAssignRoleRole(admin.role || "");
+    setIsAssignRoleModalOpen(true);
+  };
+
+  const handleAssignRoleSubmit = async (e) => {
+    e.preventDefault();
+    if (!assignRoleAdmin) return;
+
+    if (!assignRoleRole) {
+      toast.error("Please select a role");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await updateAdmin(assignRoleAdmin.id, { role: assignRoleRole });
+      toast.success("Role updated successfully");
+      setIsAssignRoleModalOpen(false);
+      setAssignRoleAdmin(null);
+      setAssignRoleRole("");
+      loadAdmins();
+    } catch (error) {
+      toast.error(error.message || "Failed to update role");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleEditSubmit = async (e) => {
@@ -519,14 +583,25 @@ export default function ManageAdmins() {
                                 <div className="flex flex-wrap gap-1 max-w-xs">
                                   {Array.isArray(admin.permissions) &&
                                   admin.permissions.length > 0 ? (
-                                    admin.permissions.map((perm) => (
-                                      <span
-                                        key={perm}
-                                        className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-700"
-                                      >
-                                        {perm}
-                                      </span>
-                                    ))
+                                    <>
+                                      {admin.permissions.slice(0, 5).map((perm) => (
+                                        <span
+                                          key={perm}
+                                          className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-700"
+                                        >
+                                          {perm}
+                                        </span>
+                                      ))}
+                                      {admin.permissions.length > 5 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => setViewPermissionsAdmin(admin)}
+                                          className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer"
+                                        >
+                                          +{admin.permissions.length - 5} more
+                                        </button>
+                                      )}
+                                    </>
                                   ) : (
                                     <span className="text-gray-400 text-xs">
                                       None
@@ -535,13 +610,21 @@ export default function ManageAdmins() {
                                 </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <div className="flex space-x-2">
+                                <div className="flex items-center space-x-2">
                                   <button
                                     onClick={() => handleOpenEditModal(admin)}
                                     className="text-blue-600 hover:text-blue-900"
                                     title="Edit Admin"
                                   >
                                     <PencilSquareIcon className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleAssignRole(admin)}
+                                    className="text-indigo-600 hover:text-indigo-900"
+                                    title="Assign Role"
+                                    type="button"
+                                  >
+                                    <UserCircleIcon className="h-4 w-4" />
                                   </button>
                                   <button
                                     onClick={() => handleDelete(admin)}
@@ -705,24 +788,75 @@ export default function ManageAdmins() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Permissions
-            </label>
-            <div className="max-h-40 overflow-y-auto border rounded-md p-2 space-y-1">
-              {departmentOptions.map((dept) => (
-                <label
-                  key={dept}
-                  className="flex items-center space-x-2 py-1 px-2 hover:bg-gray-50 rounded cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={formData.permissions.includes(dept)}
-                    onChange={() => handlePermissionToggle(dept)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <span className="text-sm text-gray-700">{dept}</span>
-                </label>
-              ))}
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Permissions
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  const allChecked = allPermissionDepts.every((d) => formData.permissions.includes(d));
+                  setFormData((prev) => ({
+                    ...prev,
+                    permissions: allChecked ? [] : [...allPermissionDepts],
+                  }));
+                }}
+                className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+              >
+                {allPermissionDepts.every((d) => formData.permissions.includes(d)) ? "Uncheck All" : "Check All"}
+              </button>
+            </div>
+            <div className="max-h-60 overflow-y-auto border rounded-md p-2 space-y-1">
+              {permissionsByTeam.map((group) => {
+                const teamDepts = group.departments;
+                const allTeamChecked = teamDepts.every((d) => formData.permissions.includes(d));
+                const isCollapsed = collapsedPermTeams[group.team];
+                return (
+                  <div key={group.team} className="mb-1">
+                    <div className="flex items-center justify-between bg-gray-50 rounded px-2 py-1.5 cursor-pointer select-none hover:bg-gray-100" onClick={() => togglePermTeamCollapse(group.team)}>
+                      <div className="flex items-center">
+                        {isCollapsed ? (
+                          <ChevronRightIcon className="h-3.5 w-3.5 mr-1.5 text-gray-500" />
+                        ) : (
+                          <ChevronDownIcon className="h-3.5 w-3.5 mr-1.5 text-gray-500" />
+                        )}
+                        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{group.team}</span>
+                        <span className="ml-1.5 text-xs text-gray-400">({teamDepts.filter((d) => formData.permissions.includes(d)).length}/{teamDepts.length})</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFormData((prev) => ({
+                            ...prev,
+                            permissions: allTeamChecked
+                              ? prev.permissions.filter((p) => !teamDepts.includes(p))
+                              : [...new Set([...prev.permissions, ...teamDepts])],
+                          }));
+                        }}
+                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                      >
+                        {allTeamChecked ? "Uncheck" : "Check All"}
+                      </button>
+                    </div>
+                    {!isCollapsed && (
+                      <div className="ml-5 mt-1 space-y-0.5">
+                        {teamDepts.map((dept) => (
+                          <label key={dept} className="flex items-center space-x-2 py-0.5 px-2 hover:bg-gray-50 rounded cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={formData.permissions.includes(dept)}
+                              onChange={() => handlePermissionToggle(dept)}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <span className="text-sm text-gray-700">{dept}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -839,24 +973,75 @@ export default function ManageAdmins() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Permissions
-            </label>
-            <div className="max-h-40 overflow-y-auto border rounded-md p-2 space-y-1">
-              {departmentOptions.map((dept) => (
-                <label
-                  key={dept}
-                  className="flex items-center space-x-2 py-1 px-2 hover:bg-gray-50 rounded cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={editFormData.permissions.includes(dept)}
-                    onChange={() => handleEditPermissionToggle(dept)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <span className="text-sm text-gray-700">{dept}</span>
-                </label>
-              ))}
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Permissions
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  const allChecked = allPermissionDepts.every((d) => editFormData.permissions.includes(d));
+                  setEditFormData((prev) => ({
+                    ...prev,
+                    permissions: allChecked ? [] : [...allPermissionDepts],
+                  }));
+                }}
+                className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+              >
+                {allPermissionDepts.every((d) => editFormData.permissions.includes(d)) ? "Uncheck All" : "Check All"}
+              </button>
+            </div>
+            <div className="max-h-60 overflow-y-auto border rounded-md p-2 space-y-1">
+              {permissionsByTeam.map((group) => {
+                const teamDepts = group.departments;
+                const allTeamChecked = teamDepts.every((d) => editFormData.permissions.includes(d));
+                const isCollapsed = collapsedPermTeams[group.team];
+                return (
+                  <div key={group.team} className="mb-1">
+                    <div className="flex items-center justify-between bg-gray-50 rounded px-2 py-1.5 cursor-pointer select-none hover:bg-gray-100" onClick={() => togglePermTeamCollapse(group.team)}>
+                      <div className="flex items-center">
+                        {isCollapsed ? (
+                          <ChevronRightIcon className="h-3.5 w-3.5 mr-1.5 text-gray-500" />
+                        ) : (
+                          <ChevronDownIcon className="h-3.5 w-3.5 mr-1.5 text-gray-500" />
+                        )}
+                        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{group.team}</span>
+                        <span className="ml-1.5 text-xs text-gray-400">({teamDepts.filter((d) => editFormData.permissions.includes(d)).length}/{teamDepts.length})</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditFormData((prev) => ({
+                            ...prev,
+                            permissions: allTeamChecked
+                              ? prev.permissions.filter((p) => !teamDepts.includes(p))
+                              : [...new Set([...prev.permissions, ...teamDepts])],
+                          }));
+                        }}
+                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                      >
+                        {allTeamChecked ? "Uncheck" : "Check All"}
+                      </button>
+                    </div>
+                    {!isCollapsed && (
+                      <div className="ml-5 mt-1 space-y-0.5">
+                        {teamDepts.map((dept) => (
+                          <label key={dept} className="flex items-center space-x-2 py-0.5 px-2 hover:bg-gray-50 rounded cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={editFormData.permissions.includes(dept)}
+                              onChange={() => handleEditPermissionToggle(dept)}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <span className="text-sm text-gray-700">{dept}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -881,6 +1066,97 @@ export default function ManageAdmins() {
             </button>
           </div>
         </form>
+      </GenericModal>
+
+      {/* Assign Role Modal */}
+      <GenericModal
+        isOpen={isAssignRoleModalOpen}
+        onClose={() => {
+          setIsAssignRoleModalOpen(false);
+          setAssignRoleAdmin(null);
+          setAssignRoleRole("");
+        }}
+        title={`Assign Role - ${assignRoleAdmin?.code || ""}`}
+        size="medium"
+      >
+        <form onSubmit={handleAssignRoleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Role
+            </label>
+            <Select
+              options={ROLE_OPTIONS}
+              value={ROLE_OPTIONS.find((r) => r.value === assignRoleRole) || null}
+              onChange={(opt) => setAssignRoleRole(opt?.value || "")}
+              placeholder="Select a role"
+              styles={selectStyles}
+              menuPlacement="auto"
+            />
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                setIsAssignRoleModalOpen(false);
+                setAssignRoleAdmin(null);
+                setAssignRoleRole("");
+              }}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+              disabled={isSubmitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Updating..." : "Update Role"}
+            </button>
+          </div>
+        </form>
+      </GenericModal>
+
+      {/* View Permissions Modal */}
+      <GenericModal
+        isOpen={!!viewPermissionsAdmin}
+        onClose={() => setViewPermissionsAdmin(null)}
+        title={`Permissions - ${viewPermissionsAdmin?.code || ""}`}
+        size="medium"
+      >
+        {viewPermissionsAdmin && (
+          <div>
+            <p className="text-sm text-gray-500 mb-3">
+              {viewPermissionsAdmin.permissions?.length || 0} permission{viewPermissionsAdmin.permissions?.length !== 1 ? "s" : ""}
+            </p>
+            <div className="max-h-80 overflow-y-auto space-y-1">
+              {permissionsByTeam.map((group) => {
+                const matched = group.departments.filter(
+                  (d) => viewPermissionsAdmin.permissions?.includes(d)
+                );
+                if (matched.length === 0) return null;
+                return (
+                  <div key={group.team} className="mb-2">
+                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-2 py-1 bg-gray-50 rounded">
+                      {group.team}
+                    </div>
+                    <div className="mt-1 space-y-0.5">
+                      {matched.map((perm) => (
+                        <div
+                          key={perm}
+                          className="px-3 py-1.5 text-sm text-gray-700"
+                        >
+                          {perm}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </GenericModal>
     </div>
   );

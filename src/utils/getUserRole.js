@@ -38,9 +38,60 @@ export function getUserRole() {
     };
   }
 
+  // Normalize role strings like "sub-team-admin", "Sub Team Head", "sub team admin"
+  const normalizeRole = (value) =>
+    (value ?? "")
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/[_\s]+/g, "-")
+      .replace(/-+/g, "-");
+
+  const roleRaw = normalizeRole(user.role);
+  const isSubTeamRole =
+    roleRaw === "sub-team-admin" ||
+    roleRaw === "subteam-admin" ||
+    roleRaw === "sub-team-head" ||
+    roleRaw === "subteam-head" ||
+    roleRaw === "sub-teamadmin" ||
+    roleRaw === "subteamadmin" ||
+    roleRaw === "subteamhead";
+  const isTeamAdminRole =
+    roleRaw === "team-admin" ||
+    roleRaw === "teamadmin" ||
+    roleRaw === "team-head" ||
+    roleRaw === "teamhead" ||
+    roleRaw === "admin";
+  const isChurchAdminRole = roleRaw === "church-admin" || roleRaw === "churchadmin";
+  const isSuperAdminRole = roleRaw === "super-admin" || roleRaw === "superadmin";
+  const isHodRole = roleRaw === "hod" || roleRaw === "head-of-department";
+
   // Check new permissionLevel field first (from backend)
-  const permissionLevel = user.permissionLevel || null;
-  const assignedDepartments = user.assignedDepartments || [];
+  const permissionLevel =
+    user.permissionLevel ||
+    (isSuperAdminRole
+      ? PERMISSION_LEVELS.SUPER_ADMIN
+      : isChurchAdminRole
+        ? PERMISSION_LEVELS.CHURCH_ADMIN
+        : isTeamAdminRole
+          ? PERMISSION_LEVELS.TEAM_ADMIN
+          : isSubTeamRole
+            ? PERMISSION_LEVELS.SUB_TEAM_ADMIN
+            : isHodRole
+              ? PERMISSION_LEVELS.HOD
+              : null);
+
+  // Some older logins don’t include assignedDepartments for sub-team-admin.
+  // Default to at least the user's own route/department so access checks and filters work.
+  const assignedDepartments = (() => {
+    const raw = Array.isArray(user.assignedDepartments) ? user.assignedDepartments : [];
+    if (raw.length > 0) return raw;
+    if (!isSubTeamRole) return [];
+    const fallback = [];
+    if (user.route) fallback.push(user.route);
+    if (user.department) fallback.push(user.department);
+    return fallback;
+  })();
 
   let isSuperAdmin = false;
   let isChurchAdmin = false;
@@ -59,9 +110,10 @@ export function getUserRole() {
     // Fallback to existing string-match logic for backward compatibility
     isSuperAdmin = user.department === "Super Admin";
     isChurchAdmin = user.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
-    // Without permissionLevel, we can't distinguish TEAM_ADMIN, SUB_TEAM_ADMIN, or HOD
-    // Default non-super/non-church admin users to HOD
-    isHOD = !isSuperAdmin && !isChurchAdmin;
+    // Without permissionLevel, fall back to role string if present; otherwise default to HOD
+    isSubTeamAdmin = isSubTeamRole;
+    isTeamAdmin = isTeamAdminRole;
+    isHOD = (!isSuperAdmin && !isChurchAdmin && !isTeamAdmin && !isSubTeamAdmin) || isHodRole;
   }
 
   const isAdmin = isSuperAdmin || isChurchAdmin || isTeamAdmin || isSubTeamAdmin;
@@ -105,8 +157,44 @@ export function canAccessDepartment(departmentName) {
   if (isSuperAdmin || isChurchAdmin) return true;
 
   // Sub Team Admin - check assigned departments
-  if (isSubTeamAdmin && assignedDepartments.length > 0) {
-    return assignedDepartments.includes(departmentName);
+  if (isSubTeamAdmin) {
+    const raw = (departmentName ?? "").toString();
+    const name = raw.trim();
+    if (!name) return false;
+
+    // For sub-team-admin, backend may provide either:
+    // - assignedDepartments (routes and/or names)
+    // - permissions (department names)
+    const assigned = [
+      ...(Array.isArray(assignedDepartments) ? assignedDepartments : []),
+      ...(Array.isArray(user?.permissions) ? user.permissions : []),
+    ]
+      .map((d) => (d ?? "").toString().trim())
+      .filter(Boolean);
+
+    const normalize = (s) => s.toLowerCase();
+
+    const candidates = new Set();
+    candidates.add(name);
+    candidates.add(name.startsWith("/") ? name.slice(1) : name);
+    candidates.add(name.startsWith("/") ? name : `/${name}`);
+
+    // If given a department name, also add its route as a candidate
+    const deptEntry =
+      routeObject.find((r) => r.department === name) ||
+      routeObject.find((r) => normalize(r.department) === normalize(name));
+    if (deptEntry?.route) {
+      const r = deptEntry.route.toString().trim();
+      candidates.add(r);
+      candidates.add(r.startsWith("/") ? r.slice(1) : r);
+      candidates.add(r.startsWith("/") ? r : `/${r}`);
+    }
+
+    const assignedSet = new Set(assigned.map(normalize));
+    for (const c of candidates) {
+      if (assignedSet.has(normalize(c))) return true;
+    }
+    return false;
   }
 
   // Team Admin - check if department belongs to their team
@@ -129,6 +217,35 @@ export function getUserRoleString(userParam) {
   if (!user) return null;
 
   if (user.permissionLevel) return user.permissionLevel;
+
+  const normalizeRole = (value) =>
+    (value ?? "")
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/[_\s]+/g, "-")
+      .replace(/-+/g, "-");
+  const roleRaw = normalizeRole(user.role);
+  if (
+    roleRaw === "sub-team-admin" ||
+    roleRaw === "subteam-admin" ||
+    roleRaw === "sub-team-head" ||
+    roleRaw === "subteam-head" ||
+    roleRaw === "sub-teamadmin" ||
+    roleRaw === "subteamadmin" ||
+    roleRaw === "subteamhead"
+  ) {
+    return "SUB_TEAM_ADMIN";
+  }
+  if (
+    roleRaw === "team-admin" ||
+    roleRaw === "teamadmin" ||
+    roleRaw === "team-head" ||
+    roleRaw === "teamhead" ||
+    roleRaw === "admin"
+  ) {
+    return "TEAM_ADMIN";
+  }
 
   const department = user.team?.department ?? user.department;
   const teamName = user.team?.name;
@@ -163,6 +280,20 @@ export function canAccessDepartmentByRoute(userParam, departmentRoute) {
     return user.route === departmentRoute || user.route === `/${departmentRoute}`;
   }
   return false;
+}
+
+/**
+ * Filters out the team name from permissions array.
+ * Team names shouldn't be in permissions since they're already specified
+ * via the department/team parameter in API calls.
+ *
+ * @param {Array<string>} permissions - Array of permission strings
+ * @param {string} teamName - The team name to filter out
+ * @returns {Array<string>} Filtered permissions array without team name
+ */
+export function filterTeamFromPermissions(permissions, teamName) {
+  if (!Array.isArray(permissions) || !teamName) return permissions;
+  return permissions.filter((perm) => perm !== teamName);
 }
 
 export default getUserRole;

@@ -175,6 +175,24 @@ export default function AllWorkers() {
         return;
       }
 
+      const authUser = JSON.parse(sessionStorage.getItem("authUser") || "null");
+      const safe = (value) =>
+        String(value || "department")
+          .trim()
+          .replace(/[^a-z0-9_-]+/gi, "_")
+          .replace(/_+/g, "_")
+          .replace(/^_+|_+$/g, "");
+      const ts = (() => {
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        const hh = String(d.getHours()).padStart(2, "0");
+        const min = String(d.getMinutes()).padStart(2, "0");
+        return `${yyyy}-${mm}-${dd}_${hh}-${min}`;
+      })();
+      const deptNameForFile = authUser?.department || authUser?.team || "department";
+
       const headers = [
         "ID",
         "First Name",
@@ -218,7 +236,7 @@ export default function AllWorkers() {
       const blob = new Blob([csvContent], {
         type: "text/csv;charset=utf-8;",
       });
-      const fileName = `all_workers_${new Date().toISOString().split("T")[0]}.csv`;
+      const fileName = `${safe(deptNameForFile)}_workers_${ts}.csv`;
       saveAs(blob, fileName);
 
       toast.success(`Exported ${filteredWorkers.length} worker(s) to CSV`);

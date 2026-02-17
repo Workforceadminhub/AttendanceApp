@@ -184,11 +184,16 @@ export default function ChurchAdminWorkers() {
   const queryAdminWorkers = async (search = "") => {
     setIsLoading(true);
     try {
+      const user = getUser();
+      const rawPermissions = user?.permissions ?? [];
+      // Filter out team name from permissions (team name shouldn't be in permissions array)
+      const permissions = rawPermissions.filter((perm) => perm !== user?.team);
       const result = await fetchAdminWorkers(
         filters.team,
         filters.department,
         dateForAttendance,
-        search
+        search,
+        permissions
       );
       setData(result);
     } catch (error) {
@@ -201,7 +206,9 @@ export default function ChurchAdminWorkers() {
 
   const queryWorkers = async (search = "") => {
     const user = getUser();
-    const permissions = user.permissions;
+    const rawPermissions = user?.permissions ?? [];
+    // Filter out team name from permissions (team name shouldn't be in permissions array)
+    const permissions = rawPermissions.filter((perm) => perm !== user?.team);
     setIsLoading(true);
     try {
       const result = await fetchWorkers(

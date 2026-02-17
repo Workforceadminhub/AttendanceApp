@@ -6,11 +6,11 @@ import { toast } from "react-toastify";
 import { fetchPendingAdd, fetchPendingRemove } from "../services/workers";
 import LoadingState from "../components/LoadingState";
 import { saveAs } from "file-saver";
+import ExcelJS from "exceljs";
 import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
 import apiRequest from "../utils/apiClient";
 import { 
   CheckIcon, 
-  XMarkIcon, 
   EyeIcon,
   TrashIcon,
   ArrowUpIcon,
@@ -43,9 +43,34 @@ export default function PendingWorkers() {
     hasPrev: false,
   });
 
-  const { isSuperAdmin, isChurchAdmin, isTeamAdmin, isSubTeamAdmin } = getUserRole();
-  const canAccessPendingWorkers =
-    isSuperAdmin || isChurchAdmin || isTeamAdmin || isSubTeamAdmin;
+  const { isAdmin, user: authUser } = getUserRole();
+  const canAccessPendingWorkers = isAdmin;
+  // Filter out team/department name (e.g. "Ministry") from permissions.
+  // Team name is already implied by the admin context; backend expects only departments here.
+  const permissions = useMemo(() => {
+    const raw = authUser?.permissions ?? [];
+    if (!Array.isArray(raw)) return raw;
+    const teamName = authUser?.team;
+    const deptName = authUser?.department;
+    return raw.filter((perm) => perm !== teamName && perm !== deptName);
+  }, [authUser?.permissions, authUser?.team, authUser?.department]);
+
+  // Some deployments still use "super/admin" paths for all admin levels.
+  // For sub-team-admin approvals, try a couple of likely base paths.
+  const adminBasePaths = useMemo(() => ["/api/super/admin", "/api/admin"], []);
+
+  const adminActionRequest = async (method, pathSuffix, data, config) => {
+    let lastError = null;
+    for (const base of adminBasePaths) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        return await apiRequest(method, `${base}${pathSuffix}`, data, config);
+      } catch (e) {
+        lastError = e;
+      }
+    }
+    throw lastError || new Error("Request failed");
+  };
 
   useEffect(() => {
     if (!canAccessPendingWorkers) {
@@ -56,7 +81,6 @@ export default function PendingWorkers() {
   }, [canAccessPendingWorkers, navigate]);
 
   const filterByAccess = (workers) => {
-    if (isSuperAdmin || isChurchAdmin) return workers;
     return workers.filter((w) => canAccessDepartment(w.department || w.department_name));
   };
 
@@ -66,8 +90,8 @@ export default function PendingWorkers() {
     setIsLoading(true);
     try {
       const [addWorkers, removeWorkers] = await Promise.all([
-        fetchPendingAdd(1, 1000), // Fetch large number to get all
-        fetchPendingRemove(1, 1000)
+        fetchPendingAdd(1, 1000, permissions), // Fetch large number to get all
+        fetchPendingRemove(1, 1000, permissions)
       ]);
       
       const allAddWorkers = filterByAccess(addWorkers?.data || []);
@@ -95,7 +119,14 @@ export default function PendingWorkers() {
 
     setIsLoading(true);
     try {
-      await apiRequest("DELETE", `/api/super/admin/${workerId}/workers`);
+      await adminActionRequest(
+        "DELETE",
+        `/${workerId}/workers`,
+        undefined,
+        Array.isArray(permissions) && permissions.length > 0
+          ? { params: { permissions: JSON.stringify(permissions) } }
+          : undefined
+      );
 
       toast.success("Worker deleted successfully");
       fetchAllPendingWorkers();
@@ -252,31 +283,20 @@ export default function PendingWorkers() {
   const approveWorker = async (workerId) => {
     setIsLoading(true);
     try {
-      await apiRequest("PUT", `/api/super/admin/${workerId}/workers/approve`);
+      await adminActionRequest(
+        "PUT",
+        `/${workerId}/workers/approve`,
+        undefined,
+        Array.isArray(permissions) && permissions.length > 0
+          ? { params: { permissions: JSON.stringify(permissions) } }
+          : undefined
+      );
 
       toast.success("Worker approved successfully");
       fetchAllPendingWorkers();
       clearSelection();
     } catch (error) {
       toast.error(`Failed to approve worker: ${error.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Reject worker
-  const rejectWorker = async (workerId) => {
-    setIsLoading(true);
-    try {
-      await apiRequest("PUT", `/api/super/admin/${workerId}/workers`, {
-        status: "REJECTED",
-      });
-
-      toast.success("Worker rejected successfully");
-      fetchAllPendingWorkers();
-      clearSelection();
-    } catch (error) {
-      toast.error(`Failed to reject worker: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -311,7 +331,15 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
 
       for (const workerId of selectedWorkers) {
         try {
-          await apiRequest("DELETE", `/api/super/admin/${workerId}/workers`);
+          // eslint-disable-next-line no-await-in-loop
+          await adminActionRequest(
+            "DELETE",
+            `/${workerId}/workers`,
+            undefined,
+            Array.isArray(permissions) && permissions.length > 0
+              ? { params: { permissions: JSON.stringify(permissions) } }
+              : undefined
+          );
           successCount++;
         } catch (error) {
           errorCount++;
@@ -351,7 +379,15 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
 
       for (const workerId of selectedWorkers) {
         try {
-          await apiRequest("PUT", `/api/super/admin/${workerId}/workers/approve`);
+          // eslint-disable-next-line no-await-in-loop
+          await adminActionRequest(
+            "PUT",
+            `/${workerId}/workers/approve`,
+            undefined,
+            Array.isArray(permissions) && permissions.length > 0
+              ? { params: { permissions: JSON.stringify(permissions) } }
+              : undefined
+          );
           successCount++;
         } catch (error) {
           errorCount++;
@@ -405,7 +441,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
     });
   }, [currentWorkers, sortConfig]);
 
-  // Export to CSV function
+  // Export to CSV function (single sheet)
   const exportToCSV = () => {
     try {
       const workersToExport = activeTab === "add" ? allPendingAddWorkers : allPendingRemoveWorkers;
@@ -414,6 +450,23 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
         toast.error(`No pending ${activeTab === "add" ? "add" : "remove"} workers to export`);
         return;
       }
+
+      const safe = (value) =>
+        String(value || "department")
+          .trim()
+          .replace(/[^a-z0-9_-]+/gi, "_")
+          .replace(/_+/g, "_")
+          .replace(/^_+|_+$/g, "");
+      const ts = (() => {
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        const hh = String(d.getHours()).padStart(2, "0");
+        const min = String(d.getMinutes()).padStart(2, "0");
+        return `${yyyy}-${mm}-${dd}_${hh}-${min}`;
+      })();
+      const deptNameForFile = authUser?.department || authUser?.team || "department";
 
       // Define CSV headers
       const headers = [
@@ -457,12 +510,136 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
 
       // Create blob and download
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const fileName = `pending_${activeTab === "add" ? "add" : "remove"}_workers_${new Date().toISOString().split("T")[0]}.csv`;
+      const fileName = `${safe(deptNameForFile)}_workers_${ts}.csv`;
       saveAs(blob, fileName);
       
       toast.success(`Exported ${workersToExport.length} worker(s) to CSV`);
     } catch (error) {
       toast.error("Failed to export workers to CSV");
+    }
+  };
+
+  // Export to Excel with one sheet per department
+  const exportToExcelByDepartment = async () => {
+    try {
+      const workersToExport =
+        activeTab === "add" ? allPendingAddWorkers : allPendingRemoveWorkers;
+
+      if (!workersToExport.length) {
+        toast.error(
+          `No pending ${activeTab === "add" ? "add" : "remove"} workers to export`
+        );
+        return;
+      }
+
+      const authUser = JSON.parse(sessionStorage.getItem("authUser") || "null");
+      const safe = (value) =>
+        String(value || "department")
+          .trim()
+          .replace(/[^a-z0-9_-]+/gi, "_")
+          .replace(/_+/g, "_")
+          .replace(/^_+|_+$/g, "");
+      const ts = (() => {
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        const hh = String(d.getHours()).padStart(2, "0");
+        const min = String(d.getMinutes()).padStart(2, "0");
+        return `${yyyy}-${mm}-${dd}_${hh}-${min}`;
+      })();
+      const deptNameForFile =
+        authUser?.department || authUser?.team || "department";
+
+      // Group workers by department
+      const workersByDept = {};
+      workersToExport.forEach((worker) => {
+        const dept = worker.department || "Unassigned";
+        if (!workersByDept[dept]) {
+          workersByDept[dept] = [];
+        }
+        workersByDept[dept].push(worker);
+      });
+
+      const workbook = new ExcelJS.Workbook();
+
+      const headers = [
+        "S/N",
+        "ID",
+        "First Name",
+        "Last Name",
+        "Email",
+        "Phone Number",
+        "Department",
+        "Team",
+        "Status",
+      ];
+
+      const makeSheetName = (name) =>
+        (name || "Sheet")
+          .toString()
+          .replace(/[[\]*/?:]/g, "")
+          .slice(0, 31) || "Sheet";
+
+      const departments = Object.keys(workersByDept).sort();
+
+      departments.forEach((dept) => {
+        const sheetName = makeSheetName(dept);
+        const sheet = workbook.addWorksheet(sheetName, {
+          views: [{ state: "frozen", ySplit: 1 }],
+        });
+
+        sheet.columns = headers.map((header) => ({
+          header,
+          key: header,
+          width: Math.min(32, Math.max(12, header.length + 4)),
+        }));
+
+        const rows = workersByDept[dept].map((worker, index) => ({
+          "S/N": index + 1,
+          ID: worker.id || worker.workerid || "",
+          "First Name": worker.firstname || "",
+          "Last Name": worker.lastname || "",
+          Email: worker.email || "N/A",
+          "Phone Number": worker.phonenumber || "N/A",
+          Department: worker.department || "N/A",
+          Team: worker.team || "N/A",
+          Status: worker.status || "Unknown",
+        }));
+
+        rows.forEach((row) => sheet.addRow(row));
+
+        const headerRow = sheet.getRow(1);
+        headerRow.font = { bold: true };
+        headerRow.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFEFEFEF" },
+        };
+
+        sheet.autoFilter = {
+          from: { row: 1, column: 1 },
+          to: { row: 1, column: headers.length },
+        };
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type:
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const fileName = `${safe(
+        deptNameForFile
+      )}_pending_${activeTab === "add" ? "add" : "delete"}_workers_${ts}.xlsx`;
+      saveAs(blob, fileName);
+
+      toast.success(
+        `Exported ${workersToExport.length} worker(s) across ${
+          departments.length
+        } department(s) to Excel`
+      );
+    } catch (error) {
+      toast.error("Failed to export workers to Excel");
     }
   };
 
@@ -475,10 +652,17 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <div className="flex-1">
               <h1 className="text-lg sm:text-xl font-semibold text-gray-900">
-                Pending Workers Management
+                Approvals
               </h1>
             </div>
             <div className="self-start sm:self-center flex space-x-2">
+              <button
+                className="bg-indigo-600 hover:bg-indigo-700 px-6 py-2 text-white rounded-lg text-sm font-medium min-w-[140px]"
+                onClick={exportToExcelByDepartment}
+                disabled={isLoading}
+              >
+                Export Excel
+              </button>
               <button
                 className="bg-green-600 hover:bg-green-700 px-6 py-2 text-white rounded-lg text-sm font-medium min-w-[140px]"
                 onClick={exportToCSV}
@@ -518,7 +702,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
                       : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                   }`}
                 >
-                  Pending Remove ({allPendingRemoveWorkers.length})
+                  Pending Delete ({allPendingRemoveWorkers.length})
                 </button>
               </nav>
             </div>
@@ -560,7 +744,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
                     </>
                   )}
 
-                  {/* Pending Remove: Delete then Reject (approve removal) */}
+                  {/* Pending Delete: Delete only */}
                   {activeTab === "remove" && (
                     <>
                       <button
@@ -569,13 +753,6 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
                         className="bg-red-600 px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {isLoading ? "Processing..." : `Delete Selected (${selectedWorkers.size})`}
-                      </button>
-                      <button
-                        onClick={bulkApprove}
-                        disabled={isLoading}
-                        className="bg-green-600 px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {isLoading ? "Processing..." : `Reject Selected (${selectedWorkers.size})`}
                       </button>
                     </>
                   )}
@@ -720,14 +897,17 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
                                 >
                                   <EyeIcon className="h-4 w-4" />
                                 </button>
-                                <button
-                                  onClick={() => approveWorker(worker.id)}
-                                  disabled={isLoading}
-                                  className="text-green-600 hover:text-green-900 disabled:opacity-50"
-                                  title="Approve"
-                                >
-                                  <CheckIcon className="h-4 w-4" />
-                                </button>
+                                {/* Pending Add: approve or delete. Pending Delete: delete only. */}
+                                {activeTab === "add" && (
+                                  <button
+                                    onClick={() => approveWorker(worker.id)}
+                                    disabled={isLoading}
+                                    className="text-green-600 hover:text-green-900 disabled:opacity-50"
+                                    title="Approve"
+                                  >
+                                    <CheckIcon className="h-4 w-4" />
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => deleteWorker(worker.id)}
                                   disabled={isLoading}
@@ -736,16 +916,6 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
                                 >
                                   <TrashIcon className="h-4 w-4" />
                                 </button>
-                                {activeTab === "remove" && (
-                                  <button
-                                    onClick={() => rejectWorker(worker.id)}
-                                    disabled={isLoading}
-                                    className="text-red-600 hover:text-red-900 disabled:opacity-50"
-                                    title="Reject"
-                                  >
-                                    <XMarkIcon className="h-4 w-4" />
-                                  </button>
-                                )}
                               </div>
                             </td>
                           </tr>

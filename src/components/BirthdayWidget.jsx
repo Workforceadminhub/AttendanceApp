@@ -1,23 +1,43 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchBirthdays } from "../services/workers";
+import { fetchWorkers } from "../services/workers";
+import { getUser } from "../utils/getUser";
+import { splitWorkersByBirthday, parseBirthdateMonthDay } from "../utils/birthdayUtils";
 import { format } from "date-fns";
+
+function formatBirthdateDisplay(value) {
+  if (value == null || String(value).trim() === "") return "Date not set";
+  const md = parseBirthdateMonthDay(value);
+  if (!md) return String(value).trim() || "Date not set";
+  try {
+    const d = new Date(2000, md.month - 1, md.day);
+    if (isNaN(d.getTime())) return String(value).trim() || "Date not set";
+    return format(d, "MMMM d");
+  } catch {
+    return String(value).trim() || "Date not set";
+  }
+}
 
 /**
  * Compact widget showing workers with birthdays today and upcoming (next 30 days).
- * Phase 7 spec: { today: [], upcoming: [] }
+ * Fetches workers for the department and parses birthdate on the frontend (no birthday API).
  *
  * @param {Object} props
  * @param {string} props.department - Department name, team name, or "All"
  */
 export default function BirthdayWidget({ department }) {
-  const { data, isLoading } = useQuery({
-    queryKey: ["birthdays", department],
-    queryFn: () => fetchBirthdays(department),
+  const { data: workers, isLoading } = useQuery({
+    queryKey: ["workersForBirthdays", department],
+    queryFn: () => {
+      const auth = getUser();
+      const permissions = auth?.permissions ?? [];
+      return fetchWorkers(department || "All", null, permissions);
+    },
     staleTime: 10 * 60 * 1000, // 10 minutes
+    enabled: true,
   });
 
-  const today = data?.today ?? [];
-  const upcoming = data?.upcoming ?? (Array.isArray(data) ? data : []);
+  const list = Array.isArray(workers) ? workers : [];
+  const { today, upcoming } = splitWorkersByBirthday(list);
   const totalCount = today.length + upcoming.length;
 
   const renderWorker = (worker, index) => (
@@ -36,9 +56,7 @@ export default function BirthdayWidget({ department }) {
           {worker.firstname ? `${worker.firstname} ${worker.lastname}`.trim() : worker.fullname}
         </p>
         <p className="text-xs text-gray-500">
-          {worker.birthday || worker.birthdate
-            ? format(new Date(worker.birthday || worker.birthdate), "MMMM d")
-            : "Date not set"}{" "}
+          {formatBirthdateDisplay(worker.birthday || worker.birthdate)}{" "}
           {worker.department && `- ${worker.department}`}
           {worker.daysUntil != null && ` (${worker.daysUntil} day${worker.daysUntil === 1 ? "" : "s"})`}
         </p>

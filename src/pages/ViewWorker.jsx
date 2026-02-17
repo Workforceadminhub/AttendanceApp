@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams, useLocation, Link } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
 import { toast } from "react-toastify";
@@ -81,7 +81,7 @@ export default function ViewWorker() {
     if (authUser.department === "Church Admin") return "/church-admin/workers";
     if (authUser.department === "Super Admin") return "/workers/super-admin";
     const route = getDepartmentRoute(authUser.department);
-    return `/department/${route || encodeURIComponent(authUser.department)}`;
+    return `/department/${route || encodeURIComponent(authUser.department)}/workers`;
   };
 
   const handleCancel = () => {
@@ -107,11 +107,13 @@ export default function ViewWorker() {
     if (from?.startsWith("department:")) {
       const dept = decodeURIComponent(from.replace("department:", ""));
       const route = getDepartmentRoute(dept);
-      navigate(`/department/${route || encodeURIComponent(dept)}`);
+      navigate(`/department/${route || encodeURIComponent(dept)}/workers`, {
+        state: { refresh: true },
+      });
       return;
     }
 
-    navigate(getHODCancelPath());
+    navigate(getHODCancelPath(), { state: { refresh: true } });
   };
 
   const handleSave = async () => {
@@ -258,12 +260,6 @@ export default function ViewWorker() {
                 </p>
               </div>
               <div className="flex space-x-3">
-                <Link
-                  to={`/worker/${workerId}/attendance`}
-                  className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
-                >
-                  View Attendance History
-                </Link>
                 <button
                   onClick={handleCancel}
                   className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"

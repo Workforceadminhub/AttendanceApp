@@ -9,10 +9,13 @@ export const fetchWorkers = async (department, activeDate, permissions, search =
     const dateForAttendance = activeDate || getNextSunday();
     const params = {
       department,
-      permissions,
       activeDate: dateForAttendance,
       isAdmin: false,
     };
+
+    if (Array.isArray(permissions) && permissions.length > 0) {
+      params.permissions = permissions;
+    }
     
     // Add search parameter if provided
     if (search && search.trim()) {
@@ -46,13 +49,32 @@ export const fetchUnmarkedWorkers = async (team, activeDate) => {
   }
 };
 
-export const fetchAdminWorkers = async (team, activeGroup, activeDate, search = "") => {
+/** Unmarked workers for a specific department (Dashboard). */
+export const fetchUnmarkedWorkersByDepartment = async (departmentRoute, activeDate) => {
+  try {
+    const dateForAttendance = activeDate || getNextSunday();
+    const route = departmentRoute?.replace?.(/^\//, "") ?? departmentRoute;
+    const response = await apiRequest("GET", "/api/unmarked/workers", {
+      departmentRoute: route || departmentRoute,
+      activeDate: dateForAttendance,
+    });
+    if (!response || response.error) {
+      throw new Error(response?.error || "Failed to fetch unmarked workers");
+    }
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const fetchAdminWorkers = async (team, activeGroup, activeDate, search = "", permissions = []) => {
   try {
     const params = {
       team,
       activeGroup,
       activeDate,
       isAdmin: true,
+      ...(Array.isArray(permissions) && permissions.length > 0 ? { permissions } : {}),
     };
     
     // Add search parameter if provided
@@ -117,14 +139,28 @@ const filterByStatus = (workers, status) => {
   );
 };
 
-const fetchPendingWorkers = async (status, page = 1, limit = 100) => {
+const fetchPendingWorkers = async (status, page = 1, limit = 100, permissions = []) => {
   try {
-    const result = await apiRequest("GET", "/api/super/admin/workers", {
-      status,
-      limit,
-      page,
-      sortBy: "team",
-    });
+    let result;
+    try {
+      // Some deployments use this path for all admin levels.
+      result = await apiRequest("GET", "/api/super/admin/workers", {
+        status,
+        limit,
+        page,
+        sortBy: "team",
+        ...(Array.isArray(permissions) && permissions.length > 0 ? { permissions } : {}),
+      });
+    } catch (e) {
+      // Fallback for deployments that expose a generic admin path.
+      result = await apiRequest("GET", "/api/admin/workers", {
+        status,
+        limit,
+        page,
+        sortBy: "team",
+        ...(Array.isArray(permissions) && permissions.length > 0 ? { permissions } : {}),
+      });
+    }
 
     let workers = [];
     if (result?.data && Array.isArray(result.data)) {
@@ -152,11 +188,11 @@ const fetchPendingWorkers = async (status, page = 1, limit = 100) => {
   }
 };
 
-export const fetchPendingAdd = (page = 1, limit = 100) =>
-  fetchPendingWorkers("PENDING_ADD", page, limit);
+export const fetchPendingAdd = (page = 1, limit = 100, permissions = []) =>
+  fetchPendingWorkers("PENDING_ADD", page, limit, permissions);
 
-export const fetchPendingRemove = (page = 1, limit = 100) =>
-  fetchPendingWorkers("PENDING_DELETE", page, limit);
+export const fetchPendingRemove = (page = 1, limit = 100, permissions = []) =>
+  fetchPendingWorkers("PENDING_DELETE", page, limit, permissions);
 
 
 // ========== Phase 7 - New Worker Functions ==========
@@ -225,6 +261,7 @@ export const fetchInactiveWorkers = async (department, threshold = 60) => {
  * @returns {Promise<Object|null>} { topPerformers: [], bottomPerformers: [] } or null on error
  */
 export const fetchTopPerformers = async (department, startDate, endDate, limit = 3) => {
+  const empty = { topPerformers: [], bottomPerformers: [] };
   try {
     const { departmentRoute, teamName } = resolveDepartmentParams(department || "All");
     const params = { limit };
@@ -235,7 +272,7 @@ export const fetchTopPerformers = async (department, startDate, endDate, limit =
     const response = await apiRequest("GET", "/api/analytics/attendance-leaderboard", params);
 
     if (!response || response.error) {
-      throw new Error(response?.error || "Failed to fetch leaderboard");
+      return empty;
     }
 
     const data = response.data ?? response;
@@ -245,7 +282,7 @@ export const fetchTopPerformers = async (department, startDate, endDate, limit =
     }
     return data;
   } catch (error) {
-    throw error;
+    return empty;
   }
 };
 

@@ -36,9 +36,14 @@ import SuperAdminOverview from "./pages/SuperAdminOverview";
 import ManageDepartments from "./pages/ManageDepartments";
 import ManageAdmins from "./pages/ManageAdmins";
 import DepartmentDetail from "./pages/DepartmentDetail";
+import DepartmentWorkers from "./pages/DepartmentWorkers";
 import HODBulkAddWorker from "./pages/HODBulkAddWorker";
+import HODAddWorker from "./pages/HODAddWorker";
 import WorkerAttendanceHistory from "./pages/WorkerAttendanceHistory";
 import AuditLog from "./pages/AuditLog";
+import AdminDepartmentRedirect from "./pages/AdminDepartmentRedirect";
+import AdminWorkersRedirect from "./pages/AdminWorkersRedirect";
+import AdminSummaryDetail from "./pages/AdminSummaryDetail";
 
 const App = () => {
   const queryClient = new QueryClient({
@@ -268,11 +273,53 @@ const App = () => {
             />
 
             {/* Phase 7: New routes */}
+            {/* Team Admin canonical URLs */}
+            <Route
+              path="/department/admin/:teamRoute"
+              element={
+                <PrivateRoute>
+                  <AdminDepartmentRedirect targetPrefix="dashboard" />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/department/admin/:teamRoute/workers"
+              element={
+                <PrivateRoute>
+                  <AdminDepartmentRedirect targetPrefix="workers" />
+                </PrivateRoute>
+              }
+            />
+            {/* Team Admin workers overview */}
+            <Route
+              path="/workers/admin/:teamRoute"
+              element={
+                <PrivateRoute>
+                  <AdminWorkersRedirect />
+                </PrivateRoute>
+              }
+            />
             <Route
               path="/department/:departmentRoute"
               element={
                 <PrivateRoute>
                   <DepartmentDetail />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/department/:departmentRoute/workers"
+              element={
+                <PrivateRoute>
+                  <DepartmentWorkers />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/department/:departmentRoute/add-worker"
+              element={
+                <PrivateRoute>
+                  <HODAddWorker />
                 </PrivateRoute>
               }
             />
@@ -315,7 +362,7 @@ const App = () => {
                   path={`/summary/${route}`}
                   element={
                     <PrivateRoute>
-                      <DepartmentSummary />
+                      <AdminSummaryDetail />
                     </PrivateRoute>
                   }
                 />

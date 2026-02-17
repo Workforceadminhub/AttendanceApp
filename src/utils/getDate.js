@@ -28,6 +28,34 @@ function getDayAndYear() {
   return null;
 }
 
+/**
+ * Generates all Sundays from Jan 1 of the current year up to today (or the current Sunday).
+ * Returns them in the API format: "Sunday - day/month/year". Most recent Sunday first.
+ * @param {number} [year] - If provided, return all Sundays in that year (Jan 1–Dec 31).
+ */
+export function getSundaysInYear(year) {
+  const now = new Date();
+  const targetYear = year != null ? year : now.getFullYear();
+  const jan1 = new Date(targetYear, 0, 1);
+  const firstSundayOffset = jan1.getDay() === 0 ? 0 : 7 - jan1.getDay();
+  const firstSunday = new Date(targetYear, 0, 1 + firstSundayOffset);
+
+  const endDate = year != null
+    ? new Date(targetYear, 11, 31)
+    : now;
+
+  const sundays = [];
+  const current = new Date(firstSunday);
+  while (current <= endDate) {
+    const day = current.getDate();
+    const month = current.getMonth() + 1;
+    const y = current.getFullYear();
+    sundays.push(`Sunday - ${day}/${month}/${y}`);
+    current.setDate(current.getDate() + 7);
+  }
+  return year != null ? sundays : sundays.reverse();
+}
+
 export function getNextSunday() {
   const date = new Date();
 
@@ -51,12 +79,22 @@ export function getNextSunday() {
 }
 
 /**
- * Returns the Sunday's date formatted as "Sunday, 14 February 2026".
- * If dateStr (YYYY-MM-DD) is provided, uses the Sunday of that week; otherwise uses the most recent Sunday.
+ * Returns the Sunday's date formatted as "Sunday 14, February 2026".
+ * Accepts:
+ *   - No argument: uses the most recent Sunday
+ *   - YYYY-MM-DD string: uses the Sunday of that week
+ *   - API format "Sunday - day/month/year": parses and formats it
  */
 export function getSundayDisplayDate(dateStr) {
   let date;
-  if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+  if (dateStr && /^Sunday - \d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
+    // Parse API format: "Sunday - day/month/year"
+    const parts = dateStr.split(" - ")[1].split("/");
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const year = parseInt(parts[2], 10);
+    date = new Date(year, month, day, 12, 0, 0);
+  } else if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
     date = new Date(dateStr + "T12:00:00");
   } else {
     date = new Date();
@@ -71,7 +109,7 @@ export function getSundayDisplayDate(dateStr) {
   const month = sunday.toLocaleDateString("en-GB", { month: "long" });
   const year = sunday.getFullYear();
 
-  return `${dayName}, ${dayNum} ${month} ${year}`;
+  return `${dayName} ${dayNum}, ${month} ${year}`;
 }
 
 export default getDayAndYear;

@@ -42,6 +42,8 @@ import HODAddWorker from "./pages/HODAddWorker";
 import WorkerAttendanceHistory from "./pages/WorkerAttendanceHistory";
 import AuditLog from "./pages/AuditLog";
 import AdminDepartmentRedirect from "./pages/AdminDepartmentRedirect";
+import AdminWorkersRedirect from "./pages/AdminWorkersRedirect";
+import AdminSummaryDetail from "./pages/AdminSummaryDetail";
 
 const App = () => {
   const queryClient = new QueryClient({
@@ -284,7 +286,16 @@ const App = () => {
               path="/department/admin/:teamRoute/workers"
               element={
                 <PrivateRoute>
-                  <AdminDepartmentRedirect targetPrefix="attendance" />
+                  <AdminDepartmentRedirect targetPrefix="workers" />
+                </PrivateRoute>
+              }
+            />
+            {/* Team Admin workers overview */}
+            <Route
+              path="/workers/admin/:teamRoute"
+              element={
+                <PrivateRoute>
+                  <AdminWorkersRedirect />
                 </PrivateRoute>
               }
             />
@@ -351,7 +362,7 @@ const App = () => {
                   path={`/summary/${route}`}
                   element={
                     <PrivateRoute>
-                      <DepartmentSummary />
+                      <AdminSummaryDetail />
                     </PrivateRoute>
                   }
                 />

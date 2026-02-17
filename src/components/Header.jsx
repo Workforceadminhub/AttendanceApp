@@ -105,10 +105,23 @@ export default function Header() {
   // Approvals: visible to all admin roles (Super/Church/Team/Sub-team)
   const canAccessApprovals = isAdmin;
 
-  // Summary links to current user's department when they have a route, else summary list
-  const summaryHref = authUser?.route
-    ? `/department/${authUser.route.replace(/^\//, "")}`
-    : "/summary";
+  // Base department route for HOD-style links
+  const departmentRouteForUser =
+    getDepartmentRoute(authUser?.department)?.replace?.(/^\//, "") || "";
+
+  // Summary:
+  // - HOD & Sub-team-admin: go to department detail page (e.g. /department/mincc)
+  // - Team Admin: go to team summary (e.g. /summary/admin/ministry)
+  // - Others: default summary list (/summary)
+  const summaryHref = (() => {
+    if ((isHOD || isSubTeamAdmin) && departmentRouteForUser) {
+      return `/department/${departmentRouteForUser}`;
+    }
+    if (isTeamAdmin && authUser?.route) {
+      return `/summary${authUser.route}`;
+    }
+    return "/summary";
+  })();
 
   // HOD: Home, Summary, Workers, Attendance
   const hodWorkersHref = authUser?.route
@@ -141,17 +154,22 @@ export default function Header() {
       : "/attendance/dashboard",
   };
 
-  const departmentRouteForUser =
-    authUser?.route?.replace?.(/^\//, "") ||
-    getDepartmentRoute(authUser?.department)?.replace?.(/^\//, "") ||
-    "";
-  const workersHref = isSuperAdmin
-    ? "/workers/super-admin"
-    : isChurchAdminRole
-    ? "/church-admin/workers"
-    : departmentRouteForUser
-    ? `/department/${departmentRouteForUser}/workers`
-    : "/attendance/dashboard";
+  const workersHref = (() => {
+    if (isSuperAdmin) return "/workers/super-admin";
+    if (isChurchAdminRole) return "/church-admin/workers";
+    // Team Admin: use a team-level department workers URL, e.g.
+    // /department/ministry/workers for /admin/ministry
+    if (isTeamAdmin && authUser?.route) {
+      const teamSlug = authUser.route
+        .replace(/^\/admin\//, "")
+        .replace(/^\//, "");
+      return `/department/${teamSlug}/workers`;
+    }
+    if (departmentRouteForUser) {
+      return `/department/${departmentRouteForUser}/workers`;
+    }
+    return "/attendance/dashboard";
+  })();
 
   // Settings/Admin dropdown items
   const settingsDropdown = [

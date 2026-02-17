@@ -21,7 +21,6 @@ import { getUserRole } from "../../utils/getUserRole";
 import { debounce } from "lodash";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
 import BirthdayWidget from "../BirthdayWidget";
-import InactiveWorkersWidget from "../InactiveWorkersWidget";
 import {
   ClipboardDocumentCheckIcon,
   TableCellsIcon,
@@ -226,7 +225,7 @@ export default function Dashboard() {
       });
     }
     return links;
-  }, [departmentInfo, isSubTeamAdmin]);
+  }, [departmentInfo, isSubTeamAdmin, summaryHref]);
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
@@ -347,12 +346,9 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Birthday & Inactive Workers Widgets - for all users */}
+        {/* Birthday Widget - for all users */}
         <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
           <BirthdayWidget department={widgetDepartment} />
-          {isAdminMember && (
-            <InactiveWorkersWidget department={widgetDepartment} />
-          )}
         </div>
       </Layout>
     </div>

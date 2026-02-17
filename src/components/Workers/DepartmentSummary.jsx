@@ -19,6 +19,7 @@ import { filterByUserPermissions } from "../../utils/filterByPermissions";
 import { getUser } from "../../utils/getUser";
 import { toast } from "react-toastify";
 import { debounce } from "lodash";
+import { getUserRole } from "../../utils/getUserRole";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
 import ViewHistoryButton from "../ViewHistoryButton";
 import DateRangeFilter from "../DateRangeFilter";
@@ -35,7 +36,8 @@ export default function DepartmentSummary() {
   const pathname = location.pathname;
   const team = getDepartmentByUser(pathname);
   const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
-  const isAdminMember = checkAdminStatus(pathname);
+  const { isAdmin } = getUserRole();
+  const isAdminMember = isAdmin || checkAdminStatus(pathname);
   const authUser = getUser();
   const options = getAdminSelectOptions(isChurchAdmin, team, authUser);
 

@@ -10,6 +10,7 @@ import { getNextSunday } from "../../../utils/getDate";
 import { getDepartmentByUser } from "../../../utils/getDepartment";
 import { ADMIN_ENUMS } from "../../../utils/enums";
 import { checkAdminStatus } from "../../../utils/checkAdminStatus";
+import { getUserRole } from "../../../utils/getUserRole";
 import {
   fetchAdminAttendance,
   fetchAttendance,
@@ -33,7 +34,8 @@ export default function DepartmentSummaryHistory() {
   const dateForAttendance = getNextSunday();
   const team = getDepartmentByUser(location.pathname);
   const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
-  const isAdminMember = checkAdminStatus(location.pathname);
+  const { isAdmin } = getUserRole();
+  const isAdminMember = isAdmin || checkAdminStatus(location.pathname);
   const authUser = getUser();
   const options = getAdminSelectOptions(isChurchAdmin, team, authUser);
   const [activeHistory, setActiveHistory] = useState(dateForAttendance);

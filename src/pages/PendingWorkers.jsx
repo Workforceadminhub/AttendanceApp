@@ -45,7 +45,15 @@ export default function PendingWorkers() {
 
   const { isAdmin, user: authUser } = getUserRole();
   const canAccessPendingWorkers = isAdmin;
-  const permissions = useMemo(() => authUser?.permissions ?? [], [authUser?.permissions]);
+  // Filter out team/department name (e.g. "Ministry") from permissions.
+  // Team name is already implied by the admin context; backend expects only departments here.
+  const permissions = useMemo(() => {
+    const raw = authUser?.permissions ?? [];
+    if (!Array.isArray(raw)) return raw;
+    const teamName = authUser?.team;
+    const deptName = authUser?.department;
+    return raw.filter((perm) => perm !== teamName && perm !== deptName);
+  }, [authUser?.permissions, authUser?.team, authUser?.department]);
 
   // Some deployments still use "super/admin" paths for all admin levels.
   // For sub-team-admin approvals, try a couple of likely base paths.
@@ -329,7 +337,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
             `/${workerId}/workers`,
             undefined,
             Array.isArray(permissions) && permissions.length > 0
-              ? { params: { permissions: permissions.join(",") } }
+              ? { params: { permissions: JSON.stringify(permissions) } }
               : undefined
           );
           successCount++;
@@ -377,7 +385,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
             `/${workerId}/workers/approve`,
             undefined,
             Array.isArray(permissions) && permissions.length > 0
-              ? { params: { permissions: permissions.join(",") } }
+              ? { params: { permissions: JSON.stringify(permissions) } }
               : undefined
           );
           successCount++;
@@ -570,7 +578,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
       const makeSheetName = (name) =>
         (name || "Sheet")
           .toString()
-          .replace(/[\[\]\*\/\\\?\:]/g, "")
+          .replace(/[[\]*/?:]/g, "")
           .slice(0, 31) || "Sheet";
 
       const departments = Object.keys(workersByDept).sort();

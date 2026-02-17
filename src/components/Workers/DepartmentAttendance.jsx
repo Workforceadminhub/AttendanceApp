@@ -22,7 +22,7 @@ import { fetchDepartments } from "../../services/departments";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
 import { debounce } from "lodash";
 import ViewHistoryButton from "../ViewHistoryButton";
-import { TrashIcon } from "@heroicons/react/24/outline";
+import { TrashIcon, ArrowUpIcon, ArrowDownIcon } from "@heroicons/react/24/outline";
 import Modal from "../Modal";
 import { getUser } from "../../utils/getUser";
 import LoadingState from "../LoadingState";
@@ -84,6 +84,10 @@ export default function DepartmentAttendance() {
     roleofrequester: "",
   });
   const [apiDepartments, setApiDepartments] = useState([]);
+  const [sortConfig, setSortConfig] = useState({
+    key: null,
+    direction: "asc", // 'asc' or 'desc'
+  });
 
   // Unique departments from response – used for non–sub-team-admin
   const departmentsFromData = useMemo(() => {
@@ -109,14 +113,105 @@ export default function DepartmentAttendance() {
     return Array.from(new Set(names)).sort();
   }, [isSubTeamAdmin, authUser, departmentsFromData]);
 
-  const showDepartmentFilter =
-    isSubTeamAdmin ? availableDepartments.length > 0 : departmentsFromData.length > 1;
+  // Show secondary "All departments" filter ONLY when not on admin-level routes.
+  // Team admins (e.g. /attendance/admin/ministry) already have the top-level
+  // "All teams/departments" filter and should not see a second filter.
+  const showDepartmentFilter = !isAdminMember
+    ? isSubTeamAdmin
+      ? availableDepartments.length > 0
+      : departmentsFromData.length > 1
+    : false;
 
   const filteredData = useMemo(() => {
     if (!Array.isArray(data)) return [];
     if (selectedDepartmentFilter === "All") return data;
     return data.filter((w) => w?.department === selectedDepartmentFilter);
   }, [data, selectedDepartmentFilter]);
+
+  const getSortableValue = (person, key) => {
+    switch (key) {
+      case "id":
+        return (
+          person.workerid ??
+          person.workerId ??
+          person.id ??
+          ""
+        );
+      case "name":
+        return person.fullname ?? "";
+      case "department":
+        return person.department ?? "";
+      case "phonenumber":
+        return person.phonenumber ?? "";
+      case "birthdate":
+        return person.birthdate ?? "";
+      default:
+        return person[key];
+    }
+  };
+
+  const sortedData = useMemo(() => {
+    const items = Array.isArray(filteredData) ? [...filteredData] : [];
+
+    if (!sortConfig.key) {
+      return items;
+    }
+
+    return items.sort((a, b) => {
+      const aValue = getSortableValue(a, sortConfig.key);
+      const bValue = getSortableValue(b, sortConfig.key);
+
+      if (aValue === null || aValue === undefined || aValue === "") return 1;
+      if (bValue === null || bValue === undefined || bValue === "") return -1;
+
+      const aNum = Number(aValue);
+      const bNum = Number(bValue);
+      if (!isNaN(aNum) && !isNaN(bNum)) {
+        return sortConfig.direction === "asc" ? aNum - bNum : bNum - aNum;
+      }
+
+      const aStr = String(aValue).toLowerCase();
+      const bStr = String(bValue).toLowerCase();
+
+      if (aStr < bStr) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aStr > bStr) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [filteredData, sortConfig]);
+
+  const attendanceSummary = useMemo(() => {
+    if (!Array.isArray(filteredData)) {
+      return { total: 0, present: 0, absent: 0, unfilled: 0 };
+    }
+
+    const overridesById = new Map(
+      (attendance || []).map((item) => [item.workerid, item.attendance])
+    );
+
+    let present = 0;
+    let absent = 0;
+    let unfilled = 0;
+
+    const presentLabels = new Set(["Present", "Online"]);
+
+    filteredData.forEach((person) => {
+      const overrideStatus = overridesById.get(person.id);
+      const rawStatus = overrideStatus || person.attendance || "";
+      const status = (rawStatus || "").toString().trim();
+
+      if (!status) {
+        unfilled += 1;
+      } else if (presentLabels.has(status)) {
+        present += 1;
+      } else {
+        absent += 1;
+      }
+    });
+
+    const total = present + absent + unfilled;
+
+    return { total, present, absent, unfilled };
+  }, [filteredData, attendance]);
 
   const options = useMemo(
     () => [
@@ -146,9 +241,17 @@ export default function DepartmentAttendance() {
     });
   };
 
+  // Show department column for:
+  // - Sub-team admins (multiple departments)
+  // - Admin-level views (e.g. /attendance/admin/ministry)
+  const showDepartmentColumn = isSubTeamAdmin || isAdminMember;
+
   const queryAdminWorkers = () => {
     setIsLoading(true);
-    fetchAdminWorkers(team.team, activeGroup)
+    const rawPermissions = authUser?.permissions ?? [];
+    // Filter out team name from permissions (team name shouldn't be in permissions array)
+    const permissions = rawPermissions.filter((perm) => perm !== authUser?.team);
+    fetchAdminWorkers(team.team, activeGroup, dateForAttendance, "", permissions)
       .then((res) => {
         setData(sortWorkersById(res));
         setIsLoading(false);
@@ -211,7 +314,10 @@ export default function DepartmentAttendance() {
       .catch(() => {});
   }, []);
 
-  // Sub-team-admin: fetch departments from API and keep only assigned
+  // Sub-team-admin: fetch departments from API and keep only assigned.
+  // IMPORTANT: we intentionally do NOT include `assignedDepartments` in the deps array,
+  // because `getUserRole()` returns a new array reference on every render, which would
+  // cause this effect to re-run on each render and spam the `/api/departments` endpoint.
   useEffect(() => {
     if (!isSubTeamAdmin || isAdminMember) return;
     let cancelled = false;
@@ -231,7 +337,8 @@ export default function DepartmentAttendance() {
     return () => {
       cancelled = true;
     };
-  }, [isSubTeamAdmin, isAdminMember, assignedDepartments]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSubTeamAdmin, isAdminMember]);
 
   const subTeamSelectedDepartmentDep = isSubTeamAdmin
     ? selectedDepartmentFilter
@@ -291,6 +398,32 @@ export default function DepartmentAttendance() {
       return array;
     }
   }
+
+  const handleSort = (columnKey) => {
+    setSortConfig((prevConfig) => {
+      if (prevConfig.key === columnKey) {
+        return {
+          key: columnKey,
+          direction: prevConfig.direction === "asc" ? "desc" : "asc",
+        };
+      }
+      return {
+        key: columnKey,
+        direction: "asc",
+      };
+    });
+  };
+
+  const getSortIcon = (columnKey) => {
+    if (sortConfig.key !== columnKey) {
+      return null;
+    }
+    return sortConfig.direction === "asc" ? (
+      <ArrowUpIcon className="h-3 w-3 inline-block ml-1" />
+    ) : (
+      <ArrowDownIcon className="h-3 w-3 inline-block ml-1" />
+    );
+  };
 
   const updateAttendance = (selected, person) => {
     const newAttendance = updateOrAddWorker(attendance, {
@@ -424,6 +557,33 @@ export default function DepartmentAttendance() {
 
           {/* Table Section */}
           <div className="mt-6">
+            {/* Attendance Summary Cards */}
+            <dl className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+              <div className="overflow-hidden rounded-lg border bg-white px-4 py-5 shadow sm:p-6">
+                <dt className="text-sm font-medium text-gray-500">Total</dt>
+                <dd className="mt-1 text-2xl font-semibold text-gray-900">
+                  {attendanceSummary.total}
+                </dd>
+              </div>
+              <div className="overflow-hidden rounded-lg border bg-white px-4 py-5 shadow sm:p-6">
+                <dt className="text-sm font-medium text-gray-500">Present</dt>
+                <dd className="mt-1 text-2xl font-semibold text-green-600">
+                  {attendanceSummary.present}
+                </dd>
+              </div>
+              <div className="overflow-hidden rounded-lg border bg-white px-4 py-5 shadow sm:p-6">
+                <dt className="text-sm font-medium text-gray-500">Absent</dt>
+                <dd className="mt-1 text-2xl font-semibold text-red-600">
+                  {attendanceSummary.absent}
+                </dd>
+              </div>
+              <div className="overflow-hidden rounded-lg border bg-white px-4 py-5 shadow sm:p-6">
+                <dt className="text-sm font-medium text-gray-500">Unfilled</dt>
+                <dd className="mt-1 text-2xl font-semibold text-amber-600">
+                  {attendanceSummary.unfilled}
+                </dd>
+              </div>
+            </dl>
             {isLoading ? (
               <LoadingState />
             ) : (
@@ -438,11 +598,25 @@ export default function DepartmentAttendance() {
                             S/N
                           </th>
                           <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                            Name
+                            <button
+                              type="button"
+                              onClick={() => handleSort("name")}
+                              className="flex items-center hover:text-gray-700"
+                            >
+                              <span>Name</span>
+                              {getSortIcon("name")}
+                            </button>
                           </th>
-                          {isSubTeamAdmin && (
+                          {showDepartmentColumn && (
                             <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                              Department
+                              <button
+                                type="button"
+                                onClick={() => handleSort("department")}
+                                className="flex items-center hover:text-gray-700"
+                              >
+                                <span>Department</span>
+                                {getSortIcon("department")}
+                              </button>
                             </th>
                           )}
                           <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
@@ -457,7 +631,7 @@ export default function DepartmentAttendance() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {filteredData?.map((person, idx) => (
+                        {sortedData?.map((person, idx) => (
                           <tr key={person.id}>
                             <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
                               {idx + 1}
@@ -465,7 +639,7 @@ export default function DepartmentAttendance() {
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                               {person.fullname}
                             </td>
-                            {isSubTeamAdmin && (
+                            {showDepartmentColumn && (
                               <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                                 {person.department ?? "—"}
                               </td>
@@ -520,7 +694,7 @@ export default function DepartmentAttendance() {
                 {/* Mobile Cards */}
                 <div className="sm:hidden">
                   <div className="space-y-4">
-                    {filteredData?.map((person, idx) => (
+                    {sortedData?.map((person, idx) => (
                       <div
                         key={person.id}
                         className="bg-white rounded-lg shadow p-4 space-y-3"
@@ -544,7 +718,7 @@ export default function DepartmentAttendance() {
                         </div>
                         <div className="text-sm text-gray-500">
                           <p>Birthday: {person.birthdate}</p>
-                          {isSubTeamAdmin && person.department && (
+                          {showDepartmentColumn && person.department && (
                             <p>Department: {person.department}</p>
                           )}
                         </div>

@@ -57,7 +57,11 @@ export function getUserRole() {
     roleRaw === "subteamadmin" ||
     roleRaw === "subteamhead";
   const isTeamAdminRole =
-    roleRaw === "team-admin" || roleRaw === "teamadmin" || roleRaw === "team-head" || roleRaw === "teamhead";
+    roleRaw === "team-admin" ||
+    roleRaw === "teamadmin" ||
+    roleRaw === "team-head" ||
+    roleRaw === "teamhead" ||
+    roleRaw === "admin";
   const isChurchAdminRole = roleRaw === "church-admin" || roleRaw === "churchadmin";
   const isSuperAdminRole = roleRaw === "super-admin" || roleRaw === "superadmin";
   const isHodRole = roleRaw === "hod" || roleRaw === "head-of-department";
@@ -233,7 +237,13 @@ export function getUserRoleString(userParam) {
   ) {
     return "SUB_TEAM_ADMIN";
   }
-  if (roleRaw === "team-admin" || roleRaw === "teamadmin" || roleRaw === "team-head" || roleRaw === "teamhead") {
+  if (
+    roleRaw === "team-admin" ||
+    roleRaw === "teamadmin" ||
+    roleRaw === "team-head" ||
+    roleRaw === "teamhead" ||
+    roleRaw === "admin"
+  ) {
     return "TEAM_ADMIN";
   }
 
@@ -270,6 +280,20 @@ export function canAccessDepartmentByRoute(userParam, departmentRoute) {
     return user.route === departmentRoute || user.route === `/${departmentRoute}`;
   }
   return false;
+}
+
+/**
+ * Filters out the team name from permissions array.
+ * Team names shouldn't be in permissions since they're already specified
+ * via the department/team parameter in API calls.
+ *
+ * @param {Array<string>} permissions - Array of permission strings
+ * @param {string} teamName - The team name to filter out
+ * @returns {Array<string>} Filtered permissions array without team name
+ */
+export function filterTeamFromPermissions(permissions, teamName) {
+  if (!Array.isArray(permissions) || !teamName) return permissions;
+  return permissions.filter((perm) => perm !== teamName);
 }
 
 export default getUserRole;

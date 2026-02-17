@@ -8,14 +8,26 @@ import Header from "../components/Header";
 import Layout from "../components/Layout";
 import LoadingState from "../components/LoadingState";
 import { getDepartmentRoute, getDepartmentNameFromRoute } from "../utils/routeObject";
-import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
+import { getUserRole, canAccessDepartment, filterTeamFromPermissions } from "../utils/getUserRole";
 import { fetchWorkers, removeWorker } from "../services/workers";
 import { getUser } from "../utils/getUser";
 import Modal from "../components/Modal";
 import { PencilIcon, EyeIcon, ChevronDownIcon, ChevronUpIcon, TrashIcon } from "@heroicons/react/24/outline";
 
-// Order by role (HOD → Assistant HOD → Small Group Leader → Assistant Small Group Leader → Worker → blank/other)
-const ROLE_ORDER = ["HOD", "Assistant HOD", "Small Group Leader", "Assistant Small Group Leader", "Worker"];
+// Order by role from highest leadership to worker
+// Sub Team Head → Assistant Sub Team Head → HOD → Assistant HOD → Admin
+// → Small Group Leader → E-Group Leader → Assistant Small Group Leader → Worker → blank/other
+const ROLE_ORDER = [
+  "Sub Team Head",
+  "Assistant Sub Team Head",
+  "HOD",
+  "Assistant HOD",
+  "Admin",
+  "Small Group Leader",
+  "E-Group Leader",
+  "Assistant Small Group Leader",
+  "Worker",
+];
 
 export default function DepartmentWorkers() {
   const { departmentRoute: routeParam } = useParams();
@@ -28,7 +40,10 @@ export default function DepartmentWorkers() {
 
   // Read auth once (avoid refetch loops due to new array references)
   const auth = useMemo(() => getUser(), []);
-  const permissions = useMemo(() => auth?.permissions ?? [], [auth]);
+  // Filter out team name from permissions (team name shouldn't be in permissions array)
+  const permissions = useMemo(() => {
+    return filterTeamFromPermissions(auth?.permissions ?? [], auth?.team);
+  }, [auth]);
   const permissionsKey = useMemo(
     () => (Array.isArray(permissions) ? permissions.join(",") : ""),
     [permissions]
@@ -43,6 +58,7 @@ export default function DepartmentWorkers() {
     isTeamAdmin,
     isSubTeamAdmin,
   } = getUserRole();
+  const isAnyAdmin = isSuperAdmin || isChurchAdmin || isTeamAdmin || isSubTeamAdmin;
   const canEditWorkers = isSuperAdmin || isChurchAdmin || isHOD || isTeamAdmin || isSubTeamAdmin;
   const canRequestDeleteWorkers = isSuperAdmin || isChurchAdmin || isHOD || isTeamAdmin; // exclude sub-team-admin
   const canSelectWorkers = canEditWorkers && !isSubTeamAdmin; // sub-team-admin should not see worker selection checkboxes
@@ -53,7 +69,14 @@ export default function DepartmentWorkers() {
     isLoading: isWorkersLoading,
   } = useQuery({
     queryKey: ["departmentWorkers", decodedDepartment, permissionsKey],
-    queryFn: () => fetchWorkers(decodedDepartment, undefined, permissions),
+    // For admins (super/church/team/sub-team), do NOT send department;
+    // backend will scope by permissions instead. HOD still uses department.
+    queryFn: () =>
+      fetchWorkers(
+        isAnyAdmin ? undefined : decodedDepartment,
+        undefined,
+        permissions
+      ),
     enabled: !!decodedDepartment,
   });
 
@@ -104,7 +127,7 @@ export default function DepartmentWorkers() {
     return canAccessDepartment(dept);
   };
 
-  // Sub-team-admin: filter options from workers API response
+  // Admins/sub-team-admin: filter options from workers API response
   const departmentsFromData = useMemo(() => {
     if (!Array.isArray(sortedWorkers)) return [];
     const set = new Set();
@@ -115,11 +138,21 @@ export default function DepartmentWorkers() {
     return Array.from(set).sort();
   }, [sortedWorkers]);
   const departmentFilterOptions = departmentsFromData;
-  const showDepartmentFilter = isSubTeamAdmin && departmentFilterOptions.length > 0;
+  const showDepartmentFilter =
+    (isSubTeamAdmin || isTeamAdmin) && departmentFilterOptions.length > 0;
+
+  // When a sub-team-admin/team-admin selects a specific department in the filter,
+  // allow deep-linking to the department detail UI (/department/:departmentRoute).
+  const selectedDepartmentDetailUrl = useMemo(() => {
+    if (!selectedDepartmentFilter || selectedDepartmentFilter === "All") return null;
+    const r = getDepartmentRoute(selectedDepartmentFilter);
+    const slug = r || encodeURIComponent(selectedDepartmentFilter);
+    return `/department/${slug}`;
+  }, [selectedDepartmentFilter]);
 
   // Reset invalid selection if API departments change
   useEffect(() => {
-    if (!isSubTeamAdmin) return;
+    if (!(isSubTeamAdmin || isTeamAdmin)) return;
     if (
       selectedDepartmentFilter !== "All" &&
       departmentFilterOptions.length > 0 &&
@@ -127,21 +160,23 @@ export default function DepartmentWorkers() {
     ) {
       setSelectedDepartmentFilter("All");
     }
-  }, [departmentFilterOptions, isSubTeamAdmin, selectedDepartmentFilter]);
+  }, [departmentFilterOptions, isSubTeamAdmin, isTeamAdmin, selectedDepartmentFilter]);
 
   // Clear selection when changing department filter (avoid exporting/deleting hidden selections)
   useEffect(() => {
-    if (!isSubTeamAdmin) return;
+    if (!(isSubTeamAdmin || isTeamAdmin)) return;
     setSelectedWorkers(new Set());
     setExpandedId(null);
-  }, [isSubTeamAdmin, selectedDepartmentFilter]);
+  }, [isSubTeamAdmin, isTeamAdmin, selectedDepartmentFilter]);
 
   const workers = useMemo(() => {
-    if (!isSubTeamAdmin || selectedDepartmentFilter === "All") return sortedWorkers;
+    if (!(isSubTeamAdmin || isTeamAdmin) || selectedDepartmentFilter === "All") {
+      return sortedWorkers;
+    }
     return sortedWorkers.filter(
       (w) => (w?.department ?? "").trim() === selectedDepartmentFilter
     );
-  }, [isSubTeamAdmin, selectedDepartmentFilter, sortedWorkers]);
+  }, [isSubTeamAdmin, isTeamAdmin, selectedDepartmentFilter, sortedWorkers]);
 
   const selectableWorkers = workers.filter((w) => w.id != null && canAccessWorkerDepartment(w));
   const selectedVisibleCount = useMemo(() => {
@@ -205,7 +240,8 @@ export default function DepartmentWorkers() {
       const makeSheetName = (name) =>
         (name || "Workers")
           .toString()
-          .replace(/[\[\]\*\/\\\?\:]/g, "")
+          // Remove characters not allowed in Excel sheet names: []*/\?:
+          .replace(/[[\]*/\\?:]/g, "")
           .slice(0, 31) || "Workers";
 
       const departments = Object.keys(workersByDept).sort();
@@ -381,21 +417,35 @@ export default function DepartmentWorkers() {
     <div className="px-4 sm:px-6 lg:px-8 py-8">
       <Header />
       <Layout>
-        {!isSubTeamAdmin && (
-          <div className="mb-6">
-            <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-              <Link to="/summary" className="hover:underline">
-                Summary
-              </Link>
-              <span>/</span>
-              <Link to={departmentUrl} className="hover:underline">
-                {decodedDepartment}
-              </Link>
-              <span>/</span>
-              <span className="font-semibold text-gray-900">Workers</span>
-            </div>
+        <div className="mb-6">
+          <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
+            <Link to="/summary" className="hover:underline">
+              Summary
+            </Link>
+            <span>/</span>
+            {isSubTeamAdmin ? (
+              selectedDepartmentDetailUrl ? (
+                <>
+                  <Link to={selectedDepartmentDetailUrl} className="hover:underline">
+                    {selectedDepartmentFilter}
+                  </Link>
+                  <span>/</span>
+                  <span className="font-semibold text-gray-900">Workers</span>
+                </>
+              ) : (
+                <span className="font-semibold text-gray-900">Workers</span>
+              )
+            ) : (
+              <>
+                <Link to={departmentUrl} className="hover:underline">
+                  {decodedDepartment}
+                </Link>
+                <span>/</span>
+                <span className="font-semibold text-gray-900">Workers</span>
+              </>
+            )}
           </div>
-        )}
+        </div>
 
         <div className="bg-white rounded-lg border shadow p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
@@ -405,6 +455,15 @@ export default function DepartmentWorkers() {
               </h2>
             </div>
             <span className="flex items-center gap-3">
+              {(isSubTeamAdmin || isTeamAdmin) && selectedDepartmentDetailUrl && (
+                <Link
+                  to={selectedDepartmentDetailUrl}
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  title="Open department overview"
+                >
+                  View Department
+                </Link>
+              )}
               <button
                 type="button"
                 onClick={exportWorkersToExcel}
@@ -454,26 +513,54 @@ export default function DepartmentWorkers() {
 
           {showDepartmentFilter && (
             <div className="mb-4">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <label
-                  htmlFor="deptWorkersFilter"
-                  className="text-sm font-medium text-gray-700"
-                >
-                  Department
-                </label>
-                <select
-                  id="deptWorkersFilter"
-                  value={selectedDepartmentFilter}
-                  onChange={(e) => setSelectedDepartmentFilter(e.target.value)}
-                  className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:max-w-xs"
-                >
-                  <option value="All">All</option>
-                  {departmentFilterOptions.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
+              {/* Mobile: stack controls */}
+              <div className="sm:hidden space-y-3">
+                <div className="flex flex-col gap-2">
+                  <label
+                    htmlFor="deptWorkersFilter"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Department
+                  </label>
+                  <select
+                    id="deptWorkersFilter"
+                    value={selectedDepartmentFilter}
+                    onChange={(e) => setSelectedDepartmentFilter(e.target.value)}
+                    className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="All">All</option>
+                    {departmentFilterOptions.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Desktop: department filter only, same line alignment */}
+              <div className="hidden sm:flex w-full items-end gap-3">
+                <div className="flex items-center gap-2">
+                  <label
+                    htmlFor="deptWorkersFilter"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Department
+                  </label>
+                  <select
+                    id="deptWorkersFilter"
+                    value={selectedDepartmentFilter}
+                    onChange={(e) => setSelectedDepartmentFilter(e.target.value)}
+                    className="min-w-[220px] rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="All">All</option>
+                    {departmentFilterOptions.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
           )}
@@ -561,7 +648,8 @@ export default function DepartmentWorkers() {
                           </td>
                           <td className="whitespace-nowrap px-3 py-4 text-sm">
                             <span className="flex items-center gap-3">
-                              {!isSubTeamAdmin && canAccessThisWorker && (
+                              {/* Hide view button for team admins on department workers */}
+                              {!isSubTeamAdmin && !isTeamAdmin && canAccessThisWorker && (
                                 <Link
                                   to={`/worker/${worker.id}?from=department:${encodeURIComponent(decodedDepartment)}`}
                                   className="text-blue-600 hover:text-blue-800"
@@ -579,7 +667,8 @@ export default function DepartmentWorkers() {
                                   <PencilIcon className="h-4 w-4" />
                                 </Link>
                               )}
-                              {canRequestDeleteWorkers && canAccessThisWorker && (
+                              {/* Hide delete request button for team admins on department workers */}
+                              {canRequestDeleteWorkers && !isTeamAdmin && canAccessThisWorker && (
                                 <button
                                   type="button"
                                   onClick={() => openRequestDeleteModalForWorker(worker.id)}

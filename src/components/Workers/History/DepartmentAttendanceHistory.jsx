@@ -19,6 +19,7 @@ import { fetchHistoryOptions } from "../../../services/history";
 import { debounce } from "lodash";
 import { DEBOUNCE_INTERVAL } from "../../../utils/constants";
 import ViewHistoryButton from "../../ViewHistoryButton";
+import { ArrowUpIcon, ArrowDownIcon } from "@heroicons/react/24/outline";
 
 export default function DepartmentAttendanceHistory() {
   const location = useLocation();
@@ -38,6 +39,10 @@ export default function DepartmentAttendanceHistory() {
   const optionsAdmin = getAdminSelectOptions(isChurchAdmin, team, authUser);
   const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
   const [historyOptions, setHistoryOptions] = useState([]);
+  const [sortConfig, setSortConfig] = useState({
+    key: null,
+    direction: "asc", // 'asc' or 'desc'
+  });
 
   const options = useMemo(
     () => [
@@ -58,9 +63,80 @@ export default function DepartmentAttendanceHistory() {
     []
   );
 
+  const getSortableValue = (person, key) => {
+    switch (key) {
+      case "id":
+        return person.id ?? "";
+      case "name":
+        return person.fullname ?? "";
+      case "phonenumber":
+        return person.phonenumber ?? "";
+      case "birthdate":
+        return person.birthdate ?? "";
+      default:
+        return person[key];
+    }
+  };
+
+  const sortedData = useMemo(() => {
+    const items = Array.isArray(data) ? [...data] : [];
+
+    if (!sortConfig.key) {
+      return items;
+    }
+
+    return items.sort((a, b) => {
+      const aValue = getSortableValue(a, sortConfig.key);
+      const bValue = getSortableValue(b, sortConfig.key);
+
+      if (aValue === null || aValue === undefined || aValue === "") return 1;
+      if (bValue === null || bValue === undefined || bValue === "") return -1;
+
+      const aNum = Number(aValue);
+      const bNum = Number(bValue);
+      if (!isNaN(aNum) && !isNaN(bNum)) {
+        return sortConfig.direction === "asc" ? aNum - bNum : bNum - aNum;
+      }
+
+      const aStr = String(aValue).toLowerCase();
+      const bStr = String(bValue).toLowerCase();
+
+      if (aStr < bStr) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aStr > bStr) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [data, sortConfig]);
+
+  const handleSort = (columnKey) => {
+    setSortConfig((prevConfig) => {
+      if (prevConfig.key === columnKey) {
+        return {
+          key: columnKey,
+          direction: prevConfig.direction === "asc" ? "desc" : "asc",
+        };
+      }
+      return {
+        key: columnKey,
+        direction: "asc",
+      };
+    });
+  };
+
+  const getSortIcon = (columnKey) => {
+    if (sortConfig.key !== columnKey) {
+      return null;
+    }
+    return sortConfig.direction === "asc" ? (
+      <ArrowUpIcon className="h-3 w-3 inline-block ml-1" />
+    ) : (
+      <ArrowDownIcon className="h-3 w-3 inline-block ml-1" />
+    );
+  };
+
   const queryAdminWorkers = () => {
     setIsLoading(true);
-    fetchAdminWorkers(team.team, activeGroup, activeHistory)
+    const permissions = authUser?.permissions ?? [];
+    fetchAdminWorkers(team.team, activeGroup, activeHistory, "", permissions)
       .then((res) => {
         setData(res);
         setIsLoading(false);
@@ -239,19 +315,40 @@ export default function DepartmentAttendanceHistory() {
                         scope="col"
                         className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
                       >
-                        Name
+                        <button
+                          type="button"
+                          onClick={() => handleSort("name")}
+                          className="flex items-center hover:text-gray-700"
+                        >
+                          <span>Name</span>
+                          {getSortIcon("name")}
+                        </button>
                       </th>
                       <th
                         scope="col"
                         className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
                       >
-                        Phone number
+                        <button
+                          type="button"
+                          onClick={() => handleSort("phonenumber")}
+                          className="flex items-center hover:text-gray-700"
+                        >
+                          <span>Phone number</span>
+                          {getSortIcon("phonenumber")}
+                        </button>
                       </th>
                       <th
                         scope="col"
                         className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
                       >
-                        Birthday
+                        <button
+                          type="button"
+                          onClick={() => handleSort("birthdate")}
+                          className="flex items-center hover:text-gray-700"
+                        >
+                          <span>Birthday</span>
+                          {getSortIcon("birthdate")}
+                        </button>
                       </th>
 
                       <th
@@ -266,7 +363,7 @@ export default function DepartmentAttendanceHistory() {
                     <TableLoadingState length={5} />
                   ) : (
                     <tbody className="divide-y divide-gray-200 h-full">
-                      {data?.map((person, idx) => (
+                      {sortedData?.map((person, idx) => (
                         <tr key={person.id}>
                           <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
                             {idx + 1}

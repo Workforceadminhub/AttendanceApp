@@ -67,13 +67,14 @@ export const fetchUnmarkedWorkersByDepartment = async (departmentRoute, activeDa
   }
 };
 
-export const fetchAdminWorkers = async (team, activeGroup, activeDate, search = "") => {
+export const fetchAdminWorkers = async (team, activeGroup, activeDate, search = "", permissions = []) => {
   try {
     const params = {
       team,
       activeGroup,
       activeDate,
       isAdmin: true,
+      ...(Array.isArray(permissions) && permissions.length > 0 ? { permissions } : {}),
     };
     
     // Add search parameter if provided

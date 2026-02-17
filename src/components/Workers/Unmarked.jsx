@@ -97,6 +97,40 @@ export default function UnmarkedAttendance() {
     []
   );
 
+  const attendanceSummary = useMemo(() => {
+    if (!Array.isArray(data)) {
+      return { total: 0, present: 0, absent: 0, unfilled: 0 };
+    }
+
+    const overridesById = new Map(
+      (attendance || []).map((item) => [item.workerid, item.attendance])
+    );
+
+    let present = 0;
+    let absent = 0;
+    let unfilled = 0;
+
+    const presentLabels = new Set(["Present", "Online"]);
+
+    data.forEach((person) => {
+      const overrideStatus = overridesById.get(person.id);
+      const rawStatus = overrideStatus || person.attendance || "";
+      const status = (rawStatus || "").toString().trim();
+
+      if (!status) {
+        unfilled += 1;
+      } else if (presentLabels.has(status)) {
+        present += 1;
+      } else {
+        absent += 1;
+      }
+    });
+
+    const total = present + absent + unfilled;
+
+    return { total, present, absent, unfilled };
+  }, [data, attendance]);
+
   const queryAdminWorkers = () => {
     setIsLoading(true);
     fetchUnmarkedWorkers(activeGroup)
@@ -293,6 +327,33 @@ export default function UnmarkedAttendance() {
 
           {/* Table Section */}
           <div className="mt-6">
+            {/* Attendance Summary Cards */}
+            <dl className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+              <div className="overflow-hidden rounded-lg border bg-white px-4 py-5 shadow sm:p-6">
+                <dt className="text-sm font-medium text-gray-500">Total</dt>
+                <dd className="mt-1 text-2xl font-semibold text-gray-900">
+                  {attendanceSummary.total}
+                </dd>
+              </div>
+              <div className="overflow-hidden rounded-lg border bg-white px-4 py-5 shadow sm:p-6">
+                <dt className="text-sm font-medium text-gray-500">Present</dt>
+                <dd className="mt-1 text-2xl font-semibold text-green-600">
+                  {attendanceSummary.present}
+                </dd>
+              </div>
+              <div className="overflow-hidden rounded-lg border bg-white px-4 py-5 shadow sm:p-6">
+                <dt className="text-sm font-medium text-gray-500">Absent</dt>
+                <dd className="mt-1 text-2xl font-semibold text-red-600">
+                  {attendanceSummary.absent}
+                </dd>
+              </div>
+              <div className="overflow-hidden rounded-lg border bg-white px-4 py-5 shadow sm:p-6">
+                <dt className="text-sm font-medium text-gray-500">Unfilled</dt>
+                <dd className="mt-1 text-2xl font-semibold text-amber-600">
+                  {attendanceSummary.unfilled}
+                </dd>
+              </div>
+            </dl>
             {isLoading ? (
               <TableLoadingState length={5} />
             ) : (

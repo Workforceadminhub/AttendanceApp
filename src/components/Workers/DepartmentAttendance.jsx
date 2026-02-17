@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
 import { useEffect, useMemo, useState } from "react";
@@ -59,7 +59,6 @@ const AttendanceDropdown = ({
 
 export default function DepartmentAttendance() {
   const location = useLocation();
-  const navigate = useNavigate();
   // const team = getDepartment(location.pathname);
   const [attendance, setAttendance] = useState([]);
   const [data, setData] = useState([]);
@@ -77,7 +76,7 @@ export default function DepartmentAttendance() {
   const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [workerId, setWorkerId] = useState(0);
-  const [activeDelete, setActiveDelete] = useState(false);
+  const [activeDelete] = useState(false);
   const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState("All");
   const [deleteData, setDeleteData] = useState({
     nameofrequester: "",
@@ -86,7 +85,7 @@ export default function DepartmentAttendance() {
   });
   const [apiDepartments, setApiDepartments] = useState([]);
 
-  // Unique departments from response – show filter when more than one (non–sub-team-admin)
+  // Unique departments from response – used for non–sub-team-admin
   const departmentsFromData = useMemo(() => {
     if (!Array.isArray(data)) return [];
     const set = new Set();
@@ -96,8 +95,20 @@ export default function DepartmentAttendance() {
     return Array.from(set).sort();
   }, [data]);
 
-  // Sub-team-admin: departments from API (filtered to assigned); others: from data when multiple
-  const availableDepartments = isSubTeamAdmin ? apiDepartments : departmentsFromData;
+  // Department options for filter:
+  // - Sub-team-admin: derive from user.permissions (static list, not affected by filtered data)
+  // - Others: from workers data when there is more than one
+  const availableDepartments = useMemo(() => {
+    if (!isSubTeamAdmin) {
+      return departmentsFromData;
+    }
+    const raw = Array.isArray(authUser?.permissions) ? authUser.permissions : [];
+    const names = raw
+      .map((p) => (p ?? "").toString().trim())
+      .filter(Boolean);
+    return Array.from(new Set(names)).sort();
+  }, [isSubTeamAdmin, authUser, departmentsFromData]);
+
   const showDepartmentFilter =
     isSubTeamAdmin ? availableDepartments.length > 0 : departmentsFromData.length > 1;
 
@@ -217,8 +228,15 @@ export default function DepartmentAttendance() {
         setApiDepartments(filtered);
       })
       .catch(() => setApiDepartments([]));
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [isSubTeamAdmin, isAdminMember, assignedDepartments]);
+
+  const subTeamSelectedDepartmentDep = isSubTeamAdmin
+    ? selectedDepartmentFilter
+    : null;
+  const subTeamApiDepartmentsCountDep = isSubTeamAdmin ? apiDepartments.length : 0;
 
   useEffect(() => {
     if (isAdminMember) {
@@ -232,8 +250,8 @@ export default function DepartmentAttendance() {
     isAdminMember,
     isChurchAdmin,
     team.team,
-    isSubTeamAdmin ? selectedDepartmentFilter : null,
-    isSubTeamAdmin ? apiDepartments.length : 0,
+    subTeamSelectedDepartmentDep,
+    subTeamApiDepartmentsCountDep,
   ]);
 
   useEffect(() => {
@@ -246,13 +264,7 @@ export default function DepartmentAttendance() {
   }, [refresh]);
 
   // Reset department filter if selected department no longer in available list
-  const availableDepartmentNames = useMemo(
-    () =>
-      isSubTeamAdmin
-        ? apiDepartments.map((d) => d.name)
-        : departmentsFromData,
-    [isSubTeamAdmin, apiDepartments, departmentsFromData]
-  );
+  const availableDepartmentNames = availableDepartments;
   useEffect(() => {
     if (
       selectedDepartmentFilter !== "All" &&
@@ -387,6 +399,7 @@ export default function DepartmentAttendance() {
             <div className="mt-6">
               <ReactSelectDropdown
                 title="Filter by department"
+                isClearable={false}
                 value={{
                   value: selectedDepartmentFilter,
                   label:
@@ -399,15 +412,10 @@ export default function DepartmentAttendance() {
                 }
                 options={[
                   { value: "All", label: "All departments" },
-                  ...(isSubTeamAdmin
-                    ? apiDepartments.map((d) => ({
-                        value: d.name,
-                        label: d.name,
-                      }))
-                    : departmentsFromData.map((dept) => ({
-                        value: dept,
-                        label: dept,
-                      }))),
+                  ...availableDepartments.map((dept) => ({
+                    value: dept,
+                    label: dept,
+                  })),
                 ]}
                 className="lg:w-[25%] md:w-[30%] xl:w-[25%] sm:w-[45%] xs:w-[50%]"
               />

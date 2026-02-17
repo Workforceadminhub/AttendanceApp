@@ -9,10 +9,13 @@ export const fetchWorkers = async (department, activeDate, permissions, search =
     const dateForAttendance = activeDate || getNextSunday();
     const params = {
       department,
-      permissions,
       activeDate: dateForAttendance,
       isAdmin: false,
     };
+
+    if (Array.isArray(permissions) && permissions.length > 0) {
+      params.permissions = permissions;
+    }
     
     // Add search parameter if provided
     if (search && search.trim()) {
@@ -135,14 +138,28 @@ const filterByStatus = (workers, status) => {
   );
 };
 
-const fetchPendingWorkers = async (status, page = 1, limit = 100) => {
+const fetchPendingWorkers = async (status, page = 1, limit = 100, permissions = []) => {
   try {
-    const result = await apiRequest("GET", "/api/super/admin/workers", {
-      status,
-      limit,
-      page,
-      sortBy: "team",
-    });
+    let result;
+    try {
+      // Some deployments use this path for all admin levels.
+      result = await apiRequest("GET", "/api/super/admin/workers", {
+        status,
+        limit,
+        page,
+        sortBy: "team",
+        ...(Array.isArray(permissions) && permissions.length > 0 ? { permissions } : {}),
+      });
+    } catch (e) {
+      // Fallback for deployments that expose a generic admin path.
+      result = await apiRequest("GET", "/api/admin/workers", {
+        status,
+        limit,
+        page,
+        sortBy: "team",
+        ...(Array.isArray(permissions) && permissions.length > 0 ? { permissions } : {}),
+      });
+    }
 
     let workers = [];
     if (result?.data && Array.isArray(result.data)) {
@@ -170,11 +187,11 @@ const fetchPendingWorkers = async (status, page = 1, limit = 100) => {
   }
 };
 
-export const fetchPendingAdd = (page = 1, limit = 100) =>
-  fetchPendingWorkers("PENDING_ADD", page, limit);
+export const fetchPendingAdd = (page = 1, limit = 100, permissions = []) =>
+  fetchPendingWorkers("PENDING_ADD", page, limit, permissions);
 
-export const fetchPendingRemove = (page = 1, limit = 100) =>
-  fetchPendingWorkers("PENDING_DELETE", page, limit);
+export const fetchPendingRemove = (page = 1, limit = 100, permissions = []) =>
+  fetchPendingWorkers("PENDING_DELETE", page, limit, permissions);
 
 
 // ========== Phase 7 - New Worker Functions ==========

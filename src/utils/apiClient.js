@@ -17,6 +17,11 @@ const api = axios.create({
 function serializeParams(data) {
   const out = {};
   for (const [key, value] of Object.entries(data)) {
+    if (value === undefined || value === null) continue;
+    if (key === "permissions" && Array.isArray(value)) {
+      out[key] = value.join(",");
+      continue;
+    }
     out[key] = Array.isArray(value) ? JSON.stringify(value) : value;
   }
   return out;

@@ -597,6 +597,24 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
         return;
       }
 
+      const authUser = JSON.parse(sessionStorage.getItem("authUser") || "null");
+      const safe = (value) =>
+        String(value || "department")
+          .trim()
+          .replace(/[^a-z0-9_-]+/gi, "_")
+          .replace(/_+/g, "_")
+          .replace(/^_+|_+$/g, "");
+      const ts = (() => {
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        const hh = String(d.getHours()).padStart(2, "0");
+        const min = String(d.getMinutes()).padStart(2, "0");
+        return `${yyyy}-${mm}-${dd}_${hh}-${min}`;
+      })();
+      const deptNameForFile = authUser?.department || authUser?.team || "department";
+
       // Group workers by team
       const workersByTeam = {};
       allWorkers.forEach((worker) => {
@@ -683,7 +701,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
       const blob = new Blob([csvContent], {
         type: "text/csv;charset=utf-8;",
       });
-      const fileName = `teams_export_${new Date().toISOString().split("T")[0]}.csv`;
+      const fileName = `${safe(deptNameForFile)}_workers_${ts}.csv`;
       saveAs(blob, fileName);
 
       const totalWorkers = allWorkers.length;

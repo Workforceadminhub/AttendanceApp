@@ -21,6 +21,7 @@ import {
   PencilSquareIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  UserCircleIcon,
 } from "@heroicons/react/24/outline";
 
 const selectStyles = {
@@ -74,6 +75,9 @@ export default function ManageAdmins() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState(null);
   const [viewPermissionsAdmin, setViewPermissionsAdmin] = useState(null);
+  const [isAssignRoleModalOpen, setIsAssignRoleModalOpen] = useState(false);
+  const [assignRoleAdmin, setAssignRoleAdmin] = useState(null);
+  const [assignRoleRole, setAssignRoleRole] = useState("");
 
   // Sorting
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
@@ -131,6 +135,21 @@ export default function ManageAdmins() {
   );
 
   const [collapsedPermTeams, setCollapsedPermTeams] = useState({});
+
+  // Default all permission teams (in add/edit modals) to collapsed on first load
+  useEffect(() => {
+    setCollapsedPermTeams((prev) => {
+      // If we've already initialized (or user has toggled), keep existing state
+      if (prev && Object.keys(prev).length > 0) return prev;
+
+      const initial = {};
+      permissionsByTeam.forEach((group) => {
+        initial[group.team] = true;
+      });
+      return initial;
+    });
+  }, [permissionsByTeam]);
+
   const togglePermTeamCollapse = (team) => {
     setCollapsedPermTeams((prev) => ({ ...prev, [team]: !prev[team] }));
   };
@@ -274,6 +293,37 @@ export default function ManageAdmins() {
     });
     setUpdateRole(false);
     setIsEditModalOpen(true);
+  };
+
+  // Quick "Assign Role" action – opens dedicated modal with only role field
+  const handleAssignRole = (admin) => {
+    setAssignRoleAdmin(admin);
+    setAssignRoleRole(admin.role || "");
+    setIsAssignRoleModalOpen(true);
+  };
+
+  const handleAssignRoleSubmit = async (e) => {
+    e.preventDefault();
+    if (!assignRoleAdmin) return;
+
+    if (!assignRoleRole) {
+      toast.error("Please select a role");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await updateAdmin(assignRoleAdmin.id, { role: assignRoleRole });
+      toast.success("Role updated successfully");
+      setIsAssignRoleModalOpen(false);
+      setAssignRoleAdmin(null);
+      setAssignRoleRole("");
+      loadAdmins();
+    } catch (error) {
+      toast.error(error.message || "Failed to update role");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleEditSubmit = async (e) => {
@@ -560,13 +610,21 @@ export default function ManageAdmins() {
                                 </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <div className="flex space-x-2">
+                                <div className="flex items-center space-x-2">
                                   <button
                                     onClick={() => handleOpenEditModal(admin)}
                                     className="text-blue-600 hover:text-blue-900"
                                     title="Edit Admin"
                                   >
                                     <PencilSquareIcon className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleAssignRole(admin)}
+                                    className="text-indigo-600 hover:text-indigo-900"
+                                    title="Assign Role"
+                                    type="button"
+                                  >
+                                    <UserCircleIcon className="h-4 w-4" />
                                   </button>
                                   <button
                                     onClick={() => handleDelete(admin)}
@@ -1005,6 +1063,56 @@ export default function ManageAdmins() {
               disabled={isSubmitting}
             >
               {isSubmitting ? "Saving..." : "Update Admin"}
+            </button>
+          </div>
+        </form>
+      </GenericModal>
+
+      {/* Assign Role Modal */}
+      <GenericModal
+        isOpen={isAssignRoleModalOpen}
+        onClose={() => {
+          setIsAssignRoleModalOpen(false);
+          setAssignRoleAdmin(null);
+          setAssignRoleRole("");
+        }}
+        title={`Assign Role - ${assignRoleAdmin?.code || ""}`}
+        size="medium"
+      >
+        <form onSubmit={handleAssignRoleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Role
+            </label>
+            <Select
+              options={ROLE_OPTIONS}
+              value={ROLE_OPTIONS.find((r) => r.value === assignRoleRole) || null}
+              onChange={(opt) => setAssignRoleRole(opt?.value || "")}
+              placeholder="Select a role"
+              styles={selectStyles}
+              menuPlacement="auto"
+            />
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                setIsAssignRoleModalOpen(false);
+                setAssignRoleAdmin(null);
+                setAssignRoleRole("");
+              }}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+              disabled={isSubmitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Updating..." : "Update Role"}
             </button>
           </div>
         </form>

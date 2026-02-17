@@ -41,6 +41,7 @@ import HODBulkAddWorker from "./pages/HODBulkAddWorker";
 import HODAddWorker from "./pages/HODAddWorker";
 import WorkerAttendanceHistory from "./pages/WorkerAttendanceHistory";
 import AuditLog from "./pages/AuditLog";
+import AdminDepartmentRedirect from "./pages/AdminDepartmentRedirect";
 
 const App = () => {
   const queryClient = new QueryClient({
@@ -270,6 +271,23 @@ const App = () => {
             />
 
             {/* Phase 7: New routes */}
+            {/* Team Admin canonical URLs */}
+            <Route
+              path="/department/admin/:teamRoute"
+              element={
+                <PrivateRoute>
+                  <AdminDepartmentRedirect targetPrefix="dashboard" />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/department/admin/:teamRoute/workers"
+              element={
+                <PrivateRoute>
+                  <AdminDepartmentRedirect targetPrefix="attendance" />
+                </PrivateRoute>
+              }
+            />
             <Route
               path="/department/:departmentRoute"
               element={

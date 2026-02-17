@@ -2,14 +2,20 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useParams, Link, useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
 import LoadingState from "../components/LoadingState";
 import { getDepartmentRoute, getDepartmentNameFromRoute } from "../utils/routeObject";
 import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
 import { fetchWorkers, removeWorker } from "../services/workers";
+import { getUser } from "../utils/getUser";
 import Modal from "../components/Modal";
 import { PencilIcon, EyeIcon, ChevronDownIcon, ChevronUpIcon, TrashIcon } from "@heroicons/react/24/outline";
+
+// Order by role (HOD → Assistant HOD → Small Group Leader → Assistant Small Group Leader → Worker → blank/other)
+const ROLE_ORDER = ["HOD", "Assistant HOD", "Small Group Leader", "Assistant Small Group Leader", "Worker"];
 
 export default function DepartmentWorkers() {
   const { departmentRoute: routeParam } = useParams();
@@ -20,19 +26,40 @@ export default function DepartmentWorkers() {
   const decodedDepartment = departmentNameFromRoute || decodedParam;
   const departmentRoute = getDepartmentRoute(decodedDepartment) || routeParam;
 
+  // Read auth once (avoid refetch loops due to new array references)
+  const auth = useMemo(() => getUser(), []);
+  const permissions = useMemo(() => auth?.permissions ?? [], [auth]);
+  const permissionsKey = useMemo(
+    () => (Array.isArray(permissions) ? permissions.join(",") : ""),
+    [permissions]
+  );
+
+  const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState("All");
+
+  const {
+    isSuperAdmin,
+    isChurchAdmin,
+    isHOD,
+    isTeamAdmin,
+    isSubTeamAdmin,
+  } = getUserRole();
+  const canEditWorkers = isSuperAdmin || isChurchAdmin || isHOD || isTeamAdmin || isSubTeamAdmin;
+  const canRequestDeleteWorkers = isSuperAdmin || isChurchAdmin || isHOD || isTeamAdmin; // exclude sub-team-admin
+  const canSelectWorkers = canEditWorkers && !isSubTeamAdmin; // sub-team-admin should not see worker selection checkboxes
+  const canManageDepartmentPage = canAccessDepartment(decodedDepartment);
+
   const {
     data: workersData,
     isLoading: isWorkersLoading,
   } = useQuery({
-    queryKey: ["departmentWorkers", decodedDepartment],
-    queryFn: () => fetchWorkers(decodedDepartment),
+    queryKey: ["departmentWorkers", decodedDepartment, permissionsKey],
+    queryFn: () => fetchWorkers(decodedDepartment, undefined, permissions),
+    enabled: !!decodedDepartment,
   });
 
-  const rawWorkers = workersData || [];
-
   // HOD view: order by role (HOD → Assistant HOD → Small Group Leader → Worker → blank), then by id within each role
-  const ROLE_ORDER = ["HOD", "Assistant HOD", "Small Group Leader", "Worker"];
-  const workers = useMemo(() => {
+  const sortedWorkers = useMemo(() => {
+    const rawWorkers = workersData || [];
     const getRoleRank = (role) => {
       const r = (role || "").trim();
       const i = ROLE_ORDER.indexOf(r);
@@ -46,7 +73,7 @@ export default function DepartmentWorkers() {
       const idB = (b.id ?? b.workerId ?? 0).toString();
       return idA.localeCompare(idB, undefined, { numeric: true });
     });
-  }, [rawWorkers]);
+  }, [workersData]);
 
   const queryClient = useQueryClient();
 
@@ -70,11 +97,196 @@ export default function DepartmentWorkers() {
   });
   const [expandedId, setExpandedId] = useState(null);
   const [deleteTargetId, setDeleteTargetId] = useState(null); // null = bulk (selectedWorkers), else single worker id
+  const [isExporting, setIsExporting] = useState(false);
 
-  const { isSuperAdmin, isChurchAdmin, isHOD, isTeamAdmin, isSubTeamAdmin } = getUserRole();
-  const canEditWorkers =
-    (isSuperAdmin || isChurchAdmin || isHOD || isTeamAdmin || isSubTeamAdmin) &&
-    canAccessDepartment(decodedDepartment);
+  const canAccessWorkerDepartment = (worker) => {
+    const dept = worker?.department || decodedDepartment;
+    return canAccessDepartment(dept);
+  };
+
+  // Sub-team-admin: filter options from workers API response
+  const departmentsFromData = useMemo(() => {
+    if (!Array.isArray(sortedWorkers)) return [];
+    const set = new Set();
+    sortedWorkers.forEach((w) => {
+      const d = (w?.department ?? "").trim();
+      if (d) set.add(d);
+    });
+    return Array.from(set).sort();
+  }, [sortedWorkers]);
+  const departmentFilterOptions = departmentsFromData;
+  const showDepartmentFilter = isSubTeamAdmin && departmentFilterOptions.length > 0;
+
+  // Reset invalid selection if API departments change
+  useEffect(() => {
+    if (!isSubTeamAdmin) return;
+    if (
+      selectedDepartmentFilter !== "All" &&
+      departmentFilterOptions.length > 0 &&
+      !departmentFilterOptions.includes(selectedDepartmentFilter)
+    ) {
+      setSelectedDepartmentFilter("All");
+    }
+  }, [departmentFilterOptions, isSubTeamAdmin, selectedDepartmentFilter]);
+
+  // Clear selection when changing department filter (avoid exporting/deleting hidden selections)
+  useEffect(() => {
+    if (!isSubTeamAdmin) return;
+    setSelectedWorkers(new Set());
+    setExpandedId(null);
+  }, [isSubTeamAdmin, selectedDepartmentFilter]);
+
+  const workers = useMemo(() => {
+    if (!isSubTeamAdmin || selectedDepartmentFilter === "All") return sortedWorkers;
+    return sortedWorkers.filter(
+      (w) => (w?.department ?? "").trim() === selectedDepartmentFilter
+    );
+  }, [isSubTeamAdmin, selectedDepartmentFilter, sortedWorkers]);
+
+  const selectableWorkers = workers.filter((w) => w.id != null && canAccessWorkerDepartment(w));
+  const selectedVisibleCount = useMemo(() => {
+    let c = 0;
+    for (const w of selectableWorkers) {
+      if (selectedWorkers.has(w.id)) c += 1;
+    }
+    return c;
+  }, [selectableWorkers, selectedWorkers]);
+
+  const exportWorkersToExcel = async () => {
+    if (!workers || workers.length === 0) {
+      toast.error("No workers to export");
+      return;
+    }
+
+    const exportList =
+      selectedVisibleCount > 0
+        ? workers.filter((w) => w.id != null && selectedWorkers.has(w.id))
+        : workers;
+
+    if (exportList.length === 0) {
+      toast.error("No selected workers to export");
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      // Group workers by department for separate sheets
+      const workersByDept = {};
+      exportList.forEach((w) => {
+        const dept = (w.department || decodedDepartment || "Unassigned").trim() || "Unassigned";
+        if (!workersByDept[dept]) {
+          workersByDept[dept] = [];
+        }
+        workersByDept[dept].push(w);
+      });
+
+      const workbook = new ExcelJS.Workbook();
+
+      const headers = [
+        "S/N",
+        "Worker ID",
+        "First Name",
+        "Last Name",
+        "Other Name",
+        "Email",
+        "Phone",
+        "Department",
+        "Role",
+        "Gender",
+        "Birth Date",
+        "Marital Status",
+        "Age Range",
+        "Employment Status",
+        "Occupation",
+        "Address",
+        "Status",
+      ];
+
+      const makeSheetName = (name) =>
+        (name || "Workers")
+          .toString()
+          .replace(/[\[\]\*\/\\\?\:]/g, "")
+          .slice(0, 31) || "Workers";
+
+      const departments = Object.keys(workersByDept).sort();
+
+      departments.forEach((dept) => {
+        const sheetName = makeSheetName(dept);
+        const sheet = workbook.addWorksheet(sheetName, {
+          views: [{ state: "frozen", ySplit: 1 }],
+        });
+
+        sheet.columns = headers.map((header) => ({
+          header,
+          key: header,
+          width: Math.min(32, Math.max(12, header.length + 2)),
+        }));
+
+        const rows = workersByDept[dept].map((w, index) => ({
+          "S/N": index + 1,
+          "Worker ID": w.id ?? w.workerId ?? "",
+          "First Name": w.firstname ?? "",
+          "Last Name": w.lastname ?? "",
+          "Other Name": w.othername ?? "",
+          Email: w.email ?? "",
+          Phone: w.phone || w.phonenumber || "",
+          Department: w.department || decodedDepartment || "",
+          Role: w.workerrole || w.workerRole || "",
+          Gender: w.gender ?? "",
+          "Birth Date": w.birthdate ?? "",
+          "Marital Status": w.maritalstatus ?? "",
+          "Age Range": w.agerange ?? "",
+          "Employment Status": w.employment ?? "",
+          Occupation: w.occupation ?? "",
+          Address: w.address ?? "",
+          Status: w.status || "ACTIVE",
+        }));
+
+        rows.forEach((r) => sheet.addRow(r));
+
+        const headerRow = sheet.getRow(1);
+        headerRow.font = { bold: true };
+        headerRow.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFEFEFEF" },
+        };
+
+        sheet.autoFilter = {
+          from: { row: 1, column: 1 },
+          to: { row: 1, column: headers.length },
+        };
+      });
+
+      // Use the human-readable department name (or generic) for the export filename
+      const rawDeptName =
+        departments.length === 1 ? departments[0] : decodedDepartment || departmentRoute || "departments";
+      const safeDept = String(rawDeptName)
+        .replace(/[^a-z0-9_-]+/gi, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 60);
+      const ts = (() => {
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        const hh = String(d.getHours()).padStart(2, "0");
+        const min = String(d.getMinutes()).padStart(2, "0");
+        return `${yyyy}-${mm}-${dd}_${hh}-${min}`;
+      })();
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      saveAs(blob, `${safeDept || "department"}_workers_${ts}.xlsx`);
+    } catch (e) {
+      toast.error("Failed to export workers");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const toggleWorker = (id) => {
     setSelectedWorkers((prev) => {
@@ -85,28 +297,41 @@ export default function DepartmentWorkers() {
     });
   };
 
-  const selectableWorkers = workers.filter((w) => w.id != null);
   const toggleAllWorkers = () => {
-    if (selectedWorkers.size === selectableWorkers.length) {
-      setSelectedWorkers(new Set());
-    } else {
-      setSelectedWorkers(new Set(selectableWorkers.map((w) => w.id)));
-    }
+    setSelectedWorkers((prev) => {
+      const next = new Set(prev);
+      const allVisibleSelected =
+        selectableWorkers.length > 0 && selectableWorkers.every((w) => next.has(w.id));
+      if (allVisibleSelected) {
+        selectableWorkers.forEach((w) => next.delete(w.id));
+      } else {
+        selectableWorkers.forEach((w) => next.add(w.id));
+      }
+      return next;
+    });
   };
 
   const openRequestDeleteModal = () => {
-    if (selectedWorkers.size === 0) return;
+    if (!canRequestDeleteWorkers) return;
+    if (selectedVisibleCount === 0) return;
     setDeleteTargetId(null);
     setDeleteModalOpen(true);
   };
 
   const openRequestDeleteModalForWorker = (workerId) => {
+    if (!canRequestDeleteWorkers) return;
     if (workerId == null) return;
     setDeleteTargetId(workerId);
     setDeleteModalOpen(true);
   };
 
   const confirmRequestDelete = async () => {
+    if (!canRequestDeleteWorkers) {
+      toast.error("Access denied. You do not have permission to delete workers.");
+      setDeleteModalOpen(false);
+      setDeleteTargetId(null);
+      return;
+    }
     if (
       !deleteData.nameofrequester ||
       !deleteData.reasonfordelete ||
@@ -174,36 +399,84 @@ export default function DepartmentWorkers() {
 
         <div className="bg-white rounded-lg border shadow p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Workers ({workers.length})
-            </h2>
-            {canEditWorkers && (
-              <span className="flex items-center gap-3">
-                {selectedWorkers.size > 0 && (
-                  <button
-                    type="button"
-                    onClick={openRequestDeleteModal}
-                    disabled={isDeleting}
-                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50"
-                  >
-                    {isDeleting ? "Requesting..." : `Request to Delete ${selectedWorkers.size} Selected`}
-                  </button>
-                )}
-                <Link
-                  to={`${departmentUrl}/add-worker`}
-                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700"
-                >
-                  Add Worker
-                </Link>
-                <Link
-                  to={`${departmentUrl}/bulk-add`}
-                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-                >
-                  Bulk Add Workers
-                </Link>
-              </span>
-            )}
+            <div className="flex flex-col gap-2">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Workers ({workers.length})
+              </h2>
+            </div>
+            <span className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={exportWorkersToExcel}
+                disabled={isExporting || isWorkersLoading || workers.length === 0}
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-black disabled:opacity-50"
+                title={
+                  selectedVisibleCount > 0
+                    ? `Export ${selectedVisibleCount} selected worker(s) to Excel`
+                    : "Export all workers to Excel"
+                }
+              >
+                {isExporting ? "Exporting..." : "Export to Excel"}
+              </button>
+
+              {canEditWorkers && (
+                <>
+                  {canRequestDeleteWorkers && selectedVisibleCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={openRequestDeleteModal}
+                      disabled={isDeleting}
+                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50"
+                    >
+                      {isDeleting ? "Requesting..." : `Request to Delete ${selectedVisibleCount} Selected`}
+                    </button>
+                  )}
+                  {canManageDepartmentPage && (
+                    <>
+                      <Link
+                        to={`${departmentUrl}/add-worker`}
+                        className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700"
+                      >
+                        Add Worker
+                      </Link>
+                      <Link
+                        to={`${departmentUrl}/bulk-add`}
+                        className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                      >
+                        Bulk Add Workers
+                      </Link>
+                    </>
+                  )}
+                </>
+              )}
+            </span>
           </div>
+
+          {showDepartmentFilter && (
+            <div className="mb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <label
+                  htmlFor="deptWorkersFilter"
+                  className="text-sm font-medium text-gray-700"
+                >
+                  Department
+                </label>
+                <select
+                  id="deptWorkersFilter"
+                  value={selectedDepartmentFilter}
+                  onChange={(e) => setSelectedDepartmentFilter(e.target.value)}
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:max-w-xs"
+                >
+                  <option value="All">All</option>
+                  {departmentFilterOptions.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
           {isWorkersLoading ? (
             <LoadingState />
           ) : workers.length > 0 ? (
@@ -211,11 +484,11 @@ export default function DepartmentWorkers() {
               <table className="min-w-full divide-y divide-gray-300">
                 <thead>
                   <tr>
-                    {canEditWorkers && (
+                    {canSelectWorkers && (
                       <th className="py-3.5 pl-4 pr-3 text-left sm:pl-0">
                         <input
                           type="checkbox"
-                          checked={selectableWorkers.length > 0 && selectedWorkers.size === selectableWorkers.length}
+                        checked={selectableWorkers.length > 0 && selectedVisibleCount === selectableWorkers.length}
                           onChange={toggleAllWorkers}
                           className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
@@ -231,6 +504,9 @@ export default function DepartmentWorkers() {
                       Phone
                     </th>
                     <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Department
+                    </th>
+                    <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                       Role
                     </th>
                     <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
@@ -241,6 +517,7 @@ export default function DepartmentWorkers() {
                 <tbody className="divide-y divide-gray-200">
                   {workers.map((worker, index) => {
                     const isExpanded = expandedId === (worker.id ?? index);
+                    const canAccessThisWorker = canAccessWorkerDepartment(worker);
                     const detailItems = [
                       { label: "Email", value: worker.email },
                       { label: "Other Name", value: worker.othername },
@@ -256,13 +533,13 @@ export default function DepartmentWorkers() {
                     return (
                       <React.Fragment key={worker.id ?? index}>
                         <tr>
-                          {canEditWorkers && (
+                          {canSelectWorkers && (
                             <td className="whitespace-nowrap py-4 pl-4 pr-3 sm:pl-0">
                               <input
                                 type="checkbox"
                                 checked={worker.id != null && selectedWorkers.has(worker.id)}
-                                onChange={() => worker.id != null && toggleWorker(worker.id)}
-                                disabled={worker.id == null}
+                                onChange={() => worker.id != null && canAccessThisWorker && toggleWorker(worker.id)}
+                                disabled={worker.id == null || !canAccessThisWorker}
                                 className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                               />
                             </td>
@@ -277,18 +554,23 @@ export default function DepartmentWorkers() {
                             {worker.phone || worker.phonenumber || "-"}
                           </td>
                           <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            {worker.department || decodedDepartment || "-"}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                             {worker.workerrole || worker.workerRole || "-"}
                           </td>
                           <td className="whitespace-nowrap px-3 py-4 text-sm">
                             <span className="flex items-center gap-3">
-                              <Link
-                                to={`/worker/${worker.id}?from=department:${encodeURIComponent(decodedDepartment)}`}
-                                className="text-blue-600 hover:text-blue-800"
-                                title="View"
-                              >
-                                <EyeIcon className="h-4 w-4" />
-                              </Link>
-                              {canEditWorkers && (
+                              {!isSubTeamAdmin && canAccessThisWorker && (
+                                <Link
+                                  to={`/worker/${worker.id}?from=department:${encodeURIComponent(decodedDepartment)}`}
+                                  className="text-blue-600 hover:text-blue-800"
+                                  title="View"
+                                >
+                                  <EyeIcon className="h-4 w-4" />
+                                </Link>
+                              )}
+                              {canEditWorkers && canAccessThisWorker && (
                                 <Link
                                   to={`/worker/${worker.id}?from=department:${encodeURIComponent(decodedDepartment)}`}
                                   className="text-green-600 hover:text-green-800"
@@ -297,7 +579,7 @@ export default function DepartmentWorkers() {
                                   <PencilIcon className="h-4 w-4" />
                                 </Link>
                               )}
-                              {canEditWorkers && (
+                              {canRequestDeleteWorkers && canAccessThisWorker && (
                                 <button
                                   type="button"
                                   onClick={() => openRequestDeleteModalForWorker(worker.id)}
@@ -325,7 +607,7 @@ export default function DepartmentWorkers() {
                         {isExpanded && (
                           <tr>
                             <td
-                              colSpan={canEditWorkers ? 6 : 5}
+                              colSpan={canSelectWorkers ? 7 : 6}
                               className="bg-gray-50 px-4 py-3 text-sm"
                             >
                               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-6 gap-y-2">

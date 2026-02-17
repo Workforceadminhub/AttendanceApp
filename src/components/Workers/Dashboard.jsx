@@ -82,6 +82,9 @@ export default function Dashboard() {
   // Extract route suffix from pathname (e.g. "/dashboard/wadata" -> "/wadata")
   const routeSuffix = pathname.replace(/^\/dashboard/, "") || "";
   const departmentInfo = routeObject.find((r) => r.route === routeSuffix);
+  const summaryHref = authUser?.route
+    ? `/department/${authUser.route.replace(/^\//, "")}`
+    : "/summary";
 
   const defaultDate = getNextSunday();
   const [selectedDate, setSelectedDate] = useState(defaultDate);
@@ -211,7 +214,7 @@ export default function Dashboard() {
       }
       links.push({
         label: "View Summary",
-        href: `/summary${departmentInfo.route}`,
+        href: summaryHref,
         icon: TableCellsIcon,
         color: "bg-blue-50 text-blue-700 hover:bg-blue-100",
       });

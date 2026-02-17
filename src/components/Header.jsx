@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { getUser } from "../utils/getUser";
 import { clearFilterCache } from "../utils/filterCache";
 import { getUserRole } from "../utils/getUserRole";
+import { getDepartmentRoute } from "../utils/routeObject";
 
 function NavDropdown({ label, items }) {
   const [open, setOpen] = useState(false);
@@ -92,9 +93,16 @@ export default function Header() {
   if (!authUser) navigate("/login");
 
   // Phase 7: Use getUserRole for cleaner role detection
-  const { isSuperAdmin, isChurchAdmin: isChurchAdminRole, isTeamAdmin, isSubTeamAdmin, isHOD } =
-    getUserRole();
-  const isAdmin = isSuperAdmin || isChurchAdminRole || isTeamAdmin || isSubTeamAdmin;
+  const {
+    isSuperAdmin,
+    isChurchAdmin: isChurchAdminRole,
+    isTeamAdmin,
+    isSubTeamAdmin,
+    isHOD,
+    isAdmin,
+  } = getUserRole();
+
+  // Approvals: visible to all admin roles (Super/Church/Team/Sub-team)
   const canAccessApprovals = isAdmin;
 
   // Summary links to current user's department when they have a route, else summary list
@@ -115,33 +123,41 @@ export default function Header() {
   ];
 
   // Admin navigation with dropdown groups
-  const adminNavTop = [
+  const adminNavPrimary = [
     { name: "Home", href: isSuperAdmin ? "/overview/super-admin" : isChurchAdminRole ? "/attendance/dashboard" : authUser?.route ? `/dashboard${authUser.route}` : "/attendance/dashboard" },
     { name: "Summary", href: summaryHref },
-    {
-      name: "Attendance",
-      href: isSuperAdmin
-        ? "/attendance/super-admin"
-        : isChurchAdminRole
-        ? "/attendance/dashboard"
-        : authUser?.route
-        ? `/attendance${authUser.route}`
-        : "/attendance/dashboard",
-    },
   ];
 
-  // Workers dropdown items
-  const workersDropdown = [
-    ...(isSuperAdmin ? [{ name: "Workers", href: "/workers/super-admin" }] : []),
-    ...(isSuperAdmin ? [{ name: "All Workers", href: "/all-workers" }] : []),
-    ...(isChurchAdminRole ? [{ name: "Workers", href: "/church-admin/workers" }] : []),
-    ...(canAccessApprovals ? [{ name: "Approvals", href: "/pending-workers" }] : []),
-    ...(isSuperAdmin ? [{ name: "Team Mismatch", href: "/team-mismatch" }] : []),
-  ];
+  const approvalsItem = canAccessApprovals ? { name: "Approvals", href: "/pending-workers" } : null;
+
+  const attendanceItem = {
+    name: "Attendance",
+    href: isSuperAdmin
+      ? "/attendance/super-admin"
+      : isChurchAdminRole
+      ? "/attendance/dashboard"
+      : authUser?.route
+      ? `/attendance${authUser.route}`
+      : "/attendance/dashboard",
+  };
+
+  const departmentRouteForUser =
+    authUser?.route?.replace?.(/^\//, "") ||
+    getDepartmentRoute(authUser?.department)?.replace?.(/^\//, "") ||
+    "";
+  const workersHref = isSuperAdmin
+    ? "/workers/super-admin"
+    : isChurchAdminRole
+    ? "/church-admin/workers"
+    : departmentRouteForUser
+    ? `/department/${departmentRouteForUser}/workers`
+    : "/attendance/dashboard";
 
   // Settings/Admin dropdown items
   const settingsDropdown = [
     ...(isSuperAdmin ? [{ name: "Dashboard", href: "/dashboard/super-admin" }] : []),
+    ...(isSuperAdmin ? [{ name: "All Workers", href: "/all-workers" }] : []),
+    ...(isSuperAdmin ? [{ name: "Team Mismatch", href: "/team-mismatch" }] : []),
     ...(isSuperAdmin ? [{ name: "Departments", href: "/manage-departments" }] : []),
     ...(isSuperAdmin ? [{ name: "Admins", href: "/manage-admins" }] : []),
     ...(isSuperAdmin ? [{ name: "Report", href: "/report" }] : []),
@@ -193,7 +209,7 @@ export default function Header() {
           ) : (
             // Admin: top-level links + dropdowns
             <>
-              {adminNavTop.map((item) => (
+              {adminNavPrimary.map((item) => (
                 <a
                   key={item.name}
                   href={item.href}
@@ -202,9 +218,26 @@ export default function Header() {
                   {item.name}
                 </a>
               ))}
-              {workersDropdown.length > 0 && (
-                <NavDropdown label="Workers" items={workersDropdown} />
+              <a
+                href={workersHref}
+                className="text-sm/6 font-semibold text-gray-900 cursor-pointer"
+              >
+                Workers
+              </a>
+              {approvalsItem && (
+                <a
+                  href={approvalsItem.href}
+                  className="text-sm/6 font-semibold text-gray-900 cursor-pointer"
+                >
+                  {approvalsItem.name}
+                </a>
               )}
+              <a
+                href={attendanceItem.href}
+                className="text-sm/6 font-semibold text-gray-900 cursor-pointer"
+              >
+                {attendanceItem.name}
+              </a>
               {settingsDropdown.length > 0 && (
                 <NavDropdown label="Settings" items={settingsDropdown} />
               )}
@@ -269,7 +302,7 @@ export default function Header() {
                   ))
                 ) : (
                   <>
-                    {adminNavTop.map((item) => (
+                    {adminNavPrimary.map((item) => (
                       <a
                         key={item.name}
                         href={item.href}
@@ -278,9 +311,26 @@ export default function Header() {
                         {item.name}
                       </a>
                     ))}
-                    {workersDropdown.length > 0 && (
-                      <MobileDropdown label="Workers" items={workersDropdown} />
+                    <a
+                      href={workersHref}
+                      className="-mx-3 block rounded-lg px-3 py-2 text-base/7 font-semibold text-gray-900 hover:bg-gray-50"
+                    >
+                      Workers
+                    </a>
+                    {approvalsItem && (
+                      <a
+                        href={approvalsItem.href}
+                        className="-mx-3 block rounded-lg px-3 py-2 text-base/7 font-semibold text-gray-900 hover:bg-gray-50"
+                      >
+                        {approvalsItem.name}
+                      </a>
                     )}
+                    <a
+                      href={attendanceItem.href}
+                      className="-mx-3 block rounded-lg px-3 py-2 text-base/7 font-semibold text-gray-900 hover:bg-gray-50"
+                    >
+                      {attendanceItem.name}
+                    </a>
                     {settingsDropdown.length > 0 && (
                       <MobileDropdown label="Settings" items={settingsDropdown} />
                     )}

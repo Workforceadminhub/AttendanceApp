@@ -42,9 +42,6 @@ export function splitWorkersByBirthday(workers, options = {}) {
   const maxUpcomingDays = options.maxUpcomingDays ?? 30;
   const today = [];
   const upcoming = [];
-  const now = new Date();
-  const todayMonth = now.getMonth() + 1;
-  const todayDay = now.getDate();
 
   (Array.isArray(workers) ? workers : []).forEach((worker) => {
     const md = parseBirthdateMonthDay(worker.birthdate || worker.birthday);

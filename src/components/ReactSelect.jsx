@@ -10,6 +10,7 @@ export default function ReactSelectDropdown({
   placeholder,
   className = "sm:w-44 xs:w-40 md:w-52 lg:w-64 xl:w-64",
   disabled = false,
+  isClearable = true,
 }) {
   // Map for assigning background colors to options
   const colorMap = {
@@ -85,7 +86,7 @@ export default function ReactSelectDropdown({
         isDisabled={disabled}
         placeholder={placeholder || title}
         styles={customStyles}
-        isClearable={true}
+        isClearable={isClearable}
         menuPlacement="auto"
         maxMenuHeight={200}
       />

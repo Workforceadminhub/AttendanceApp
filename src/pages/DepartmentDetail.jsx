@@ -16,11 +16,12 @@ import Layout from "../components/Layout";
 import AttendanceLeaderboard from "../components/AttendanceLeaderboard";
 import LoadingState from "../components/LoadingState";
 import { routeObject, getDepartmentRoute, getDepartmentNameFromRoute } from "../utils/routeObject";
-import { getUserRole } from "../utils/getUserRole";
 import { getUser } from "../utils/getUser";
 import { getNextSunday, getSundaysInYear } from "../utils/getDate";
 import { fetchAttendance } from "../services/attendance";
 import { fetchWorkers } from "../services/workers";
+import { getUserRole } from "../utils/getUserRole";
+import { fetchDepartments } from "../services/departments";
 
 /** Parse "Sunday - d/m/y" to yyyy-MM-dd */
 function sundayToYYYYMMDD(dateStr) {
@@ -47,6 +48,65 @@ export default function DepartmentDetail() {
   );
   const team = departmentInfo?.team || "Unknown Team";
   const departmentRoute = getDepartmentRoute(decodedDepartment) || decodedParam;
+
+  // Role information (to detect sub-team-admin)
+  const { isSubTeamAdmin, assignedDepartments, user: roleUser } = getUserRole();
+
+  // Sub-team-admin: load departments from API and keep only assigned/permission-based
+  const {
+    data: allDepartments,
+    isLoading: isDepartmentsLoading,
+  } = useQuery({
+    queryKey: ["departmentsForTrends"],
+    queryFn: () => fetchDepartments(),
+    enabled: isSubTeamAdmin,
+  });
+
+  const permittedDepartments = useMemo(() => {
+    if (!isSubTeamAdmin || !Array.isArray(allDepartments)) return [];
+
+    const normalizeRoute = (value) =>
+      (value || "").toString().replace(/^\//, "").toLowerCase();
+
+    const assigned = (assignedDepartments || []).map((r) =>
+      normalizeRoute(r)
+    );
+
+    const permissionsSet = Array.isArray(roleUser?.permissions)
+      ? new Set(
+          roleUser.permissions
+            .map((p) => (p ?? "").toString().trim().toLowerCase())
+            .filter(Boolean)
+        )
+      : null;
+
+    return allDepartments.filter((d) => {
+      const name = (d?.name ?? "").toString().trim();
+      const route = (d?.route ?? "").toString().trim();
+      const routeNorm = normalizeRoute(route);
+
+      const matchRouteAssigned =
+        assigned.length > 0 && routeNorm
+          ? assigned.includes(routeNorm)
+          : false;
+
+      const candidates = [
+        name,
+        route,
+        routeNorm,
+      ]
+        .map((v) => (v ?? "").toString().trim().toLowerCase())
+        .filter(Boolean);
+
+      const matchPermissions =
+        permissionsSet && candidates.some((c) => permissionsSet.has(c));
+
+      // If neither assigned routes nor permissions are defined, fall back to allowing all
+      if (assigned.length === 0 && !permissionsSet) return true;
+
+      return matchRouteAssigned || matchPermissions;
+    });
+  }, [isSubTeamAdmin, allDepartments, assignedDepartments, roleUser]);
 
   // Attendance Trend: fetch attendance for every Sunday via GET /api/attendance?activeDate=Sunday - d/m/y
   const {
@@ -96,10 +156,13 @@ export default function DepartmentDetail() {
 
   const {
     data: workersData,
-    isLoading: isWorkersLoading,
   } = useQuery({
     queryKey: ["departmentWorkers", decodedDepartment],
-    queryFn: () => fetchWorkers(decodedDepartment),
+    queryFn: () => {
+      const authUser = getUser();
+      const permissions = authUser?.permissions ?? [];
+      return fetchWorkers(decodedDepartment, undefined, permissions);
+    },
   });
 
   const workers = workersData || [];
@@ -116,13 +179,86 @@ export default function DepartmentDetail() {
     if (now.getFullYear() === 2026) return `2026-${String(now.getMonth() + 1).padStart(2, "0")}`;
     return "2026-01";
   });
-  const trendsAll = trendsData?.points ?? (Array.isArray(trendsData) ? trendsData : []);
+  const trendsAll = useMemo(() => {
+    return trendsData?.points ?? (Array.isArray(trendsData) ? trendsData : []);
+  }, [trendsData]);
   const trends = useMemo(() => {
     return trendsAll.filter((p) => (p.date || "").startsWith(selectedMonth));
   }, [trendsAll, selectedMonth]);
 
   // Frontend leaderboard from same attendance data (per month)
-  const rawBySunday = trendsData?.rawBySunday ?? [];
+  const rawBySunday = useMemo(() => trendsData?.rawBySunday ?? [], [trendsData]);
+
+  // Sub-team-admin: build per-department trend series from full attendance data
+  const trendsByDepartment = useMemo(() => {
+    if (!isSubTeamAdmin) return {};
+    if (!Array.isArray(permittedDepartments) || permittedDepartments.length === 0) {
+      return {};
+    }
+
+    const inMonth = rawBySunday.filter(({ dateStr }) =>
+      (dateStr || "").startsWith(selectedMonth)
+    );
+
+    const normalizeRoute = (value) =>
+      (value || "").toString().replace(/^\//, "").toLowerCase();
+
+    const meta = permittedDepartments.map((d) => ({
+      name: d.name,
+      routeNorm: normalizeRoute(d.route),
+      id: d.id,
+    }));
+
+    const result = {};
+    meta.forEach((m) => {
+      result[m.name] = [];
+    });
+
+    inMonth.forEach(({ dateStr, list }) => {
+      const date = dateStr;
+      const arr = Array.isArray(list) ? list : [];
+
+      meta.forEach((m) => {
+        const forDept = arr.filter((item) => {
+          const itemRoute = normalizeRoute(
+            item.route || item.department_route || item.departmentRoute
+          );
+          const itemName = (item.department || item.department_name || "").toString().trim();
+
+          if (m.routeNorm && itemRoute) {
+            return itemRoute === m.routeNorm;
+          }
+
+          // Fallback: match by department name
+          return m.name && itemName && itemName === m.name;
+        });
+
+        if (!forDept.length) return;
+
+        const present = forDept.reduce(
+          (s, item) => s + (item.present ?? 0),
+          0
+        );
+        const absent = forDept.reduce(
+          (s, item) => s + (item.absent ?? 0),
+          0
+        );
+
+        result[m.name].push({
+          date,
+          present,
+          absent,
+        });
+      });
+    });
+
+    Object.keys(result).forEach((key) => {
+      result[key].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+    });
+
+    return result;
+  }, [isSubTeamAdmin, permittedDepartments, rawBySunday, selectedMonth]);
+
   const leaderboardFromAttendance = useMemo(() => {
     const normRoute = (departmentRoute || "").replace(/^\//, "").toLowerCase();
     const matchDept = (item) => {
@@ -172,8 +308,6 @@ export default function DepartmentDetail() {
     return `${selectedMonth}-${String(lastDay).padStart(2, "0")}`;
   }, [selectedMonth]);
 
-  const { isSuperAdmin, isChurchAdmin, isHOD, isTeamAdmin, isSubTeamAdmin } = getUserRole();
-
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
       <Header />
@@ -190,12 +324,19 @@ export default function DepartmentDetail() {
           <p className="text-sm text-gray-500">Team: {team}</p>
         </div>
 
-        {/* Attendance Trend Chart */}
+        {/* Attendance Trend Chart(s) */}
         <div className="mb-8 bg-white rounded-lg border shadow p-6">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Attendance Trend
-            </h2>
+            <div className="flex flex-col">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {isSubTeamAdmin ? "Attendance Trend (My Departments)" : "Attendance Trend"}
+              </h2>
+              {isSubTeamAdmin && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Showing a separate chart for each department you oversee.
+                </p>
+              )}
+            </div>
             <select
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
@@ -208,10 +349,92 @@ export default function DepartmentDetail() {
               ))}
             </select>
           </div>
-          {isTrendsLoading ? (
+
+          {isTrendsLoading || (isSubTeamAdmin && isDepartmentsLoading) ? (
             <div className="h-64 flex items-center justify-center">
               <LoadingState />
             </div>
+          ) : isSubTeamAdmin ? (
+            <>
+              {Array.isArray(permittedDepartments) &&
+              permittedDepartments.length > 0 &&
+              Object.values(trendsByDepartment).some((series) => series.length > 0) ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {permittedDepartments.map((dept) => {
+                    const series = trendsByDepartment[dept.name] || [];
+                    const hasData = series.length > 0;
+                    return (
+                      <div
+                        key={dept.id ?? dept.name}
+                        className="border rounded-lg p-4 bg-gray-50"
+                      >
+                        <h3 className="text-sm font-semibold text-gray-900 mb-2">
+                          {dept.name}
+                        </h3>
+                        {hasData ? (
+                          <div className="h-64">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={series}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                                <YAxis />
+                                <Tooltip
+                                  content={({ active, payload, label }) => {
+                                    if (!active || !payload?.length || !label) return null;
+                                    const row =
+                                      payload.find((p) => p.dataKey === "present")
+                                        ?.payload ?? {};
+                                    return (
+                                      <div className="bg-white border border-gray-200 rounded shadow-lg p-3 text-sm">
+                                        <div className="font-medium text-gray-900 mb-2">
+                                          {label}
+                                        </div>
+                                        <div className="text-[#22c55e] font-medium">
+                                          Present : {row.present ?? 0}
+                                        </div>
+                                        <div className="text-[#ef4444] font-medium">
+                                          Absent : {row.absent ?? 0}
+                                        </div>
+                                      </div>
+                                    );
+                                  }}
+                                />
+                                <Legend
+                                  payload={[
+                                    {
+                                      value: "Present",
+                                      type: "square",
+                                      id: "present",
+                                      color: "#22c55e",
+                                    },
+                                    {
+                                      value: "Absent",
+                                      type: "square",
+                                      id: "absent",
+                                      color: "#ef4444",
+                                    },
+                                  ]}
+                                />
+                                <Bar dataKey="present" fill="#22c55e" name="Present" />
+                                <Bar dataKey="absent" fill="#ef4444" name="Absent" />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        ) : (
+                          <div className="h-64 flex items-center justify-center text-gray-500 text-sm">
+                            No Sundays in this month with data for this department.
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="h-64 flex items-center justify-center text-gray-500 text-sm">
+                  No attendance history for your departments yet.
+                </div>
+              )}
+            </>
           ) : trends.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={trends}>
@@ -225,20 +448,41 @@ export default function DepartmentDetail() {
                     return (
                       <div className="bg-white border border-gray-200 rounded shadow-lg p-3 text-sm">
                         <div className="font-medium text-gray-900 mb-2">{label}</div>
-                        <div className="text-[#22c55e] font-medium">Present : {row.present ?? 0}</div>
-                        <div className="text-[#ef4444] font-medium">Absent : {row.absent ?? 0}</div>
+                        <div className="text-[#22c55e] font-medium">
+                          Present : {row.present ?? 0}
+                        </div>
+                        <div className="text-[#ef4444] font-medium">
+                          Absent : {row.absent ?? 0}
+                        </div>
                       </div>
                     );
                   }}
                 />
-                <Legend payload={[{ value: "Present", type: "square", id: "present", color: "#22c55e" }, { value: "Absent", type: "square", id: "absent", color: "#ef4444" }]} />
+                <Legend
+                  payload={[
+                    {
+                      value: "Present",
+                      type: "square",
+                      id: "present",
+                      color: "#22c55e",
+                    },
+                    {
+                      value: "Absent",
+                      type: "square",
+                      id: "absent",
+                      color: "#ef4444",
+                    },
+                  ]}
+                />
                 <Bar dataKey="present" fill="#22c55e" name="Present" />
                 <Bar dataKey="absent" fill="#ef4444" name="Absent" />
               </BarChart>
             </ResponsiveContainer>
           ) : (
             <div className="h-64 flex items-center justify-center text-gray-500">
-              {trendsAll.length === 0 ? "No attendance history for Sundays yet." : `No Sundays in this month with data.`}
+              {trendsAll.length === 0
+                ? "No attendance history for Sundays yet."
+                : `No Sundays in this month with data.`}
             </div>
           )}
         </div>

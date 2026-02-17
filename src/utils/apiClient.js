@@ -70,7 +70,7 @@ export async function apiRequest(
     };
 
     if (method.toUpperCase() === "GET") {
-      // Serialize array params as JSON so the server receives one param (e.g. permissions as array)
+      // Serialize array params as JSON so the server receives one param (e.g. Permissions as array)
       options.params = data && typeof data === "object" ? serializeParams(data) : data;
       // Also serialize params from config if present
       if (config?.params && typeof config.params === "object") {

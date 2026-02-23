@@ -28,6 +28,8 @@ export default function AdminSummaryDetail() {
   const teamInfo = getDepartmentByUser(location.pathname) || {};
   const teamName = teamInfo.team || "All";
 
+  // deploy
+
   const authUser = getUser();
   const {
     isSuperAdmin,

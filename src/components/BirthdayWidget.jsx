@@ -110,7 +110,7 @@ export default function BirthdayWidget({ department }) {
                   <button
                     type="button"
                     onClick={() => setShowAllUpcoming(true)}
-                    className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    className="mt-1 text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
                   >
                     +{upcoming.length - 5} more
                   </button>
@@ -119,7 +119,7 @@ export default function BirthdayWidget({ department }) {
                   <button
                     type="button"
                     onClick={() => setShowAllUpcoming(false)}
-                    className="text-xs text-gray-500 hover:text-gray-700 font-medium"
+                    className="mt-1 text-xs font-medium text-gray-500 hover:text-gray-700 hover:underline cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
                   >
                     Show less
                   </button>

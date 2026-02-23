@@ -147,11 +147,11 @@ export default function Header() {
     name: "Attendance",
     href: isSuperAdmin
       ? "/attendance/super-admin"
-      : isChurchAdminRole
-      ? "/attendance/dashboard"
-      : authUser?.route
-      ? `/attendance${authUser.route}`
-      : "/attendance/dashboard",
+    : isChurchAdminRole
+    ? "/attendance"
+    : authUser?.route
+    ? `/attendance${authUser.route}`
+    : "/attendance/dashboard",
   };
 
   const workersHref = (() => {

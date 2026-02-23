@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchWorkers } from "../services/workers";
 import { getUser } from "../utils/getUser";
@@ -25,6 +26,7 @@ function formatBirthdateDisplay(value) {
  * @param {string} props.department - Department name, team name, or "All"
  */
 export default function BirthdayWidget({ department }) {
+  const [showAllUpcoming, setShowAllUpcoming] = useState(false);
   const { data: workers, isLoading } = useQuery({
     queryKey: ["workersForBirthdays", department],
     queryFn: () => {
@@ -101,9 +103,26 @@ export default function BirthdayWidget({ department }) {
             <div>
               <h4 className="text-xs font-medium text-gray-600 mb-2">Upcoming (30 days)</h4>
               <div className="space-y-2">
-                {upcoming.slice(0, 5).map((w, i) => renderWorker(w, i))}
-                {upcoming.length > 5 && (
-                  <p className="text-xs text-gray-500">+{upcoming.length - 5} more</p>
+                {(showAllUpcoming ? upcoming : upcoming.slice(0, 5)).map((w, i) =>
+                  renderWorker(w, i)
+                )}
+                {upcoming.length > 5 && !showAllUpcoming && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllUpcoming(true)}
+                    className="mt-1 text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                  >
+                    +{upcoming.length - 5} more
+                  </button>
+                )}
+                {upcoming.length > 5 && showAllUpcoming && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllUpcoming(false)}
+                    className="mt-1 text-xs font-medium text-gray-500 hover:text-gray-700 hover:underline cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                  >
+                    Show less
+                  </button>
                 )}
               </div>
             </div>

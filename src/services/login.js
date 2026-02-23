@@ -3,7 +3,8 @@ import { initializeFilterData } from "../utils/filterCache";
 
 const loginService = async (code) => {
   try {
-    const response = await apiRequest("POST", "/auth/signin", { password: code }, undefined, false);
+    const trimmedCode = (code ?? "").trim();
+    const response = await apiRequest("POST", "/auth/signin", { password: trimmedCode }, undefined, false);
     
     // If login is successful, store token before initializing filter data
     if (response && response.accessToken) {

@@ -131,6 +131,37 @@ export default function UnmarkedAttendance() {
     return { total, present, absent, unfilled };
   }, [data, attendance]);
 
+  const unfilledDepartments = useMemo(() => {
+    if (!Array.isArray(data)) return [];
+
+    const overridesById = new Map(
+      (attendance || []).map((item) => [item.workerid, item.attendance])
+    );
+
+    const counts = new Map();
+
+    data.forEach((person) => {
+      const overrideStatus = overridesById.get(person.id);
+      const rawStatus = overrideStatus || person.attendance || "";
+      const status = (rawStatus || "").toString().trim();
+
+      if (status) {
+        // Only care about still-unfilled workers
+        return;
+      }
+
+      const dept = person.department || "Unknown department";
+      counts.set(dept, (counts.get(dept) || 0) + 1);
+    });
+
+    return Array.from(counts.entries())
+      .map(([department, count]) => ({ department, count }))
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return a.department.localeCompare(b.department);
+      });
+  }, [data, attendance]);
+
   const queryAdminWorkers = () => {
     setIsLoading(true);
     fetchUnmarkedWorkers(activeGroup)
@@ -354,6 +385,23 @@ export default function UnmarkedAttendance() {
                 </dd>
               </div>
             </dl>
+            {attendanceSummary.unfilled > 0 && unfilledDepartments.length > 0 && (
+              <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-4">
+                <h2 className="text-sm font-semibold text-amber-800">
+                  Departments with unfilled attendance
+                </h2>
+                <ul className="mt-2 text-sm text-amber-900 list-disc list-inside space-y-1">
+                  {unfilledDepartments.map(({ department, count }) => (
+                    <li key={department}>
+                      {department}{" "}
+                      <span className="text-amber-700">
+                        ({count} unfilled worker{count !== 1 ? "s" : ""})
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {isLoading ? (
               <TableLoadingState length={5} />
             ) : (

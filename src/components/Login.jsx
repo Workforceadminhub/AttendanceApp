@@ -18,10 +18,10 @@ const Login = () => {
 
   const handleLogin = async () => {
     try {
-      // Query the database to check if the code exists
+      // Query the database to check if the code exists (always trim spaces)
       setIsLoading(true);
-      const data = await loginService(code);
-      if(data.accessToken){
+      const data = await loginService(code.trim());
+      if (data.accessToken) {
         setMessage("Login successful!");
         setError("");
         // Phase 7: Store permissionLevel and assignedDepartments (from user or top-level response)
@@ -32,11 +32,21 @@ const Login = () => {
         };
         sessionStorage.setItem("authUser", JSON.stringify(authUser));
         sessionStorage.setItem("accessToken", data.accessToken);
-        // Redirect all users to their dashboard
-        if (data.user.department === "Super Admin") {
+        // Redirect users based on role/department
+        const isSuperAdmin =
+          authUser.department === "Super Admin" ||
+          authUser.permissionLevel === "SUPER_ADMIN";
+        const isChurchAdmin =
+          authUser.department === "Church Admin" ||
+          authUser.permissionLevel === "CHURCH_ADMIN";
+
+        if (isSuperAdmin) {
           navigate("/overview/super-admin");
-        } else if (data.user.route) {
-          navigate(`/dashboard${data.user.route}`);
+        } else if (isChurchAdmin) {
+          // Church Admin uses shared attendance dashboard as home
+          navigate("/attendance/dashboard");
+        } else if (authUser.route) {
+          navigate(`/dashboard${authUser.route}`);
         } else {
           navigate("/attendance/dashboard");
         }
@@ -64,7 +74,9 @@ const Login = () => {
               id="id"
               name="id"
               placeholder="Enter your ID"
+              value={code}
               onChange={(e) => setCode(e.target.value)}
+              onBlur={() => setCode((c) => c.trimEnd())}
               onKeyDown={handleKeyPress}
               className="mt-1 pl-2 block h-12 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />

@@ -15,7 +15,6 @@ import ReactSelectDropdown from "../ReactSelect";
 import Layout from "../Layout";
 import { switchOffAttendance } from "../../utils/switchOffAttendance";
 import { getAdminSelectOptions } from "../../utils/routeObject";
-import { ADMIN_ENUMS } from "../../utils/enums";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
 import { getUserRole } from "../../utils/getUserRole";
 import { fetchDepartments } from "../../services/departments";
@@ -30,7 +29,7 @@ import LoadingState from "../LoadingState";
 // Separate component for the attendance dropdown to reduce duplication
 const AttendanceDropdown = ({
   person,
-  isAdminMember,
+  disabled,
   attendanceIsClosed,
   updateAttendance,
   options,
@@ -39,7 +38,7 @@ const AttendanceDropdown = ({
   return (
     <ReactSelectDropdown
       title="Mark attendance"
-      disabled={isAdminMember || person.attendance || attendanceIsClosed}
+      disabled={disabled || person.attendance || attendanceIsClosed}
       defaultValue={
         person?.attendance
           ? {
@@ -68,10 +67,9 @@ export default function DepartmentAttendance() {
   const [refresh, setRefresh] = useState(0);
   const [activeGroup, setActiveGroup] = useState("All");
   const team = getDepartmentByUser(location.pathname);
-  const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
+  const { isChurchAdmin, isSubTeamAdmin, assignedDepartments } = getUserRole();
   const isAdminMember = checkAdminStatus(location.pathname);
   const authUser = getUser();
-  const { isSubTeamAdmin, assignedDepartments } = getUserRole();
   const optionsAdmin = getAdminSelectOptions(isChurchAdmin, team, authUser);
   const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -213,6 +211,36 @@ export default function DepartmentAttendance() {
     return { total, present, absent, unfilled };
   }, [filteredData, attendance]);
 
+  const unfilledDepartments = useMemo(() => {
+    if (!Array.isArray(filteredData)) return [];
+
+    const overridesById = new Map(
+      (attendance || []).map((item) => [item.workerid, item.attendance])
+    );
+
+    const counts = new Map();
+
+    filteredData.forEach((person) => {
+      const overrideStatus = overridesById.get(person.id);
+      const rawStatus = overrideStatus || person.attendance || "";
+      const status = (rawStatus || "").toString().trim();
+
+      if (status) {
+        return;
+      }
+
+      const dept = person.department || team?.department || "Unknown department";
+      counts.set(dept, (counts.get(dept) || 0) + 1);
+    });
+
+    return Array.from(counts.entries())
+      .map(([department, count]) => ({ department, count }))
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return a.department.localeCompare(b.department);
+      });
+  }, [filteredData, attendance, team?.department]);
+
   const options = useMemo(
     () => [
       { value: "present", label: "Present" },
@@ -245,6 +273,9 @@ export default function DepartmentAttendance() {
   // - Sub-team admins (multiple departments)
   // - Admin-level views (e.g. /attendance/admin/ministry)
   const showDepartmentColumn = isSubTeamAdmin || isAdminMember;
+
+  // Allow church admin to mark attendance, keep other admin roles read-only
+  const disableForAdminRole = isAdminMember && !isChurchAdmin;
 
   const queryAdminWorkers = () => {
     setIsLoading(true);
@@ -584,6 +615,23 @@ export default function DepartmentAttendance() {
                 </dd>
               </div>
             </dl>
+            {attendanceSummary.unfilled > 0 && unfilledDepartments.length > 0 && (
+              <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-4">
+                <h2 className="text-sm font-semibold text-amber-800">
+                  Departments with unfilled attendance
+                </h2>
+                <ul className="mt-2 text-sm text-amber-900 list-disc list-inside space-y-1">
+                  {unfilledDepartments.map(({ department, count }) => (
+                    <li key={department}>
+                      {department}{" "}
+                      <span className="text-amber-700">
+                        ({count} unfilled worker{count !== 1 ? "s" : ""})
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {isLoading ? (
               <LoadingState />
             ) : (
@@ -657,7 +705,7 @@ export default function DepartmentAttendance() {
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                               <AttendanceDropdown
                                 person={person}
-                                isAdminMember={isAdminMember}
+                                disabled={disableForAdminRole}
                                 attendanceIsClosed={attendanceIsClosed}
                                 updateAttendance={updateAttendance}
                                 options={options}
@@ -725,7 +773,7 @@ export default function DepartmentAttendance() {
                         <div className="pt-2 flex space-x-3">
                           <AttendanceDropdown
                             person={person}
-                            isAdminMember={isAdminMember}
+                            disabled={disableForAdminRole}
                             attendanceIsClosed={attendanceIsClosed}
                             updateAttendance={updateAttendance}
                             options={options}

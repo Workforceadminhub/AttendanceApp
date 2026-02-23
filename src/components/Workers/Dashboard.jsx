@@ -21,6 +21,7 @@ import { getUserRole } from "../../utils/getUserRole";
 import { debounce } from "lodash";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
 import BirthdayWidget from "../BirthdayWidget";
+import AdminDepartmentSummaryTable from "./AdminDepartmentSummaryTable";
 import {
   ClipboardDocumentCheckIcon,
   TableCellsIcon,
@@ -66,6 +67,7 @@ function getAttendanceWindowStatus() {
 
 export default function Dashboard() {
   const [attendanceSummary, setAttendanceSummary] = useState([]);
+  const [departmentSummaryRows, setDepartmentSummaryRows] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeGroup, setActiveGroup] = useState("All");
   const [unmarkedCount, setUnmarkedCount] = useState(null);
@@ -127,6 +129,7 @@ export default function Dashboard() {
       .then((attendance) => {
         const filtered = filterByUserPermissions(attendance ?? [], authUser, pathname);
         setAttendanceSummary(calculateTotals(filtered));
+        setDepartmentSummaryRows(Array.isArray(filtered) ? filtered : []);
         setUnmarkedFromAttendance(filtered);
         setIsLoading(false);
         setUnmarkedLoading(false);
@@ -288,22 +291,41 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Summary Cards */}
-        <dl className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {attendanceSummary.map((item) => (
-            <div
-              key={item.name}
-              className="overflow-hidden rounded-lg border bg-white px-4 py-5 shadow sm:p-6"
-            >
-              <dt className="truncate text-sm font-medium text-gray-500">
-                {item.name}
-              </dt>
-              <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
-                {item.stat}
-              </dd>
+        {/* Summary + Birthdays row */}
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          {/* Summary Cards (left) */}
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {attendanceSummary.map((item) => (
+              <div
+                key={item.name}
+                className="overflow-hidden rounded-lg border bg-white px-4 py-5 shadow sm:p-6"
+              >
+                <dt className="truncate text-sm font-medium text-gray-500">
+                  {item.name}
+                </dt>
+                <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
+                  {item.stat}
+                </dd>
+              </div>
+            ))}
+          </dl>
+
+          {/* Birthday Widget (right) */}
+          <div className="w-full">
+            <BirthdayWidget department={widgetDepartment} />
+          </div>
+        </div>
+
+        {/* Church Admin: Per-department attendance summary table */}
+        {isAdminMember && isChurchAdmin && departmentSummaryRows.length > 0 && (
+          <div className="mt-8 flow-root">
+            <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+              <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+                <AdminDepartmentSummaryTable rows={departmentSummaryRows} showLinks />
+              </div>
             </div>
-          ))}
-        </dl>
+          </div>
+        )}
 
         {/* Unmarked Workers Alert */}
         {!unmarkedLoading && unmarkedCount !== null && unmarkedCount > 0 && departmentInfo && (
@@ -346,10 +368,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Birthday Widget - for all users */}
-        <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <BirthdayWidget department={widgetDepartment} />
-        </div>
       </Layout>
     </div>
   );

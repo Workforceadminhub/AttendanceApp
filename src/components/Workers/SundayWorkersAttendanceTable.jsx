@@ -82,7 +82,7 @@ function getTeamDisplayLabel(team, department) {
       "Admin and Facility": "Admin & Facility",
       "Communications (DMU)": "Communication (DMU)",
       "Directional Leaders": "Directional leaders",
-      "Pastoral Leaders": "Pastoral leaders",
+      "Pastoral Leaders": "Pastoral Leaders",
     };
     return labels[department] || department;
   }

@@ -127,7 +127,7 @@ export default function Header() {
   const hodDeptRoute = authUser?.route?.replace?.(/^\//, "") || departmentRouteForUser;
   const hodWorkersHref = hodDeptRoute ? `/department/${hodDeptRoute}/workers` : "/attendance/dashboard";
   const hodAttendanceHref = hodDeptRoute ? `/attendance/${hodDeptRoute.startsWith("/") ? hodDeptRoute.slice(1) : hodDeptRoute}` : "/attendance/dashboard";
-  const hodDashboardHref = hodDeptRoute ? `/dashboard/${hodDeptRoute.startsWith("/") ? hodDeptRoute : `/${hodDeptRoute}`}` : "/attendance/dashboard";
+  const hodDashboardHref = hodDeptRoute ? `/dashboard/${hodDeptRoute}` : "/attendance/dashboard";
 
   const hodNav = [
     { name: "Home", href: hodDeptRoute ? hodDashboardHref : "/attendance/dashboard" },

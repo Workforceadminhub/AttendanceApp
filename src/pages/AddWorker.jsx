@@ -4,10 +4,11 @@ import Header from "../components/Header";
 import Layout from "../components/Layout";
 // import ReactSelectDropdown from "../components/ReactSelect";
 import { toast } from "react-toastify";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { teamsAndDepartments, normalizeWorkerRole } from "../utils/teams";
 import BirthDatePicker from "../components/BirthDatePicker";
 import apiRequest from "../utils/apiClient";
+import { downloadSampleWorkersExcel } from "../utils/sampleWorkersExcel";
 
 export default function AddWorker() {
   const navigate = useNavigate();
@@ -182,13 +183,26 @@ export default function AddWorker() {
 
   const parseExcelFile = (file) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        const buffer = e.target.result;
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(buffer);
+        const worksheet = workbook.worksheets[0];
+        const headers = [];
+        const jsonData = [];
+        worksheet.eachRow((row, rowNumber) => {
+          const values = row.values.slice(1); // row.values is 1-indexed
+          if (rowNumber === 1) {
+            values.forEach((h) => headers.push(h != null ? String(h).trim() : ""));
+          } else {
+            const obj = {};
+            values.forEach((val, i) => {
+              if (headers[i]) obj[headers[i]] = val != null ? String(val) : "";
+            });
+            jsonData.push(obj);
+          }
+        });
 
         // Convert to worker objects
         const workers = convertToWorkerObjects(jsonData);
@@ -815,6 +829,16 @@ export default function AddWorker() {
                 <h2 className="text-xl font-semibold text-gray-900">
                   Bulk Upload Workers
                 </h2>
+                <button
+                  type="button"
+                  onClick={() => downloadSampleWorkersExcel()}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  <svg className="-ml-1 mr-2 h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Download Sample file
+                </button>
               </div>
 
               <div className="space-y-6">

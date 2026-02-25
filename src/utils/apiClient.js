@@ -1,6 +1,9 @@
 import axios from "axios";
 
-export const API_BASE_URL = process.env.REACT_APP_BASE_URL || "https://hchpk68xfh.execute-api.eu-west-1.amazonaws.com";
+if (!process.env.REACT_APP_BASE_URL) {
+  throw new Error("REACT_APP_BASE_URL environment variable is required but not set.");
+}
+export const API_BASE_URL = process.env.REACT_APP_BASE_URL;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -87,11 +90,16 @@ export async function apiRequest(
     const response = await api.request(options);
     return response.data;
   } catch (error) {
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[API Error]", error.response?.data || error.message);
+    }
+    const status = error.response?.status;
     const message =
-      error.response?.data?.message ||
-      error.response?.data?.error ||
-      error.message ||
-      "API request failed";
+      status === 401 ? "Invalid credentials. Please try again." :
+      status === 403 ? "You do not have permission to perform this action." :
+      status === 404 ? "The requested resource was not found." :
+      status >= 500 ? "A server error occurred. Please try again later." :
+      "An error occurred. Please try again.";
     throw new Error(message);
   }
 }

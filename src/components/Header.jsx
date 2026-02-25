@@ -123,16 +123,17 @@ export default function Header() {
     return "/summary";
   })();
 
-  // HOD: Home, Summary, Workers, Attendance
-  const hodWorkersHref = authUser?.route
-    ? `/department/${authUser.route.replace(/^\//, "")}/workers`
-    : "/attendance/dashboard";
+  // HOD: Home, Summary, Workers, Attendance (use department route when authUser.route missing, e.g. Directional/Pastoral leader)
+  const hodDeptRoute = authUser?.route?.replace?.(/^\//, "") || departmentRouteForUser;
+  const hodWorkersHref = hodDeptRoute ? `/department/${hodDeptRoute}/workers` : "/attendance/dashboard";
+  const hodAttendanceHref = hodDeptRoute ? `/attendance/${hodDeptRoute.startsWith("/") ? hodDeptRoute.slice(1) : hodDeptRoute}` : "/attendance/dashboard";
+  const hodDashboardHref = hodDeptRoute ? `/dashboard/${hodDeptRoute.startsWith("/") ? hodDeptRoute : `/${hodDeptRoute}`}` : "/attendance/dashboard";
 
   const hodNav = [
-    { name: "Home", href: authUser?.route ? `/dashboard${authUser.route}` : "/attendance/dashboard" },
+    { name: "Home", href: hodDeptRoute ? hodDashboardHref : "/attendance/dashboard" },
     { name: "Summary", href: summaryHref },
     { name: "Workers", href: hodWorkersHref },
-    { name: "Attendance", href: authUser?.route ? `/attendance${authUser.route}` : "/attendance/dashboard" },
+    { name: "Attendance", href: hodAttendanceHref },
   ];
 
   // Admin navigation with dropdown groups

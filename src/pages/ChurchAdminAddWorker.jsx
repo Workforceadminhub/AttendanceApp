@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
 import { toast } from "react-toastify";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { teamsAndDepartments, normalizeWorkerRole } from "../utils/teams";
+import { downloadSampleWorkersExcel } from "../utils/sampleWorkersExcel";
 import BirthDatePicker from "../components/BirthDatePicker";
 import apiRequest from "../utils/apiClient";
 
@@ -128,13 +129,26 @@ export default function ChurchAdminAddWorker() {
     setParsedWorkers([]);
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        const buffer = e.target.result;
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(buffer);
+        const worksheet = workbook.worksheets[0];
+        const headers = [];
+        const jsonData = [];
+        worksheet.eachRow((row, rowNumber) => {
+          const values = row.values.slice(1); // row.values is 1-indexed
+          if (rowNumber === 1) {
+            values.forEach((h) => headers.push(h != null ? String(h).trim() : ""));
+          } else {
+            const obj = {};
+            values.forEach((val, i) => {
+              if (headers[i]) obj[headers[i]] = val != null ? String(val) : "";
+            });
+            jsonData.push(obj);
+          }
+        });
 
         // Convert to worker objects
         const workers = convertToWorkerObjects(jsonData);
@@ -675,8 +689,17 @@ export default function ChurchAdminAddWorker() {
           {/* Bulk Upload Form */}
           {mode === "bulk" && (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">Bulk Upload Workers</h2>
-              
+              <div className="flex items-start justify-between gap-4 mb-6">
+                <h2 className="text-xl font-semibold text-gray-900">Bulk Upload Workers</h2>
+                <button
+                  type="button"
+                  onClick={() => downloadSampleWorkersExcel()}
+                  className="shrink-0 text-sm text-blue-600 hover:underline font-medium"
+                >
+                  Download Sample file
+                </button>
+              </div>
+
               {/* Upload Area */}
               <div
                 className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 hover:bg-blue-50 transition-colors cursor-pointer"

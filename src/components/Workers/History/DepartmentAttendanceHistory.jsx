@@ -4,13 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import { getNextSunday } from "../../../utils/getDate";
 import { getDepartmentByUser } from "../../../utils/getDepartment";
-import { ADMIN_ENUMS } from "../../../utils/enums";
 import { checkAdminStatus } from "../../../utils/checkAdminStatus";
-import { getAdminSelectOptions } from "../../../utils/routeObject";
+import { getAdminSelectOptions, filterPermissionsByTeam } from "../../../utils/routeObject";
 import { fetchAdminWorkers, fetchWorkers } from "../../../services/workers";
 import { getUser } from "../../../utils/getUser";
 import { switchOffAttendance } from "../../../utils/switchOffAttendance";
 import { addAttendance } from "../../../services/attendance";
+import { getUserRole, filterTeamFromPermissions } from "../../../utils/getUserRole";
 import Header from "../../Header";
 import Layout from "../../Layout";
 import ReactSelectDropdown from "../../ReactSelect";
@@ -33,7 +33,7 @@ export default function DepartmentAttendanceHistory() {
   const [activeGroup, setActiveGroup] = useState("All");
   const [activeHistory, setActiveHistory] = useState(dateForAttendance);
   const team = getDepartmentByUser(location.pathname);
-  const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
+  const { isChurchAdmin, isSuperAdmin } = getUserRole();
   const isAdminMember = checkAdminStatus(location.pathname);
   const authUser = getUser();
   const optionsAdmin = getAdminSelectOptions(isChurchAdmin, team, authUser);
@@ -135,8 +135,27 @@ export default function DepartmentAttendanceHistory() {
 
   const queryAdminWorkers = () => {
     setIsLoading(true);
-    const permissions = authUser?.permissions ?? [];
-    fetchAdminWorkers(team.team, activeGroup, activeHistory, "", permissions)
+    const rawPermissions = authUser?.permissions ?? [];
+    // Base permissions: strip out the team name itself from permissions.
+    const basePermissions = filterTeamFromPermissions(rawPermissions, authUser?.team);
+
+    const isTeamFilter =
+      (isChurchAdmin || isSuperAdmin) &&
+      activeGroup &&
+      activeGroup !== "All";
+
+    let apiActiveGroup = activeGroup;
+    let permissionsForApi = basePermissions;
+
+    if (isTeamFilter) {
+      const teamScoped = filterPermissionsByTeam(basePermissions, activeGroup);
+      apiActiveGroup = "All";
+      if (Array.isArray(teamScoped) && teamScoped.length > 0) {
+        permissionsForApi = teamScoped;
+      }
+    }
+
+    fetchAdminWorkers(team.team, apiActiveGroup, activeHistory, "", permissionsForApi)
       .then((res) => {
         setData(res);
         setIsLoading(false);

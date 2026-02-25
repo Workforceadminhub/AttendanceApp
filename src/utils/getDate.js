@@ -112,4 +112,40 @@ export function getSundayDisplayDate(dateStr) {
   return `${dayName} ${dayNum}, ${month} ${year}`;
 }
 
+/**
+ * Returns the Sunday's date formatted as "February 22nd 2026" for table titles.
+ * Accepts same formats as getSundayDisplayDate.
+ */
+export function getSundayTitleDate(dateStr) {
+  let date;
+  if (dateStr && /^Sunday - \d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
+    const parts = dateStr.split(" - ")[1].split("/");
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const year = parseInt(parts[2], 10);
+    date = new Date(year, month, day, 12, 0, 0);
+  } else if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    date = new Date(dateStr + "T12:00:00");
+  } else {
+    date = new Date();
+  }
+  const dayOfWeek = date.getDay();
+  const diff = dayOfWeek === 0 ? 0 : dayOfWeek;
+  const sunday = new Date(date);
+  sunday.setDate(date.getDate() - diff);
+
+  const dayNum = sunday.getDate();
+  const monthName = sunday.toLocaleDateString("en-GB", { month: "long" });
+  const year = sunday.getFullYear();
+  const ord =
+    dayNum === 1 || dayNum === 21 || dayNum === 31
+      ? "st"
+      : dayNum === 2 || dayNum === 22
+        ? "nd"
+        : dayNum === 3 || dayNum === 23
+          ? "rd"
+          : "th";
+  return `${monthName} ${dayNum}${ord} ${year}`;
+}
+
 export default getDayAndYear;

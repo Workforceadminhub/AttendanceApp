@@ -1,7 +1,7 @@
 import apiRequest from "../utils/apiClient";
 
 /**
- * Fetch all departments
+ * Fetch all departments (including empty or unmapped).
  * @returns {Promise<Array>} List of departments
  */
 export const fetchDepartments = async () => {
@@ -10,10 +10,80 @@ export const fetchDepartments = async () => {
     if (!response || response.error) {
       throw new Error(response?.error || "Failed to fetch departments");
     }
-    return response.data || response;
+    const raw = response.data || response;
+    return Array.isArray(raw) ? raw : [];
   } catch (error) {
     throw error;
   }
+};
+
+/**
+ * Fetch all teams (including empty or without department mapping).
+ * Tries GET /api/teams first; if not available, derives from departments.
+ * @returns {Promise<Array<string>>} List of team names
+ */
+export const fetchTeams = async () => {
+  try {
+    const response = await apiRequest("GET", "/api/teams");
+    if (response && !response.error && response.data) {
+      const data = response.data;
+      const list = Array.isArray(data) ? data : (data.teams && Array.isArray(data.teams) ? data.teams : []);
+      return list.map((t) => (typeof t === "string" ? t : t?.name ?? t?.team ?? String(t))).filter(Boolean);
+    }
+    if (response && !response.error && Array.isArray(response)) {
+      return response.map((t) => (typeof t === "string" ? t : t?.name ?? t?.team ?? String(t))).filter(Boolean);
+    }
+  } catch (_) {
+    // No /api/teams or error: derive from departments
+  }
+  const departments = await fetchDepartments();
+  const teamSet = new Set();
+  departments.forEach((d) => {
+    const t = d?.team ?? d?.teamName;
+    if (t != null && String(t).trim() !== "") teamSet.add(String(t).trim());
+  });
+  return [...teamSet].sort();
+};
+
+/**
+ * Fetch teams and departments for filter dropdowns (API-led).
+ * Returns all teams and departments including empty or unmapped.
+ * @returns {Promise<{ teams: Array<{ value: string, label: string }>, departments: Array<{ value: string, label: string }>, departmentsByTeam: Record<string, string[]> }>}
+ */
+export const fetchTeamsAndDepartmentsForFilter = async () => {
+  const [teamsList, departmentsList] = await Promise.all([fetchTeams(), fetchDepartments()]);
+
+  const departmentsByTeam = {};
+  const allDepartmentNames = new Set();
+
+  departmentsList.forEach((d) => {
+    const name = d?.name ?? d?.department ?? String(d);
+    const team = d?.team ?? d?.teamName;
+    const teamKey = team != null && String(team).trim() !== "" ? String(team).trim() : "(No team)";
+    if (name != null && String(name).trim() !== "") {
+      allDepartmentNames.add(String(name).trim());
+      if (!departmentsByTeam[teamKey]) departmentsByTeam[teamKey] = [];
+      if (!departmentsByTeam[teamKey].includes(name)) departmentsByTeam[teamKey].push(name);
+    }
+  });
+
+  const teamNamesSet = new Set(teamsList);
+  if (departmentsByTeam["(No team)"]?.length) {
+    teamNamesSet.add("(No team)");
+  }
+  const teamNames = [...teamNamesSet].sort();
+
+  const teams = [
+    { value: "All", label: "All Teams" },
+    ...teamNames.map((t) => ({ value: t, label: t })),
+  ];
+
+  const departments = [
+    { value: "All", label: "All Departments" },
+    ...[...allDepartmentNames].sort().map((d) => ({ value: d, label: d })),
+  ];
+
+  return { teams, departments, departmentsByTeam };
 };
 
 /**

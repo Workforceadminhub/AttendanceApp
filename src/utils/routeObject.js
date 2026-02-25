@@ -112,7 +112,7 @@ export const routeObject = [
   { department: "Venue Management - Emmanuel team", route: "/vmgtemma", team: "Programs" },
   { department: "Venue Management - Boluwatife team", route: "/vmgtbolu", team: "Programs" },
   { department: "Venue Management - Feyisayo Phillip team", route: "/vmgtfeyi", team: "Programs" },
-  { department: "Pastoral Leaders", route: "/pastoralleader", team: "Senior Leadership" },
+  { department: "Pastoral leader", route: "/pastoralleader", team: "Senior Leadership" },
   { department: "Directional Leaders", route: "/directionalleader", team: "Senior Leadership" },
   // Sub-team-admin aggregate routes
   { department: "Leadership Development", route: "/ld", team: "Ministry" },
@@ -152,6 +152,51 @@ export const historyRoutes = Array.from(
 );
 
 /**
+ * Returns all department names that belong to a given team.
+ * @param {string} teamName
+ * @returns {string[]} Unique department names for the team
+ */
+export const getDepartmentsForTeam = (teamName) => {
+  if (!teamName) return [];
+  const name = teamName.toString().trim();
+  if (!name) return [];
+
+  const depts = new Set();
+  routeObject.forEach((item) => {
+    if (item.team === name && item.department) {
+      depts.add(item.department);
+    }
+  });
+  return Array.from(depts);
+};
+
+/**
+ * Returns the team name for a given department.
+ * @param {string} departmentName
+ * @returns {string|null} Team name or null if not found
+ */
+export const getTeamForDepartment = (departmentName) => {
+  if (!departmentName) return null;
+  const entry = routeObject.find((r) => r.department === departmentName);
+  return entry?.team ?? null;
+};
+
+/**
+ * Filters a permissions array down to only departments that belong to the given team.
+ * If the team has no mapped departments, the original permissions array is returned.
+ *
+ * @param {string[]} permissions
+ * @param {string} teamName
+ * @returns {string[]} Filtered permissions
+ */
+export const filterPermissionsByTeam = (permissions, teamName) => {
+  if (!Array.isArray(permissions) || !teamName) return permissions;
+  const teamDepartments = new Set(getDepartmentsForTeam(teamName));
+  if (teamDepartments.size === 0) return permissions;
+  return permissions.filter((perm) => teamDepartments.has(perm));
+};
+
+/**
  * @param {boolean} isChurchAdmin
  * @param {object} team - { team, department }
  * @param {object} [authUser] - Optional. If has permissions array, options are filtered to those departments only (for non-Super Admin).
@@ -185,13 +230,30 @@ export const getAdminSelectOptions = (isChurchAdmin, team, authUser) => {
 
 /**
  * Phase 7: Get department route (without leading slash) from department name.
- * @param {string} departmentName - Department name (e.g. "Call Centre")
+ * Uses exact match, then case-insensitive, then Senior Leadership aliases
+ * so backend variants (e.g. "Directional leader", "Pastoral leader") resolve
+ * like other HOD departments and get the correct Summary/Workers/Attendance links.
+ * @param {string} departmentName - Department name (e.g. "Call Centre" or "Directional leader")
  * @returns {string|null} Route (e.g. "mincc") or null if not found
  */
 export const getDepartmentRoute = (departmentName) => {
   if (!departmentName) return null;
   const entry = routeObject.find((r) => r.department === departmentName);
-  return entry ? entry.route.replace(/^\//, "") : null;
+  if (entry) return entry.route.replace(/^\//, "");
+  const lower = departmentName.trim().toLowerCase();
+  const caseInsensitive = routeObject.find(
+    (r) => r.department && r.department.trim().toLowerCase() === lower
+  );
+  if (caseInsensitive) return caseInsensitive.route.replace(/^\//, "");
+  if (lower.includes("directional") && lower.includes("leader")) {
+    const e = routeObject.find((r) => r.department === "Directional Leaders");
+    return e ? e.route.replace(/^\//, "") : null;
+  }
+  if (lower.includes("pastoral") && lower.includes("leader")) {
+    const e = routeObject.find((r) => r.department === "Pastoral leader");
+    return e ? e.route.replace(/^\//, "") : null;
+  }
+  return null;
 };
 
 /**
@@ -208,14 +270,32 @@ export const getDepartmentNameFromRoute = (route) => {
 
 /**
  * Phase 7: Resolve department/team string to API params { departmentRoute?, teamName? }.
+ * Uses getDepartmentRoute so variants like "Directional leader" resolve like other departments.
  * @param {string} value - "All", department name, or team name
  * @returns {{ departmentRoute?: string, teamName?: string }}
  */
 export const resolveDepartmentParams = (value) => {
   if (!value || value === "All") return {};
-  const dept = routeObject.find((r) => r.department === value);
-  if (dept) return { departmentRoute: dept.route.replace(/^\//, "") };
+  const route = getDepartmentRoute(value);
+  if (route) return { departmentRoute: route };
   const teams = [...new Set(routeObject.map((r) => r.team))];
   if (teams.includes(value)) return { teamName: value };
   return { departmentRoute: value.startsWith("/") ? value.slice(1) : value };
+};
+
+/**
+ * Map UI department names to the form the API expects (e.g. "Pastoral Leaders" -> "Pastoral leader").
+ * Use when sending department in request params/body.
+ * @param {string} departmentName - Display name (e.g. "Pastoral Leaders")
+ * @returns {string} Name to send to API (e.g. "Pastoral leader")
+ */
+export const departmentNameForApi = (departmentName) => {
+  if (!departmentName) return departmentName;
+  const apiNames = {
+    "Pastoral leader": "Pastoral leader",
+    "Pastoral Leaders": "Pastoral leader",
+    "Directional leader": "Directional leader",
+    "Directional Leaders": "Directional leader",
+  };
+  return apiNames[departmentName] ?? departmentName;
 };

@@ -1,6 +1,7 @@
 import { ulid } from "ulid";
 import apiRequest from "../utils/apiClient";
 import { getNextSunday } from "../utils/getDate";
+import { departmentNameForApi } from "../utils/routeObject";
 
 // const table = "attendance2";
 export const addAttendance = async (attendance) => {
@@ -121,7 +122,7 @@ export function calculateTotals(data) {
 export const fetchAttendanceByDateRange = async (department, startDate, endDate) => {
   try {
     const response = await apiRequest("GET", "/api/attendance", {
-      department,
+      department: departmentNameForApi(department),
       startDate,
       endDate,
     });
@@ -147,7 +148,7 @@ export const fetchAttendanceByDateRange = async (department, startDate, endDate)
 export const fetchAttendanceTrends = async (department, startDate, endDate) => {
   try {
     const response = await apiRequest("GET", "/api/attendance/trends", {
-      department,
+      department: departmentNameForApi(department),
       startDate,
       endDate,
     });

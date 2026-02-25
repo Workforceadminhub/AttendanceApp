@@ -17,6 +17,7 @@ import {
 } from "../../utils/filterCache";
 import apiRequest from "../../utils/apiClient";
 import { teamsAndDepartments } from "../../utils/teams";
+import { fetchTeamsAndDepartmentsForFilter } from "../../services/departments";
 import {
   TrashIcon,
   PencilIcon,
@@ -69,6 +70,7 @@ export default function Workers() {
     departments: [{ value: "All", label: "All Departments" }],
     teams: [{ value: "All", label: "All Teams" }],
   });
+  const [apiDepartmentsByTeam, setApiDepartmentsByTeam] = useState(null);
 
   // Generate fallback filter options from teamsAndDepartments
   const generateFallbackFilterOptions = () => {
@@ -227,18 +229,28 @@ export default function Workers() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, isAdminMember, isSuperAdmin, team.team]);
 
-  // Load filter options from cache on component mount
+  // Load filter options: API-led for super-admin, cache/fallback otherwise
   useEffect(() => {
-    const loadFilterOptions = () => {
-      const cachedFilterData = getCachedFilterData();
+    const loadFilterOptions = async () => {
+      if (isSuperAdmin) {
+        try {
+          const { teams, departments, departmentsByTeam } = await fetchTeamsAndDepartmentsForFilter();
+          setFilterOptions({ teams, departments });
+          setApiDepartmentsByTeam(departmentsByTeam || null);
+        } catch (_) {
+          setFilterOptions(fallbackFilterOptions);
+          setApiDepartmentsByTeam(null);
+        }
+        return;
+      }
 
+      const cachedFilterData = getCachedFilterData();
       if (cachedFilterData) {
         const options = getFilterOptions(cachedFilterData);
         if (options) {
           setFilterOptions(options);
         }
       } else {
-        // If no cached data, try to initialize it
         const accessToken = sessionStorage.getItem("accessToken");
         if (accessToken) {
           initializeFilterData(accessToken)
@@ -252,7 +264,7 @@ export default function Workers() {
                 setFilterOptions(fallbackFilterOptions);
               }
             })
-            .catch((error) => {
+            .catch(() => {
               setFilterOptions(fallbackFilterOptions);
             });
         } else {
@@ -263,15 +275,15 @@ export default function Workers() {
 
     loadFilterOptions();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isSuperAdmin]);
 
-  // Initialize available departments on component mount
+  // Initialize available departments when API data loads (super-admin)
   useEffect(() => {
-    if (isSuperAdmin && availableDepartments.length === 0) {
-      updateDepartmentsForTeam("All"); // Initialize with all departments
+    if (isSuperAdmin) {
+      updateDepartmentsForTeam(filters.team);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSuperAdmin]);
+  }, [isSuperAdmin, apiDepartmentsByTeam, filters.team]);
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -303,8 +315,27 @@ export default function Workers() {
   };
 
   const updateDepartmentsForTeam = (selectedTeam) => {
+    if (apiDepartmentsByTeam && isSuperAdmin) {
+      if (selectedTeam === "All") {
+        const allDepts = new Set();
+        Object.values(apiDepartmentsByTeam).forEach((arr) => {
+          (arr || []).forEach((d) => allDepts.add(d));
+        });
+        setAvailableDepartments([
+          { value: "All", label: "All Departments" },
+          ...[...allDepts].sort().map((dept) => ({ value: dept, label: dept })),
+        ]);
+      } else {
+        const depts = apiDepartmentsByTeam[selectedTeam];
+        setAvailableDepartments([
+          { value: "All", label: "All Departments" },
+          ...(Array.isArray(depts) ? depts.sort() : []).map((dept) => ({ value: dept, label: dept })),
+        ]);
+      }
+      return;
+    }
+
     if (selectedTeam === "All") {
-      // If "All Teams" is selected, show all departments
       const allDepartments = new Set();
       teamsAndDepartments.forEach((team) => {
         if (Array.isArray(team.department)) {
@@ -318,7 +349,6 @@ export default function Workers() {
           .map((dept) => ({ value: dept, label: dept })),
       ]);
     } else {
-      // Find the selected team and get its departments
       const teamData = teamsAndDepartments.find(
         (team) => team.team === selectedTeam
       );
@@ -330,7 +360,6 @@ export default function Workers() {
             .map((dept) => ({ value: dept, label: dept })),
         ]);
       } else {
-        // Fallback if team not found
         setAvailableDepartments([{ value: "All", label: "All Departments" }]);
       }
     }

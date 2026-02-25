@@ -14,9 +14,9 @@ import ReactSelectDropdown from "../ReactSelect";
 // import TableLoadingState from "../TableLoadingState";
 import Layout from "../Layout";
 import { switchOffAttendance } from "../../utils/switchOffAttendance";
-import { getAdminSelectOptions } from "../../utils/routeObject";
+import { getAdminSelectOptions, filterPermissionsByTeam } from "../../utils/routeObject";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
-import { getUserRole } from "../../utils/getUserRole";
+import { getUserRole, filterTeamFromPermissions } from "../../utils/getUserRole";
 import { fetchDepartments } from "../../services/departments";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
 import { debounce } from "lodash";
@@ -56,6 +56,8 @@ const AttendanceDropdown = ({
   );
 };
 
+const PAGE_SIZE = 100;
+
 export default function DepartmentAttendance() {
   const location = useLocation();
   // const team = getDepartment(location.pathname);
@@ -67,7 +69,7 @@ export default function DepartmentAttendance() {
   const [refresh, setRefresh] = useState(0);
   const [activeGroup, setActiveGroup] = useState("All");
   const team = getDepartmentByUser(location.pathname);
-  const { isChurchAdmin, isSubTeamAdmin, assignedDepartments } = getUserRole();
+  const { isChurchAdmin, isSuperAdmin, isSubTeamAdmin, assignedDepartments } = getUserRole();
   const isAdminMember = checkAdminStatus(location.pathname);
   const authUser = getUser();
   const optionsAdmin = getAdminSelectOptions(isChurchAdmin, team, authUser);
@@ -86,6 +88,7 @@ export default function DepartmentAttendance() {
     key: null,
     direction: "asc", // 'asc' or 'desc'
   });
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Unique departments from response – used for non–sub-team-admin
   const departmentsFromData = useMemo(() => {
@@ -176,6 +179,21 @@ export default function DepartmentAttendance() {
       return 0;
     });
   }, [filteredData, sortConfig]);
+
+  const totalItems = sortedData.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  const currentPageSafe = Math.min(currentPage, totalPages);
+  const pageStartIndex = (currentPageSafe - 1) * PAGE_SIZE;
+  const paginatedData = sortedData.slice(
+    pageStartIndex,
+    pageStartIndex + PAGE_SIZE
+  );
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const attendanceSummary = useMemo(() => {
     if (!Array.isArray(filteredData)) {
@@ -280,9 +298,26 @@ export default function DepartmentAttendance() {
   const queryAdminWorkers = () => {
     setIsLoading(true);
     const rawPermissions = authUser?.permissions ?? [];
-    // Filter out team name from permissions (team name shouldn't be in permissions array)
-    const permissions = rawPermissions.filter((perm) => perm !== authUser?.team);
-    fetchAdminWorkers(team.team, activeGroup, dateForAttendance, "", permissions)
+    // Base permissions: strip out the team name itself from permissions.
+    const basePermissions = filterTeamFromPermissions(rawPermissions, authUser?.team);
+
+    const isTeamFilter =
+      (isChurchAdmin || isSuperAdmin) &&
+      activeGroup &&
+      activeGroup !== "All";
+
+    let apiActiveGroup = activeGroup;
+    let permissionsForApi = basePermissions;
+
+    if (isTeamFilter) {
+      const teamScoped = filterPermissionsByTeam(basePermissions, activeGroup);
+      apiActiveGroup = "All";
+      if (Array.isArray(teamScoped) && teamScoped.length > 0) {
+        permissionsForApi = teamScoped;
+      }
+    }
+
+    fetchAdminWorkers(team.team, apiActiveGroup, dateForAttendance, "", permissionsForApi)
       .then((res) => {
         setData(sortWorkersById(res));
         setIsLoading(false);
@@ -679,10 +714,10 @@ export default function DepartmentAttendance() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {sortedData?.map((person, idx) => (
+                        {paginatedData?.map((person, idx) => (
                           <tr key={person.id}>
                             <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
-                              {idx + 1}
+                              {pageStartIndex + idx + 1}
                             </td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                               {person.fullname}
@@ -742,7 +777,7 @@ export default function DepartmentAttendance() {
                 {/* Mobile Cards */}
                 <div className="sm:hidden">
                   <div className="space-y-4">
-                    {sortedData?.map((person, idx) => (
+                    {paginatedData?.map((person, idx) => (
                       <div
                         key={person.id}
                         className="bg-white rounded-lg shadow p-4 space-y-3"
@@ -761,7 +796,7 @@ export default function DepartmentAttendance() {
                             </p>
                           </div>
                           <span className="text-sm text-gray-500">
-                            #{idx + 1}
+                            #{pageStartIndex + idx + 1}
                           </span>
                         </div>
                         <div className="text-sm text-gray-500">
@@ -793,6 +828,45 @@ export default function DepartmentAttendance() {
                     ))}
                   </div>
                 </div>
+                {totalPages > 1 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+                    <p className="text-sm text-gray-600">
+                      {totalItems === 0
+                        ? "Showing 0 of 0 workers"
+                        : `Showing ${pageStartIndex + 1}–${Math.min(
+                            pageStartIndex + PAGE_SIZE,
+                            totalItems
+                          )} of ${totalItems} workers`}
+                    </p>
+                    <div className="inline-flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCurrentPage((prev) => Math.max(1, prev - 1))
+                        }
+                        disabled={currentPageSafe === 1}
+                        className="px-3 py-1.5 rounded-md border border-gray-300 text-sm text-gray-700 bg-white enabled:hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Previous
+                      </button>
+                      <span className="text-sm text-gray-700">
+                        Page {currentPageSafe} of {totalPages}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCurrentPage((prev) =>
+                            Math.min(totalPages, prev + 1)
+                          )
+                        }
+                        disabled={currentPageSafe === totalPages}
+                        className="px-3 py-1.5 rounded-md border border-gray-300 text-sm text-gray-700 bg-white enabled:hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

@@ -10,6 +10,8 @@ import {
 import { addAttendance } from "../../services/attendance";
 import { toast } from "react-toastify";
 import { getNextSunday, getSundayDisplayDate } from "../../utils/getDate";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import ReactSelectDropdown from "../ReactSelect";
 // import TableLoadingState from "../TableLoadingState";
 import Layout from "../Layout";
@@ -25,6 +27,30 @@ import { TrashIcon, ArrowUpIcon, ArrowDownIcon } from "@heroicons/react/24/outli
 import Modal from "../Modal";
 import { getUser } from "../../utils/getUser";
 import LoadingState from "../LoadingState";
+
+/** Convert "Sunday - d/m/y" → Date object */
+function sundayStringToDate(dateStr) {
+  if (!dateStr || !/^Sunday - \d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) return null;
+  const parts = dateStr.split(" - ")[1].split("/");
+  const day = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10);
+  const year = parseInt(parts[2], 10);
+  return new Date(year, month - 1, day);
+}
+
+/** Convert Date object → "Sunday - d/m/yyyy" string the backend expects */
+function dateToSundayString(date) {
+  if (!date) return "";
+  const day = date.getDate();
+  const month = date.getMonth() + 1;
+  const year = date.getFullYear();
+  return `Sunday - ${day}/${month}/${year}`;
+}
+
+/** Only allow Sundays in the date picker */
+function isSunday(date) {
+  return date.getDay() === 0;
+}
 
 // Separate component for the attendance dropdown to reduce duplication
 const AttendanceDropdown = ({
@@ -89,6 +115,28 @@ export default function DepartmentAttendance() {
     direction: "asc", // 'asc' or 'desc'
   });
   const [currentPage, setCurrentPage] = useState(1);
+
+  // ── History mode: date picker ─────────────────────────────────────
+  // Max selectable date = the current/next Sunday; min = first Sunday of 2026
+  const maxSundayDate = useMemo(() => sundayStringToDate(dateForAttendance), [dateForAttendance]);
+  const minSundayDate = useMemo(() => {
+    // First Sunday of 2026
+    const jan1 = new Date(2026, 0, 1);
+    const offset = jan1.getDay() === 0 ? 0 : 7 - jan1.getDay();
+    return new Date(2026, 0, 1 + offset);
+  }, []);
+
+  // Track picked date as a Date object; default = current/live Sunday
+  const [selectedDate, setSelectedDate] = useState(() => sundayStringToDate(dateForAttendance));
+
+  // Derive the "Sunday - d/m/y" string the API needs
+  const selectedSunday = useMemo(
+    () => (selectedDate ? dateToSundayString(selectedDate) : dateForAttendance),
+    [selectedDate, dateForAttendance]
+  );
+
+  // When the selected Sunday differs from the live date, we're in "history mode"
+  const isHistoryMode = selectedSunday !== dateForAttendance;
 
   // Unique departments from response – used for non–sub-team-admin
   const departmentsFromData = useMemo(() => {
@@ -317,7 +365,7 @@ export default function DepartmentAttendance() {
       }
     }
 
-    fetchAdminWorkers(team.team, apiActiveGroup, dateForAttendance, "", permissionsForApi)
+    fetchAdminWorkers(team.team, apiActiveGroup, selectedSunday, "", permissionsForApi)
       .then((res) => {
         setData(sortWorkersById(res));
         setIsLoading(false);
@@ -333,7 +381,7 @@ export default function DepartmentAttendance() {
     const permissions = authUser?.permissions ?? [];
 
     if (isSubTeamAdmin && selectedDepartmentFilter !== "All") {
-      fetchWorkers(selectedDepartmentFilter, dateForAttendance, permissions, "")
+      fetchWorkers(selectedDepartmentFilter, selectedSunday, permissions, "")
         .then((res) => {
           setData(sortWorkersById(res));
           setIsLoading(false);
@@ -348,7 +396,7 @@ export default function DepartmentAttendance() {
     if (isSubTeamAdmin && apiDepartments.length > 0) {
       Promise.all(
         apiDepartments.map((d) =>
-          fetchWorkers(d.name, dateForAttendance, permissions, "")
+          fetchWorkers(d.name, selectedSunday, permissions, "")
         )
       )
         .then((results) => {
@@ -363,7 +411,7 @@ export default function DepartmentAttendance() {
       return;
     }
 
-    fetchWorkers(team.department, dateForAttendance, permissions, "")
+    fetchWorkers(team.department, selectedSunday, permissions, "")
       .then((res) => {
         setData(sortWorkersById(res));
         setIsLoading(false);
@@ -412,6 +460,7 @@ export default function DepartmentAttendance() {
   const subTeamApiDepartmentsCountDep = isSubTeamAdmin ? apiDepartments.length : 0;
 
   useEffect(() => {
+    if (isHistoryMode) setAttendance([]); // clear pending marks when viewing history
     if (isAdminMember) {
       queryAdminWorkers();
     } else {
@@ -425,6 +474,7 @@ export default function DepartmentAttendance() {
     team.team,
     subTeamSelectedDepartmentDep,
     subTeamApiDepartmentsCountDep,
+    selectedSunday,
   ]);
 
   useEffect(() => {
@@ -558,8 +608,8 @@ export default function DepartmentAttendance() {
                 {team?.department} attendance
               </h1>
               <p className="text-sm text-gray-600">
-                {getSundayDisplayDate()} -{" "}
-                {dateForAttendance?.includes("Sunday")
+                {getSundayDisplayDate(selectedSunday)} -{" "}
+                {selectedSunday?.includes("Sunday")
                   ? "Sunday service"
                   : "Midweek service"}
               </p>
@@ -572,6 +622,33 @@ export default function DepartmentAttendance() {
                 />
               </div>
             )}
+          </div>
+
+          {/* Date Filter (Sundays only) */}
+          <div className="mt-4 flex items-center justify-end gap-2">
+            {isHistoryMode && (
+              <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
+                Viewing history
+              </span>
+            )}
+            <span className="text-sm font-medium text-gray-700">Date Filter</span>
+            <DatePicker
+              id="sundayDatePicker"
+              selected={selectedDate}
+              onChange={(date) => {
+                setSelectedDate(date);
+                setCurrentPage(1);
+              }}
+              filterDate={isSunday}
+              minDate={minSundayDate}
+              maxDate={maxSundayDate}
+              dateFormat="EEE, d MMM yyyy"
+              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
+              calendarClassName="sunday-only-calendar"
+              dayClassName={(date) =>
+                date.getDay() !== 0 ? "non-sunday-day" : "sunday-day"
+              }
+            />
           </div>
 
           {/* Admin Controls */}
@@ -740,14 +817,14 @@ export default function DepartmentAttendance() {
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                               <AttendanceDropdown
                                 person={person}
-                                disabled={disableForAdminRole}
+                                disabled={disableForAdminRole || isHistoryMode}
                                 attendanceIsClosed={attendanceIsClosed}
                                 updateAttendance={updateAttendance}
                                 options={options}
                               />
                             </td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                              {activeDelete && (
+                              {activeDelete && !isHistoryMode && (
                                 <TrashIcon
                                   className="text-red-500 size-5 cursor-pointer"
                                   onClick={() => {
@@ -808,13 +885,13 @@ export default function DepartmentAttendance() {
                         <div className="pt-2 flex space-x-3">
                           <AttendanceDropdown
                             person={person}
-                            disabled={disableForAdminRole}
+                            disabled={disableForAdminRole || isHistoryMode}
                             attendanceIsClosed={attendanceIsClosed}
                             updateAttendance={updateAttendance}
                             options={options}
                             className="w-full"
                           />
-                          {activeDelete && (
+                          {activeDelete && !isHistoryMode && (
                             <TrashIcon
                               className="text-red-500 size-9 cursor-pointer"
                               onClick={() => {
@@ -870,8 +947,8 @@ export default function DepartmentAttendance() {
               </div>
             )}
 
-            {/* Save Button Mobile */}
-            {!isAdminMember && (
+            {/* Save Button */}
+            {!isAdminMember && !isHistoryMode && (
               <div className="mt-6 flex justify-end">
                 <button
                   className={`bg-blue-500 text-white px-4 py-2 rounded-lg w-full sm:w-auto ${

@@ -213,7 +213,7 @@ export const teamsAndDepartments = [
     team: "Senior Leadership",
     department: [
       "Directional leader",
-      "Pastoral leader",
+      "Pastoral Leaders",
     ],
   },
 ];

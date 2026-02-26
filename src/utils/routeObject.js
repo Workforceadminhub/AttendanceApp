@@ -112,7 +112,7 @@ export const routeObject = [
   { department: "Venue Management - Emmanuel team", route: "/vmgtemma", team: "Programs" },
   { department: "Venue Management - Boluwatife team", route: "/vmgtbolu", team: "Programs" },
   { department: "Venue Management - Feyisayo Phillip team", route: "/vmgtfeyi", team: "Programs" },
-  { department: "Pastoral leader", route: "/pastoralleader", team: "Senior Leadership" },
+  { department: "Pastoral Leaders", route: "/pastoralleader", team: "Senior Leadership" },
   { department: "Directional Leaders", route: "/directionalleader", team: "Senior Leadership" },
   // Sub-team-admin aggregate routes
   { department: "Leadership Development", route: "/ld", team: "Ministry" },
@@ -250,7 +250,7 @@ export const getDepartmentRoute = (departmentName) => {
     return e ? e.route.replace(/^\//, "") : null;
   }
   if (lower.includes("pastoral") && lower.includes("leader")) {
-    const e = routeObject.find((r) => r.department === "Pastoral leader");
+    const e = routeObject.find((r) => r.department === "Pastoral Leaders");
     return e ? e.route.replace(/^\//, "") : null;
   }
   return null;

@@ -18,24 +18,10 @@ export const fetchDepartments = async () => {
 };
 
 /**
- * Fetch all teams (including empty or without department mapping).
- * Tries GET /api/teams first; if not available, derives from departments.
+ * Fetch all teams by deriving unique team names from departments.
  * @returns {Promise<Array<string>>} List of team names
  */
 export const fetchTeams = async () => {
-  try {
-    const response = await apiRequest("GET", "/api/teams");
-    if (response && !response.error && response.data) {
-      const data = response.data;
-      const list = Array.isArray(data) ? data : (data.teams && Array.isArray(data.teams) ? data.teams : []);
-      return list.map((t) => (typeof t === "string" ? t : t?.name ?? t?.team ?? String(t))).filter(Boolean);
-    }
-    if (response && !response.error && Array.isArray(response)) {
-      return response.map((t) => (typeof t === "string" ? t : t?.name ?? t?.team ?? String(t))).filter(Boolean);
-    }
-  } catch (_) {
-    // No /api/teams or error: derive from departments
-  }
   const departments = await fetchDepartments();
   const teamSet = new Set();
   departments.forEach((d) => {

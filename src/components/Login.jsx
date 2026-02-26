@@ -1,13 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import loginService from "../services/login";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { toast } from "react-toastify";
 
 const Login = () => {
   const [code, setCode] = useState("");
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get("session") === "expired") {
+      toast.warn("Your session has expired. Please log in again.");
+    }
+  }, [searchParams]);
 
   const handleKeyPress = (event) => {
     // look for the `Enter` keyCode
@@ -22,8 +28,6 @@ const Login = () => {
       setIsLoading(true);
       const data = await loginService(code.trim());
       if (data.accessToken) {
-        setMessage("Login successful!");
-        setError("");
         // Phase 7: Store permissionLevel and assignedDepartments (from user or top-level response)
         const authUser = {
           ...data.user,
@@ -53,7 +57,7 @@ const Login = () => {
       }
       setIsLoading(false);
     } catch (err) {
-      setError(err.message || "Login failed. Please try again.");
+      toast.error(err.message || "Login failed. Please try again.");
       setIsLoading(false);
     }
   };
@@ -89,8 +93,6 @@ const Login = () => {
           >
             {isLoading ? "Logging in..." : "Login"}
           </button>
-          {error && <p style={{ color: "red" }}>{error}</p>}
-          {message && <p style={{ color: "green" }}>{message}</p>}
         </div>
       </div>
     </div>

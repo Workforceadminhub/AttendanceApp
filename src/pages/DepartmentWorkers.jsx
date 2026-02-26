@@ -635,7 +635,12 @@ export default function DepartmentWorkers() {
                             {index + 1}
                           </td>
                           <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                            {worker.firstname} {worker.lastname}
+                            <Link
+                              to={`/worker/${worker.id}/attendance?department=${encodeURIComponent(worker.department || decodedDepartment || "")}&team=${encodeURIComponent(worker.team || "")}`}
+                              className="text-blue-600 hover:text-blue-800 hover:underline"
+                            >
+                              {worker.firstname} {worker.lastname}
+                            </Link>
                           </td>
                           <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                             {worker.phone || worker.phonenumber || "-"}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
 import { toast } from "react-toastify";
@@ -460,7 +460,12 @@ export default function AllWorkers() {
                             {worker.id || worker.workerid || idx + 1}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                            {worker.firstname || "N/A"}
+                            <Link
+                              to={`/worker/${worker.id}/attendance?department=${encodeURIComponent(worker.department || "")}&team=${encodeURIComponent(worker.team || "")}`}
+                              className="text-blue-600 hover:text-blue-800 hover:underline"
+                            >
+                              {worker.firstname || "N/A"}
+                            </Link>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                             {worker.lastname || "N/A"}

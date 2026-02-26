@@ -12,6 +12,25 @@ const api = axios.create({
   },
 });
 
+// ── 401 Interceptor: session timeout → redirect to login ──────────
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Skip redirect for login requests (invalid credentials should stay on the login page)
+      const url = error.config?.url || "";
+      if (!url.includes("/auth/signin")) {
+        sessionStorage.removeItem("accessToken");
+        sessionStorage.removeItem("authUser");
+        // Redirect to login only if not already there
+        if (window.location.pathname !== "/login") {
+          window.location.href = "/login?session=expired";
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 /**
  * Serialize params for GET: array values become a single JSON string so the server
@@ -94,6 +113,13 @@ export async function apiRequest(
       console.error("[API Error]", error.response?.data || error.message);
     }
     const status = error.response?.status;
+    const url = error.config?.url || "";
+
+    // Non-login 401s are handled by the interceptor (session timeout → redirect).
+    // Silently return so no toast/error flashes before the redirect.
+    // Login 401s (wrong password) still need to throw so the login page can show the error.
+    if (status === 401 && !url.includes("/auth/signin")) return;
+
     const message =
       status === 401 ? "Invalid credentials. Please try again." :
       status === 403 ? "You do not have permission to perform this action." :

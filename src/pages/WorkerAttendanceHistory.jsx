@@ -9,7 +9,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
@@ -120,6 +119,7 @@ export default function WorkerAttendanceHistory() {
         date: sundayToShortLabel(r.date),
         Status: STATUS_MAP[r.status] ?? 1,
       })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [records]
   );
 

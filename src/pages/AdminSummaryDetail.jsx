@@ -28,7 +28,7 @@ export default function AdminSummaryDetail() {
   const teamInfo = getDepartmentByUser(location.pathname) || {};
   const teamName = teamInfo.team || "All";
 
-  // deploy
+  // deploy again
 
   const authUser = getUser();
   const {

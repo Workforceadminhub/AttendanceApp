@@ -3,8 +3,8 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
 import { toast } from "react-toastify";
-import * as XLSX from "xlsx";
-import { routeObject, getDepartmentNameFromRoute, getDepartmentRoute } from "../utils/routeObject";
+import ExcelJS from "exceljs";
+import { routeObject, getDepartmentNameFromRoute, getDepartmentRoute, getTeamForDepartment } from "../utils/routeObject";
 import { normalizeWorkerRole } from "../utils/teams";
 import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
 import { addNewWorker } from "../services/workers";
@@ -49,13 +49,26 @@ export default function HODBulkAddWorker() {
     setParsedWorkers([]);
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        const buffer = e.target.result;
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(buffer);
+        const worksheet = workbook.worksheets[0];
+        const headers = [];
+        const jsonData = [];
+        worksheet.eachRow((row, rowNumber) => {
+          const values = row.values.slice(1); // row.values is 1-indexed
+          if (rowNumber === 1) {
+            values.forEach((h) => headers.push(h != null ? String(h).trim() : ""));
+          } else {
+            const obj = {};
+            values.forEach((val, i) => {
+              if (headers[i]) obj[headers[i]] = val != null ? String(val) : "";
+            });
+            jsonData.push(obj);
+          }
+        });
 
         const workers = convertToWorkerObjects(jsonData);
         setParsedWorkers(workers);
@@ -69,14 +82,44 @@ export default function HODBulkAddWorker() {
   const convertToWorkerObjects = (data) => {
     return data
       .map((row, index) => {
+        const rowDept = (row["Department"] || row["department"] || "").toString().trim();
+        const rowTeam = (row["Team"] || row["team"] || "").toString().trim();
+
+        let department = decodedDepartment;
+        let teamFromPage = team;
+
+        if (isTeamAdmin || isSubTeamAdmin) {
+          if (rowDept && rowTeam) {
+            if (!canAccessDepartment(rowDept)) {
+              return {
+                firstname: row["First Name"] || row["firstname"] || "",
+                lastname: row["Last Name"] || row["lastname"] || "",
+                _error: `You don't have access to department: ${rowDept}`,
+                _row: index + 2,
+              };
+            }
+            const canonicalTeam = getTeamForDepartment(rowDept);
+            if (!canonicalTeam || canonicalTeam.trim().toLowerCase() !== rowTeam.trim().toLowerCase()) {
+              return {
+                firstname: row["First Name"] || row["firstname"] || "",
+                lastname: row["Last Name"] || row["lastname"] || "",
+                _error: `Department "${rowDept}" and Team "${rowTeam}" don't match. Use the team for that department.`,
+                _row: index + 2,
+              };
+            }
+            department = rowDept;
+            teamFromPage = canonicalTeam;
+          }
+        }
+
         const worker = {
           firstname: row["First Name"] || row["firstname"] || "",
           lastname: row["Last Name"] || row["lastname"] || "",
           othername: row["Other Name"] || row["othername"] || "",
           email: row["Email"] || row["email"] || row["Email Address"] || "",
           phonenumber: row["Phone"] || row["phonenumber"] || row["Phone Number"] || "",
-          department: decodedDepartment,
-          team,
+          department,
+          team: teamFromPage,
           workerrole: row["Worker Role"] || row["workerrole"] || row["Role"] || row["role"] || "",
           birthdate: row["Birth Date"] || row["birthdate"] || "",
           agerange: row["Age Range"] || row["agerange"] || "",
@@ -330,6 +373,11 @@ export default function HODBulkAddWorker() {
                   <p className="text-sm text-gray-500">
                     Drag and drop or click to browse.
                   </p>
+                  {(isTeamAdmin || isSubTeamAdmin) && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Include Department and Team columns to add workers to different departments you have access to. Leave blank to use this page&apos;s department.
+                    </p>
+                  )}
                 </div>
                 <input
                   id="hod-bulk-upload"
@@ -368,6 +416,16 @@ export default function HODBulkAddWorker() {
                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                           Phone
                         </th>
+                        {(isTeamAdmin || isSubTeamAdmin) && (
+                          <>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                              Department
+                            </th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                              Team
+                            </th>
+                          </>
+                        )}
                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                           Status
                         </th>
@@ -381,6 +439,12 @@ export default function HODBulkAddWorker() {
                           </td>
                           <td className="px-4 py-2 text-sm text-gray-900">{worker.email}</td>
                           <td className="px-4 py-2 text-sm text-gray-900">{worker.phonenumber}</td>
+                          {(isTeamAdmin || isSubTeamAdmin) && (
+                            <>
+                              <td className="px-4 py-2 text-sm text-gray-900">{worker.department}</td>
+                              <td className="px-4 py-2 text-sm text-gray-900">{worker.team}</td>
+                            </>
+                          )}
                           <td className="px-4 py-2 text-sm">
                             {worker._error ? (
                               <span className="text-red-600">{worker._error}</span>

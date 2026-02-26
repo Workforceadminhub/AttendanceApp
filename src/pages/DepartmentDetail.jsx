@@ -49,6 +49,8 @@ export default function DepartmentDetail() {
   const team = departmentInfo?.team || "Unknown Team";
   const departmentRoute = getDepartmentRoute(decodedDepartment) || decodedParam;
 
+  const authUser = getUser();
+
   // Role information (to detect sub-team-admin)
   const { isSubTeamAdmin, assignedDepartments, user: roleUser } = getUserRole();
 
@@ -259,53 +261,20 @@ export default function DepartmentDetail() {
     return result;
   }, [isSubTeamAdmin, permittedDepartments, rawBySunday, selectedMonth]);
 
-  const leaderboardFromAttendance = useMemo(() => {
-    const normRoute = (departmentRoute || "").replace(/^\//, "").toLowerCase();
-    const matchDept = (item) => {
-      const name = item.department || item.department_name || "";
-      const itemRoute = (item.route || item.department_route || item.departmentRoute || "").replace(/^\//, "").toLowerCase();
-      return name === decodedDepartment || (normRoute && itemRoute === normRoute);
-    };
-    const inMonth = rawBySunday.filter(({ dateStr }) => dateStr.startsWith(selectedMonth));
-    const byWorker = new Map();
-    for (const { list } of inMonth) {
-      const forDept = (list || []).filter(matchDept);
-      for (const item of forDept) {
-        const id = item.id ?? item.workerId ?? item.worker_id ?? null;
-        if (id == null) continue;
-        if (!byWorker.has(id)) {
-          byWorker.set(id, {
-            id,
-            firstname: item.firstname ?? item.firstName ?? "",
-            lastname: item.lastname ?? item.lastName ?? "",
-            presentCount: 0,
-            totalSundays: 0,
-          });
-        }
-        const w = byWorker.get(id);
-        w.presentCount += Number(item.present ?? 0) >= 1 ? 1 : 0;
-        w.totalSundays += 1;
-      }
-    }
-    const withRate = Array.from(byWorker.values())
-      .filter((w) => w.totalSundays > 0)
-      .map((w) => ({
-        ...w,
-        attendanceRate: `${Math.round((w.presentCount / w.totalSundays) * 100)}%`,
-      }));
-    withRate.sort((a, b) => (b.presentCount / b.totalSundays) - (a.presentCount / a.totalSundays));
-    const limit = 5;
-    const top = withRate.slice(0, limit);
-    const bottom = withRate.slice(-limit).reverse();
-    return { topPerformers: top, bottomPerformers: bottom };
-  }, [rawBySunday, selectedMonth, decodedDepartment, departmentRoute]);
-
-  // Leaderboard: same month as trend; first and last day of selected month
-  const leaderboardStartDate = useMemo(() => `${selectedMonth}-01`, [selectedMonth]);
+  // Leaderboard: first and last Sunday of the selected month (backend expects "Sunday - d/m/y")
+  const leaderboardStartDate = useMemo(() => {
+    const [y, m] = selectedMonth.split("-").map(Number);
+    const first = new Date(y, m - 1, 1);
+    const offset = first.getDay() === 0 ? 0 : 7 - first.getDay();
+    const firstSun = new Date(y, m - 1, 1 + offset);
+    return `Sunday - ${firstSun.getDate()}/${firstSun.getMonth() + 1}/${firstSun.getFullYear()}`;
+  }, [selectedMonth]);
   const leaderboardEndDate = useMemo(() => {
     const [y, m] = selectedMonth.split("-").map(Number);
-    const lastDay = new Date(y, m, 0).getDate();
-    return `${selectedMonth}-${String(lastDay).padStart(2, "0")}`;
+    const lastDay = new Date(y, m, 0);
+    const diff = lastDay.getDay();
+    const lastSun = new Date(y, m - 1, lastDay.getDate() - diff);
+    return `Sunday - ${lastSun.getDate()}/${lastSun.getMonth() + 1}/${lastSun.getFullYear()}`;
   }, [selectedMonth]);
 
   return (
@@ -487,15 +456,14 @@ export default function DepartmentDetail() {
           )}
         </div>
 
-        {/* Leaderboard (from frontend attendance data for selected month) */}
+        {/* Leaderboard — uses GET /api/attendance/trends with user permissions */}
         <div className="mb-8">
           <AttendanceLeaderboard
             department={decodedDepartment}
             startDate={leaderboardStartDate}
             endDate={leaderboardEndDate}
             limit={5}
-            data={leaderboardFromAttendance}
-            isLoading={isTrendsLoading}
+            permissions={authUser?.permissions}
           />
         </div>
 

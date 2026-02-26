@@ -1,17 +1,21 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { fetchTopPerformers } from "../services/workers";
+import { fetchAttendanceLeaderboard } from "../services/attendance";
 import LoadingState from "./LoadingState";
 
 /**
  * Displays top and bottom attendance performers for a department.
  * When `data` is provided (frontend-computed leaderboard), uses it and does not fetch.
+ * When `permissions` is provided, uses GET /api/attendance/trends with permissions array.
+ * Otherwise falls back to fetchTopPerformers (legacy endpoint).
  *
  * @param {Object} props
- * @param {string} props.department - Department name to filter by
+ * @param {string} [props.department] - Department name (legacy, used when permissions not provided)
  * @param {string} props.startDate - ISO date string for range start
  * @param {string} props.endDate - ISO date string for range end
  * @param {number} [props.limit=5] - Number of performers to show per section
+ * @param {string[]} [props.permissions] - Array of department names the user has access to
  * @param {Object} [props.data] - Optional precomputed { topPerformers, bottomPerformers } (skips API)
  * @param {boolean} [props.isLoading] - Optional loading state when data is computed elsewhere
  */
@@ -20,13 +24,22 @@ export default function AttendanceLeaderboard({
   startDate,
   endDate,
   limit = 5,
+  permissions,
   data: dataProp,
   isLoading: isLoadingProp,
 }) {
+  const usePermissions = Array.isArray(permissions) && permissions.length > 0;
+
   const { data: fetchedData, isLoading: isFetching } = useQuery({
-    queryKey: ["leaderboard", department, startDate, endDate, limit],
-    queryFn: () => fetchTopPerformers(department, startDate, endDate, limit),
-    enabled: !!department && !!startDate && !!endDate && !dataProp,
+    queryKey: usePermissions
+      ? ["leaderboard", "permissions", permissions, startDate, endDate, limit]
+      : ["leaderboard", department, startDate, endDate, limit],
+    queryFn: usePermissions
+      ? () => fetchAttendanceLeaderboard(permissions, startDate, endDate, limit)
+      : () => fetchTopPerformers(department, startDate, endDate, limit),
+    enabled: usePermissions
+      ? !!startDate && !!endDate && !dataProp
+      : !!department && !!startDate && !!endDate && !dataProp,
   });
 
   const data = dataProp ?? fetchedData;
@@ -83,7 +96,7 @@ export default function AttendanceLeaderboard({
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 text-sm">
                     <Link
-                      to={`/worker/${performer.id}/attendance`}
+                      to={`/worker/${performer.id}/attendance?department=${encodeURIComponent(performer.department || "")}&team=${encodeURIComponent(performer.team || "")}`}
                       className="text-blue-600 hover:underline"
                     >
                       {performer.firstname} {performer.lastname}

@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
+import { routeObject } from "./routeObject";
 
 const HEADERS = [
   "First Name",
@@ -13,6 +14,8 @@ const HEADERS = [
   "Marital Status",
   "Age Range",
   "Employment Status",
+  "Department",
+  "Team",
   "Occupation",
   "Address",
 ];
@@ -30,6 +33,8 @@ const SAMPLE_ROWS = [
     "Single",
     "26-30",
     "Employed",
+    "House of Dorcas",
+    "Ministry",
     "Teacher",
     "123 Main Street Lagos",
   ],
@@ -45,14 +50,20 @@ const SAMPLE_ROWS = [
     "Married",
     "31-35",
     "Self-Employed",
+    "Call Centre",
+    "Ministry",
     "Engineer",
     "456 Oak Avenue Abuja",
   ],
 ];
 
+/** Unique team names from routeObject; used for sample Excel Team dropdown */
+const TEAM_OPTIONS = [...new Set(routeObject.map((r) => r.team).filter(Boolean))].sort();
+
 /** Allowed values for dropdown columns; used in sample Excel and for bulk-upload validation */
 export const DROPDOWN_OPTIONS = {
   Gender: ["Female", "Male"],
+  Team: TEAM_OPTIONS,
   "Worker Role": [
     "Worker",
     "Assistant Small Group Leader",
@@ -78,13 +89,14 @@ export const DROPDOWN_OPTIONS = {
   "Employment Status": ["Employed", "Self-Employed", "Student", "Unemployed"],
 };
 
-/** Column letter for dropdown (1-based index: 6=Gender, 7=Worker Role, 9=Marital, 10=Age Range, 11=Employment) */
+/** Column letters for dropdowns (F=Gender, G=Worker Role, I=Marital, J=Age Range, K=Employment, M=Team) */
 const DROPDOWN_COLUMNS = [
   { col: "F", header: "Gender" },
   { col: "G", header: "Worker Role" },
   { col: "I", header: "Marital Status" },
   { col: "J", header: "Age Range" },
   { col: "K", header: "Employment Status" },
+  { col: "M", header: "Team" },
 ];
 
 /** Build list formula for Excel (comma-separated, quoted; Excel list has 255 char limit per item, 1024 total for formula) */
@@ -94,7 +106,12 @@ function listFormula(values) {
 }
 
 /**
- * Generate and download sample workers Excel with dropdowns for Gender, Worker Role, Marital Status, Age Range, Employment Status.
+ * Generate and download sample workers Excel with dropdowns for Gender, Worker Role, Marital Status, Age Range, Employment Status, and Team.
+ * Department and Team mapping by role:
+ * - Super Admin bulk add: "Department" and "Team" columns are read from the file; use exact names from the app.
+ * - Church Admin bulk add: same as Super Admin — "Department" and "Team" are read from the file; fill them for each row.
+ * - Team Admin / Sub Team Admin bulk add: "Department" and "Team" are read from the file when present; you must have access to that department. If omitted, the page's department/team are used.
+ * - HOD bulk add: Department and Team are set from the page (the department you're on); these columns are ignored. You can leave them blank or omit them.
  */
 export async function downloadSampleWorkersExcel() {
   const workbook = new ExcelJS.Workbook();

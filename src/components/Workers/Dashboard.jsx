@@ -22,6 +22,7 @@ import { debounce } from "lodash";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
 import BirthdayWidget from "../BirthdayWidget";
 import AdminDepartmentSummaryTable from "./AdminDepartmentSummaryTable";
+import SundayWorkersAttendanceTable from "./SundayWorkersAttendanceTable";
 import {
   ClipboardDocumentCheckIcon,
   TableCellsIcon,
@@ -316,7 +317,17 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Church Admin: Per-department attendance summary table */}
+        {/* Church Admin: Sunday Workers Attendance table (home) */}
+        {isAdminMember && isChurchAdmin && departmentSummaryRows.length > 0 && (
+          <div className="flow-root">
+            <SundayWorkersAttendanceTable
+              rows={departmentSummaryRows}
+              selectedDate={selectedDate}
+            />
+          </div>
+        )}
+
+        {/* Church Admin: Per-department attendance summary table (unchanged) */}
         {isAdminMember && isChurchAdmin && departmentSummaryRows.length > 0 && (
           <div className="mt-8 flow-root">
             <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">

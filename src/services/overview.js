@@ -72,10 +72,10 @@ const interactiveGroupsDepts = {
   "Women of Wisdom": ["Women of Wisdom"],
 };
 
-// Senior Leadership departments
+// Senior Leadership departments (API returns "Pastoral leader" / "Directional leader")
 const seniorLeadershipDepts = {
   "Directional Leaders": ["Directional leader"],
-  "Pastoral Leaders": ["Pastoral Leaders"],
+  "Pastoral Leaders": ["Pastoral leader"],
 };
 
 /**
@@ -722,7 +722,7 @@ export const fetchOverviewData = async (params = {}) => {
 
 /**
  * Fetches audit log entries with pagination and filtering.
- * Phase 7 spec: GET /api/audit-logs?startDate&endDate&departmentRoute&limit&offset&action
+ * Phase 7 spec: GET /api/audit?startDate&endDate&departmentRoute&limit&offset&action
  * @param {number} [page=1] - Page number (converted to offset)
  * @param {number} [limit=50] - Number of entries per page
  * @param {Object} [filters={}] - Optional filters { startDate, endDate, departmentRoute, teamName, action }
@@ -730,31 +730,39 @@ export const fetchOverviewData = async (params = {}) => {
  */
 export const fetchAuditLogs = async (page = 1, limit = 50, filters = {}) => {
   try {
-    const offset = (page - 1) * limit;
+    const { actionType, event, ...restFilters } = filters || {};
     const params = {
+      page,
       limit,
-      offset,
-      ...filters,
+      ...restFilters,
+      ...(actionType && { action: actionType }),
+      ...(event && { event }),
     };
 
-    const response = await apiRequest("GET", "/api/audit-logs", params);
+    const response = await apiRequest("GET", "/api/audit", params);
 
     if (!response || response.error) {
       throw new Error(response?.error || "Failed to fetch audit logs");
     }
 
-    const data = response.data ?? response;
-    if (Array.isArray(data.logs) && !Array.isArray(data.data)) {
-      data.data = data.logs;
-    }
-    if (data.total !== undefined && !data.pagination?.total) {
-      data.pagination = data.pagination || {};
-      data.pagination.total = data.total;
-      data.pagination.totalPages = Math.ceil(data.total / limit);
-      data.pagination.hasNext = page * limit < data.total;
-      data.pagination.hasPrev = page > 1;
-    }
-    return data;
+    const list = Array.isArray(response.data) ? response.data : [];
+    const pag = response.pagination || {};
+    const fallbackTotalPages = Math.ceil((pag.total || 0) / limit) || 1;
+    const totalPages = pag.totalPages != null ? pag.totalPages : fallbackTotalPages;
+    const currentPage = pag.page ?? page;
+
+    return {
+      data: list,
+      pagination: {
+        ...pag,
+        total: pag.total ?? list.length,
+        page: currentPage,
+        limit: pag.limit ?? limit,
+        totalPages,
+        hasNext: currentPage < totalPages,
+        hasPrev: currentPage > 1,
+      },
+    };
   } catch (error) {
     return null;
   }

@@ -11,21 +11,31 @@ import {
   WrenchScrewdriverIcon,
   CheckCircleIcon,
 } from "@heroicons/react/24/outline";
-import { teamsAndDepartments } from "../utils/teams";
+import { teamsAndDepartments, normalizeWorkerRole } from "../utils/teams";
 import apiRequest from "../utils/apiClient";
+
+/**
+ * Normalize a department name so API variants like "Pastoral leader"
+ * match the canonical config value "Pastoral Leaders".
+ */
+const normDept = (d) => normalizeWorkerRole(d) ?? d;
 
 // Check if a worker has a team-department mismatch
 const isMismatched = (worker) => {
   if (!worker.team || !worker.department) return false;
   const teamConfig = teamsAndDepartments.find(t => t.team === worker.team);
   if (!teamConfig) return true; // Unknown team is a mismatch
-  return !teamConfig.department.includes(worker.department);
+  const normalized = normDept(worker.department);
+  return !teamConfig.department.some(d => normDept(d) === normalized);
 };
 
 // Get the suggested team based on the department
 const getSuggestedTeam = (department) => {
   if (!department) return null;
-  const match = teamsAndDepartments.find(t => t.department.includes(department));
+  const normalized = normDept(department);
+  const match = teamsAndDepartments.find(t =>
+    t.department.some(d => normDept(d) === normalized)
+  );
   return match?.team || null;
 };
 

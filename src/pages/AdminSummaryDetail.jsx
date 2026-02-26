@@ -148,14 +148,20 @@ export default function AdminSummaryDetail() {
     [trends, selectedMonth]
   );
 
-  const leaderboardStartDate = useMemo(
-    () => `${selectedMonth}-01`,
-    [selectedMonth]
-  );
+  // First and last Sunday of the selected month (backend expects "Sunday - d/m/y")
+  const leaderboardStartDate = useMemo(() => {
+    const [y, m] = selectedMonth.split("-").map(Number);
+    const first = new Date(y, m - 1, 1);
+    const offset = first.getDay() === 0 ? 0 : 7 - first.getDay();
+    const firstSun = new Date(y, m - 1, 1 + offset);
+    return `Sunday - ${firstSun.getDate()}/${firstSun.getMonth() + 1}/${firstSun.getFullYear()}`;
+  }, [selectedMonth]);
   const leaderboardEndDate = useMemo(() => {
     const [y, m] = selectedMonth.split("-").map(Number);
-    const lastDay = new Date(y, m, 0).getDate();
-    return `${selectedMonth}-${String(lastDay).padStart(2, "0")}`;
+    const lastDay = new Date(y, m, 0);
+    const diff = lastDay.getDay();
+    const lastSun = new Date(y, m - 1, lastDay.getDate() - diff);
+    return `Sunday - ${lastSun.getDate()}/${lastSun.getMonth() + 1}/${lastSun.getFullYear()}`;
   }, [selectedMonth]);
 
   const {
@@ -303,6 +309,7 @@ export default function AdminSummaryDetail() {
             startDate={leaderboardStartDate}
             endDate={leaderboardEndDate}
             limit={5}
+            permissions={authUser?.permissions}
           />
         </div>
 

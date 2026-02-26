@@ -1,14 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { getNextSunday } from "../utils/getDate";
 import apiRequest from "../utils/apiClient";
-import { resolveDepartmentParams } from "../utils/routeObject";
+import { resolveDepartmentParams, departmentNameForApi } from "../utils/routeObject";
 // import { WORKER_STATUS } from "../utils/enums";
 
 export const fetchWorkers = async (department, activeDate, permissions, search = "") => {
   try {
     const dateForAttendance = activeDate || getNextSunday();
     const params = {
-      department,
+      department: departmentNameForApi(department),
       activeDate: dateForAttendance,
       isAdmin: false,
     };

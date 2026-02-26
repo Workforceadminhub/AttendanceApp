@@ -1,3 +1,29 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── Sunday-only date picker ──────────────────────────────────── */
+.sunday-only-calendar .non-sunday-day {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+.sunday-only-calendar .sunday-day {
+  font-weight: 600;
+  color: #1f2937;
+}
+.sunday-only-calendar .react-datepicker__day--selected.sunday-day {
+  background-color: #2563eb !important;
+  color: #fff !important;
+  border-radius: 0.375rem;
+}
+.sunday-only-calendar .react-datepicker__day--selected.sunday-day:hover {
+  background-color: #1d4ed8 !important;
+}
+.sunday-only-calendar .sunday-day:hover {
+  background-color: #dbeafe;
+  border-radius: 0.375rem;
+}
+.sunday-only-calendar .react-datepicker__day--disabled.sunday-day {
+  color: #d1d5db !important;
+  font-weight: 400;
+}

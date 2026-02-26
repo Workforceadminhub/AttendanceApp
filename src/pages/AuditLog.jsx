@@ -8,21 +8,19 @@ import { fetchAuditLogs } from "../services/overview";
 import { getUserRole } from "../utils/getUserRole";
 import { format } from "date-fns";
 
-const ACTION_TYPES = [
-  { value: "", label: "All Actions" },
-  { value: "CREATE", label: "Create" },
-  { value: "UPDATE", label: "Update" },
-  { value: "DELETE", label: "Delete" },
-  { value: "LOGIN", label: "Login" },
-  { value: "APPROVE", label: "Approve" },
-  { value: "REJECT", label: "Reject" },
-  { value: "ATTENDANCE", label: "Attendance" },
+const EVENT_FILTERS = [
+  { value: "", label: "All Events" },
+  { value: "login", label: "Login" },
+  { value: "workers_fetched", label: "Workers Fetched" },
+  { value: "workers_listed_admin", label: "Workers Listed (Admin)" },
+  { value: "admin_attendance_fetched", label: "Admin Attendance Fetched" },
+  { value: "attendance_closed", label: "Attendance Closed" },
 ];
 
 export default function AuditLog() {
   const { isSuperAdmin, isChurchAdmin } = getUserRole();
   const [page, setPage] = useState(1);
-  const [actionTypeFilter, setActionTypeFilter] = useState("");
+  const [eventFilter, setEventFilter] = useState("");
   const [dateRange, setDateRange] = useState({
     startDate: null,
     endDate: null,
@@ -31,7 +29,7 @@ export default function AuditLog() {
 
   const handleDateRangeChange = useCallback(({ startDate, endDate }) => {
     setDateRange({ startDate, endDate });
-    setPage(1); // Reset to first page on date change
+    setPage(1);
   }, []);
 
   const startDateStr = dateRange.startDate
@@ -44,7 +42,7 @@ export default function AuditLog() {
   const filters = {
     ...(startDateStr && { startDate: startDateStr }),
     ...(endDateStr && { endDate: endDateStr }),
-    ...(actionTypeFilter && { actionType: actionTypeFilter }),
+    ...(eventFilter && { event: eventFilter }),
   };
 
   const { data, isLoading } = useQuery({
@@ -53,7 +51,7 @@ export default function AuditLog() {
     enabled: isSuperAdmin || isChurchAdmin,
   });
 
-  const logs = data?.data || data || [];
+  const logs = Array.isArray(data?.data) ? data.data : [];
   const pagination = data?.pagination || {
     page: 1,
     totalPages: 1,
@@ -94,21 +92,21 @@ export default function AuditLog() {
           <DateRangeFilter onDateRangeChange={handleDateRangeChange} />
           <div className="flex items-center gap-4">
             <select
-              value={actionTypeFilter}
+              value={eventFilter}
               onChange={(e) => {
-                setActionTypeFilter(e.target.value);
+                setEventFilter(e.target.value);
                 setPage(1);
               }}
               className="rounded-md border border-gray-300 px-3 py-1.5 text-sm shadow-sm focus:border-black focus:ring-1 focus:ring-black"
             >
-              {ACTION_TYPES.map((type) => (
-                <option key={type.value} value={type.value}>
-                  {type.label}
+              {EVENT_FILTERS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
                 </option>
               ))}
             </select>
             <span className="text-sm text-gray-500">
-              {pagination.total || 0} total entries
+              {pagination.total ?? 0} total entries
             </span>
           </div>
         </div>
@@ -131,58 +129,64 @@ export default function AuditLog() {
                       User
                     </th>
                     <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Action
+                      Event
                     </th>
                     <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Target
+                      Path
                     </th>
                     <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Details
+                      Method
+                    </th>
+                    <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Department
+                    </th>
+                    <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      IP / Device
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {logs.length > 0 ? (
-                    logs.map((log, index) => (
-                      <tr key={log.id || index} className="hover:bg-gray-50">
-                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-500 sm:pl-6">
-                          {log.timestamp
-                            ? format(
-                                new Date(log.timestamp),
-                                "MMM d, yyyy HH:mm"
-                              )
-                            : "-"}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
-                          {log.userName || log.userId || "-"}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm">
-                          <span
-                            className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-                              log.action === "CREATE"
-                                ? "bg-green-100 text-green-800"
-                                : log.action === "DELETE"
-                                ? "bg-red-100 text-red-800"
-                                : log.action === "UPDATE"
-                                ? "bg-blue-100 text-blue-800"
-                                : "bg-gray-100 text-gray-800"
-                            }`}
-                          >
-                            {log.action || "-"}
-                          </span>
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {log.target || "-"}
-                        </td>
-                        <td className="px-3 py-4 text-sm text-gray-500 max-w-xs truncate">
-                          {log.details || "-"}
-                        </td>
-                      </tr>
-                    ))
+                    logs.map((log, index) => {
+                      const meta = log.metadata || {};
+                      return (
+                        <tr key={log.id ?? index} className="hover:bg-gray-50">
+                          <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-500 sm:pl-6">
+                            {log.createdat
+                              ? format(
+                                  new Date(log.createdat),
+                                  "MMM d, yyyy HH:mm:ss"
+                                )
+                              : "-"}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
+                            {(log.user_code || log.user_id) || "-"}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm">
+                            <span className="inline-flex rounded-full px-2 text-xs font-medium leading-5 bg-gray-100 text-gray-800">
+                              {log.event ?? "-"}
+                            </span>
+                          </td>
+                          <td className="px-3 py-4 text-sm text-gray-500 font-mono max-w-[12rem] truncate" title={meta.path}>
+                            {meta.path ?? "-"}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            {meta.method ?? "-"}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            {meta.department ?? "-"}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            {meta.ip ?? "-"}
+                            {meta.deviceType ? ` · ${meta.deviceType}` : ""}
+                          </td>
+                        </tr>
+                      );
+                    })
                   ) : (
                     <tr>
                       <td
-                        colSpan={5}
+                        colSpan={7}
                         className="py-8 text-center text-sm text-gray-500"
                       >
                         No audit log entries found for the selected filters.
@@ -194,52 +198,71 @@ export default function AuditLog() {
             </div>
 
             {/* Pagination */}
-            {(pagination.hasNext || pagination.hasPrev) && (
-              <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
-                <div className="flex flex-1 justify-between sm:hidden">
-                  <button
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={!pagination.hasPrev}
-                    className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    onClick={() => setPage((p) => p + 1)}
-                    disabled={!pagination.hasNext}
-                    className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Next
-                  </button>
-                </div>
-                <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm text-gray-700">
-                      Page <span className="font-medium">{page}</span> of{" "}
-                      <span className="font-medium">
-                        {pagination.totalPages || 1}
-                      </span>
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
+            {pagination.total > 0 && (pagination.hasNext || pagination.hasPrev) && (() => {
+              const totalPages = pagination.totalPages || 1;
+              const maxVisible = 5;
+              let startPage = Math.max(1, page - Math.floor(maxVisible / 2));
+              let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+              if (endPage - startPage + 1 < maxVisible) {
+                startPage = Math.max(1, endPage - maxVisible + 1);
+              }
+              const pageNumbers = [];
+              for (let i = startPage; i <= endPage; i++) pageNumbers.push(i);
+              const btn = "relative inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-50";
+              const btnDefault = "border-gray-300 bg-white text-gray-700 hover:bg-gray-50";
+              const btnActive = "border-black bg-black text-white";
+              return (
+                <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+                  <div className="flex flex-1 justify-between sm:hidden">
                     <button
                       onClick={() => setPage((p) => Math.max(1, p - 1))}
                       disabled={!pagination.hasPrev}
-                      className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                      className={`${btn} ${btnDefault}`}
                     >
                       Previous
                     </button>
                     <button
                       onClick={() => setPage((p) => p + 1)}
                       disabled={!pagination.hasNext}
-                      className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                      className={`${btn} ${btnDefault}`}
                     >
                       Next
                     </button>
                   </div>
+                  <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                    <p className="text-sm text-gray-700">
+                      Page <span className="font-medium">{page}</span> of{" "}
+                      <span className="font-medium">{totalPages}</span>
+                    </p>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        disabled={!pagination.hasPrev}
+                        className={`${btn} ${btnDefault}`}
+                      >
+                        Previous
+                      </button>
+                      {pageNumbers.map((n) => (
+                        <button
+                          key={n}
+                          onClick={() => setPage(n)}
+                          className={`${btn} ${n === page ? btnActive : btnDefault}`}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => setPage((p) => p + 1)}
+                        disabled={!pagination.hasNext}
+                        className={`${btn} ${btnDefault}`}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         )}
       </Layout>

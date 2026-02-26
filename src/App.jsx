@@ -31,6 +31,7 @@ import ViewWorker from "./pages/ViewWorker";
 import PendingWorkers from "./pages/PendingWorkers";
 import AllWorkers from "./pages/AllWorkers";
 import TeamMismatch from "./pages/TeamMismatch";
+import PastoralFix from "./pages/PastoralFix";
 import Report from "./components/Report";
 import SuperAdminOverview from "./pages/SuperAdminOverview";
 import ManageDepartments from "./pages/ManageDepartments";
@@ -60,7 +61,7 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <SkeletonTheme baseColor="#e5e5e5" highlightColor="#d6d4d4">
           <Routes>
             <Route index element={<Home />} />
@@ -234,6 +235,14 @@ const App = () => {
               element={
                 <PrivateRoute>
                   <TeamMismatch />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/pastoral-fix"
+              element={
+                <PrivateRoute>
+                  <PastoralFix />
                 </PrivateRoute>
               }
             />

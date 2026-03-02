@@ -146,20 +146,14 @@ export default function AdminSummaryDetail() {
     [trends, selectedMonth]
   );
 
-  // First and last Sunday of the selected month (backend expects "Sunday - d/m/y")
-  const leaderboardStartDate = useMemo(() => {
-    const [y, m] = selectedMonth.split("-").map(Number);
-    const first = new Date(y, m - 1, 1);
-    const offset = first.getDay() === 0 ? 0 : 7 - first.getDay();
-    const firstSun = new Date(y, m - 1, 1 + offset);
-    return `Sunday - ${firstSun.getDate()}/${firstSun.getMonth() + 1}/${firstSun.getFullYear()}`;
-  }, [selectedMonth]);
+  // Leaderboard: startDate is always first Sunday of 2026, endDate is last Sunday of selected month
+  const leaderboardStartDate = "2026-01-04";
   const leaderboardEndDate = useMemo(() => {
     const [y, m] = selectedMonth.split("-").map(Number);
     const lastDay = new Date(y, m, 0);
     const diff = lastDay.getDay();
     const lastSun = new Date(y, m - 1, lastDay.getDate() - diff);
-    return `Sunday - ${lastSun.getDate()}/${lastSun.getMonth() + 1}/${lastSun.getFullYear()}`;
+    return lastSun.toISOString().split("T")[0];
   }, [selectedMonth]);
 
   const {

@@ -45,7 +45,7 @@ export const routeObject = [
   { department: "God's encounter", route: "/godencounter", team: "Mission" },
   { department: "HSAP", route: "/hsap", team: "Mission" },
   { department: "Invest and Invite", route: "/investinvite", team: "Mission" },
-  // { department: "NLP", route: "/nlp", team: "Mission" },
+  { department: "NLP", route: "/nlp", team: "NLP" },
   { department: "Publicity", route: "/publicity", team: "Mission" },
   { department: "Royal Priesthoods Community", route: "/royalpriesthood", team: "Districts" },
   { department: "Ogudu/Alapere Community", route: "/ogudualapere", team: "Districts" },

@@ -112,7 +112,9 @@ export default function AttendanceLeaderboard({
                     </span>
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-500">
-                    {performer.trend === "up" ? (
+                    {typeof performer.trend === "number" ? (
+                      <span className="font-medium text-gray-700">{performer.trend}</span>
+                    ) : performer.trend === "up" ? (
                       <span className="text-green-500">&#9650;</span>
                     ) : performer.trend === "down" ? (
                       <span className="text-red-500">&#9660;</span>

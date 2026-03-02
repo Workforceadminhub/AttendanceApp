@@ -10,8 +10,12 @@ const directorateMapping = [
     teams: ["Mission", "Programs"],
   },
   {
+    directorate: "NLP",
+    teams: ["NLP"],
+  },
+  {
     directorate: "SPD",
-    teams: ["Maturity", "Ministry"],
+    teams: ["Maturity", "Ministry", "Membership"],
   },
   {
     directorate: "NEXT GEN",
@@ -27,13 +31,7 @@ const directorateMapping = [
   },
   {
     directorate: "COMMUNITIES",
-    teams: ["Membership", "Districts"],
-  },
-  {
-    directorate: "INTERACTIVE GROUPS",
-    teams: ["Men of Harvest", "Singles Ministry", "Women of Wisdom"],
-    isVirtual: true,
-    sourceTeam: "Interactive Groups",
+    teams: ["Districts", "Men of Harvest", "Singles Ministry", "Women of Wisdom"],
   },
   {
     directorate: "SENIOR LEADERSHIP",

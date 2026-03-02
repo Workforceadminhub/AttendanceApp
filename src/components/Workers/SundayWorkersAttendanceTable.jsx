@@ -20,6 +20,7 @@ function resolveTeamForDepartment(dept) {
 // Directorate order and team -> directorate mapping (reference layout)
 const DIRECTORATE_ORDER = [
   "ATTRACTION",
+  "NLP",
   "SPD",
   "NEXT GEN",
   "GENERAL SERVICES",
@@ -31,19 +32,21 @@ const DIRECTORATE_ORDER = [
 const TEAM_TO_DIRECTORATE = {
   Mission: "ATTRACTION",
   Programs: "ATTRACTION",
+  NLP: "NLP",
   Maturity: "SPD",
   Ministry: "SPD",
+  Membership: "SPD",
   "Next Gen": "NEXT GEN",
   "General Service": "GENERAL SERVICES",
-  Membership: "COMMUNITIES",
   Districts: "COMMUNITIES",
-  "Interactive Groups": "INTERACTIVE GROUPS",
+  "Interactive Groups": "COMMUNITIES",
   "Senior Leadership": "SENIOR LEADERSHIP",
 };
 
 // Directorate background colors (for DIRECTORATE + TEAMS columns)
 const DIRECTORATE_COLORS = {
   ATTRACTION: "bg-cyan-100",
+  NLP: "bg-violet-100",
   SPD: "bg-amber-100",
   "NEXT GEN": "bg-sky-100",
   "GENERAL SERVICES": "bg-orange-100",

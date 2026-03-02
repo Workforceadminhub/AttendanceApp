@@ -225,13 +225,86 @@ export const fetchAttendanceLeaderboard = async (permissions, startDate, endDate
     }
 
     const raw = response.data ?? response;
-    // Handle { topPerformers, bottomPerformers } or { top, bottom } shapes
+
+    // Handle { topPerformers, bottomPerformers } or { top, bottom } shapes directly
     if (raw?.topPerformers || raw?.top) return raw;
+
+    // Transform backend shape: { "Dept Name": { topPresent: [...], topAbsent: [...] } }
+    // into { topPerformers: [...], bottomPerformers: [...] }
+    const deptKeys = Object.keys(raw).filter(
+      (k) => raw[k]?.topPresent || raw[k]?.topAbsent
+    );
+    if (deptKeys.length > 0) {
+      // Count Sundays in the date range for attendance-rate calculation
+      const totalSundays = countSundaysInRange(startDate, endDate);
+
+      const mapWorker = (w, dept, isPresent) => {
+        const parts = (w.name || "").trim().split(/\s+/);
+        const firstname = parts[0] || "";
+        const lastname = parts.slice(1).join(" ") || "";
+        const rate =
+          totalSundays > 0
+            ? isPresent
+              ? ((w.count / totalSundays) * 100).toFixed(0) + "%"
+              : (((totalSundays - w.count) / totalSundays) * 100).toFixed(0) + "%"
+            : "0%";
+        return {
+          id: w.workerid,
+          firstname,
+          lastname,
+          department: dept,
+          attendanceRate: rate,
+          trend: w.count,
+        };
+      };
+
+      let allTop = [];
+      let allBottom = [];
+      for (const dept of deptKeys) {
+        const d = raw[dept];
+        if (d.topPresent) allTop.push(...d.topPresent.map((w) => mapWorker(w, dept, true)));
+        if (d.topAbsent) allBottom.push(...d.topAbsent.map((w) => mapWorker(w, dept, false)));
+      }
+
+      // Sort by rate descending for top, ascending for bottom, then trim to limit
+      allTop.sort((a, b) => parseFloat(b.attendanceRate) - parseFloat(a.attendanceRate));
+      allBottom.sort((a, b) => parseFloat(a.attendanceRate) - parseFloat(b.attendanceRate));
+
+      return {
+        topPerformers: allTop.slice(0, limit),
+        bottomPerformers: allBottom.slice(0, limit),
+      };
+    }
+
     return empty;
   } catch (error) {
     return empty;
   }
 };
+
+/**
+ * Count Sundays between two dates in "Sunday - d/m/y" or ISO "yyyy-MM-dd" format.
+ */
+function countSundaysInRange(startStr, endStr) {
+  const parse = (s) => {
+    if (!s) return null;
+    // "Sunday - d/m/y" format
+    const m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+    // ISO "yyyy-MM-dd"
+    return new Date(s);
+  };
+  const start = parse(startStr);
+  const end = parse(endStr);
+  if (!start || !end || isNaN(start) || isNaN(end)) return 0;
+  let count = 0;
+  const d = new Date(start);
+  while (d <= end) {
+    if (d.getDay() === 0) count++;
+    d.setDate(d.getDate() + 1);
+  }
+  return count;
+}
 
 /**
  * Fetches attendance history records for a set of departments.

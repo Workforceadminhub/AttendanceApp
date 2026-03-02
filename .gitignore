@@ -49,3 +49,6 @@ amplifytools.xcconfig
 
 # Cursor IDE
 .cursor
+
+# Claude IDE
+.claude

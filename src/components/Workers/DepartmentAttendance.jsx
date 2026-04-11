@@ -1,7 +1,7 @@
 import { useLocation } from "react-router-dom";
 import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   fetchAdminWorkers,
   fetchWorkers,
@@ -84,6 +84,15 @@ const AttendanceDropdown = ({
 
 const PAGE_SIZE = 100;
 
+function sortWorkersById(workers) {
+  if (!Array.isArray(workers)) return [];
+  return [...workers].sort((a, b) => {
+    const idA = (a?.workerid ?? a?.workerId ?? a?.id ?? "").toString();
+    const idB = (b?.workerid ?? b?.workerId ?? b?.id ?? "").toString();
+    return idA.localeCompare(idB, undefined, { numeric: true, sensitivity: "base" });
+  });
+}
+
 export default function DepartmentAttendance() {
   const location = useLocation();
   // const team = getDepartment(location.pathname);
@@ -96,6 +105,9 @@ export default function DepartmentAttendance() {
   const [activeGroup, setActiveGroup] = useState("All");
   const team = getDepartmentByUser(location.pathname);
   const { isChurchAdmin, isSuperAdmin, isSubTeamAdmin, assignedDepartments } = getUserRole();
+  const assignedDepartmentsKey = JSON.stringify(
+    (assignedDepartments ?? []).map((r) => String(r || "")).sort()
+  );
   const isAdminMember = checkAdminStatus(location.pathname);
   const authUser = getUser();
   const optionsAdmin = getAdminSelectOptions(isChurchAdmin, team, authUser);
@@ -326,15 +338,6 @@ export default function DepartmentAttendance() {
     []
   );
 
-  const sortWorkersById = (workers) => {
-    if (!Array.isArray(workers)) return [];
-    return [...workers].sort((a, b) => {
-      const idA = (a?.workerid ?? a?.workerId ?? a?.id ?? "").toString();
-      const idB = (b?.workerid ?? b?.workerId ?? b?.id ?? "").toString();
-      return idA.localeCompare(idB, undefined, { numeric: true, sensitivity: "base" });
-    });
-  };
-
   // Show department column for:
   // - Sub-team admins (multiple departments)
   // - Admin-level views (e.g. /attendance/admin/ministry)
@@ -343,16 +346,13 @@ export default function DepartmentAttendance() {
   // Allow church admin to mark attendance, keep other admin roles read-only
   const disableForAdminRole = isAdminMember && !isChurchAdmin;
 
-  const queryAdminWorkers = () => {
+  const queryAdminWorkers = useCallback(() => {
     setIsLoading(true);
     const rawPermissions = authUser?.permissions ?? [];
-    // Base permissions: strip out the team name itself from permissions.
     const basePermissions = filterTeamFromPermissions(rawPermissions, authUser?.team);
 
     const isTeamFilter =
-      (isChurchAdmin || isSuperAdmin) &&
-      activeGroup &&
-      activeGroup !== "All";
+      (isChurchAdmin || isSuperAdmin) && activeGroup && activeGroup !== "All";
 
     let apiActiveGroup = activeGroup;
     let permissionsForApi = basePermissions;
@@ -374,9 +374,17 @@ export default function DepartmentAttendance() {
         toast.error(`Error loading attendance: ${error.message}`);
         setIsLoading(false);
       });
-  };
+  }, [
+    authUser?.permissions,
+    authUser?.team,
+    isChurchAdmin,
+    isSuperAdmin,
+    activeGroup,
+    team.team,
+    selectedSunday,
+  ]);
 
-  const queryWorkers = () => {
+  const queryWorkers = useCallback(() => {
     setIsLoading(true);
     const permissions = authUser?.permissions ?? [];
 
@@ -395,9 +403,7 @@ export default function DepartmentAttendance() {
 
     if (isSubTeamAdmin && apiDepartments.length > 0) {
       Promise.all(
-        apiDepartments.map((d) =>
-          fetchWorkers(d.name, selectedSunday, permissions, "")
-        )
+        apiDepartments.map((d) => fetchWorkers(d.name, selectedSunday, permissions, ""))
       )
         .then((results) => {
           const merged = results.flat();
@@ -420,7 +426,14 @@ export default function DepartmentAttendance() {
         toast.error(`Error loading attendance: ${error.message}`);
         setIsLoading(false);
       });
-  };
+  }, [
+    authUser?.permissions,
+    isSubTeamAdmin,
+    selectedDepartmentFilter,
+    apiDepartments,
+    team.department,
+    selectedSunday,
+  ]);
 
   useEffect(() => {
     switchOffAttendance()
@@ -429,9 +442,7 @@ export default function DepartmentAttendance() {
   }, []);
 
   // Sub-team-admin: fetch departments from API and keep only assigned.
-  // IMPORTANT: we intentionally do NOT include `assignedDepartments` in the deps array,
-  // because `getUserRole()` returns a new array reference on every render, which would
-  // cause this effect to re-run on each render and spam the `/api/departments` endpoint.
+  // `assignedDepartmentsKey` avoids re-running when getUserRole() returns a new array with same contents.
   useEffect(() => {
     if (!isSubTeamAdmin || isAdminMember) return;
     let cancelled = false;
@@ -451,8 +462,7 @@ export default function DepartmentAttendance() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSubTeamAdmin, isAdminMember]);
+  }, [isSubTeamAdmin, isAdminMember, assignedDepartmentsKey, assignedDepartments]);
 
   const subTeamSelectedDepartmentDep = isSubTeamAdmin
     ? selectedDepartmentFilter
@@ -460,13 +470,12 @@ export default function DepartmentAttendance() {
   const subTeamApiDepartmentsCountDep = isSubTeamAdmin ? apiDepartments.length : 0;
 
   useEffect(() => {
-    if (isHistoryMode) setAttendance([]); // clear pending marks when viewing history
+    if (isHistoryMode) setAttendance([]);
     if (isAdminMember) {
       queryAdminWorkers();
     } else {
       queryWorkers();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     activeGroup,
     isAdminMember,
@@ -475,6 +484,9 @@ export default function DepartmentAttendance() {
     subTeamSelectedDepartmentDep,
     subTeamApiDepartmentsCountDep,
     selectedSunday,
+    isHistoryMode,
+    queryAdminWorkers,
+    queryWorkers,
   ]);
 
   useEffect(() => {
@@ -483,8 +495,7 @@ export default function DepartmentAttendance() {
     } else {
       queryWorkers();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refresh]);
+  }, [refresh, isAdminMember, queryAdminWorkers, queryWorkers]);
 
   // Reset department filter if selected department no longer in available list
   const availableDepartmentNames = availableDepartments;

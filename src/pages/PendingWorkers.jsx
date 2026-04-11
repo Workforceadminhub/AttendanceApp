@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
@@ -80,35 +80,70 @@ export default function PendingWorkers() {
     }
   }, [canAccessPendingWorkers, navigate]);
 
-  const filterByAccess = (workers) => {
+  const filterByAccess = useCallback((workers) => {
     return workers.filter((w) => canAccessDepartment(w.department || w.department_name));
-  };
+  }, []);
 
-  // Fetch all pending workers (no pagination from API)
-  const fetchAllPendingWorkers = async () => {
-    if (isLoading) return; // Prevent multiple simultaneous calls
+  const updatePaginationForTab = useCallback(
+    (tab, allAddWorkers, allRemoveWorkers) => {
+      const currentWorkers = tab === "add" ? allAddWorkers : allRemoveWorkers;
+      const total = currentWorkers.length;
+      const totalPages = Math.ceil(total / pagination.limit);
+
+      const newPagination = {
+        page: 1,
+        limit: pagination.limit,
+        total: total,
+        totalPages: totalPages,
+        hasNext: totalPages > 1,
+        hasPrev: false,
+      };
+
+      setPagination(newPagination);
+
+      const startIndex = 0;
+      const endIndex = pagination.limit;
+      const currentPageData = currentWorkers.slice(startIndex, endIndex);
+
+      if (tab === "add") {
+        setPendingAddWorkers(currentPageData);
+      } else {
+        setPendingRemoveWorkers(currentPageData);
+      }
+    },
+    [pagination.limit]
+  );
+
+  const fetchAllPendingWorkers = useCallback(async () => {
+    if (isLoading) return;
     setIsLoading(true);
     try {
       const [addWorkers, removeWorkers] = await Promise.all([
-        fetchPendingAdd(1, 1000, permissions), // Fetch large number to get all
-        fetchPendingRemove(1, 1000, permissions)
+        fetchPendingAdd(1, 1000, permissions),
+        fetchPendingRemove(1, 1000, permissions),
       ]);
-      
+
       const allAddWorkers = filterByAccess(addWorkers?.data || []);
       const allRemoveWorkers = filterByAccess(removeWorkers?.data || []);
-      
+
       setAllPendingAddWorkers(allAddWorkers);
       setAllPendingRemoveWorkers(allRemoveWorkers);
-      
-      // Update pagination for current tab
+
       updatePaginationForTab(activeTab, allAddWorkers, allRemoveWorkers);
-      
     } catch (error) {
       toast.error("Failed to fetch pending workers");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isLoading, activeTab, permissions, updatePaginationForTab, filterByAccess]);
+
+  useEffect(() => {
+    if (hasFetched.current) {
+      return;
+    }
+    hasFetched.current = true;
+    void fetchAllPendingWorkers();
+  }, [fetchAllPendingWorkers]);
 
   // Delete single worker (permanent)
   const deleteWorker = async (workerId) => {
@@ -137,45 +172,6 @@ export default function PendingWorkers() {
       setIsLoading(false);
     }
   };
-
-  // Update pagination for specific tab
-  const updatePaginationForTab = (tab, allAddWorkers, allRemoveWorkers) => {
-    const currentWorkers = tab === "add" ? allAddWorkers : allRemoveWorkers;
-    const total = currentWorkers.length;
-    const totalPages = Math.ceil(total / pagination.limit);
-    
-    const newPagination = {
-      page: 1,
-      limit: pagination.limit,
-      total: total,
-      totalPages: totalPages,
-      hasNext: totalPages > 1,
-      hasPrev: false,
-    };
-    //
-    
-    setPagination(newPagination);
-    
-    // Set current page data
-    const startIndex = 0;
-    const endIndex = pagination.limit;
-    const currentPageData = currentWorkers.slice(startIndex, endIndex);
-    
-    if (tab === "add") {
-      setPendingAddWorkers(currentPageData);
-    } else {
-      setPendingRemoveWorkers(currentPageData);
-    }
-  };
-
-  useEffect(() => {
-    if (hasFetched.current) {
-      return;
-    }
-    hasFetched.current = true;
-    fetchAllPendingWorkers();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty dependency array to run only once
 
   // Handle client-side pagination
   const handlePagination = (newPage) => {

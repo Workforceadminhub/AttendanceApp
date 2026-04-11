@@ -179,13 +179,10 @@ export default function DateRangeFilter({
     setActivePreset(presetBeforeCustom);
   }, [startDate, endDate, presetBeforeCustom]);
 
-  // Fire initial callback on mount
+  // Sync parent when range or callback reference changes
   useEffect(() => {
-    if (onDateRangeChange) {
-      onDateRangeChange({ startDate, endDate });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    onDateRangeChange?.({ startDate, endDate });
+  }, [startDate, endDate, onDateRangeChange]);
 
   return (
     <div className={`flex flex-wrap items-center gap-3 ${className}`}>

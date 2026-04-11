@@ -289,13 +289,10 @@ export default function AddWorker() {
         const value = row[colIndex]?.toString().trim() || "";
 
         // Find matching field
-        routeLoop: for (const [field, aliases] of Object.entries(
-          fieldMapping
-        )) {
+        for (const [field, aliases] of Object.entries(fieldMapping)) {
           if (aliases.includes(header)) {
             worker[field] = value;
-            // eslint-disable-next-line no-extra-label
-            break routeLoop;
+            break;
           }
         }
       });

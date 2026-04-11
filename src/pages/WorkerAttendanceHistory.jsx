@@ -26,6 +26,10 @@ function sundayToShortLabel(dateStr) {
   return `${match[1]}/${match[2]}`;
 }
 
+/** Chart Y-axis: numeric rank per status (stable module constants for hooks deps) */
+const STATUS_MAP = { Present: 3, Online: 2, Absent: 1 };
+const STATUS_LABELS = { 3: "Present", 2: "Online", 1: "Absent" };
+
 /** Parse "Sunday - d/m/y" → "Sunday d, Month yyyy" for the log table */
 function sundayToDisplayDate(dateStr) {
   if (!dateStr) return "";
@@ -111,18 +115,15 @@ export default function WorkerAttendanceHistory() {
   }, [records]);
 
   // Chart data: status per Sunday (Present=3, Online=2, Absent=1)
-  const STATUS_MAP = { Present: 3, Online: 2, Absent: 1 };
-  const STATUS_LABELS = { 3: "Present", 2: "Online", 1: "Absent" };
   const chartData = useMemo(
     () =>
       records.map((r) => ({
         date: sundayToShortLabel(r.date),
         Status: STATUS_MAP[r.status] ?? 1,
       })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [records]
   );
-// deploy again
+
   // Table: latest first + pagination
   const PAGE_SIZE = 10;
   const [currentPage, setCurrentPage] = useState(1);

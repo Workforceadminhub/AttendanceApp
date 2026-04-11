@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   // fetchAdminWorkers,
   fetchUnmarkedWorkers,
@@ -162,7 +162,7 @@ export default function UnmarkedAttendance() {
       });
   }, [data, attendance]);
 
-  const queryAdminWorkers = () => {
+  const loadUnmarkedWorkers = useCallback(() => {
     setIsLoading(true);
     fetchUnmarkedWorkers(activeGroup)
       .then((res) => {
@@ -172,23 +172,8 @@ export default function UnmarkedAttendance() {
       .catch((error) => {
         toast.error(`Error marking attendance: ${error.message}`);
         setIsLoading(false);
-        // Silent error handling
       });
-  };
-
-  const queryWorkers = () => {
-    setIsLoading(true);
-    fetchUnmarkedWorkers(activeGroup)
-      .then((res) => {
-        setData(res);
-        setIsLoading(false);
-      })
-      .catch((error) => {
-        toast.error(`Error marking attendance: ${error.message}`);
-        setIsLoading(false);
-        // Silent error handling
-      });
-  };
+  }, [activeGroup]);
 
   useEffect(() => {
     switchOffAttendance()
@@ -197,22 +182,12 @@ export default function UnmarkedAttendance() {
   }, []);
 
   useEffect(() => {
-    if (isAdminMember) {
-      queryAdminWorkers();
-    } else {
-      queryWorkers();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeGroup, isAdminMember, isChurchAdmin, team.team]);
+    loadUnmarkedWorkers();
+  }, [activeGroup, isAdminMember, isChurchAdmin, team.team, loadUnmarkedWorkers]);
 
   useEffect(() => {
-    if (isAdminMember) {
-      queryAdminWorkers();
-    } else {
-      queryWorkers();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refresh]);
+    loadUnmarkedWorkers();
+  }, [refresh, loadUnmarkedWorkers]);
 
   function updateOrAddWorker(array, newWorker) {
     // Find the index of an object with the same workerid

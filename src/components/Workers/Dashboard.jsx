@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import {
   calculateTotals,
   fetchAdminAttendance,
@@ -109,7 +109,7 @@ export default function Dashboard() {
     }));
   }, []);
 
-  const setUnmarkedFromAttendance = (filtered) => {
+  const setUnmarkedFromAttendance = useCallback((filtered) => {
     const dept = departmentInfo?.department;
     if (dept == null) {
       setUnmarkedCount(null);
@@ -120,9 +120,9 @@ export default function Dashboard() {
     );
     const n = deptItem?.unfilled;
     setUnmarkedCount(typeof n === "number" ? n : n != null && Array.isArray(n) ? n.length : 0);
-  };
+  }, [departmentInfo]);
 
-  const queryAdminAttendance = () => {
+  const queryAdminAttendance = useCallback(() => {
     setIsLoading(true);
     setUnmarkedLoading(true);
     const permissions = authUser?.permissions ?? [];
@@ -141,9 +141,16 @@ export default function Dashboard() {
         setUnmarkedCount(null);
         toast.error(`Error loading summary: ${error.message}`);
       });
-  };
+  }, [
+    activeGroup,
+    isChurchAdmin,
+    selectedDate,
+    authUser,
+    pathname,
+    setUnmarkedFromAttendance,
+  ]);
 
-  const queryAttendance = () => {
+  const queryAttendance = useCallback(() => {
     setIsLoading(true);
     setUnmarkedLoading(true);
     const permissions = authUser?.permissions ?? [];
@@ -161,7 +168,7 @@ export default function Dashboard() {
         setUnmarkedCount(null);
         toast.error(`Error loading summary: ${error.message}`);
       });
-  };
+  }, [selectedDate, authUser, pathname, setUnmarkedFromAttendance]);
 
   // Refetch when activeGroup, selectedDate, or admin status changes
   useEffect(() => {
@@ -170,8 +177,14 @@ export default function Dashboard() {
     } else {
       queryAttendance();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeGroup, isChurchAdmin, isAdminMember, selectedDate]);
+  }, [
+    activeGroup,
+    isChurchAdmin,
+    isAdminMember,
+    selectedDate,
+    queryAdminAttendance,
+    queryAttendance,
+  ]);
 
   const debouncedSetActiveGroup = debounce(
     (value) => setActiveGroup(value),

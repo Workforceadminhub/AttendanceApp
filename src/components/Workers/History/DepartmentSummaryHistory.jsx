@@ -1,6 +1,6 @@
 // import { useNavigate } from "react-router-dom";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { debounce } from "lodash";
@@ -41,7 +41,7 @@ export default function DepartmentSummaryHistory() {
   const [activeHistory, setActiveHistory] = useState(dateForAttendance);
   const [historyOptions, setHistoryOptions] = useState([]);
 
-  const queryAdminAttendance = () => {
+  const queryAdminAttendance = useCallback(() => {
     setIsLoading(true);
     const permissions = authUser?.permissions ?? [];
     fetchAdminAttendance(activeGroup, isChurchAdmin, activeHistory, permissions)
@@ -53,9 +53,9 @@ export default function DepartmentSummaryHistory() {
         setIsLoading(false);
         toast.error(`Error loading summary: ${error.message}`);
       });
-  };
+  }, [activeGroup, isChurchAdmin, activeHistory, authUser?.permissions]);
 
-  const queryAttendance = () => {
+  const queryAttendance = useCallback(() => {
     setIsLoading(true);
     const permissions = authUser?.permissions ?? [];
     fetchAttendance(activeHistory, permissions)
@@ -67,7 +67,7 @@ export default function DepartmentSummaryHistory() {
         setIsLoading(false);
         toast.error(`Error loading summary: ${error.message}`);
       });
-  };
+  }, [activeHistory, authUser?.permissions]);
 
   useEffect(() => {
     fetchHistoryOptions().then((res) =>
@@ -81,8 +81,14 @@ export default function DepartmentSummaryHistory() {
     } else {
       queryAttendance();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeGroup, isChurchAdmin, isAdminMember, activeHistory]);
+  }, [
+    activeGroup,
+    isChurchAdmin,
+    isAdminMember,
+    activeHistory,
+    queryAdminAttendance,
+    queryAttendance,
+  ]);
 
   const debouncedSetActiveGroup = debounce(
     (value) => setActiveGroup(value),

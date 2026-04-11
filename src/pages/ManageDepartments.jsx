@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
@@ -60,7 +60,7 @@ export default function ManageDepartments() {
   }, [navigate]);
 
   // Fetch departments
-  const loadDepartments = async () => {
+  const loadDepartments = useCallback(async () => {
     if (isLoading) return;
     setIsLoading(true);
     try {
@@ -71,14 +71,13 @@ export default function ManageDepartments() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isLoading]);
 
   useEffect(() => {
     if (hasFetched.current) return;
     hasFetched.current = true;
     loadDepartments();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadDepartments]);
 
   // Handle form input changes
   const handleInputChange = (e) => {

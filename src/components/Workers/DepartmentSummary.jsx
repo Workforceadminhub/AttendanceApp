@@ -53,7 +53,7 @@ export default function DepartmentSummary() {
     setDateRange({ startDate, endDate });
   }, []);
 
-  const queryAdminAttendance = () => {
+  const queryAdminAttendance = useCallback(() => {
     setIsLoading(true);
     const permissions = authUser?.permissions ?? [];
     fetchAdminAttendance(activeGroup, isChurchAdmin, null, startDateStr, endDateStr, permissions)
@@ -66,9 +66,9 @@ export default function DepartmentSummary() {
         setIsLoading(false);
         toast.error(`Error loading summary: ${error.message}`);
       });
-  };
+  }, [activeGroup, isChurchAdmin, startDateStr, endDateStr, authUser, pathname]);
 
-  const queryAttendance = () => {
+  const queryAttendance = useCallback(() => {
     setIsLoading(true);
     const permissions = authUser?.permissions ?? [];
     fetchAttendance(null, startDateStr, endDateStr, permissions)
@@ -81,7 +81,7 @@ export default function DepartmentSummary() {
         setIsLoading(false);
         toast.error(`Error loading summary: ${error.message}`);
       });
-  };
+  }, [startDateStr, endDateStr, authUser, pathname]);
 
   useEffect(() => {
     if (isAdminMember) {
@@ -89,8 +89,15 @@ export default function DepartmentSummary() {
     } else {
       queryAttendance();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeGroup, isChurchAdmin, isAdminMember, startDateStr, endDateStr]);
+  }, [
+    activeGroup,
+    isChurchAdmin,
+    isAdminMember,
+    startDateStr,
+    endDateStr,
+    queryAdminAttendance,
+    queryAttendance,
+  ]);
 
   const debouncedSetActiveGroup = debounce(
     (value) => setActiveGroup(value),

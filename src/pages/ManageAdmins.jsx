@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, Fragment } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import Select from "react-select";
 import Header from "../components/Header";
@@ -165,7 +165,7 @@ export default function ManageAdmins() {
   }, [navigate]);
 
   // Fetch admins and departments
-  const loadAdmins = async () => {
+  const loadAdmins = useCallback(async () => {
     if (isLoading) return;
     setIsLoading(true);
     try {
@@ -176,24 +176,23 @@ export default function ManageAdmins() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isLoading]);
 
-  const loadDepartments = async () => {
+  const loadDepartments = useCallback(async () => {
     try {
       const data = await fetchDepartments();
       setDepartments(Array.isArray(data) ? data : []);
     } catch (error) {
       // Silent fail - departments are for dropdown options
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (hasFetched.current) return;
     hasFetched.current = true;
     loadAdmins();
     loadDepartments();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadAdmins, loadDepartments]);
 
   // Form handlers
   const handleInputChange = (e) => {

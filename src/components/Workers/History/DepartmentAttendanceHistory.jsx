@@ -1,6 +1,6 @@
 // import { useNavigate } from "react-router-dom";
 import { useLocation } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import { getNextSunday } from "../../../utils/getDate";
 import { getDepartmentByUser } from "../../../utils/getDepartment";
@@ -133,16 +133,13 @@ export default function DepartmentAttendanceHistory() {
     );
   };
 
-  const queryAdminWorkers = () => {
+  const queryAdminWorkers = useCallback(() => {
     setIsLoading(true);
     const rawPermissions = authUser?.permissions ?? [];
-    // Base permissions: strip out the team name itself from permissions.
     const basePermissions = filterTeamFromPermissions(rawPermissions, authUser?.team);
 
     const isTeamFilter =
-      (isChurchAdmin || isSuperAdmin) &&
-      activeGroup &&
-      activeGroup !== "All";
+      (isChurchAdmin || isSuperAdmin) && activeGroup && activeGroup !== "All";
 
     let apiActiveGroup = activeGroup;
     let permissionsForApi = basePermissions;
@@ -163,11 +160,18 @@ export default function DepartmentAttendanceHistory() {
       .catch((error) => {
         toast.error(`Error marking attendance: ${error.message}`);
         setIsLoading(false);
-        // Silent error handling
       });
-  };
+  }, [
+    authUser?.permissions,
+    authUser?.team,
+    isChurchAdmin,
+    isSuperAdmin,
+    activeGroup,
+    team.team,
+    activeHistory,
+  ]);
 
-  const queryWorkers = () => {
+  const queryWorkers = useCallback(() => {
     setIsLoading(true);
     const permissions = authUser?.permissions ?? [];
     fetchWorkers(team.department, activeHistory, permissions, "")
@@ -177,10 +181,9 @@ export default function DepartmentAttendanceHistory() {
       .catch((error) => {
         toast.error(`Error marking attendance: ${error.message}`);
         setIsLoading(false);
-        // Silent error handling
       })
       .finally(() => setIsLoading(false));
-  };
+  }, [team.department, activeHistory, authUser?.permissions]);
 
   useEffect(() => {
     switchOffAttendance()
@@ -198,8 +201,15 @@ export default function DepartmentAttendanceHistory() {
     } else {
       queryWorkers();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeGroup, activeHistory, isAdminMember, isChurchAdmin, team.team]);
+  }, [
+    activeGroup,
+    activeHistory,
+    isAdminMember,
+    isChurchAdmin,
+    team.team,
+    queryAdminWorkers,
+    queryWorkers,
+  ]);
 
   useEffect(() => {
     if (isAdminMember) {
@@ -207,8 +217,7 @@ export default function DepartmentAttendanceHistory() {
     } else {
       queryWorkers();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refresh]);
+  }, [refresh, isAdminMember, queryAdminWorkers, queryWorkers]);
 
   function updateOrAddWorker(array, newWorker) {
     // Find the index of an object with the same workerid

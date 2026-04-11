@@ -1,7 +1,7 @@
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchAdminWorkers, fetchWorkers } from "../../services/workers";
 import { toast } from "react-toastify";
 import { getNextSunday } from "../../utils/getDate";
@@ -99,9 +99,9 @@ export default function Workers() {
     };
   };
 
-  const fallbackFilterOptions = generateFallbackFilterOptions();
+  const fallbackFilterOptions = useMemo(() => generateFallbackFilterOptions(), []);
 
-  const querySuperAdminWorkers = async (page = 1, limit = 50, search = "") => {
+  const querySuperAdminWorkers = useCallback(async (page = 1, limit = 50, search = "") => {
     setIsLoading(true);
     try {
       const params = { limit: 3478 };
@@ -177,9 +177,9 @@ export default function Workers() {
 
       setIsLoading(false);
     }
-  };
+  }, [filters, navigate]);
 
-  const queryAdminWorkers = (search = "") => {
+  const queryAdminWorkers = useCallback((search = "") => {
     setIsLoading(true);
     const rawPermissions = authUser?.permissions ?? [];
     // Filter out team name from permissions (team name shouldn't be in permissions array)
@@ -193,9 +193,9 @@ export default function Workers() {
         toast.error(`Error loading workers: ${error.message}`);
         setIsLoading(false);
       });
-  };
+  }, [authUser?.permissions, authUser?.team, dateForAttendance]);
 
-  const queryWorkers = (search = "") => {
+  const queryWorkers = useCallback((search = "") => {
     setIsLoading(true);
     const rawPermissions = authUser?.permissions ?? [];
     // Filter out team name from permissions (team name shouldn't be in permissions array)
@@ -209,112 +209,14 @@ export default function Workers() {
         toast.error(`Error loading workers: ${error.message}`);
         setIsLoading(false);
       });
-  };
+  }, [authUser?.permissions, authUser?.team, team.department, dateForAttendance]);
 
-  const clearSelection = () => {
+  const clearSelection = useCallback(() => {
     setSelectedWorkers(new Set());
     setIsSelectAll(false);
-  };
+  }, []);
 
-  useEffect(() => {
-    if (isSuperAdmin) {
-      querySuperAdminWorkers(1, 50);
-    } else if (isAdminMember) {
-      queryAdminWorkers();
-    } else {
-      queryWorkers();
-    }
-    // Clear selection when data changes
-    clearSelection();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, isAdminMember, isSuperAdmin, team.team]);
-
-  // Load filter options: API-led for super-admin, cache/fallback otherwise
-  useEffect(() => {
-    const loadFilterOptions = async () => {
-      if (isSuperAdmin) {
-        try {
-          const { teams, departments, departmentsByTeam } = await fetchTeamsAndDepartmentsForFilter();
-          setFilterOptions({ teams, departments });
-          setApiDepartmentsByTeam(departmentsByTeam || null);
-        } catch (_) {
-          setFilterOptions(fallbackFilterOptions);
-          setApiDepartmentsByTeam(null);
-        }
-        return;
-      }
-
-      const cachedFilterData = getCachedFilterData();
-      if (cachedFilterData) {
-        const options = getFilterOptions(cachedFilterData);
-        if (options) {
-          setFilterOptions(options);
-        }
-      } else {
-        const accessToken = sessionStorage.getItem("accessToken");
-        if (accessToken) {
-          initializeFilterData(accessToken)
-            .then((filterData) => {
-              if (filterData) {
-                const options = getFilterOptions(filterData);
-                if (options) {
-                  setFilterOptions(options);
-                }
-              } else {
-                setFilterOptions(fallbackFilterOptions);
-              }
-            })
-            .catch(() => {
-              setFilterOptions(fallbackFilterOptions);
-            });
-        } else {
-          setFilterOptions(fallbackFilterOptions);
-        }
-      }
-    };
-
-    loadFilterOptions();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSuperAdmin]);
-
-  // Initialize available departments when API data loads (super-admin)
-  useEffect(() => {
-    if (isSuperAdmin) {
-      updateDepartmentsForTeam(filters.team);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSuperAdmin, apiDepartmentsByTeam, filters.team]);
-
-  useEffect(() => {
-    if (isSuperAdmin) {
-      querySuperAdminWorkers(1, 50);
-    } else if (isAdminMember) {
-      queryAdminWorkers();
-    } else {
-      queryWorkers();
-    }
-    // Clear selection when data refreshes
-    clearSelection();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refresh]);
-  const handleFilterChange = (filterType, value) => {
-    setFilters((prev) => {
-      const newFilters = {
-        ...prev,
-        [filterType]: value,
-      };
-
-      // If team changes, update available departments for that team
-      if (filterType === "team") {
-        updateDepartmentsForTeam(value);
-        newFilters.department = "All"; // Reset department when team changes
-      }
-
-      return newFilters;
-    });
-  };
-
-  const updateDepartmentsForTeam = (selectedTeam) => {
+  const updateDepartmentsForTeam = useCallback((selectedTeam) => {
     if (apiDepartmentsByTeam && isSuperAdmin) {
       if (selectedTeam === "All") {
         const allDepts = new Set();
@@ -363,6 +265,115 @@ export default function Workers() {
         setAvailableDepartments([{ value: "All", label: "All Departments" }]);
       }
     }
+  }, [apiDepartmentsByTeam, isSuperAdmin]);
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      querySuperAdminWorkers(1, 50);
+    } else if (isAdminMember) {
+      queryAdminWorkers();
+    } else {
+      queryWorkers();
+    }
+    clearSelection();
+  }, [
+    filters,
+    isAdminMember,
+    isSuperAdmin,
+    team.team,
+    querySuperAdminWorkers,
+    queryAdminWorkers,
+    queryWorkers,
+    clearSelection,
+  ]);
+
+  // Load filter options: API-led for super-admin, cache/fallback otherwise
+  useEffect(() => {
+    const loadFilterOptions = async () => {
+      if (isSuperAdmin) {
+        try {
+          const { teams, departments, departmentsByTeam } = await fetchTeamsAndDepartmentsForFilter();
+          setFilterOptions({ teams, departments });
+          setApiDepartmentsByTeam(departmentsByTeam || null);
+        } catch (_) {
+          setFilterOptions(fallbackFilterOptions);
+          setApiDepartmentsByTeam(null);
+        }
+        return;
+      }
+
+      const cachedFilterData = getCachedFilterData();
+      if (cachedFilterData) {
+        const options = getFilterOptions(cachedFilterData);
+        if (options) {
+          setFilterOptions(options);
+        }
+      } else {
+        const accessToken = sessionStorage.getItem("accessToken");
+        if (accessToken) {
+          initializeFilterData(accessToken)
+            .then((filterData) => {
+              if (filterData) {
+                const options = getFilterOptions(filterData);
+                if (options) {
+                  setFilterOptions(options);
+                }
+              } else {
+                setFilterOptions(fallbackFilterOptions);
+              }
+            })
+            .catch(() => {
+              setFilterOptions(fallbackFilterOptions);
+            });
+        } else {
+          setFilterOptions(fallbackFilterOptions);
+        }
+      }
+    };
+
+    loadFilterOptions();
+  }, [isSuperAdmin, fallbackFilterOptions]);
+
+  // Initialize available departments when API data loads (super-admin)
+  useEffect(() => {
+    if (isSuperAdmin) {
+      updateDepartmentsForTeam(filters.team);
+    }
+  }, [isSuperAdmin, apiDepartmentsByTeam, filters.team, updateDepartmentsForTeam]);
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      querySuperAdminWorkers(1, 50);
+    } else if (isAdminMember) {
+      queryAdminWorkers();
+    } else {
+      queryWorkers();
+    }
+    clearSelection();
+  }, [
+    refresh,
+    isSuperAdmin,
+    isAdminMember,
+    querySuperAdminWorkers,
+    queryAdminWorkers,
+    queryWorkers,
+    clearSelection,
+  ]);
+  const handleFilterChange = (filterType, value) => {
+    setFilters((prev) => {
+      const newFilters = {
+        ...prev,
+        [filterType]: value,
+      };
+
+      // If team changes, update available departments for that team
+      if (filterType === "team") {
+        updateDepartmentsForTeam(value);
+        newFilters.department = "All"; // Reset department when team changes
+      }
+
+      return newFilters;
+    });
   };
 
   const clearAllFilters = () => {

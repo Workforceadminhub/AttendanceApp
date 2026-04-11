@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
@@ -112,7 +112,7 @@ export default function ChurchAdminWorkers() {
   }, []);
 
   // Query functions for Church Admin - uses same API as Super Admin but with Church Admin token
-  const queryChurchAdminWorkers = async (page = 1, limit = 20, search = "") => {
+  const queryChurchAdminWorkers = useCallback(async (page = 1, limit = 20, search = "") => {
     setIsLoading(true);
     try {
       const params = { page, limit, sortBy: "team" };
@@ -154,10 +154,10 @@ export default function ChurchAdminWorkers() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [filters]);
 
   // Query function for Super Admin (kept for compatibility)
-  const querySuperAdminWorkers = async (page = 1, limit = 20, search = "") => {
+  const querySuperAdminWorkers = useCallback(async (page = 1, limit = 20, search = "") => {
     setIsLoading(true);
     try {
       const params = { page, limit, sortBy: "team" };
@@ -179,9 +179,9 @@ export default function ChurchAdminWorkers() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [filters]);
 
-  const queryAdminWorkers = async (search = "") => {
+  const queryAdminWorkers = useCallback(async (search = "") => {
     setIsLoading(true);
     try {
       const user = getUser();
@@ -202,9 +202,9 @@ export default function ChurchAdminWorkers() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [filters, dateForAttendance]);
 
-  const queryWorkers = async (search = "") => {
+  const queryWorkers = useCallback(async (search = "") => {
     const user = getUser();
     const rawPermissions = user?.permissions ?? [];
     // Filter out team name from permissions (team name shouldn't be in permissions array)
@@ -225,7 +225,7 @@ export default function ChurchAdminWorkers() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [filters, dateForAttendance]);
 
   // Load data based on user type
   useEffect(() => {
@@ -238,8 +238,17 @@ export default function ChurchAdminWorkers() {
     } else {
       queryWorkers(debouncedSearchTerm);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, debouncedSearchTerm]);
+  }, [
+    filters,
+    debouncedSearchTerm,
+    isSuperAdmin,
+    isChurchAdmin,
+    isAdminMember,
+    querySuperAdminWorkers,
+    queryChurchAdminWorkers,
+    queryAdminWorkers,
+    queryWorkers,
+  ]);
 
   const handleSearch = (term) => {
     setSearchTerm(term);

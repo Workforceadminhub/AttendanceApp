@@ -106,40 +106,38 @@ export default function DepartmentSummaryHistory() {
     <div className="px-4 sm:px-6 lg:px-8 py-8">
       <Header />
       <Layout>
-        <div className="sm:flex sm:items-center">
-          <div className="sm:flex-auto">
-            <h1 className="text-base font-semibold leading-6 text-gray-900">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 sm:flex-auto">
+            <h1 className="text-base font-semibold leading-6 text-gray-900 break-words">
               {`${team.team} summary` || "Department summary"}
             </h1>
           </div>
           <ViewHistoryButton label="Back to Summary" link={-1} />
         </div>
-        <div className="mt-8">
-          {isAdminMember && (
-            <div className="mt-8 flex space-x-2">
-              <ReactSelectDropdown
-                title={isChurchAdmin ? "Select Team" : "Select Department"}
-                defaultValue={{ value: "All", label: "All teams/departments" }}
-                onChange={handleChange}
-                options={[
-                  { value: "All", label: "All teams/departments" },
-                  ...options,
-                ]}
-                className="w-[25%]"
-              />
-              <ReactSelectDropdown
-                title={"Select Sunday"}
-                defaultValue={{
-                  value: dateForAttendance,
-                  label: dateForAttendance,
-                }}
-                onChange={handleHistoryChange}
-                options={[...historyOptions]}
-                className="w-[25%]"
-              />
-            </div>
-          )}
-        </div>
+        {isAdminMember && (
+          <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-2">
+            <ReactSelectDropdown
+              title={isChurchAdmin ? "Select Team" : "Select Department"}
+              defaultValue={{ value: "All", label: "All teams/departments" }}
+              onChange={handleChange}
+              options={[
+                { value: "All", label: "All teams/departments" },
+                ...options,
+              ]}
+              className="w-full min-w-0 sm:flex-1 sm:min-w-[200px]"
+            />
+            <ReactSelectDropdown
+              title={"Select Sunday"}
+              defaultValue={{
+                value: dateForAttendance,
+                label: dateForAttendance,
+              }}
+              onChange={handleHistoryChange}
+              options={[...historyOptions]}
+              className="w-full min-w-0 sm:flex-1 sm:min-w-[200px]"
+            />
+          </div>
+        )}
         <div className="mt-8 flow-root">
           <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
             <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">

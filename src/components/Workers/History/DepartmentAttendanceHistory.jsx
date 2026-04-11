@@ -275,13 +275,13 @@ export default function DepartmentAttendanceHistory() {
       <Header />
       <Layout>
         <div>
-          <div className="sm:flex sm:items-center">
-            <div className="sm:flex-auto">
-              <h1 className="text-base font-semibold leading-6 text-gray-900">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0 sm:flex-auto">
+              <h1 className="text-base font-semibold leading-6 text-gray-900 break-words">
                 {team?.department} attendance
               </h1>
 
-              <p>
+              <p className="text-sm text-gray-600 break-words">
                 {dateForAttendance} -{" "}
                 {dateForAttendance?.includes("Sunday")
                   ? "Sunday service"
@@ -291,7 +291,7 @@ export default function DepartmentAttendanceHistory() {
             <ViewHistoryButton label="Back to Attendance" link={-1} />
           </div>
           {isAdminMember && (
-            <div className="mt-8 flex space-x-2">
+            <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-2">
               <ReactSelectDropdown
                 title={isChurchAdmin ? "Select Team" : "Select Department"}
                 defaultValue={{
@@ -303,7 +303,7 @@ export default function DepartmentAttendanceHistory() {
                   { value: "All", label: "All teams/departments" },
                   ...optionsAdmin,
                 ]}
-                className="w-[25%]"
+                className="w-full min-w-0 sm:flex-1 sm:min-w-[200px]"
               />
               <ReactSelectDropdown
                 title={"Select Sunday"}
@@ -313,7 +313,7 @@ export default function DepartmentAttendanceHistory() {
                 }}
                 onChange={handleHistoryChange}
                 options={[...historyOptions]}
-                className="w-[25%]"
+                className="w-full min-w-0 sm:flex-1 sm:min-w-[200px]"
               />
             </div>
           )}
@@ -325,7 +325,6 @@ export default function DepartmentAttendanceHistory() {
                     <tr>
                       <th
                         scope="col"
-                        t
                         className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0"
                       >
                         S/N

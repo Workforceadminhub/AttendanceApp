@@ -63,8 +63,8 @@ const Login = () => {
   };
 
   return (
-    <div className="bg-gray-50 min-h-screen flex items-center justify-center">
-      <div className="bg-white rounded-lg shadow-md p-8 w-[700px] h-[250px]">
+    <div className="bg-gray-50 min-h-screen flex items-center justify-center px-4 py-8">
+      <div className="bg-white rounded-lg shadow-md p-6 sm:p-8 w-full max-w-md min-h-0">
         <h1 className="text-2xl font-bold text-center mb-6">
           Login to Mark Attendance
         </h1>

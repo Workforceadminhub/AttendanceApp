@@ -36,6 +36,17 @@ const BAR_COLORS = {
   pending: "#eab308",
 };
 
+const DIRECTORATE_ROW_BACKGROUNDS = [
+  "bg-blue-50",
+  "bg-green-50",
+  "bg-yellow-50",
+  "bg-purple-50",
+  "bg-pink-50",
+  "bg-indigo-50",
+  "bg-orange-50",
+  "bg-teal-50",
+];
+
 export default function SuperAdminOverview() {
   const navigate = useNavigate();
   // Progressive loading: split into section-level loading states
@@ -150,17 +161,19 @@ export default function SuperAdminOverview() {
     return null;
   };
 
-  // Metric card component
+  // Metric card: flex reserves space for text (min-w-0) so icons never overlap values
   const MetricCard = ({ title, value, icon: Icon, color, subtext }) => (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-shadow">
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-gray-500">{title}</p>
-          <p className="mt-2 text-3xl font-bold text-gray-900">{value}</p>
-          {subtext && <p className="mt-1 text-sm text-gray-500">{subtext}</p>}
+          <p className="mt-2 break-words text-2xl font-bold tabular-nums text-gray-900 sm:text-3xl">
+            {value}
+          </p>
+          {subtext && <p className="mt-1 text-xs text-gray-500 sm:text-sm">{subtext}</p>}
         </div>
-        <div className={`p-3 rounded-full ${color}`}>
-          <Icon className="h-6 w-6 text-white" />
+        <div className={`shrink-0 rounded-full p-2.5 sm:p-3 ${color}`} aria-hidden>
+          <Icon className="h-5 w-5 text-white sm:h-6 sm:w-6" />
         </div>
       </div>
     </div>
@@ -256,6 +269,12 @@ export default function SuperAdminOverview() {
   // Destructure attendance data
   const { attendanceStats, directorateStats, grandTotals } = attendanceInfo || {};
 
+  const breakdownList =
+    getSortedData(activeTab === "team" ? teamStats : departmentStats) ?? [];
+  const hasNoBreakdownData =
+    (!teamStats || teamStats.length === 0) &&
+    (!departmentStats || departmentStats.length === 0);
+
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-8 bg-gray-50 min-h-screen">
       <Header />
@@ -319,16 +338,16 @@ export default function SuperAdminOverview() {
 
           {/* Metric Cards — show spinners per section until data loads */}
           {isWorkersLoading || isAttendanceLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-pulse">
+                <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 animate-pulse">
                   <div className="h-4 bg-gray-200 rounded w-2/3 mb-4"></div>
                   <div className="h-8 bg-gray-200 rounded w-1/2"></div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
               <MetricCard
                 title="Total Workforce"
                 value={overallStats?.totalWorkers || 0}
@@ -373,8 +392,8 @@ export default function SuperAdminOverview() {
 
           {/* Directorate Attendance Section */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900">
                 Attendance Report ({attendanceStats?.lastAttendanceDate || ""})
               </h3>
             </div>
@@ -382,129 +401,211 @@ export default function SuperAdminOverview() {
               <div className="flex items-center justify-center py-16">
                 <LoadingState />
               </div>
+            ) : !directorateStats || directorateStats.length === 0 ? (
+              <div className="text-center py-12 px-4 text-gray-500">
+                <UsersIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                <p className="text-lg font-medium">No attendance data available</p>
+                <p className="text-sm">Attendance data will appear here once loaded.</p>
+              </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Directorate
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Teams
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Team Strength
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Present
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        % of Present
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Absent
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {directorateStats?.map((directorate, dirIndex) => {
-                      const directorateColors = [
-                        "bg-blue-50",
-                        "bg-green-50",
-                        "bg-yellow-50",
-                        "bg-purple-50",
-                        "bg-pink-50",
-                        "bg-indigo-50",
-                        "bg-orange-50",
-                        "bg-teal-50",
-                      ];
-                      const bgColor = directorateColors[dirIndex % directorateColors.length];
+              <>
+                {/* Mobile: card list */}
+                <div className="sm:hidden p-4 space-y-3">
+                  {directorateStats.map((directorate, dirIndex) => {
+                    const bgColor =
+                      DIRECTORATE_ROW_BACKGROUNDS[dirIndex % DIRECTORATE_ROW_BACKGROUNDS.length];
+                    return directorate.teams.map((team) => (
+                      <div
+                        key={`${directorate.directorate}-${team.team}`}
+                        className={`rounded-xl border border-gray-200/90 p-4 ${bgColor}`}
+                      >
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          {directorate.directorate}
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-gray-900">{team.team}</p>
+                        <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <dt className="text-gray-500">Team strength</dt>
+                            <dd className="mt-0.5 font-medium text-gray-900">{team.total}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-gray-500">Present</dt>
+                            <dd className="mt-0.5">
+                              <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                                {team.present}
+                              </span>
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-gray-500">% Present</dt>
+                            <dd className="mt-0.5">
+                              <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
+                                {team.percentage}
+                              </span>
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-gray-500">Absent</dt>
+                            <dd className="mt-0.5">
+                              <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+                                {team.absent}
+                              </span>
+                            </dd>
+                          </div>
+                        </dl>
+                      </div>
+                    ));
+                  })}
+                  {grandTotals && (
+                    <div className="rounded-xl border-2 border-gray-300 bg-gray-100 p-4">
+                      <p className="text-sm font-bold text-gray-900">TOTAL</p>
+                      <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <dt className="text-gray-600">Team strength</dt>
+                          <dd className="mt-0.5 font-bold text-gray-900">{grandTotals.total}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-gray-600">Present</dt>
+                          <dd className="mt-0.5">
+                            <span className="inline-flex items-center rounded-full bg-green-200 px-2.5 py-0.5 text-xs font-bold text-green-900">
+                              {grandTotals.present}
+                            </span>
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-gray-600">% Present</dt>
+                          <dd className="mt-0.5">
+                            <span className="inline-flex items-center rounded-full bg-blue-200 px-2.5 py-0.5 text-xs font-bold text-blue-900">
+                              {grandTotals.percentage}
+                            </span>
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-gray-600">Absent</dt>
+                          <dd className="mt-0.5">
+                            <span className="inline-flex items-center rounded-full bg-red-200 px-2.5 py-0.5 text-xs font-bold text-red-900">
+                              {grandTotals.absent}
+                            </span>
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
+                  )}
+                </div>
 
-                      return directorate.teams.map((team, teamIndex) => (
-                        <tr key={`${directorate.directorate}-${team.team}`} className={`${bgColor} hover:opacity-80`}>
-                          <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
-                            {teamIndex === 0 ? directorate.directorate : ""}
+                {/* sm+: table */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Directorate
+                        </th>
+                        <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Teams
+                        </th>
+                        <th className="px-4 lg:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Team Strength
+                        </th>
+                        <th className="px-4 lg:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Present
+                        </th>
+                        <th className="px-4 lg:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          % of Present
+                        </th>
+                        <th className="px-4 lg:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Absent
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {directorateStats.map((directorate, dirIndex) => {
+                        const bgColor =
+                          DIRECTORATE_ROW_BACKGROUNDS[dirIndex % DIRECTORATE_ROW_BACKGROUNDS.length];
+                        return directorate.teams.map((team, teamIndex) => (
+                          <tr
+                            key={`${directorate.directorate}-${team.team}`}
+                            className={`${bgColor} hover:opacity-80`}
+                          >
+                            <td className="px-4 lg:px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
+                              {teamIndex === 0 ? directorate.directorate : ""}
+                            </td>
+                            <td className="px-4 lg:px-6 py-3 whitespace-nowrap text-sm text-gray-700">
+                              {team.team}
+                            </td>
+                            <td className="px-4 lg:px-6 py-3 whitespace-nowrap text-sm text-gray-900 text-center font-medium">
+                              {team.total}
+                            </td>
+                            <td className="px-4 lg:px-6 py-3 whitespace-nowrap text-center">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                {team.present}
+                              </span>
+                            </td>
+                            <td className="px-4 lg:px-6 py-3 whitespace-nowrap text-center">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {team.percentage}
+                              </span>
+                            </td>
+                            <td className="px-4 lg:px-6 py-3 whitespace-nowrap text-center">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                {team.absent}
+                              </span>
+                            </td>
+                          </tr>
+                        ));
+                      })}
+                      {grandTotals && (
+                        <tr className="bg-gray-100 font-bold">
+                          <td
+                            className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900"
+                            colSpan="2"
+                          >
+                            TOTAL
                           </td>
-                          <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
-                            {team.team}
+                          <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center font-bold">
+                            {grandTotals.total}
                           </td>
-                          <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-900 text-center font-medium">
-                            {team.total}
-                          </td>
-                          <td className="px-6 py-3 whitespace-nowrap text-center">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              {team.present}
+                          <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-center">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-200 text-green-900">
+                              {grandTotals.present}
                             </span>
                           </td>
-                          <td className="px-6 py-3 whitespace-nowrap text-center">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              {team.percentage}
+                          <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-center">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-200 text-blue-900">
+                              {grandTotals.percentage}
                             </span>
                           </td>
-                          <td className="px-6 py-3 whitespace-nowrap text-center">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                              {team.absent}
+                          <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-center">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-200 text-red-900">
+                              {grandTotals.absent}
                             </span>
                           </td>
                         </tr>
-                      ));
-                    })}
-                    {/* Grand Total Row */}
-                    {grandTotals && (
-                      <tr className="bg-gray-100 font-bold">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900" colSpan="2">
-                          TOTAL
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center font-bold">
-                          {grandTotals.total}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-200 text-green-900">
-                            {grandTotals.present}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-200 text-blue-900">
-                            {grandTotals.percentage}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-200 text-red-900">
-                            {grandTotals.absent}
-                          </span>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-                {(!directorateStats || directorateStats.length === 0) && (
-                  <div className="text-center py-12 text-gray-500">
-                    <UsersIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <p className="text-lg font-medium">No attendance data available</p>
-                    <p className="text-sm">Attendance data will appear here once loaded.</p>
-                  </div>
-                )}
-              </div>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
 
           {/* Charts Section */}
           <div className="grid grid-cols-1 gap-6">
             {/* Bar Chart - Workers by Team */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 min-w-0">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">
                 Workers by Team
               </h3>
               {isWorkersLoading ? (
-                <div className="h-80 flex items-center justify-center">
+                <div className="h-64 sm:h-80 flex items-center justify-center">
                   <LoadingState />
                 </div>
               ) : teamChartData && teamChartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={320} debounce={50}>
+                <div className="h-[280px] w-full min-w-0 sm:h-[320px]">
+                  <ResponsiveContainer width="100%" height="100%" debounce={50}>
                   <BarChart
                     data={teamChartData}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                    margin={{ top: 12, right: 8, left: 4, bottom: 56 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis
@@ -520,9 +621,10 @@ export default function SuperAdminOverview() {
                     <Bar dataKey="active" name="Active" fill={BAR_COLORS.active} stackId="a" />
                     <Bar dataKey="pending" name="Pending" fill={BAR_COLORS.pending} stackId="a" />
                   </BarChart>
-                </ResponsiveContainer>
+                  </ResponsiveContainer>
+                </div>
               ) : (
-                <div className="h-80 flex items-center justify-center text-gray-500">
+                <div className="h-64 sm:h-80 flex items-center justify-center text-gray-500">
                   <p>No chart data available</p>
                 </div>
               )}
@@ -531,130 +633,182 @@ export default function SuperAdminOverview() {
 
           {/* Breakdown Tables */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-            {/* Tab Navigation */}
             <div className="border-b border-gray-200">
-              <nav className="flex space-x-8 px-6" aria-label="Tabs">
+              <nav
+                className="flex flex-wrap gap-x-3 gap-y-1 px-4 sm:px-6"
+                aria-label="Tabs"
+              >
                 <button
+                  type="button"
                   onClick={() => setActiveTab("team")}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  className={`whitespace-nowrap py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm ${
                     activeTab === "team"
                       ? "border-blue-500 text-blue-600"
                       : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                   }`}
                 >
-                  Team Breakdown ({teamStats?.length || 0})
+                  Team ({teamStats?.length || 0})
                 </button>
                 <button
+                  type="button"
                   onClick={() => setActiveTab("department")}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  className={`whitespace-nowrap py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm ${
                     activeTab === "department"
                       ? "border-blue-500 text-blue-600"
                       : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                   }`}
                 >
-                  Department Breakdown ({departmentStats?.length || 0})
+                  Department ({departmentStats?.length || 0})
                 </button>
               </nav>
             </div>
 
-            {/* Table Content */}
             {isWorkersLoading ? (
               <div className="flex items-center justify-center py-16">
                 <LoadingState />
               </div>
+            ) : hasNoBreakdownData ? (
+              <div className="text-center py-12 px-4 text-gray-500">
+                <UsersIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                <p className="text-lg font-medium">No data available</p>
+                <p className="text-sm">Worker data will appear here once loaded.</p>
+              </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        #
-                      </th>
-                      <th
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
-                        onClick={() => handleSort(activeTab === "team" ? "team" : "department")}
-                      >
-                        {activeTab === "team" ? "Team" : "Department"}
-                        {getSortIcon(activeTab === "team" ? "team" : "department")}
-                      </th>
+              <>
+                <div className="sm:hidden space-y-3 p-4">
+                  {breakdownList.map((item, index) => (
+                    <div
+                      key={`${item.team || ""}-${item.department || ""}-${index}`}
+                      className="rounded-xl border border-gray-200 bg-gray-50/80 p-4"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-xs font-medium text-gray-400">#{index + 1}</span>
+                      </div>
+                      <p className="mt-1 text-sm font-semibold text-gray-900">
+                        {activeTab === "team" ? item.team : item.department}
+                      </p>
                       {activeTab === "department" && (
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Team
-                        </th>
+                        <p className="mt-0.5 text-xs text-gray-600">
+                          Team: <span className="font-medium">{item.team}</span>
+                        </p>
                       )}
-                      <th
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
-                        onClick={() => handleSort("total")}
-                      >
-                        Total {getSortIcon("total")}
-                      </th>
-                      <th
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
-                        onClick={() => handleSort("active")}
-                      >
-                        Active {getSortIcon("active")}
-                      </th>
-                      <th
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
-                        onClick={() => handleSort("pendingAdd")}
-                      >
-                        Pending Add {getSortIcon("pendingAdd")}
-                      </th>
-                      <th
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
-                        onClick={() => handleSort("pendingDelete")}
-                      >
-                        Pending Delete {getSortIcon("pendingDelete")}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {getSortedData(activeTab === "team" ? teamStats : departmentStats)?.map(
-                      (item, index) => (
+                      <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <dt className="text-gray-500">Total</dt>
+                          <dd className="mt-0.5 font-semibold text-gray-900">{item.total}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-gray-500">Active</dt>
+                          <dd className="mt-0.5">
+                            <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                              {item.active}
+                            </span>
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-gray-500">Pending add</dt>
+                          <dd className="mt-0.5">
+                            <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">
+                              {item.pendingAdd}
+                            </span>
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-gray-500">Pending delete</dt>
+                          <dd className="mt-0.5">
+                            <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+                              {item.pendingDelete}
+                            </span>
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          #
+                        </th>
+                        <th
+                          className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
+                          onClick={() => handleSort(activeTab === "team" ? "team" : "department")}
+                        >
+                          {activeTab === "team" ? "Team" : "Department"}
+                          {getSortIcon(activeTab === "team" ? "team" : "department")}
+                        </th>
+                        {activeTab === "department" && (
+                          <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Team
+                          </th>
+                        )}
+                        <th
+                          className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
+                          onClick={() => handleSort("total")}
+                        >
+                          Total {getSortIcon("total")}
+                        </th>
+                        <th
+                          className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
+                          onClick={() => handleSort("active")}
+                        >
+                          Active {getSortIcon("active")}
+                        </th>
+                        <th
+                          className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
+                          onClick={() => handleSort("pendingAdd")}
+                        >
+                          Pending Add {getSortIcon("pendingAdd")}
+                        </th>
+                        <th
+                          className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
+                          onClick={() => handleSort("pendingDelete")}
+                        >
+                          Pending Delete {getSortIcon("pendingDelete")}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 bg-white">
+                      {breakdownList.map((item, index) => (
                         <tr key={item.team || item.department} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {index + 1}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                             {activeTab === "team" ? item.team : item.department}
                           </td>
                           {activeTab === "department" && (
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               {item.team}
                             </td>
                           )}
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">
+                          <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
                             {item.total}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
+                            <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
                               {item.active}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                          <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
+                            <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">
                               {item.pendingAdd}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
+                            <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
                               {item.pendingDelete}
                             </span>
                           </td>
                         </tr>
-                      )
-                    )}
-                  </tbody>
-                </table>
-                {(!teamStats || teamStats.length === 0) &&
-                  (!departmentStats || departmentStats.length === 0) && (
-                    <div className="text-center py-12 text-gray-500">
-                      <UsersIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                      <p className="text-lg font-medium">No data available</p>
-                      <p className="text-sm">Worker data will appear here once loaded.</p>
-                    </div>
-                  )}
-              </div>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
         </div>

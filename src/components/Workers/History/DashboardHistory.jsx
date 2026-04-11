@@ -108,10 +108,10 @@ export default function DashboardHistory() {
       <Header />
       <Layout>
         {/* <h3 className="text-base font-semibold text-gray-900">Last 30 days</h3> */}
-        <div className="flex justify-between">
-          <div className="flex flex-col space-y-4 font-bold">
-            {/* <Select title="Select service" options={services} /> */}
-            {`${isAdminMember ? team?.team : team?.department} Dashboard`} - {getSundayDisplayDate()}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 font-bold text-gray-900 break-words">
+            {`${isAdminMember ? team?.team : team?.department} Dashboard`} —{" "}
+            {getSundayDisplayDate()}
           </div>
           <ViewHistoryButton
             label="Back to Dashboard"
@@ -119,7 +119,7 @@ export default function DashboardHistory() {
           />
         </div>
         {isAdminMember && (
-          <div className="mt-8 flex space-x-2">
+          <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-2">
             <ReactSelectDropdown
               title={isChurchAdmin ? "Select Team" : "Select Department"}
               defaultValue={{ value: "All", label: "All teams/departments" }}
@@ -128,7 +128,7 @@ export default function DashboardHistory() {
                 { value: "All", label: "All teams/departments" },
                 ...options,
               ]}
-              className="w-[25%]"
+              className="w-full min-w-0 sm:flex-1 sm:min-w-[200px]"
             />
             <ReactSelectDropdown
               title={"Select Sunday"}
@@ -138,13 +138,13 @@ export default function DashboardHistory() {
               }}
               onChange={handleHistoryChange}
               options={[...historyOptions]}
-              className="w-[25%]"
+              className="w-full min-w-0 sm:flex-1 sm:min-w-[200px]"
             />
           </div>
         )}
 
         {isLoading && (
-          <div className="ml-24 mt-24">
+          <div className="flex justify-center py-16">
             <LoadingState />
           </div>
         )}

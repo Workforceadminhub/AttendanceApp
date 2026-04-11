@@ -8,7 +8,7 @@ export default function ReactSelectDropdown({
   defaultValue,
   value,
   placeholder,
-  className = "sm:w-44 xs:w-40 md:w-52 lg:w-64 xl:w-64",
+  className = "w-full min-w-0 sm:w-44 md:w-52 lg:w-64 xl:w-64",
   disabled = false,
   isClearable = true,
 }) {

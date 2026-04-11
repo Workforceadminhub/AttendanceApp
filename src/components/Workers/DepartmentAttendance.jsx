@@ -625,7 +625,7 @@ export default function DepartmentAttendance() {
           </div>
 
           {/* Date Filter (Sundays only) */}
-          <div className="mt-4 flex items-center justify-end gap-2">
+          <div className="mt-4 flex flex-wrap items-center justify-start gap-2 sm:justify-end">
             {isHistoryMode && (
               <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
                 Viewing history
@@ -665,7 +665,7 @@ export default function DepartmentAttendance() {
                   { value: "All", label: "All teams/departments" },
                   ...optionsAdmin,
                 ]}
-                className="lg:w-[25%] md:w-[30%] xl:w-[25%] sm:w-[45%] xs:w-[50%]"
+                className="w-full min-w-0 sm:w-[45%] md:w-[30%] lg:w-[25%] xl:w-[25%]"
               />
             </div>
           )}
@@ -693,7 +693,7 @@ export default function DepartmentAttendance() {
                     label: dept,
                   })),
                 ]}
-                className="lg:w-[25%] md:w-[30%] xl:w-[25%] sm:w-[45%] xs:w-[50%]"
+                className="w-full min-w-0 sm:w-[45%] md:w-[30%] lg:w-[25%] xl:w-[25%]"
               />
             </div>
           )}

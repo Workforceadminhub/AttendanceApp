@@ -235,31 +235,34 @@ export default function Dashboard() {
     <div className="px-4 sm:px-6 lg:px-8 py-8">
       <Header />
       <Layout>
-        <div className="flex justify-between items-start">
-          <div className="flex flex-col space-y-4 font-bold">
-            {`${isAdminMember ? team?.team : team?.department} Dashboard`} - {getSundayDisplayDate(selectedDate)}
+        <div className="min-w-0">
+          <div className="flex flex-col gap-1 font-bold text-gray-900 break-words">
+            <span>
+              {`${isAdminMember ? team?.team : team?.department} Dashboard`} —{" "}
+              {getSundayDisplayDate(selectedDate)}
+            </span>
           </div>
         </div>
 
         {/* Attendance Window Status Banner */}
         <div
-          className={`mt-4 flex items-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium ${
+          className={`mt-4 flex flex-wrap items-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium ${
             attendanceStatus.isOpen
               ? "border-green-200 bg-green-50 text-green-800"
               : "border-gray-200 bg-gray-50 text-gray-600"
           }`}
         >
           <ClockIcon className={`h-5 w-5 flex-shrink-0 ${attendanceStatus.isOpen ? "text-green-600" : "text-gray-400"}`} />
-          <span>{attendanceStatus.message}</span>
+          <span className="min-w-0 flex-1 basis-[min(100%,16rem)]">{attendanceStatus.message}</span>
           {attendanceStatus.isOpen && (
-            <span className="ml-auto inline-flex h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="ml-auto inline-flex h-2 w-2 shrink-0 rounded-full bg-green-500 animate-pulse" />
           )}
         </div>
 
         {/* Filters row */}
-        <div className="mt-6 flex flex-wrap items-center gap-4">
+        <div className="mt-6 flex w-full min-w-0 flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
           {isAdminMember && (
-            <div className="shrink-0">
+            <div className="w-full min-w-0 sm:w-auto sm:max-w-[220px] sm:flex-1">
               <ReactSelectDropdown
                 title={isChurchAdmin ? "Select Team" : "Select Department"}
                 defaultValue={{ value: "All", label: "All teams/departments" }}
@@ -268,11 +271,11 @@ export default function Dashboard() {
                   { value: "All", label: "All teams/departments" },
                   ...options,
                 ]}
-                className="lg:w-[220px] md:w-[200px] sm:w-[180px] min-w-[180px]"
+                className="w-full min-w-0 sm:min-w-[180px] md:w-[200px] lg:w-[220px]"
               />
             </div>
           )}
-          <div className="shrink-0">
+          <div className="w-full min-w-0 sm:w-auto sm:max-w-[280px] sm:flex-1">
             <ReactSelectDropdown
               title="Select Sunday"
               defaultValue={{
@@ -281,13 +284,13 @@ export default function Dashboard() {
               }}
               onChange={handleDateChange}
               options={sundayOptions}
-              className="lg:w-[280px] md:w-[250px] sm:w-[220px] min-w-[220px]"
+              className="w-full min-w-0 sm:min-w-[220px] md:w-[250px] lg:w-[280px]"
             />
           </div>
         </div>
 
         {isLoading && (
-          <div className="ml-24 mt-24">
+          <div className="flex justify-center py-16">
             <LoadingState />
           </div>
         )}
@@ -343,20 +346,20 @@ export default function Dashboard() {
           <div className="mt-6">
             <Link
               to={`/attendance${departmentInfo.route}`}
-              className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-4 shadow-sm hover:bg-amber-100 transition-colors"
+              className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-4 shadow-sm transition-colors hover:bg-amber-100 sm:flex-row sm:items-center sm:gap-3"
             >
-              <div className="flex-shrink-0">
-                <ExclamationTriangleIcon className="h-6 w-6 text-amber-600" />
+              <div className="flex min-w-0 flex-1 items-start gap-3">
+                <ExclamationTriangleIcon className="h-6 w-6 shrink-0 text-amber-600" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-amber-800">
+                    {unmarkedCount} Unmarked Worker{unmarkedCount !== 1 ? "s" : ""}
+                  </p>
+                  <p className="text-xs text-amber-600">
+                    Workers without attendance for {getSundayDisplayDate(selectedDate)}
+                  </p>
+                </div>
               </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-amber-800">
-                  {unmarkedCount} Unmarked Worker{unmarkedCount !== 1 ? "s" : ""}
-                </p>
-                <p className="text-xs text-amber-600">
-                  Workers without attendance for {getSundayDisplayDate(selectedDate)}
-                </p>
-              </div>
-              <span className="text-sm font-medium text-amber-700 whitespace-nowrap">
+              <span className="shrink-0 text-sm font-medium text-amber-700 sm:whitespace-nowrap">
                 Mark Now &rarr;
               </span>
             </Link>

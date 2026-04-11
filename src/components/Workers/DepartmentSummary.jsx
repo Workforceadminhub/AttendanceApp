@@ -107,9 +107,9 @@ export default function DepartmentSummary() {
     <div className="px-4 sm:px-6 lg:px-8 py-8">
       <Header />
       <Layout>
-        <div className="sm:flex sm:items-center">
-          <div className="sm:flex-auto">
-            <h1 className="text-base font-semibold leading-6 text-gray-900">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 sm:flex-auto">
+            <h1 className="text-base font-semibold leading-6 text-gray-900 break-words">
               {`${team.team} summary` || "Department summary"}
             </h1>
           </div>
@@ -135,7 +135,7 @@ export default function DepartmentSummary() {
                 { value: "All", label: "All teams/departments" },
                 ...options,
               ]}
-              className="lg:w-[25%] md:w-[30%] xl:w-[25%] sm:w-[45%] xs:w-[50%]"
+              className="w-full min-w-0 sm:w-[45%] md:w-[30%] lg:w-[25%] xl:w-[25%]"
             />
           )}
         </div>

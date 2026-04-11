@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Prevent accidental horizontal page scroll; tables use their own overflow-x-auto */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply min-h-screen overflow-x-hidden;
+  }
+  #root {
+    @apply min-h-screen w-full min-w-0;
+  }
+}
+
 /* ── Sunday-only date picker ──────────────────────────────────── */
 .sunday-only-calendar .non-sunday-day {
   visibility: hidden !important;

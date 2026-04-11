@@ -454,7 +454,7 @@ export default function DepartmentWorkers() {
                 Workers ({workers.length})
               </h2>
             </div>
-            <span className="flex items-center gap-3">
+            <span className="flex flex-wrap items-center gap-2 sm:gap-3">
               {(isSubTeamAdmin || isTeamAdmin) && selectedDepartmentDetailUrl && (
                 <Link
                   to={selectedDepartmentDetailUrl}

@@ -198,10 +198,15 @@ export default function Header() {
         aria-label="Global"
         className="mx-auto flex max-w-7xl items-center justify-between p-6 lg:px-8"
       >
-        <a href={homePage} className="-m-1.5 p-1.5 flex">
+        <a
+          href={homePage}
+          className="-m-1.5 p-1.5 flex min-w-0 max-w-[calc(100%-3.5rem)] items-center gap-2 sm:max-w-none"
+        >
           <span className="sr-only">Dashboard</span>
-          <span>HICC - Gbagada</span>
-          <img alt="" src="/logo.jpg" className="h-8 w-auto" />
+          <span className="truncate text-sm font-medium text-gray-900 sm:text-base">
+            HICC - Gbagada
+          </span>
+          <img alt="" src="/logo.jpg" className="h-8 w-auto shrink-0" />
         </a>
         <div className="flex lg:hidden">
           <button
@@ -289,13 +294,16 @@ export default function Header() {
         onClose={setMobileMenuOpen}
         className="lg:hidden"
       >
-        <div className="fixed inset-0 z-10" />
-        <DialogPanel className="fixed inset-y-0 right-0 z-10 w-full overflow-y-auto bg-white px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-gray-900/10">
+        <div className="fixed inset-0 z-40 bg-black/20" />
+        <DialogPanel className="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-white px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-gray-900/10">
           <div className="flex items-center justify-between">
-            <a href={homePage} className="-m-1.5 p-1.5">
+            <a
+              href={homePage}
+              className="-m-1.5 p-1.5 flex min-w-0 items-center gap-2"
+            >
               <span className="sr-only">Dashboard</span>
-              <span>HICC - Gbagada</span>
-              <img alt="" src="/logo.jpg" className="h-8 w-auto" />
+              <span className="truncate text-sm font-medium">HICC - Gbagada</span>
+              <img alt="" src="/logo.jpg" className="h-8 w-auto shrink-0" />
             </a>
             <button
               type="button"

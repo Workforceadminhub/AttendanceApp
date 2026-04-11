@@ -352,7 +352,7 @@ export default function UnmarkedAttendance() {
                 { value: "All", label: "All teams/departments" },
                 ...optionsAdmin,
               ]}
-              className="lg:w-[25%] md:w-[30%] xl:w-[25%] sm:w-[45%] xs:w-[50%]"
+              className="w-full min-w-0 sm:w-[45%] md:w-[30%] lg:w-[25%] xl:w-[25%]"
             />
           </div>
 

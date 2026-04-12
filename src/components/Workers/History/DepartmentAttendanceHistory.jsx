@@ -35,7 +35,7 @@ export default function DepartmentAttendanceHistory() {
   const team = getDepartmentByUser(location.pathname);
   const { isChurchAdmin, isSuperAdmin } = getUserRole();
   const isAdminMember = checkAdminStatus(location.pathname);
-  const authUser = getUser();
+  const authUser = useMemo(() => getUser(), []);
   const optionsAdmin = getAdminSelectOptions(isChurchAdmin, team, authUser);
   const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
   const [historyOptions, setHistoryOptions] = useState([]);

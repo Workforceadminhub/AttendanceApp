@@ -109,7 +109,7 @@ export default function DepartmentAttendance() {
     (assignedDepartments ?? []).map((r) => String(r || "")).sort()
   );
   const isAdminMember = checkAdminStatus(location.pathname);
-  const authUser = getUser();
+  const authUser = useMemo(() => getUser(), []);
   const optionsAdmin = getAdminSelectOptions(isChurchAdmin, team, authUser);
   const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);

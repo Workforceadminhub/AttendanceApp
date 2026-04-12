@@ -1,6 +1,6 @@
 // import { useNavigate } from "react-router-dom";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { debounce } from "lodash";
@@ -36,7 +36,7 @@ export default function DepartmentSummaryHistory() {
   const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
   const { isAdmin } = getUserRole();
   const isAdminMember = isAdmin || checkAdminStatus(location.pathname);
-  const authUser = getUser();
+  const authUser = useMemo(() => getUser(), []);
   const options = getAdminSelectOptions(isChurchAdmin, team, authUser);
   const [activeHistory, setActiveHistory] = useState(dateForAttendance);
   const [historyOptions, setHistoryOptions] = useState([]);

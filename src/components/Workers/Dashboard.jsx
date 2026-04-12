@@ -78,7 +78,7 @@ export default function Dashboard() {
   const team = getDepartmentByUser(pathname);
   const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
   const isAdminMember = checkAdminStatus(pathname);
-  const authUser = getUser();
+  const authUser = useMemo(() => getUser(), []);
   const options = getAdminSelectOptions(isChurchAdmin, team, authUser);
 
   // Extract route suffix from pathname (e.g. "/dashboard/wadata" -> "/wadata")

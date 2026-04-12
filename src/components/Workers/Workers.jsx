@@ -31,7 +31,7 @@ import { saveAs } from "file-saver";
 export default function Workers() {
   const navigate = useNavigate();
   const location = useLocation();
-  const authUser = JSON.parse(sessionStorage.getItem("authUser"));
+  const authUser = useMemo(() => JSON.parse(sessionStorage.getItem("authUser")), []);
 
   // All hooks must be called before any conditional returns
   const [data, setData] = useState([]);

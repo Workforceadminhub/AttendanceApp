@@ -1,6 +1,6 @@
 // import { useNavigate } from "react-router-dom";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Header from "../Header";
 import {
   fetchAdminAttendance,
@@ -39,7 +39,7 @@ export default function DepartmentSummary() {
   const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
   const { isAdmin } = getUserRole();
   const isAdminMember = isAdmin || checkAdminStatus(pathname);
-  const authUser = getUser();
+  const authUser = useMemo(() => getUser(), []);
   const options = getAdminSelectOptions(isChurchAdmin, team, authUser);
 
   const startDateStr = dateRange.startDate

@@ -378,7 +378,11 @@ export default function UnmarkedAttendance() {
               </div>
             )}
             {isLoading ? (
-              <TableLoadingState length={5} />
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-300">
+                  <TableLoadingState length={5} />
+                </table>
+              </div>
             ) : (
               <div className="space-y-4">
                 {/* Desktop Table */}

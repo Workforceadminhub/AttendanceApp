@@ -46,19 +46,24 @@ import AdminDepartmentRedirect from "./pages/AdminDepartmentRedirect";
 import AdminWorkersRedirect from "./pages/AdminWorkersRedirect";
 import AdminSummaryDetail from "./pages/AdminSummaryDetail";
 
-const App = () => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        refetchOnWindowFocus: false,
-        refetchOnMount: false,
-        refetchOnReconnect: false,
-        staleTime: 5 * 60 * 1000, // 5 minutes
-        gcTime: 10 * 60 * 1000, // 10 minutes
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes
+      retry: (failureCount, error) => {
+        // Don't retry server errors (5xx) — they won't resolve by retrying
+        if (error?.message?.includes("server error")) return false;
+        return failureCount < 2;
       },
     },
-  });
+  },
+});
 
+const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>

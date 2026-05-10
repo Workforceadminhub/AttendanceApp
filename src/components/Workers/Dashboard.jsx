@@ -1,4 +1,5 @@
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   calculateTotals,
   fetchAdminAttendance,
@@ -14,8 +15,9 @@ import { toast } from "react-toastify";
 import { ADMIN_ENUMS } from "../../utils/enums";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
 import ReactSelectDropdown from "../ReactSelect";
-import { getAdminSelectOptions, routeObject } from "../../utils/routeObject";
+import { getAdminSelectOptions, getEffectiveRouteList } from "../../utils/routeObject";
 import { filterByUserPermissions } from "../../utils/filterByPermissions";
+import { expandPermissions } from "../../utils/expandPermissions";
 import { getUser } from "../../utils/getUser";
 import { getUserRole } from "../../utils/getUserRole";
 import { debounce } from "lodash";
@@ -23,25 +25,24 @@ import { DEBOUNCE_INTERVAL } from "../../utils/constants";
 import BirthdayWidget from "../BirthdayWidget";
 import AdminDepartmentSummaryTable from "./AdminDepartmentSummaryTable";
 import SundayWorkersAttendanceTable from "./SundayWorkersAttendanceTable";
+import Stat from "../ui/Stat";
+import Tag from "../ui/Tag";
 import {
   ClipboardDocumentCheckIcon,
   TableCellsIcon,
   UserGroupIcon,
   ExclamationTriangleIcon,
-  ClockIcon,
 } from "@heroicons/react/24/outline";
 
 /**
- * Checks if the attendance window is currently open.
- * Attendance opens at 12:00 AM Sunday and closes at 6:00 PM Sunday.
+ * Window status: open Sunday 00:00–18:00 local time.
  */
 function getAttendanceWindowStatus() {
   const now = new Date();
-  const day = now.getDay(); // 0 = Sunday
+  const day = now.getDay();
   const hour = now.getHours();
 
   if (day === 0 && hour < 18) {
-    // Sunday before 6pm — open
     const closesAt = new Date(now);
     closesAt.setHours(18, 0, 0, 0);
     const diffMs = closesAt - now;
@@ -49,30 +50,25 @@ function getAttendanceWindowStatus() {
     const minsLeft = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
     return {
       isOpen: true,
-      message: `Attendance is open — closes at 6:00 PM today (${hoursLeft}h ${minsLeft}m remaining)`,
+      message: `Open — closes 6:00 PM today`,
+      remaining: `${hoursLeft}h ${minsLeft}m`,
     };
   }
 
-  // Calculate next Sunday 12:00 AM
   const daysUntilSunday = day === 0 ? 7 : 7 - day;
   const nextSunday = new Date(now);
   nextSunday.setDate(now.getDate() + daysUntilSunday);
   nextSunday.setHours(0, 0, 0, 0);
-
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   return {
     isOpen: false,
-    message: `Attendance is closed — opens Sunday ${nextSunday.getDate()} ${months[nextSunday.getMonth()]} at 12:00 AM`,
+    message: `Closed — opens Sunday`,
+    remaining: `${nextSunday.getDate()} ${months[nextSunday.getMonth()]} · 00:00`,
   };
 }
 
 export default function Dashboard() {
-  const [attendanceSummary, setAttendanceSummary] = useState([]);
-  const [departmentSummaryRows, setDepartmentSummaryRows] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [activeGroup, setActiveGroup] = useState("All");
-  const [unmarkedCount, setUnmarkedCount] = useState(null);
-  const [unmarkedLoading, setUnmarkedLoading] = useState(false);
   const location = useLocation();
   const pathname = location.pathname;
   const team = getDepartmentByUser(pathname);
@@ -81,9 +77,8 @@ export default function Dashboard() {
   const authUser = useMemo(() => getUser(), []);
   const options = getAdminSelectOptions(isChurchAdmin, team, authUser);
 
-  // Extract route suffix from pathname (e.g. "/dashboard/wadata" -> "/wadata")
   const routeSuffix = pathname.replace(/^\/dashboard/, "") || "";
-  const departmentInfo = routeObject.find((r) => r.route === routeSuffix);
+  const departmentInfo = getEffectiveRouteList().find((r) => r.route === routeSuffix);
   const summaryHref = authUser?.route
     ? `/department/${authUser.route.replace(/^\//, "")}`
     : "/summary";
@@ -91,16 +86,14 @@ export default function Dashboard() {
   const defaultDate = getNextSunday();
   const [selectedDate, setSelectedDate] = useState(defaultDate);
 
-  // Attendance window status (updates every minute)
   const [attendanceStatus, setAttendanceStatus] = useState(getAttendanceWindowStatus);
   useEffect(() => {
     const interval = setInterval(() => {
       setAttendanceStatus(getAttendanceWindowStatus());
-    }, 60000); // update every minute
+    }, 60000);
     return () => clearInterval(interval);
   }, []);
 
-  // Generate Sunday options for the dropdown
   const sundayOptions = useMemo(() => {
     const sundays = getSundaysInYear();
     return sundays.map((s) => ({
@@ -109,97 +102,69 @@ export default function Dashboard() {
     }));
   }, []);
 
-  const setUnmarkedFromAttendance = useCallback((filtered) => {
+  const permissions = useMemo(() => expandPermissions(authUser), [authUser]);
+  const permissionsKey = useMemo(() => permissions.join(","), [permissions]);
+
+  const {
+    data: rawAttendance,
+    isLoading,
+    error: attendanceError,
+  } = useQuery({
+    queryKey: [
+      "dashboardAttendance",
+      isAdminMember ? "admin" : "user",
+      activeGroup,
+      isChurchAdmin,
+      selectedDate,
+      permissionsKey,
+    ],
+    queryFn: () => {
+      if (isAdminMember) {
+        return fetchAdminAttendance(activeGroup, isChurchAdmin, selectedDate, null, null, permissions);
+      }
+      return fetchAttendance(selectedDate, null, null, permissions);
+    },
+    placeholderData: (prev) => prev,
+  });
+
+  useEffect(() => {
+    if (attendanceError) toast.error(`Error loading summary: ${attendanceError.message}`);
+  }, [attendanceError]);
+
+  const filteredAttendance = useMemo(
+    () => filterByUserPermissions(rawAttendance ?? [], authUser, pathname),
+    [rawAttendance, authUser, pathname]
+  );
+  const attendanceSummary = useMemo(
+    () => calculateTotals(filteredAttendance),
+    [filteredAttendance]
+  );
+  const departmentSummaryRows = useMemo(
+    () => (Array.isArray(filteredAttendance) ? filteredAttendance : []),
+    [filteredAttendance]
+  );
+  const unmarkedCount = useMemo(() => {
     const dept = departmentInfo?.department;
-    if (dept == null) {
-      setUnmarkedCount(null);
-      return;
-    }
-    const deptItem = (filtered ?? []).find(
+    if (dept == null) return null;
+    const deptItem = (filteredAttendance ?? []).find(
       (item) => (item.department || item.department_name) === dept
     );
     const n = deptItem?.unfilled;
-    setUnmarkedCount(typeof n === "number" ? n : n != null && Array.isArray(n) ? n.length : 0);
-  }, [departmentInfo]);
-
-  const queryAdminAttendance = useCallback(() => {
-    setIsLoading(true);
-    setUnmarkedLoading(true);
-    const permissions = authUser?.permissions ?? [];
-    fetchAdminAttendance(activeGroup, isChurchAdmin, selectedDate, null, null, permissions)
-      .then((attendance) => {
-        const filtered = filterByUserPermissions(attendance ?? [], authUser, pathname);
-        setAttendanceSummary(calculateTotals(filtered));
-        setDepartmentSummaryRows(Array.isArray(filtered) ? filtered : []);
-        setUnmarkedFromAttendance(filtered);
-        setIsLoading(false);
-        setUnmarkedLoading(false);
-      })
-      .catch((error) => {
-        setIsLoading(false);
-        setUnmarkedLoading(false);
-        setUnmarkedCount(null);
-        toast.error(`Error loading summary: ${error.message}`);
-      });
-  }, [
-    activeGroup,
-    isChurchAdmin,
-    selectedDate,
-    authUser,
-    pathname,
-    setUnmarkedFromAttendance,
-  ]);
-
-  const queryAttendance = useCallback(() => {
-    setIsLoading(true);
-    setUnmarkedLoading(true);
-    const permissions = authUser?.permissions ?? [];
-    fetchAttendance(selectedDate, null, null, permissions)
-      .then((attendance) => {
-        const filtered = filterByUserPermissions(attendance ?? [], authUser, pathname);
-        setAttendanceSummary(calculateTotals(filtered));
-        setUnmarkedFromAttendance(filtered);
-        setIsLoading(false);
-        setUnmarkedLoading(false);
-      })
-      .catch((error) => {
-        setIsLoading(false);
-        setUnmarkedLoading(false);
-        setUnmarkedCount(null);
-        toast.error(`Error loading summary: ${error.message}`);
-      });
-  }, [selectedDate, authUser, pathname, setUnmarkedFromAttendance]);
-
-  // Refetch when activeGroup, selectedDate, or admin status changes
-  useEffect(() => {
-    if (isAdminMember) {
-      queryAdminAttendance();
-    } else {
-      queryAttendance();
-    }
-  }, [
-    activeGroup,
-    isChurchAdmin,
-    isAdminMember,
-    selectedDate,
-    queryAdminAttendance,
-    queryAttendance,
-  ]);
+    if (typeof n === "number") return n;
+    if (Array.isArray(n)) return n.length;
+    return 0;
+  }, [filteredAttendance, departmentInfo]);
 
   const debouncedSetActiveGroup = debounce(
     (value) => setActiveGroup(value),
     DEBOUNCE_INTERVAL
   );
-
-  const handleChange = (selected) => {
-    debouncedSetActiveGroup(selected?.value);
-  };
+  const handleChange = (selected) => debouncedSetActiveGroup(selected?.value);
 
   const debouncedSetSelectedDate = debounce(
     (value) => setSelectedDate(value),
     DEBOUNCE_INTERVAL
   );
-
   const handleDateChange = (selected) => {
     if (selected?.value) {
       debouncedSetSelectedDate(selected.value);
@@ -208,14 +173,12 @@ export default function Dashboard() {
     }
   };
 
-  // Determine department for widgets
   const widgetDepartment = isAdminMember
     ? activeGroup === "All"
       ? "All"
       : activeGroup
     : team?.department || "All";
 
-  // Quick links (hide Mark Attendance for sub team head)
   const { isSubTeamAdmin } = getUserRole();
   const quickLinks = useMemo(() => {
     const links = [];
@@ -225,72 +188,93 @@ export default function Dashboard() {
           label: "Mark Attendance",
           href: `/attendance${departmentInfo.route}`,
           icon: ClipboardDocumentCheckIcon,
-          color: "bg-green-50 text-green-700 hover:bg-green-100",
         });
       }
       links.push({
         label: "View Summary",
         href: summaryHref,
         icon: TableCellsIcon,
-        color: "bg-blue-50 text-blue-700 hover:bg-blue-100",
       });
       links.push({
         label: "View Workers",
         href: `/department/${departmentInfo.route.replace(/^\//, "")}/workers`,
         icon: UserGroupIcon,
-        color: "bg-purple-50 text-purple-700 hover:bg-purple-100",
       });
     }
     return links;
   }, [departmentInfo, isSubTeamAdmin, summaryHref]);
 
+  const scope = isAdminMember ? team?.team : team?.department;
+
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-cream">
       <Header />
       <Layout>
-        <div className="min-w-0">
-          <div className="flex flex-col gap-1 font-bold text-gray-900 break-words">
-            <span>
-              {`${isAdminMember ? team?.team : team?.department} Dashboard`} —{" "}
-              {getSundayDisplayDate(selectedDate)}
-            </span>
+        {/* Page heading */}
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
+          <div className="min-w-0">
+            <div className="qc-eyebrow">
+              {isAdminMember ? "Admin" : "Department"} dashboard
+            </div>
+            <h1 className="mt-1 text-2xl sm:text-3xl font-medium text-ink-900 tracking-tight truncate">
+              {scope}
+            </h1>
+            <p className="mt-1 text-sm text-ink-500">
+              For Sunday{" "}
+              <span className="qc-num text-ink-900">
+                {getSundayDisplayDate(selectedDate)}
+              </span>
+            </p>
           </div>
         </div>
 
-        {/* Attendance Window Status Banner */}
+        {/* Attendance window banner */}
         <div
-          className={`mt-4 flex flex-wrap items-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium ${
+          className={`qc-card mb-6 px-4 sm:px-5 py-3 flex flex-wrap items-center justify-between gap-3 ${
             attendanceStatus.isOpen
-              ? "border-green-200 bg-green-50 text-green-800"
-              : "border-gray-200 bg-gray-50 text-gray-600"
+              ? "border-sienna/40 bg-sienna/[0.03]"
+              : ""
           }`}
         >
-          <ClockIcon className={`h-5 w-5 flex-shrink-0 ${attendanceStatus.isOpen ? "text-green-600" : "text-gray-400"}`} />
-          <span className="min-w-0 flex-1 basis-[min(100%,16rem)]">{attendanceStatus.message}</span>
-          {attendanceStatus.isOpen && (
-            <span className="ml-auto inline-flex h-2 w-2 shrink-0 rounded-full bg-green-500 animate-pulse" />
-          )}
+          <div className="flex items-center gap-3 min-w-0">
+            <Tag
+              tone={attendanceStatus.isOpen ? "live" : "neutral"}
+              live={attendanceStatus.isOpen}
+            >
+              {attendanceStatus.isOpen ? "Live" : "Closed"}
+            </Tag>
+            <div className="text-sm text-ink-700 min-w-0 truncate">
+              {attendanceStatus.message}
+            </div>
+          </div>
+          <div className="qc-num text-2xs uppercase tracking-tag text-ink-500">
+            {attendanceStatus.remaining}
+          </div>
         </div>
 
         {/* Filters row */}
-        <div className="mt-6 flex w-full min-w-0 flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
+        <div className="mb-6 flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
           {isAdminMember && (
-            <div className="w-full min-w-0 sm:w-auto sm:max-w-[220px] sm:flex-1">
+            <div className="w-full min-w-0 sm:w-auto sm:max-w-[260px] sm:flex-1">
+              <div className="qc-label">
+                {isChurchAdmin ? "Team" : "Department"}
+              </div>
               <ReactSelectDropdown
-                title={isChurchAdmin ? "Select Team" : "Select Department"}
+                title=""
                 defaultValue={{ value: "All", label: "All teams/departments" }}
                 onChange={handleChange}
                 options={[
                   { value: "All", label: "All teams/departments" },
                   ...options,
                 ]}
-                className="w-full min-w-0 sm:min-w-[180px] md:w-[200px] lg:w-[220px]"
+                className="w-full min-w-0 sm:min-w-[200px] md:w-[220px] lg:w-[260px]"
               />
             </div>
           )}
           <div className="w-full min-w-0 sm:w-auto sm:max-w-[280px] sm:flex-1">
+            <div className="qc-label">Sunday</div>
             <ReactSelectDropdown
-              title="Select Sunday"
+              title=""
               defaultValue={{
                 value: defaultDate,
                 label: getSundayDisplayDate(defaultDate),
@@ -308,34 +292,27 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Summary + Birthdays row */}
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-          {/* Summary Cards (left) */}
-          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Summary stats + Birthdays */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {attendanceSummary.map((item) => (
-              <div
+              <Stat
                 key={item.name}
-                className="overflow-hidden rounded-lg border bg-white px-4 py-5 shadow sm:p-6"
-              >
-                <dt className="truncate text-sm font-medium text-gray-500">
-                  {item.name}
-                </dt>
-                <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
-                  {item.stat}
-                </dd>
-              </div>
+                eyebrow={item.name}
+                value={item.stat}
+                loading={isLoading && !attendanceSummary.length}
+              />
             ))}
-          </dl>
+          </div>
 
-          {/* Birthday Widget (right) */}
           <div className="w-full">
             <BirthdayWidget department={widgetDepartment} />
           </div>
         </div>
 
-        {/* Church Admin: Sunday Workers Attendance table (home) */}
+        {/* Church Admin tables */}
         {isAdminMember && isChurchAdmin && departmentSummaryRows.length > 0 && (
-          <div className="flow-root">
+          <div className="flow-root mb-8">
             <SundayWorkersAttendanceTable
               rows={departmentSummaryRows}
               selectedDate={selectedDate}
@@ -343,9 +320,8 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Church Admin: Per-department attendance summary table (unchanged) */}
         {isAdminMember && isChurchAdmin && departmentSummaryRows.length > 0 && (
-          <div className="mt-8 flow-root">
+          <div className="flow-root mb-8">
             <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
               <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
                 <AdminDepartmentSummaryTable rows={departmentSummaryRows} showLinks />
@@ -354,47 +330,51 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Unmarked Workers Alert */}
-        {!unmarkedLoading && unmarkedCount !== null && unmarkedCount > 0 && departmentInfo && (
-          <div className="mt-6">
-            <Link
-              to={`/attendance${departmentInfo.route}`}
-              className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-4 shadow-sm transition-colors hover:bg-amber-100 sm:flex-row sm:items-center sm:gap-3"
-            >
-              <div className="flex min-w-0 flex-1 items-start gap-3">
-                <ExclamationTriangleIcon className="h-6 w-6 shrink-0 text-amber-600" />
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-amber-800">
-                    {unmarkedCount} Unmarked Worker{unmarkedCount !== 1 ? "s" : ""}
-                  </p>
-                  <p className="text-xs text-amber-600">
-                    Workers without attendance for {getSundayDisplayDate(selectedDate)}
-                  </p>
-                </div>
+        {/* Unmarked alert — sienna because it's an active "act now" cue */}
+        {!isLoading && unmarkedCount !== null && unmarkedCount > 0 && departmentInfo && (
+          <Link
+            to={`/attendance${departmentInfo.route}`}
+            className="qc-card mb-6 border-sienna/40 bg-sienna/[0.04] hover:bg-sienna/[0.08] transition-colors flex items-center gap-3 px-4 sm:px-5 py-4"
+          >
+            <ExclamationTriangleIcon className="h-5 w-5 shrink-0 text-sienna" />
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium text-ink-900">
+                <span className="qc-num">{unmarkedCount}</span> unmarked
+                worker{unmarkedCount !== 1 ? "s" : ""}
               </div>
-              <span className="shrink-0 text-sm font-medium text-amber-700 sm:whitespace-nowrap">
-                Mark Now &rarr;
-              </span>
-            </Link>
-          </div>
+              <div className="qc-num text-2xs uppercase tracking-tag text-ink-500 mt-0.5">
+                {getSundayDisplayDate(selectedDate)}
+              </div>
+            </div>
+            <span className="shrink-0 text-sm font-medium text-sienna-dark whitespace-nowrap">
+              Mark now →
+            </span>
+          </Link>
         )}
 
-        {/* Quick Links */}
+        {/* Quick links — hairline tiles */}
         {quickLinks.length > 0 && (
-          <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {quickLinks.map((link) => (
               <Link
                 key={link.label}
                 to={link.href}
-                className={`flex items-center gap-3 rounded-lg border px-4 py-3 shadow-sm transition-colors ${link.color}`}
+                className="qc-card hover:bg-cream-200 transition-colors flex items-center gap-3 px-4 py-3.5 group"
               >
-                <link.icon className="h-5 w-5 flex-shrink-0" />
-                <span className="text-sm font-medium">{link.label}</span>
+                <link.icon className="h-5 w-5 shrink-0 text-ink-700 group-hover:text-ink-900" />
+                <span className="text-sm font-medium text-ink-900 flex-1">
+                  {link.label}
+                </span>
+                <span
+                  className="text-ink-400 group-hover:text-ink-700"
+                  aria-hidden="true"
+                >
+                  →
+                </span>
               </Link>
             ))}
           </div>
         )}
-
       </Layout>
     </div>
   );

@@ -5,7 +5,7 @@ import { useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { debounce } from "lodash";
 import getDefaultSummary from "../../../utils/getDefaultSummary";
-import { getAdminSelectOptions, routeObject } from "../../../utils/routeObject";
+import { getAdminSelectOptions, getEffectiveRouteList } from "../../../utils/routeObject";
 import { getNextSunday } from "../../../utils/getDate";
 import { getDepartmentByUser } from "../../../utils/getDepartment";
 import { ADMIN_ENUMS } from "../../../utils/enums";
@@ -28,7 +28,7 @@ export default function DepartmentSummaryHistory() {
   const [isLoading, setIsLoading] = useState(false);
   const [activeGroup, setActiveGroup] = useState("All");
   const [attendanceSummary, setAttendanceSummary] = useState(
-    getDefaultSummary(routeObject)
+    getDefaultSummary(getEffectiveRouteList())
   );
   const location = useLocation();
   const dateForAttendance = getNextSunday();
@@ -109,16 +109,20 @@ export default function DepartmentSummaryHistory() {
   };
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-cream">
       <Header />
       <Layout>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0 sm:flex-auto">
-            <h1 className="text-base font-semibold leading-6 text-gray-900 break-words">
-              {`${team.team} summary` || "Department summary"}
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
+          <div className="min-w-0">
+            <div className="qc-eyebrow">History · Summary</div>
+            <h1 className="mt-1 text-2xl sm:text-3xl font-medium text-ink-900 tracking-tight break-words">
+              {team.team || "Department"}
             </h1>
+            <p className="mt-1 text-sm text-ink-500">
+              Summary roll-up across past services.
+            </p>
           </div>
-          <ViewHistoryButton label="Back to Summary" link={-1} />
+          <ViewHistoryButton label="← Back to summary" link={-1} />
         </div>
         {isAdminMember && (
           <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-2">
@@ -147,42 +151,42 @@ export default function DepartmentSummaryHistory() {
         <div className="mt-8 flow-root">
           <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
             <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-              <table className="min-w-full divide-y divide-gray-300">
+              <table className="min-w-full divide-y divide-ink-300">
                 <thead>
                   <tr>
                     <th
                       scope="col"
-                      className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0"
+                      className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-ink-900 sm:pl-0"
                     >
                       S/N
                     </th>
                     <th
                       scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                      className="px-3 py-3.5 text-left text-sm font-semibold text-ink-900"
                     >
                       Department
                     </th>
                     <th
                       scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                      className="px-3 py-3.5 text-left text-sm font-semibold text-ink-900"
                     >
                       Strength
                     </th>
                     <th
                       scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                      className="px-3 py-3.5 text-left text-sm font-semibold text-ink-900"
                     >
                       Present
                     </th>
                     <th
                       scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                      className="px-3 py-3.5 text-left text-sm font-semibold text-ink-900"
                     >
                       Absent
                     </th>
                     <th
                       scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                      className="px-3 py-3.5 text-left text-sm font-semibold text-ink-900"
                     >
                       Percentage
                     </th>
@@ -191,25 +195,25 @@ export default function DepartmentSummaryHistory() {
                 {isLoading ? (
                   <TableLoadingState length={6} />
                 ) : (
-                  <tbody className="divide-y divide-gray-200">
+                  <tbody className="divide-y divide-ink-200">
                     {attendanceSummary?.map((item, index) => (
                       <tr key={item.id}>
-                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
+                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-ink-900 sm:pl-0">
                           {index + 1}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-ink-500">
                           {item.department}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-ink-500">
                           {item.total}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-ink-500">
                           {item.present}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-ink-500">
                           {item.absent}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-ink-500">
                           {item.percentage}
                         </td>
                       </tr>

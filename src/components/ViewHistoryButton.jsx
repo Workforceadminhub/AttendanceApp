@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
-function ViewHistoryButton({ link, label, color = "bg-blue-500 hover:bg-blue-300" }) {
+function ViewHistoryButton({ link, label, color = "bg-ink-900 hover:bg-blue-300" }) {
   const navigate = useNavigate();
   return (
     <button

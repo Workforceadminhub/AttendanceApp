@@ -2,41 +2,204 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Prevent accidental horizontal page scroll; tables use their own overflow-x-auto */
+/* ============================================================
+   Quiet Cockpit — base layer
+   Cream surface, hairline borders, mono numerals where it counts.
+   ============================================================ */
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
   }
+
   body {
-    @apply min-h-screen overflow-x-hidden;
+    @apply min-h-screen overflow-x-hidden bg-cream text-ink-900 font-sans antialiased;
+    font-feature-settings: "ss01", "cv11";
+    text-rendering: optimizeLegibility;
   }
+
   #root {
     @apply min-h-screen w-full min-w-0;
   }
+
+  /* Mono numerals: tabular and consistent */
+  code,
+  kbd,
+  samp,
+  pre,
+  .font-mono {
+    font-feature-settings: "tnum", "zero", "ss01";
+    font-variant-numeric: tabular-nums slashed-zero;
+  }
+
+  /* Inputs: 16px floor on mobile to prevent iOS focus-zoom */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+  @media (min-width: 768px) {
+    input,
+    select,
+    textarea {
+      font-size: 0.9375rem;
+    }
+  }
+
+  /* Focus: visible, ink-colored ring on a hairline */
+  :focus-visible {
+    outline: 2px solid theme("colors.ink.900");
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+  /* Don't outline the body shell */
+  body:focus-visible,
+  #root:focus-visible {
+    outline: none;
+  }
+
+  /* Disciplined scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: theme("colors.ink.300") transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: theme("colors.ink.300");
+    border-radius: 999px;
+    border: 2px solid theme("colors.cream.DEFAULT");
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: theme("colors.ink.400");
+  }
+
+  /* Selection: ink, not blue */
+  ::selection {
+    background: theme("colors.ink.900");
+    color: theme("colors.cream.DEFAULT");
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
 
-/* ── Sunday-only date picker ──────────────────────────────────── */
+/* ============================================================
+   Component-level utilities
+   ============================================================ */
+@layer components {
+  /* Hairline card. Replaces shadow-md / rounded-lg defaults across the app. */
+  .qc-card {
+    @apply bg-white border border-ink-200 rounded-md;
+  }
+  .qc-card-flush {
+    @apply bg-white border-y border-ink-200;
+  }
+
+  /* Surface / panel without border (used inside other cards) */
+  .qc-surface {
+    @apply bg-white;
+  }
+
+  /* Hairline divider */
+  .qc-hairline {
+    @apply border-ink-200;
+  }
+
+  /* Numeric: tabular mono, consistent rhythm. Apply to any number in the UI. */
+  .qc-num {
+    @apply font-mono tabular-nums;
+    font-feature-settings: "tnum", "zero";
+  }
+
+  /* Buttons — operational, hairline, no decorative shadows */
+  .qc-btn {
+    @apply inline-flex items-center justify-center gap-2 min-h-touch px-4 py-2 rounded-md text-sm font-medium transition-colors;
+    @apply disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .qc-btn-primary {
+    @apply qc-btn bg-ink-900 text-cream hover:bg-ink-800 active:bg-ink-700;
+  }
+  .qc-btn-secondary {
+    @apply qc-btn bg-white text-ink-900 border border-ink-200 hover:border-ink-400 hover:bg-cream-200;
+  }
+  .qc-btn-ghost {
+    @apply qc-btn text-ink-700 hover:bg-cream-200 hover:text-ink-900;
+  }
+  .qc-btn-danger {
+    @apply qc-btn bg-brick text-white hover:bg-brick/90;
+  }
+  /* Sienna is reserved for "live/now" — only one button variant uses it */
+  .qc-btn-live {
+    @apply qc-btn bg-sienna text-white hover:bg-sienna-dark;
+  }
+
+  /* Inputs */
+  .qc-input {
+    @apply block w-full min-h-touch bg-white border border-ink-200 rounded-md px-3 py-2 text-base;
+    @apply placeholder:text-ink-400 text-ink-900;
+    @apply focus:outline-none focus:border-ink-900 focus:ring-2 focus:ring-ink-900/10;
+    @apply disabled:bg-cream-200 disabled:text-ink-500 disabled:cursor-not-allowed;
+  }
+  .qc-label {
+    @apply block text-2xs uppercase tracking-tag text-ink-500 font-medium mb-1.5;
+  }
+
+  /* Section heads — used on dashboards and panels */
+  .qc-section-title {
+    @apply text-2xs uppercase tracking-tag text-ink-500 font-semibold;
+  }
+
+  /* Eyebrow — small label above big numerals */
+  .qc-eyebrow {
+    @apply text-2xs uppercase tracking-tag text-ink-500;
+  }
+
+  /* Sticky bottom action bar (mobile primary action pattern) */
+  .qc-bottom-bar {
+    @apply fixed bottom-0 inset-x-0 z-30 bg-white border-t border-ink-200 px-4 pt-3;
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  }
+
+  /* Live indicator — sienna pulse used to mean "happening now" */
+  .qc-live-dot {
+    @apply inline-block w-2 h-2 rounded-full bg-sienna animate-live-pulse;
+  }
+}
+
+/* ============================================================
+   Sunday-only date picker (preserved + retoned to Quiet Cockpit)
+   ============================================================ */
 .sunday-only-calendar .non-sunday-day {
   visibility: hidden !important;
   pointer-events: none !important;
 }
 .sunday-only-calendar .sunday-day {
   font-weight: 600;
-  color: #1f2937;
+  color: #0a0e1a;
 }
 .sunday-only-calendar .react-datepicker__day--selected.sunday-day {
-  background-color: #2563eb !important;
-  color: #fff !important;
-  border-radius: 0.375rem;
+  background-color: #0a0e1a !important;
+  color: #fafaf7 !important;
+  border-radius: 4px;
 }
 .sunday-only-calendar .react-datepicker__day--selected.sunday-day:hover {
-  background-color: #1d4ed8 !important;
+  background-color: #1a1f2e !important;
 }
 .sunday-only-calendar .sunday-day:hover {
-  background-color: #dbeafe;
-  border-radius: 0.375rem;
+  background-color: #f0f0eb;
+  border-radius: 4px;
 }
 .sunday-only-calendar .react-datepicker__day--disabled.sunday-day {
-  color: #d1d5db !important;
+  color: #c7c7c2 !important;
   font-weight: 400;
 }

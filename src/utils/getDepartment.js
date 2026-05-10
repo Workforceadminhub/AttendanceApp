@@ -1,7 +1,9 @@
-import { routeObject } from "./routeObject";
+import { getEffectiveRouteList } from "./routeObject";
 
 export const getDepartment = (path) => {
-  return routeObject.find((item) => item.route === `/${path.split("/").pop()}`);
+  return getEffectiveRouteList().find(
+    (item) => item.route === `/${path.split("/").pop()}`
+  );
 };
 
 export const getDepartmentByUser = (path) => {

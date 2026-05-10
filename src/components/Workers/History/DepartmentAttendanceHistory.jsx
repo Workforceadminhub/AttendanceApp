@@ -280,24 +280,25 @@ export default function DepartmentAttendanceHistory() {
   }
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-cream">
       <Header />
       <Layout>
         <div>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0 sm:flex-auto">
-              <h1 className="text-base font-semibold leading-6 text-gray-900 break-words">
-                {team?.department} attendance
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
+            <div className="min-w-0">
+              <div className="qc-eyebrow">History · Attendance</div>
+              <h1 className="mt-1 text-2xl sm:text-3xl font-medium text-ink-900 tracking-tight break-words">
+                {team?.department || "Department"}
               </h1>
-
-              <p className="text-sm text-gray-600 break-words">
-                {dateForAttendance} -{" "}
+              <p className="mt-1 text-sm text-ink-500 break-words">
+                <span className="qc-num text-ink-700">{dateForAttendance}</span>{" "}
+                ·{" "}
                 {dateForAttendance?.includes("Sunday")
                   ? "Sunday service"
                   : "Midweek service"}
               </p>
             </div>
-            <ViewHistoryButton label="Back to Attendance" link={-1} />
+            <ViewHistoryButton label="← Back to attendance" link={-1} />
           </div>
           {isAdminMember && (
             <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-2">
@@ -329,23 +330,23 @@ export default function DepartmentAttendanceHistory() {
           <div className="mt-8 flow-root">
             <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
               <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-                <table className="min-w-full divide-y divide-gray-300">
+                <table className="min-w-full divide-y divide-ink-300">
                   <thead>
                     <tr>
                       <th
                         scope="col"
-                        className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0"
+                        className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-ink-900 sm:pl-0"
                       >
                         S/N
                       </th>
                       <th
                         scope="col"
-                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                        className="px-3 py-3.5 text-left text-sm font-semibold text-ink-900"
                       >
                         <button
                           type="button"
                           onClick={() => handleSort("name")}
-                          className="flex items-center hover:text-gray-700"
+                          className="flex items-center hover:text-ink-700"
                         >
                           <span>Name</span>
                           {getSortIcon("name")}
@@ -353,12 +354,12 @@ export default function DepartmentAttendanceHistory() {
                       </th>
                       <th
                         scope="col"
-                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                        className="px-3 py-3.5 text-left text-sm font-semibold text-ink-900"
                       >
                         <button
                           type="button"
                           onClick={() => handleSort("phonenumber")}
-                          className="flex items-center hover:text-gray-700"
+                          className="flex items-center hover:text-ink-700"
                         >
                           <span>Phone number</span>
                           {getSortIcon("phonenumber")}
@@ -366,12 +367,12 @@ export default function DepartmentAttendanceHistory() {
                       </th>
                       <th
                         scope="col"
-                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                        className="px-3 py-3.5 text-left text-sm font-semibold text-ink-900"
                       >
                         <button
                           type="button"
                           onClick={() => handleSort("birthdate")}
-                          className="flex items-center hover:text-gray-700"
+                          className="flex items-center hover:text-ink-700"
                         >
                           <span>Birthday</span>
                           {getSortIcon("birthdate")}
@@ -380,7 +381,7 @@ export default function DepartmentAttendanceHistory() {
 
                       <th
                         scope="col"
-                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                        className="px-3 py-3.5 text-left text-sm font-semibold text-ink-900"
                       >
                         Status
                       </th>
@@ -389,27 +390,27 @@ export default function DepartmentAttendanceHistory() {
                   {isLoading ? (
                     <TableLoadingState length={5} />
                   ) : (
-                    <tbody className="divide-y divide-gray-200 h-full">
+                    <tbody className="divide-y divide-ink-200 h-full">
                       {sortedData?.map((person, idx) => (
                         <tr key={person.id}>
-                          <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
+                          <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-ink-900 sm:pl-0">
                             {idx + 1}
                           </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-ink-500">
                             {person.fullname}
                           </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-ink-500">
                             {person.phonenumber
                               ? person.phonenumber.startsWith("0")
                                 ? person.phonenumber
                                 : `0${person.phonenumber}`
                               : ""}
                           </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-ink-500">
                             {person.birthdate}
                           </td>
 
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-ink-500">
                             <div className="w-48 z-1000 pr-4">
                               <ReactSelectDropdown
                                 title="Mark attendance"
@@ -435,7 +436,7 @@ export default function DepartmentAttendanceHistory() {
                   )}
                 </table>
                 <button
-                  className={`bg-blue-500 text-white p-1.5 ml-[85%] rounded-lg ${
+                  className={`bg-ink-900 text-white p-1.5 ml-[85%] rounded-lg ${
                     attendanceLoading && "cursor-not-allowed"
                   }`}
                   onClick={saveAttendance}

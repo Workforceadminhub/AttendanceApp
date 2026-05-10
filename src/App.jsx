@@ -3,48 +3,46 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { SkeletonTheme } from "react-loading-skeleton";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import React, { Suspense, lazy } from "react";
 import NotFound from "./components/NotFound";
 import Login from "./components/Login";
-import Dashboard from "./components/Workers/Dashboard";
-import DepartmentSummary from "./components/Workers/DepartmentSummary";
 import Home from "./components/Home";
-import DepartmentAttendance from "./components/Workers/DepartmentAttendance";
 import PrivateRoute from "./components/PrivateRoute";
-import React from "react";
-import {
-  adminRoutes,
-  attendanceRoutes,
-  dashboardRoutes,
-  historyRoutes,
-  summaryRoutes,
-} from "./utils/routeObject";
-import DepartmentAttendanceHistory from "./components/Workers/History/DepartmentAttendanceHistory";
-import DepartmentSummaryHistory from "./components/Workers/History/DepartmentSummaryHistory";
-import DashboardHistory from "./components/Workers/History/DashboardHistory";
-import NewWorker from "./components/Workers/NewWorker";
-import UnmarkedAttendance from "./components/Workers/Unmarked";
-import Workers from "./components/Workers/Workers";
-import ChurchAdminWorkers from "./components/Workers/ChurchAdminWorkers";
-import AddWorker from "./pages/AddWorker";
-import ChurchAdminAddWorker from "./pages/ChurchAdminAddWorker";
-import ViewWorker from "./pages/ViewWorker";
-import PendingWorkers from "./pages/PendingWorkers";
-import AllWorkers from "./pages/AllWorkers";
-import TeamMismatch from "./pages/TeamMismatch";
-import PastoralFix from "./pages/PastoralFix";
-import Report from "./components/Report";
-import SuperAdminOverview from "./pages/SuperAdminOverview";
-import ManageDepartments from "./pages/ManageDepartments";
-import ManageAdmins from "./pages/ManageAdmins";
-import DepartmentDetail from "./pages/DepartmentDetail";
-import DepartmentWorkers from "./pages/DepartmentWorkers";
-import HODBulkAddWorker from "./pages/HODBulkAddWorker";
-import HODAddWorker from "./pages/HODAddWorker";
-import WorkerAttendanceHistory from "./pages/WorkerAttendanceHistory";
-import AuditLog from "./pages/AuditLog";
-import AdminDepartmentRedirect from "./pages/AdminDepartmentRedirect";
-import AdminWorkersRedirect from "./pages/AdminWorkersRedirect";
-import AdminSummaryDetail from "./pages/AdminSummaryDetail";
+import RouteErrorBoundary from "./components/RouteErrorBoundary";
+import LoadingState from "./components/LoadingState";
+import { DepartmentsProvider, useDepartmentRoutes } from "./contexts/DepartmentsContext";
+
+// Code-split heavy pages — keeps initial bundle small
+const Dashboard = lazy(() => import("./components/Workers/Dashboard"));
+const DepartmentSummary = lazy(() => import("./components/Workers/DepartmentSummary"));
+const DepartmentAttendance = lazy(() => import("./components/Workers/DepartmentAttendance"));
+const DepartmentAttendanceHistory = lazy(() => import("./components/Workers/History/DepartmentAttendanceHistory"));
+const DepartmentSummaryHistory = lazy(() => import("./components/Workers/History/DepartmentSummaryHistory"));
+const DashboardHistory = lazy(() => import("./components/Workers/History/DashboardHistory"));
+const NewWorker = lazy(() => import("./components/Workers/NewWorker"));
+const UnmarkedAttendance = lazy(() => import("./components/Workers/Unmarked"));
+const Workers = lazy(() => import("./components/Workers/Workers"));
+const ChurchAdminWorkers = lazy(() => import("./components/Workers/ChurchAdminWorkers"));
+const AddWorker = lazy(() => import("./pages/AddWorker"));
+const ChurchAdminAddWorker = lazy(() => import("./pages/ChurchAdminAddWorker"));
+const ViewWorker = lazy(() => import("./pages/ViewWorker"));
+const PendingWorkers = lazy(() => import("./pages/PendingWorkers"));
+const AllWorkers = lazy(() => import("./pages/AllWorkers"));
+const TeamMismatch = lazy(() => import("./pages/TeamMismatch"));
+const PastoralFix = lazy(() => import("./pages/PastoralFix"));
+const Report = lazy(() => import("./components/Report"));
+const SuperAdminOverview = lazy(() => import("./pages/SuperAdminOverview"));
+const ManageDepartments = lazy(() => import("./pages/ManageDepartments"));
+const ManageAdmins = lazy(() => import("./pages/ManageAdmins"));
+const DepartmentDetail = lazy(() => import("./pages/DepartmentDetail"));
+const DepartmentWorkers = lazy(() => import("./pages/DepartmentWorkers"));
+const HODBulkAddWorker = lazy(() => import("./pages/HODBulkAddWorker"));
+const HODAddWorker = lazy(() => import("./pages/HODAddWorker"));
+const WorkerAttendanceHistory = lazy(() => import("./pages/WorkerAttendanceHistory"));
+const AuditLog = lazy(() => import("./pages/AuditLog"));
+const AdminDepartmentRedirect = lazy(() => import("./pages/AdminDepartmentRedirect"));
+const AdminWorkersRedirect = lazy(() => import("./pages/AdminWorkersRedirect"));
+const AdminSummaryDetail = lazy(() => import("./pages/AdminSummaryDetail"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -55,20 +53,25 @@ const queryClient = new QueryClient({
       staleTime: 5 * 60 * 1000, // 5 minutes
       gcTime: 10 * 60 * 1000, // 10 minutes
       retry: (failureCount, error) => {
-        // Don't retry server errors (5xx) — they won't resolve by retrying
-        if (error?.message?.includes("server error")) return false;
-        return failureCount < 2;
+        // Don't retry auth/permission errors (deterministic — won't change on retry)
+        const msg = error?.message || "";
+        if (msg.includes("Invalid credentials") || msg.includes("permission")) return false;
+        // Server errors (5xx) ARE often transient (Lambda cold starts, API
+        // Gateway throttling). Retry up to 3 times with exponential backoff.
+        return failureCount < 3;
       },
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
     },
   },
 });
 
-const App = () => {
+const AppRoutes = () => {
+  const { attendanceRoutes, dashboardRoutes, summaryRoutes, adminRoutes, historyRoutes } =
+    useDepartmentRoutes();
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <SkeletonTheme baseColor="#e5e5e5" highlightColor="#d6d4d4">
-          <Routes>
+    <RouteErrorBoundary>
+      <Suspense fallback={<LoadingState />}>
+        <Routes>
             <Route index element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route
@@ -437,8 +440,21 @@ const App = () => {
             />
 
             <Route path="*" exact={true} element={<NotFound />} />
-          </Routes>
-        </SkeletonTheme>
+        </Routes>
+      </Suspense>
+    </RouteErrorBoundary>
+  );
+};
+
+const App = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <DepartmentsProvider>
+          <SkeletonTheme baseColor="#e5e5e5" highlightColor="#d6d4d4">
+            <AppRoutes />
+          </SkeletonTheme>
+        </DepartmentsProvider>
       </BrowserRouter>
       <ToastContainer
         hideProgressBar

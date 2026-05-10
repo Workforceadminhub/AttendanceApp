@@ -70,7 +70,10 @@ export default function AdminDepartmentSummaryTable({ rows, showLinks = true }) 
     const map = new Map();
     items.forEach((item) => {
       const dept = item.department || item.department_name;
-      const team = getTeamForDepartment(dept) || "Other";
+      // Prefer the API's `team` field (always present) over a name-based lookup
+      // that depends on routeObject having the dept registered. The lookup
+      // remains as a fallback for legacy rows that lack the team field.
+      const team = item.team || getTeamForDepartment(dept) || "Other";
       if (!map.has(team)) map.set(team, []);
       map.get(team).push({ ...item, department: dept });
     });
@@ -114,18 +117,18 @@ export default function AdminDepartmentSummaryTable({ rows, showLinks = true }) 
       <tr>
         <th
           scope="col"
-          className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0"
+          className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-ink-900 sm:pl-0"
         >
           S/N
         </th>
         <th
           scope="col"
-          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+          className="px-3 py-3.5 text-left text-sm font-semibold text-ink-900"
         >
           <button
             type="button"
             onClick={() => handleSort("department")}
-            className="flex items-center hover:text-gray-700"
+            className="flex items-center hover:text-ink-700"
           >
             <span>Department</span>
             {getSortIcon("department")}
@@ -133,12 +136,12 @@ export default function AdminDepartmentSummaryTable({ rows, showLinks = true }) 
         </th>
         <th
           scope="col"
-          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+          className="px-3 py-3.5 text-left text-sm font-semibold text-ink-900"
         >
           <button
             type="button"
             onClick={() => handleSort("total")}
-            className="flex items-center hover:text-gray-700"
+            className="flex items-center hover:text-ink-700"
           >
             <span>Strength</span>
             {getSortIcon("total")}
@@ -146,12 +149,12 @@ export default function AdminDepartmentSummaryTable({ rows, showLinks = true }) 
         </th>
         <th
           scope="col"
-          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+          className="px-3 py-3.5 text-left text-sm font-semibold text-ink-900"
         >
           <button
             type="button"
             onClick={() => handleSort("present")}
-            className="flex items-center hover:text-gray-700"
+            className="flex items-center hover:text-ink-700"
           >
             <span>Present</span>
             {getSortIcon("present")}
@@ -159,12 +162,12 @@ export default function AdminDepartmentSummaryTable({ rows, showLinks = true }) 
         </th>
         <th
           scope="col"
-          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+          className="px-3 py-3.5 text-left text-sm font-semibold text-ink-900"
         >
           <button
             type="button"
             onClick={() => handleSort("absent")}
-            className="flex items-center hover:text-gray-700"
+            className="flex items-center hover:text-ink-700"
           >
             <span>Absent</span>
             {getSortIcon("absent")}
@@ -172,12 +175,12 @@ export default function AdminDepartmentSummaryTable({ rows, showLinks = true }) 
         </th>
         <th
           scope="col"
-          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+          className="px-3 py-3.5 text-left text-sm font-semibold text-ink-900"
         >
           <button
             type="button"
             onClick={() => handleSort("unfilled")}
-            className="flex items-center hover:text-gray-700"
+            className="flex items-center hover:text-ink-700"
           >
             <span>Unfilled</span>
             {getSortIcon("unfilled")}
@@ -185,12 +188,12 @@ export default function AdminDepartmentSummaryTable({ rows, showLinks = true }) 
         </th>
         <th
           scope="col"
-          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+          className="px-3 py-3.5 text-left text-sm font-semibold text-ink-900"
         >
           <button
             type="button"
             onClick={() => handleSort("percentage")}
-            className="flex items-center hover:text-gray-700"
+            className="flex items-center hover:text-ink-700"
           >
             <span>Percentage</span>
             {getSortIcon("percentage")}
@@ -209,10 +212,10 @@ export default function AdminDepartmentSummaryTable({ rows, showLinks = true }) 
         const sortedTeamRows = sortRows(teamRows, sortConfig, getSortableValue);
         return (
           <div key={teamName}>
-            <h3 className="text-sm font-semibold text-gray-900 mb-2">{teamName}</h3>
-            <table className="min-w-full divide-y divide-gray-300">
+            <h3 className="text-sm font-semibold text-ink-900 mb-2">{teamName}</h3>
+            <table className="min-w-full divide-y divide-ink-300">
               {tableHeader}
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-ink-200">
                 {sortedTeamRows.map((item, index) => {
                   const dept = item.department;
                   const deptRoute = dept ? getDepartmentRoute(dept) : null;
@@ -224,31 +227,31 @@ export default function AdminDepartmentSummaryTable({ rows, showLinks = true }) 
                       : null;
                   return (
                     <tr key={item.id || `${dept || "row"}-${index}`}>
-                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
+                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-ink-900 sm:pl-0">
                         {index + 1}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-ink-500">
                         {showLinks && linkHref ? (
-                          <Link to={linkHref} className="text-blue-600 hover:underline">
+                          <Link to={linkHref} className="text-ink-900 hover:underline">
                             {dept}
                           </Link>
                         ) : (
                           dept
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-ink-500">
                         {item.total}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-ink-500">
                         {item.present}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-ink-500">
                         {item.absent}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-ink-500">
                         {item.unfilled}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-ink-500">
                         {item.percentage}
                       </td>
                     </tr>

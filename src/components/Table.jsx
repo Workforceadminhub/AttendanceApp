@@ -1,96 +1,177 @@
 import { useNavigate } from "react-router-dom";
+import Tag from "./ui/Tag";
 
-export default function Table({ people = [], handleInactive, handleActive, loading }) {
-  const navigate = useNavigate()
+/**
+ * Pending workers table — Quiet Cockpit.
+ *
+ * Same props as before (people, handleInactive, handleActive, loading) so the
+ * consuming page stays unchanged. Renders a hairline-bordered table on lg+
+ * and a card stack on mobile.
+ */
+export default function Table({
+  people = [],
+  handleInactive,
+  handleActive,
+  loading = {},
+}) {
+  const navigate = useNavigate();
+  const total = people.length;
+
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-8">
-      <div className="sm:flex sm:items-center">
-        <div className="sm:flex-auto">
-          <h1 className="text-base font-semibold leading-6 text-gray-900">
+    <div>
+      {/* Page header */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
+        <div>
+          <div className="qc-eyebrow">Approvals</div>
+          <h1 className="mt-1 text-2xl sm:text-3xl font-medium text-ink-900 tracking-tight">
             Pending workers
           </h1>
-          <p className="mt-2 text-sm text-gray-700">
-            A list of all the workers that manually registered
+          <p className="mt-1 text-sm text-ink-500">
+            Workers who self-registered. Review and approve, or mark inactive.
           </p>
         </div>
-        <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+        <div className="flex items-center gap-3">
+          <span className="qc-num text-2xs uppercase tracking-tag text-ink-500">
+            <span className="qc-num text-base text-ink-900 font-medium mr-1.5">
+              {total}
+            </span>
+            pending
+          </span>
           <button
             type="button"
             onClick={() => navigate("/")}
-            className="block rounded-md bg-indigo-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            className="qc-btn-secondary"
           >
-            Back to home
+            ← Home
           </button>
         </div>
       </div>
-      <div className="mt-8 flow-root">
-        <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-          <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-            <table className="min-w-full divide-y divide-gray-300">
+
+      {/* Empty state */}
+      {total === 0 && (
+        <div className="qc-card p-12 text-center">
+          <div className="qc-eyebrow text-ink-400">Inbox</div>
+          <h2 className="mt-2 text-lg font-medium text-ink-900">
+            No pending workers
+          </h2>
+          <p className="mt-1 text-sm text-ink-500">
+            Anyone awaiting approval will show up here.
+          </p>
+        </div>
+      )}
+
+      {/* Mobile card stack */}
+      {total > 0 && (
+        <ul className="lg:hidden qc-card divide-y divide-ink-200 overflow-hidden">
+          {people.map((p) => (
+            <li key={p.id} className="px-4 py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-ink-900 truncate">
+                    {p.firstname} {p.lastname}
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 qc-num text-2xs uppercase tracking-tag text-ink-500">
+                    {p.team && <span>{p.team}</span>}
+                    {p.department && <span>· {p.department}</span>}
+                    {p.workerrole && <span>· {p.workerrole}</span>}
+                  </div>
+                </div>
+                <Tag tone={p.isverified ? "success" : "warning"}>
+                  {p.isverified ? "Verified" : "Pending"}
+                </Tag>
+              </div>
+              {!p.isverified && (
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => !loading.inactive && handleInactive(p)}
+                    disabled={loading.inactive}
+                    className="qc-btn-secondary flex-1"
+                  >
+                    {loading.inactive ? "Marking…" : "Mark inactive"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => !loading.active && handleActive(p)}
+                    disabled={loading.active}
+                    className="qc-btn-primary flex-1"
+                  >
+                    {loading.active ? "Approving…" : "Approve"}
+                  </button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* Desktop table */}
+      {total > 0 && (
+        <div className="hidden lg:block qc-card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
               <thead>
-                <tr>
-                  <th
-                    scope="col"
-                    className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0"
-                  >
-                    Name
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                  >
-                    Team
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                  >
+                <tr className="bg-cream-200 border-b border-ink-200">
+                  <th className="qc-section-title px-4 py-2.5 text-left">Name</th>
+                  <th className="qc-section-title px-4 py-2.5 text-left">Team</th>
+                  <th className="qc-section-title px-4 py-2.5 text-left">
                     Department
                   </th>
-                  <th
-                    scope="col"
-                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                  >
-                    Role
+                  <th className="qc-section-title px-4 py-2.5 text-left">Role</th>
+                  <th className="qc-section-title px-4 py-2.5 text-left">
+                    Status
                   </th>
-                  <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-0">
-                    <span className="sr-only">Edit</span>
+                  <th className="qc-section-title px-4 py-2.5 text-right">
+                    Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
-                {people.map((person) => (
-                  <tr key={person.id}>
-                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">
-                      {person.firstname} {person.lastname}
+              <tbody>
+                {people.map((p) => (
+                  <tr
+                    key={p.id}
+                    className="border-b border-ink-100 last:border-b-0 hover:bg-cream-200/60"
+                  >
+                    <td className="px-4 py-3 text-sm font-medium text-ink-900 whitespace-nowrap">
+                      {p.firstname} {p.lastname}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {person.team}
+                    <td className="px-4 py-3 text-sm text-ink-700 whitespace-nowrap">
+                      {p.team || "—"}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {person.department}
+                    <td className="px-4 py-3 text-sm text-ink-700 whitespace-nowrap">
+                      {p.department || "—"}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {person.workerrole}
+                    <td className="px-4 py-3 text-sm text-ink-700 whitespace-nowrap">
+                      {p.workerrole || "—"}
                     </td>
-                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-0">
-                      {!person.isverified && (
-                        <>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <Tag tone={p.isverified ? "success" : "warning"}>
+                        {p.isverified ? "Verified" : "Pending"}
+                      </Tag>
+                    </td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      {!p.isverified && (
+                        <div className="inline-flex items-center gap-2">
                           <button
-                            className="text-red-600 hover:text-red-900 mr-4"
-                            onClick={() => !loading.inactive && handleInactive(person)}
+                            type="button"
+                            onClick={() =>
+                              !loading.inactive && handleInactive(p)
+                            }
+                            disabled={loading.inactive}
+                            className="text-sm font-medium text-brick hover:text-brick/80 disabled:opacity-50"
                           >
-                            {loading.inactive ? "Marking" : "Mark as inactive"}
-                            <span className="sr-only">, {person.name}</span>
+                            {loading.inactive ? "Marking…" : "Inactive"}
                           </button>
+                          <span className="text-ink-300">·</span>
                           <button
-                            className="text-indigo-600 hover:text-indigo-900"
-                            onClick={() => !loading.active && handleActive(person)}
+                            type="button"
+                            onClick={() => !loading.active && handleActive(p)}
+                            disabled={loading.active}
+                            className="text-sm font-medium text-ink-900 hover:text-ink-700 disabled:opacity-50"
                           >
-                             {loading.active ? "Marking" : "Mark as active"}
-                            <span className="sr-only">, {person.name}</span>
+                            {loading.active ? "Approving…" : "Approve"}
                           </button>
-                        </>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -99,7 +180,7 @@ export default function Table({ people = [], handleInactive, handleActive, loadi
             </table>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

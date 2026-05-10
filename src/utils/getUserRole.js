@@ -1,6 +1,6 @@
 import { getUser } from "./getUser";
 import { ADMIN_ENUMS } from "./enums";
-import { routeObject } from "./routeObject";
+import { getEffectiveRouteList } from "./routeObject";
 
 /**
  * Permission levels from the backend (new field on user object)
@@ -180,9 +180,10 @@ export function canAccessDepartment(departmentName) {
     candidates.add(name.startsWith("/") ? name : `/${name}`);
 
     // If given a department name, also add its route as a candidate
+    const list = getEffectiveRouteList();
     const deptEntry =
-      routeObject.find((r) => r.department === name) ||
-      routeObject.find((r) => normalize(r.department) === normalize(name));
+      list.find((r) => r.department === name) ||
+      list.find((r) => normalize(r.department) === normalize(name));
     if (deptEntry?.route) {
       const r = deptEntry.route.toString().trim();
       candidates.add(r);
@@ -199,7 +200,7 @@ export function canAccessDepartment(departmentName) {
 
   // Team Admin - check if department belongs to their team
   if (isTeamAdmin && user?.team) {
-    const deptEntry = routeObject.find((r) => r.department === departmentName);
+    const deptEntry = getEffectiveRouteList().find((r) => r.department === departmentName);
     return deptEntry?.team === user.team;
   }
 
@@ -267,7 +268,7 @@ export function canAccessDepartmentByRoute(userParam, departmentRoute) {
 
   if (role === "SUPER_ADMIN" || role === "CHURCH_ADMIN") return true;
   if (role === "TEAM_ADMIN" && user?.team?.name) {
-    const deptEntry = routeObject.find(
+    const deptEntry = getEffectiveRouteList().find(
       (r) => r.route === departmentRoute || r.route === `/${departmentRoute}` || r.department === departmentRoute
     );
     return deptEntry?.team === user.team.name;

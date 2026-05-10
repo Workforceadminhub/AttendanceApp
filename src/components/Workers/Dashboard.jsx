@@ -35,35 +35,52 @@ import {
 } from "@heroicons/react/24/outline";
 
 /**
- * Window status: open Sunday 00:00–18:00 local time.
+ * Window status: open Sunday 00:00–18:00 WAT (Africa/Lagos, UTC+1, no DST).
+ * Anchored to WAT so the countdown is identical for viewers in any timezone.
  */
 function getAttendanceWindowStatus() {
   const now = new Date();
-  const day = now.getDay();
-  const hour = now.getHours();
 
-  if (day === 0 && hour < 18) {
-    const closesAt = new Date(now);
-    closesAt.setHours(18, 0, 0, 0);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Africa/Lagos",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hour12: false,
+    weekday: "short",
+  })
+    .formatToParts(now)
+    .reduce((acc, p) => ({ ...acc, [p.type]: p.value }), {});
+
+  const watYear = parseInt(parts.year, 10);
+  const watMonth = parseInt(parts.month, 10) - 1;
+  const watDay = parseInt(parts.day, 10);
+  const watHour = parseInt(parts.hour === "24" ? "0" : parts.hour, 10);
+  const weekdayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  const watDow = weekdayMap[parts.weekday];
+
+  if (watDow === 0 && watHour < 18) {
+    // 18:00 WAT == 17:00 UTC (WAT is fixed UTC+1).
+    const closesAt = new Date(Date.UTC(watYear, watMonth, watDay, 17, 0, 0));
     const diffMs = closesAt - now;
     const hoursLeft = Math.floor(diffMs / (1000 * 60 * 60));
     const minsLeft = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
     return {
       isOpen: true,
-      message: `Open — closes 6:00 PM today`,
+      message: `Open — closes 6:00 PM WAT today`,
       remaining: `${hoursLeft}h ${minsLeft}m`,
     };
   }
 
-  const daysUntilSunday = day === 0 ? 7 : 7 - day;
-  const nextSunday = new Date(now);
-  nextSunday.setDate(now.getDate() + daysUntilSunday);
-  nextSunday.setHours(0, 0, 0, 0);
+  const daysUntilSunday = watDow === 0 ? 7 : 7 - watDow;
+  // Synthesize the next-Sunday WAT calendar date via UTC arithmetic on WAT components.
+  const nextSundayWat = new Date(Date.UTC(watYear, watMonth, watDay + daysUntilSunday));
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   return {
     isOpen: false,
     message: `Closed — opens Sunday`,
-    remaining: `${nextSunday.getDate()} ${months[nextSunday.getMonth()]} · 00:00`,
+    remaining: `${nextSundayWat.getUTCDate()} ${months[nextSundayWat.getUTCMonth()]} · 00:00`,
   };
 }
 

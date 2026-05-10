@@ -18,7 +18,7 @@ import LoadingState from "../components/LoadingState";
 import { getDepartmentByUser } from "../utils/getDepartment";
 import { getUser } from "../utils/getUser";
 import { getUserRole } from "../utils/getUserRole";
-import { getDepartmentRoute, routeObject } from "../utils/routeObject";
+import { getDepartmentRoute, getEffectiveRouteList } from "../utils/routeObject";
 import { fetchAttendance } from "../services/attendance";
 import { fetchAdminWorkers } from "../services/workers";
 import { getNextSunday, getSundaysInYear } from "../utils/getDate";
@@ -52,7 +52,7 @@ export default function AdminSummaryDetail() {
       "Workforce Growth",
       "Special Ministries",
     ]);
-    return routeObject
+    return getEffectiveRouteList()
       .filter((item) => item.team === teamName)
       .filter((item) => !excluded.has(item.department))
       .map((item) => item.department)
@@ -217,10 +217,10 @@ export default function AdminSummaryDetail() {
         {/* Page header */}
         <div className="sm:flex sm:items-center sm:justify-between mb-6">
           <div className="sm:flex-auto">
-            <h1 className="text-base font-semibold leading-6 text-gray-900">
+            <h1 className="text-base font-semibold leading-6 text-ink-900">
               {teamName ? `${teamName} summary` : "Summary"}
             </h1>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-ink-500">
               High-level overview for your team with attendance trend, leaderboard, and workers.
             </p>
           </div>
@@ -229,7 +229,7 @@ export default function AdminSummaryDetail() {
         {/* Attendance Trend */}
         <div className="mb-8 bg-white rounded-lg border shadow p-6">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-ink-900">
               Attendance Trend
             </h2>
             <div className="flex flex-wrap items-center gap-4">
@@ -237,7 +237,7 @@ export default function AdminSummaryDetail() {
                 <div className="flex items-center gap-2">
                   <label
                     htmlFor="adminSummaryDepartmentFilter"
-                    className="text-sm text-gray-700"
+                    className="text-sm text-ink-700"
                   >
                     Department
                   </label>
@@ -245,7 +245,7 @@ export default function AdminSummaryDetail() {
                     id="adminSummaryDepartmentFilter"
                     value={selectedDepartment}
                     onChange={(e) => setSelectedDepartment(e.target.value)}
-                    className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="rounded-md border border-ink-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ink-900/10"
                   >
                     <option value="All">All</option>
                     {departmentOptions.map((dept) => (
@@ -259,7 +259,7 @@ export default function AdminSummaryDetail() {
               <div className="flex items-center gap-2">
                 <label
                   htmlFor="adminSummaryMonthFilter"
-                  className="text-sm text-gray-700"
+                  className="text-sm text-ink-700"
                 >
                   Month
                 </label>
@@ -267,7 +267,7 @@ export default function AdminSummaryDetail() {
                   id="adminSummaryMonthFilter"
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="rounded-md border border-ink-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ink-900/10"
                 >
                   {MONTHS_2026.map((m) => (
                     <option key={m.value} value={m.value}>
@@ -288,7 +288,7 @@ export default function AdminSummaryDetail() {
               <AttendanceTrendChart data={monthlyTrends} />
             </div>
           ) : (
-            <div className="h-64 flex items-center justify-center text-gray-500 text-sm">
+            <div className="h-64 flex items-center justify-center text-ink-500 text-sm">
               {trends.length === 0
                 ? "No attendance trend data yet."
                 : "No Sundays in this month with data."}
@@ -314,14 +314,14 @@ export default function AdminSummaryDetail() {
             className="flex items-center justify-between group"
           >
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 group-hover:text-blue-600">
+              <h2 className="text-lg font-semibold text-ink-900 group-hover:text-ink-900">
                 Workers{workersCount ? ` (${workersCount})` : ""}
               </h2>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-sm text-ink-500">
                 View and manage workers across your team.
               </p>
             </div>
-            <span className="text-sm text-gray-500 group-hover:text-blue-600">
+            <span className="text-sm text-ink-500 group-hover:text-ink-900">
               {isWorkersLoading ? "Loading..." : "View all \u2192"}
             </span>
           </Link>
@@ -336,7 +336,7 @@ export default function AdminSummaryDetail() {
 function AttendanceTrendChart({ data }) {
   if (!Array.isArray(data) || data.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center text-gray-500 text-sm">
+      <div className="h-full flex items-center justify-center text-ink-500 text-sm">
         No data available.
       </div>
     );
@@ -353,8 +353,8 @@ function AttendanceTrendChart({ data }) {
             if (!active || !payload?.length || !label) return null;
             const row = payload.find((p) => p.dataKey === "present")?.payload ?? {};
             return (
-              <div className="bg-white border border-gray-200 rounded shadow-lg p-3 text-sm">
-                <div className="font-medium text-gray-900 mb-2">{label}</div>
+              <div className="bg-white border border-ink-200 rounded shadow-lg p-3 text-sm">
+                <div className="font-medium text-ink-900 mb-2">{label}</div>
                 <div className="text-[#22c55e] font-medium">
                   Present : {row.present ?? 0}
                 </div>

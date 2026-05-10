@@ -1,14 +1,12 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getUser } from "../utils/getUser";
-import Header from "./Header";
 
 export default function Home() {
   const navigate = useNavigate();
   const authUser = getUser();
 
   useEffect(() => {
-    // Redirect logged-in users to their dashboard
     if (authUser) {
       if (authUser.department === "Super Admin") {
         navigate("/overview/super-admin", { replace: true });
@@ -20,30 +18,84 @@ export default function Home() {
     }
   }, [authUser, navigate]);
 
+  const todayLabel = new Date().toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+
   return (
-    <div className="bg-white">
-      <Header />
-      <div className="px-4 py-16 sm:px-6 sm:py-32 lg:px-8">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-balance text-3xl font-semibold tracking-tight text-gray-900 sm:text-4xl md:text-5xl">
-            Manage worker's attendance.
-          </h2>
-          <p className="mx-auto mt-6 max-w-xl text-pretty text-base text-gray-600 sm:text-lg/8">
-            Portal for managing team's attendance
+    <div className="min-h-screen bg-cream flex flex-col">
+      {/* Brand bar */}
+      <header className="border-b border-ink-200 bg-cream">
+        <div className="max-w-6xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img
+              alt="Harvesters"
+              src="/logo.jpg"
+              className="h-12 w-auto select-none mix-blend-multiply"
+            />
+            <span className="hidden sm:flex items-center gap-2">
+              <span className="h-4 w-px bg-ink-200" />
+              <span className="qc-section-title text-ink-700">HICC-GBAGADA</span>
+            </span>
+          </div>
+          <span className="qc-num text-2xs uppercase tracking-tag text-ink-500">
+            <span className="qc-live-dot mr-2 align-middle" />
+            {todayLabel}
+          </span>
+        </div>
+      </header>
+
+      <main className="flex-1 grid lg:grid-cols-2 relative">
+        {/* Hairline grid backdrop, faint */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 opacity-[0.3] pointer-events-none"
+          style={{
+            backgroundImage:
+              "linear-gradient(to right, #E5E5E0 1px, transparent 1px), linear-gradient(to bottom, #E5E5E0 1px, transparent 1px)",
+            backgroundSize: "48px 48px",
+          }}
+        />
+
+        <section className="relative flex flex-col justify-center px-6 sm:px-12 lg:px-16 py-16">
+          <div className="qc-eyebrow">HICC Gbagada Workers Attendance System</div>
+          <h1 className="mt-3 text-4xl sm:text-5xl lg:text-6xl font-medium text-ink-900 tracking-tight leading-[1.05] max-w-[14ch]">
+            Manage worker&rsquo;s attendance.
+          </h1>
+          <p className="mt-5 max-w-md text-ink-600 text-base sm:text-lg">
+            Dedicated portal to mark attendance and manage workers.
           </p>
-          <div className="mt-10 flex flex-col items-stretch justify-center gap-4 sm:flex-row sm:items-center sm:gap-x-6">
+
+          <div className="mt-8 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <a href="/login" className="qc-btn-primary sm:px-6">
+              <span>Sign in</span>
+              <span aria-hidden="true">→</span>
+            </a>
             <a
               href="/login"
-              className="rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+              className="text-sm font-medium text-ink-700 hover:text-ink-900 transition-colors px-2 py-2"
             >
-              Get started
-            </a>
-            <a href="/login" className="text-sm/6 font-semibold text-gray-900">
               Learn more <span aria-hidden="true">→</span>
             </a>
           </div>
+        </section>
+
+        <section className="hidden lg:flex relative items-end p-12 xl:p-16 border-l border-ink-200 bg-cream-200/60">
+          <div className="qc-num text-2xs uppercase tracking-tag text-ink-500 max-w-xs leading-relaxed">
+            Built for Sundays. Operated by HODs, Pastoral &amp; Directional Leaders.
+          </div>
+        </section>
+      </main>
+
+      <footer className="border-t border-ink-200 bg-cream">
+        <div className="max-w-6xl mx-auto px-5 sm:px-8 py-3 flex items-center justify-between text-2xs uppercase tracking-tag text-ink-500">
+          <span>Harvesters International Christian Centre</span>
+          <span className="qc-num">v2.0</span>
         </div>
-      </div>
+      </footer>
     </div>
   );
 }

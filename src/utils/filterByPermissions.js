@@ -23,6 +23,14 @@ export const isAdminRoute = (pathname) => {
 export const filterByUserPermissions = (list, authUser, pathname) => {
   if (!Array.isArray(list)) return list;
   if (isAdminRoute(pathname)) return list;
+  // Super/Church admin role: see everything (skip the department-allowlist filter)
+  if (
+    authUser?.role === "super-admin" ||
+    authUser?.department === "Super Admin" ||
+    authUser?.department === "Church Admin"
+  ) {
+    return list;
+  }
   const permissions = authUser?.permissions;
   if (!permissions?.length) return list;
   const allowed = new Set(permissions);

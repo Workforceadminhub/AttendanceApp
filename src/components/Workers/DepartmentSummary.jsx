@@ -6,7 +6,7 @@ import {
   fetchAdminAttendance,
   fetchAttendance,
 } from "../../services/attendance";
-import { getAdminSelectOptions, routeObject } from "../../utils/routeObject";
+import { getAdminSelectOptions, getEffectiveRouteList } from "../../utils/routeObject";
 import getDefaultSummary from "../../utils/getDefaultSummary";
 import { getDepartmentByUser } from "../../utils/getDepartment";
 import { useLocation } from "react-router-dom";
@@ -30,7 +30,7 @@ export default function DepartmentSummary() {
   const [isLoading, setIsLoading] = useState(false);
   const [activeGroup, setActiveGroup] = useState("All");
   const [attendanceSummary, setAttendanceSummary] = useState(
-    getDefaultSummary(routeObject)
+    getDefaultSummary(getEffectiveRouteList())
   );
   const [dateRange, setDateRange] = useState({ startDate: null, endDate: null });
   const location = useLocation();
@@ -111,18 +111,22 @@ export default function DepartmentSummary() {
   // Log attendance summary silently
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-cream">
       <Header />
       <Layout>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0 sm:flex-auto">
-            <h1 className="text-base font-semibold leading-6 text-gray-900 break-words">
-              {`${team.team} summary` || "Department summary"}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
+          <div className="min-w-0">
+            <div className="qc-eyebrow">Summary</div>
+            <h1 className="mt-1 text-2xl sm:text-3xl font-medium text-ink-900 tracking-tight break-words">
+              {team.team || "Department"}
             </h1>
+            <p className="mt-1 text-sm text-ink-500">
+              Attendance roll-up across the selected range.
+            </p>
           </div>
           {isAdminMember && (
             <ViewHistoryButton
-              label="View History"
+              label="View history"
               link={
                 isChurchAdmin
                   ? `/summary/history/admin`
@@ -150,7 +154,7 @@ export default function DepartmentSummary() {
           <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
             <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
               {isLoading ? (
-                <table className="min-w-full divide-y divide-gray-300">
+                <table className="min-w-full divide-y divide-ink-300">
                   <TableLoadingState length={6} />
                 </table>
               ) : (

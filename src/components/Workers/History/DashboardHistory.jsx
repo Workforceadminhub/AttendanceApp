@@ -109,19 +109,22 @@ export default function DashboardHistory() {
     debouncedSetActiveHistory(selected?.value);
   };
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-cream">
       <Header />
       <Layout>
-        {/* <h3 className="text-base font-semibold text-gray-900">Last 30 days</h3> */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0 font-bold text-gray-900 break-words">
-            {`${isAdminMember ? team?.team : team?.department} Dashboard`} —{" "}
-            {getSundayDisplayDate()}
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
+          <div className="min-w-0">
+            <div className="qc-eyebrow">History · Dashboard</div>
+            <h1 className="mt-1 text-2xl sm:text-3xl font-medium text-ink-900 tracking-tight break-words">
+              {isAdminMember ? team?.team : team?.department}
+            </h1>
+            <p className="mt-1 text-sm text-ink-500">
+              <span className="qc-num text-ink-700">
+                {getSundayDisplayDate()}
+              </span>
+            </p>
           </div>
-          <ViewHistoryButton
-            label="Back to Dashboard"
-            link={-1}
-          />
+          <ViewHistoryButton label="← Back to dashboard" link={-1} />
         </div>
         {isAdminMember && (
           <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-2">
@@ -160,10 +163,10 @@ export default function DashboardHistory() {
               key={item.name}
               className="overflow-hidden rounded-lg border bg-white px-4 py-5 shadow sm:p-6"
             >
-              <dt className="truncate text-sm font-medium text-gray-500">
+              <dt className="truncate text-sm font-medium text-ink-500">
                 {item.name}
               </dt>
-              <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
+              <dd className="mt-1 text-3xl font-semibold tracking-tight text-ink-900">
                 {item.stat}
               </dd>
             </div>

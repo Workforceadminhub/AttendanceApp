@@ -13,16 +13,16 @@ const Summary = () => {
   return (
     <div className="p-4 bg-white rounded shadow-md max-w-lg mx-auto">
       <h2 className="text-xl font-semibold mb-4">Leadership Effectiveness</h2>
-      <p className="text-gray-600 mb-2">Total Members: 3</p>
-      <p className="text-gray-600 mb-4">Present: 1 (33.33%) | Absent: 2</p>
+      <p className="text-ink-600 mb-2">Total Members: 3</p>
+      <p className="text-ink-600 mb-4">Present: 1 (33.33%) | Absent: 2</p>
       {members.map((member, index) => (
         <div key={index} className="border-b py-2">
-          <h3 className="font-medium text-gray-800">{member.name}</h3>
-          <p className="text-gray-600">Phone: {member.phone}</p>
+          <h3 className="font-medium text-ink-800">{member.name}</h3>
+          <p className="text-ink-600">Phone: {member.phone}</p>
           {member.birthday && (
-            <p className="text-gray-600">Birthday: {member.birthday}</p>
+            <p className="text-ink-600">Birthday: {member.birthday}</p>
           )}
-          <p className="text-gray-600">Status: {member.status}</p>
+          <p className="text-ink-600">Status: {member.status}</p>
         </div>
       ))}
     </div>

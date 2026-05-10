@@ -1,5 +1,11 @@
 import { ADMIN_ENUMS } from "./enums";
 
+/**
+ * Static fallback list — used before the DepartmentsProvider has loaded
+ * the live `/api/departments` response, and as a backstop for legacy
+ * direct imports. Once the provider calls `setDynamicDepartments(...)`,
+ * helpers in this file read from the merged effective list instead.
+ */
 export const routeObject = [
   { department: "Workforce Admin", route: "/wadata", team: "Ministry" },
   { department: "Ministry team leadership", route: "/subheadsmin", team: "Ministry" },
@@ -78,6 +84,8 @@ export const routeObject = [
   { department: "Media-Photo (Capturing)", route: "/mphoto", team: "Programs" },
   { department: "Media-Text & Timing", route: "/mtext", team: "Programs" },
   { department: "Media-Video", route: "/mvideo", team: "Programs" },
+  { department: "Media-Video Production", route: "/media-videoproduction", team: "Programs" },
+  { department: "Media-Display", route: "/mdisplay", team: "Programs" },
   { department: "Media-Visuals", route: "/mvisuals", team: "Programs" },
   { department: "Media-Audio Production", route: "/maudio", team: "Programs" },
   { department: "Media-Equipment Management", route: "/mequipment", team: "Programs" },
@@ -119,6 +127,61 @@ export const routeObject = [
   { department: "Workforce Growth", route: "/wfg", team: "Ministry" },
   { department: "Special Ministries", route: "/sm", team: "Ministry" },
 ];
+
+// ─── Dynamic-departments machinery ────────────────────────────────
+// The DepartmentsProvider (src/contexts/DepartmentsContext.jsx) calls
+// setDynamicDepartments() once /api/departments resolves. Helpers below
+// transparently switch to the merged list (static ∪ dynamic) so newly
+// created departments work without redeploy.
+
+let _dynamicList = null; // null = not loaded yet → fall back to static
+
+function slugify(s) {
+  return String(s || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function normalizeRoute(r) {
+  if (!r) return null;
+  const s = String(r).trim();
+  if (!s) return null;
+  return s.startsWith("/") ? s : `/${s}`;
+}
+
+/**
+ * Replace the in-memory dynamic dept list. Pass the raw /api/departments
+ * response (array of { id, name, team, route, isactive }).
+ * @param {Array} departments
+ */
+export function setDynamicDepartments(departments) {
+  if (!Array.isArray(departments)) {
+    _dynamicList = null;
+    return;
+  }
+  const mapped = departments
+    .filter((d) => d && d.isactive !== false)
+    .map((d) => {
+      const name = d.name || d.department;
+      if (!name) return null;
+      const route = normalizeRoute(d.route) || `/${slugify(name)}`;
+      return { department: name, route, team: d.team || "" };
+    })
+    .filter(Boolean);
+  _dynamicList = mapped;
+}
+
+/**
+ * Returns the effective list of departments to route through.
+ * Prefers the live API list once loaded; falls back to the static array.
+ * Used by all helpers in this file.
+ * @returns {Array<{ department: string, route: string, team: string }>}
+ */
+export function getEffectiveRouteList() {
+  if (Array.isArray(_dynamicList) && _dynamicList.length > 0) return _dynamicList;
+  return routeObject;
+}
 
 export const attendanceRoutes = routeObject.map(
   (item) => `/attendance${item.route}`
@@ -162,7 +225,7 @@ export const getDepartmentsForTeam = (teamName) => {
   if (!name) return [];
 
   const depts = new Set();
-  routeObject.forEach((item) => {
+  getEffectiveRouteList().forEach((item) => {
     if (item.team === name && item.department) {
       depts.add(item.department);
     }
@@ -177,7 +240,7 @@ export const getDepartmentsForTeam = (teamName) => {
  */
 export const getTeamForDepartment = (departmentName) => {
   if (!departmentName) return null;
-  const entry = routeObject.find((r) => r.department === departmentName);
+  const entry = getEffectiveRouteList().find((r) => r.department === departmentName);
   return entry?.team ?? null;
 };
 
@@ -206,12 +269,13 @@ export const getAdminSelectOptions = (isChurchAdmin, team, authUser) => {
   const permissions = authUser?.permissions;
   const filterByPermissions = Array.isArray(permissions) && permissions.length > 0 && !isSuperAdmin;
 
+  const list = getEffectiveRouteList();
   let options = (isChurchAdmin || isSuperAdmin)
-    ? Array.from(new Set(routeObject.map((item) => item.team))).map((t) => ({
+    ? Array.from(new Set(list.map((item) => item.team))).map((t) => ({
         value: t,
         label: t,
       }))
-    : routeObject
+    : list
         .filter((item) => item.team === team.department)
         .map((item) => ({ value: item.department, label: item.department }));
 
@@ -219,7 +283,7 @@ export const getAdminSelectOptions = (isChurchAdmin, team, authUser) => {
     const allowed = new Set(permissions);
     options = (isChurchAdmin || isSuperAdmin)
       ? options.filter((opt) => {
-          const deptsInTeam = routeObject.filter((item) => item.team === opt.value).map((d) => d.department);
+          const deptsInTeam = list.filter((item) => item.team === opt.value).map((d) => d.department);
           return deptsInTeam.some((d) => allowed.has(d));
         })
       : options.filter((opt) => allowed.has(opt.value));
@@ -238,19 +302,20 @@ export const getAdminSelectOptions = (isChurchAdmin, team, authUser) => {
  */
 export const getDepartmentRoute = (departmentName) => {
   if (!departmentName) return null;
-  const entry = routeObject.find((r) => r.department === departmentName);
+  const list = getEffectiveRouteList();
+  const entry = list.find((r) => r.department === departmentName);
   if (entry) return entry.route.replace(/^\//, "");
   const lower = departmentName.trim().toLowerCase();
-  const caseInsensitive = routeObject.find(
+  const caseInsensitive = list.find(
     (r) => r.department && r.department.trim().toLowerCase() === lower
   );
   if (caseInsensitive) return caseInsensitive.route.replace(/^\//, "");
   if (lower.includes("directional") && lower.includes("leader")) {
-    const e = routeObject.find((r) => r.department === "Directional Leaders");
+    const e = list.find((r) => r.department === "Directional Leaders");
     return e ? e.route.replace(/^\//, "") : null;
   }
   if (lower.includes("pastoral") && lower.includes("leader")) {
-    const e = routeObject.find((r) => r.department === "Pastoral Leaders");
+    const e = list.find((r) => r.department === "Pastoral Leaders");
     return e ? e.route.replace(/^\//, "") : null;
   }
   return null;
@@ -264,7 +329,9 @@ export const getDepartmentRoute = (departmentName) => {
 export const getDepartmentNameFromRoute = (route) => {
   if (!route) return null;
   const normalized = route.startsWith("/") ? route : `/${route}`;
-  const entry = routeObject.find((r) => r.route === normalized || r.route.replace(/^\//, "") === route);
+  const entry = getEffectiveRouteList().find(
+    (r) => r.route === normalized || r.route.replace(/^\//, "") === route
+  );
   return entry?.department ?? null;
 };
 
@@ -278,7 +345,7 @@ export const resolveDepartmentParams = (value) => {
   if (!value || value === "All") return {};
   const route = getDepartmentRoute(value);
   if (route) return { departmentRoute: route };
-  const teams = [...new Set(routeObject.map((r) => r.team))];
+  const teams = [...new Set(getEffectiveRouteList().map((r) => r.team))];
   if (teams.includes(value)) return { teamName: value };
   return { departmentRoute: value.startsWith("/") ? value.slice(1) : value };
 };

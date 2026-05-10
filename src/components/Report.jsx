@@ -32,43 +32,52 @@ export default function Report() {
   }, [selectedDate]);
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+    <div className="min-h-screen bg-cream">
       <Header />
       <Layout>
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold mb-6 text-center sm:text-left">Attendance Report</h1>
-
-          {/* Dropdown to select attendance date */}
-          <div className="mb-6 w-full sm:w-64">
-            <label
-              htmlFor="attendanceDate"
-              className="block text-gray-700 text-sm font-semibold mb-2"
-            >
-              Select Attendance Date
-            </label>
-            <select
-              id="attendanceDate"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">-- Choose a date --</option>
-              {dates.map((date, idx) => (
-                <option key={idx} value={date.attendancedate || date}>
-                  {date.attendancedate || date}
-                </option>
-              ))}
-            </select>
+          <div className="mb-8">
+            <div className="qc-eyebrow">Reports</div>
+            <h1 className="mt-1 text-2xl sm:text-3xl font-medium text-ink-900 tracking-tight">
+              Attendance report
+            </h1>
+            <p className="mt-1 text-sm text-ink-500">
+              Pick a Sunday to export the attendance roll.
+            </p>
           </div>
 
-          {/* Show export only when data is available */}
-          {data.length > 0 ? (
-            <ExportButton data={data} />
-          ) : selectedDate ? (
-            <p className="text-gray-500">Loading....</p>
-          ) : (
-            <p className="text-gray-400">Please select a date above.</p>
-          )}
+          <div className="qc-card p-5 sm:p-6">
+            <div className="mb-5 w-full sm:max-w-xs">
+              <label htmlFor="attendanceDate" className="qc-label">
+                Attendance date
+              </label>
+              <select
+                id="attendanceDate"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="qc-input"
+              >
+                <option value="">— Choose a date —</option>
+                {dates.map((date, idx) => (
+                  <option key={idx} value={date.attendancedate || date}>
+                    {date.attendancedate || date}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="pt-4 border-t border-ink-200">
+              {data.length > 0 ? (
+                <ExportButton data={data} />
+              ) : selectedDate ? (
+                <p className="text-sm text-ink-500">Loading…</p>
+              ) : (
+                <p className="text-sm text-ink-400">
+                  Select a date above to enable export.
+                </p>
+              )}
+            </div>
+          </div>
         </div>
       </Layout>
     </div>

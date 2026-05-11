@@ -120,11 +120,11 @@ export default function AttendanceHistorySection({ permissions }) {
  const present = row.present ?? 0;
  const absent = row.absent ?? 0;
  const total = row.total ?? present + absent;
- const pct = total > 0 ? `${Math.round((present / total) * 100)}%` : "—";
+ const pct = total > 0 ? `${Math.round((present / total) * 100)}%` : "-";
  const date =
- row.date ?? row.attendancedate ?? row.attendanceDate ?? "—";
+ row.date ?? row.attendancedate ?? row.attendanceDate ?? "-";
  const dept =
- row.department ?? row.department_name ?? row.departmentName ?? "—";
+ row.department ?? row.department_name ?? row.departmentName ?? "-";
  return (
  <tr key={i}>
  <td className="whitespace-nowrap py-3 pl-4 pr-3 text-ink-900 sm:pl-0">
@@ -175,15 +175,15 @@ export default function AttendanceHistorySection({ permissions }) {
  <tbody className="divide-y divide-ink-100 bg-white">
  {records.map((row, i) => {
  const date =
- row.date ?? row.attendancedate ?? row.attendanceDate ?? "—";
+ row.date ?? row.attendancedate ?? row.attendanceDate ?? "-";
  const name =
  (row.fullname ??
  row.workerName ??
  `${row.firstname ?? ""} ${row.lastname ?? ""}`.trim()) ||
- "—";
+ "-";
  const dept =
- row.department ?? row.department_name ?? row.departmentName ?? "—";
- const status = row.attendance ?? row.status ?? "—";
+ row.department ?? row.department_name ?? row.departmentName ?? "-";
+ const status = row.attendance ?? row.status ?? "-";
  const presentStatuses = new Set(["present", "online"]);
  const statusLower = (status || "").toString().toLowerCase();
  const statusColor = presentStatuses.has(statusLower)
@@ -240,7 +240,7 @@ export default function AttendanceHistorySection({ permissions }) {
  key={k}
  className="whitespace-nowrap px-3 py-3 text-ink-600 first:pl-0"
  >
- {String(row[k] ?? "—")}
+ {String(row[k] ?? "-")}
  </td>
  ))}
  </tr>

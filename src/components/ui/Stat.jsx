@@ -31,7 +31,7 @@ export default function Stat({
 
       <div className="mt-3 flex items-baseline gap-2">
         {loading ? (
-          <span className="qc-num text-3xl text-ink-300 select-none">—</span>
+          <span className="qc-num text-3xl text-ink-300 select-none">-</span>
         ) : (
           <>
             <span className="qc-num text-3xl text-ink-900 font-medium leading-none">

@@ -485,7 +485,7 @@ export default function DepartmentDetail() {
  {isWorkersError ? (
  <div className="flex items-center justify-between">
  <h2 className="text-lg font-semibold text-brick">
- Workers — failed to load
+ Workers - failed to load
  </h2>
  <button
  type="button"

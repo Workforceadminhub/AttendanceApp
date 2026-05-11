@@ -813,7 +813,7 @@ export default function DepartmentAttendance() {
  </td>
  {showDepartmentColumn && (
  <td className="whitespace-nowrap px-3 py-4 text-sm text-ink-500">
- {person.department ?? "—"}
+ {person.department ?? "-"}
  </td>
  )}
  <td className="whitespace-nowrap px-3 py-4 text-sm text-ink-500">

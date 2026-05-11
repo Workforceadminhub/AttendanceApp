@@ -68,7 +68,7 @@ function getAttendanceWindowStatus() {
     const minsLeft = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
     return {
       isOpen: true,
-      message: `Open — closes 6:00 PM WAT today`,
+      message: `Open - closes 6:00 PM WAT today`,
       remaining: `${hoursLeft}h ${minsLeft}m`,
     };
   }
@@ -79,7 +79,7 @@ function getAttendanceWindowStatus() {
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   return {
     isOpen: false,
-    message: `Closed — opens Sunday`,
+    message: `Closed - opens Sunday`,
     remaining: `${nextSundayWat.getUTCDate()} ${months[nextSundayWat.getUTCMonth()]} · 00:00`,
   };
 }

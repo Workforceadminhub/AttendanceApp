@@ -134,7 +134,7 @@ export default function SuperAdminOverview() {
     (!teamStats || teamStats.length === 0) &&
     (!departmentStats || departmentStats.length === 0);
 
-  const lastDate = attendanceStats?.lastAttendanceDate || "—";
+  const lastDate = attendanceStats?.lastAttendanceDate || "-";
 
   return (
     <div className="min-h-screen bg-cream">
@@ -201,7 +201,7 @@ export default function SuperAdminOverview() {
           <Stat
             eyebrow="Present"
             value={(attendanceStats?.totalPresent ?? 0).toLocaleString()}
-            footnote={lastDate !== "—" ? lastDate : null}
+            footnote={lastDate !== "-" ? lastDate : null}
             loading={isAttendanceLoading}
           />
           <Stat
@@ -212,7 +212,7 @@ export default function SuperAdminOverview() {
           <Stat
             eyebrow="Absent"
             value={(attendanceStats?.totalAbsent ?? 0).toLocaleString()}
-            footnote={lastDate !== "—" ? lastDate : null}
+            footnote={lastDate !== "-" ? lastDate : null}
             loading={isAttendanceLoading}
           />
           <Stat

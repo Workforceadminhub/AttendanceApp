@@ -57,7 +57,7 @@ export default function Report() {
                 onChange={(e) => setSelectedDate(e.target.value)}
                 className="qc-input"
               >
-                <option value="">— Choose a date —</option>
+                <option value="">- Choose a date -</option>
                 {dates.map((date, idx) => (
                   <option key={idx} value={date.attendancedate || date}>
                     {date.attendancedate || date}

@@ -156,7 +156,7 @@ export default function PastoralFix() {
  <>
  <CheckCircleIcon className="h-5 w-5 text-forest mr-2 shrink-0" />
  <span className="text-forest font-medium">
- All workers already use the correct casing — nothing to fix.
+ All workers already use the correct casing - nothing to fix.
  </span>
  </>
  )}
@@ -206,7 +206,7 @@ export default function PastoralFix() {
  {worker.department}
  </span>
  ) : (
- <span className="text-ink-500">{worker.department || "—"}</span>
+ <span className="text-ink-500">{worker.department || "-"}</span>
  )}
  </td>
  <td className="px-4 py-3 whitespace-nowrap text-sm">
@@ -215,7 +215,7 @@ export default function PastoralFix() {
  {worker.workerrole}
  </span>
  ) : (
- <span className="text-ink-500">{worker.workerrole || "—"}</span>
+ <span className="text-ink-500">{worker.workerrole || "-"}</span>
  )}
  </td>
  <td className="px-4 py-3 whitespace-nowrap text-sm">

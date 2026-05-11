@@ -136,13 +136,13 @@ export default function Table({
                       {p.firstname} {p.lastname}
                     </td>
                     <td className="px-4 py-3 text-sm text-ink-700 whitespace-nowrap">
-                      {p.team || "—"}
+                      {p.team || "-"}
                     </td>
                     <td className="px-4 py-3 text-sm text-ink-700 whitespace-nowrap">
-                      {p.department || "—"}
+                      {p.department || "-"}
                     </td>
                     <td className="px-4 py-3 text-sm text-ink-700 whitespace-nowrap">
-                      {p.workerrole || "—"}
+                      {p.workerrole || "-"}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <Tag tone={p.isverified ? "success" : "warning"}>

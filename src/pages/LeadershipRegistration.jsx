@@ -12,7 +12,6 @@ const CAMPUSES = [
 ];
 
 const LEADERSHIP_ROLES = [
-  "Worker",
   "Assistant Small Group Leader",
   "Small Group Leader",
   "E-Group Leader",

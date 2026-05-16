@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
 import DataTable from "../components/ui/DataTable";
 import Tag from "../components/ui/Tag";
 import { fetchRegistrations } from "../services/leadershipRegistrations";
-import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { ChevronLeftIcon, ChevronRightIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 const CAMPUSES = [
   "All Campuses", "Gbagada", "Magodo", "Ikorodu", "Jericho", "Yaba",
@@ -138,13 +138,22 @@ export default function LeadershipRegistrationAdmin() {
       <Header />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+        {/* Back link */}
+        <Link
+          to="/attendance/dashboard"
+          className="inline-flex items-center gap-1.5 text-sm text-ink-500 hover:text-ink transition"
+        >
+          <ArrowLeftIcon className="h-4 w-4" />
+          Back to Dashboard
+        </Link>
+
         {/* Page heading */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
           <div>
             <p className="text-xs font-mono uppercase tracking-widest text-ink-500 mb-1">
               Leadership Training
             </p>
-            <h1 className="text-2xl font-semibold text-ink">Registrations</h1>
+            <h1 className="text-2xl font-semibold text-ink">ALC/BLC Registrations</h1>
           </div>
           {!isLoading && (
             <span className="text-sm text-ink-500 font-mono">

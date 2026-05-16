@@ -12,7 +12,24 @@ const CAMPUSES = [
 ];
 
 const LEADERSHIP_ROLES = [
-  "HOD", "Ass. HOD", "Cell Leader", "Ass. Cell Leader", "Team Lead", "Sub Team Lead",
+  "Worker",
+  "Assistant Small Group Leader",
+  "Small Group Leader",
+  "E-Group Leader",
+  "Assistant Cell Leader",
+  "Cell Leader",
+  "Interest Group Leader",
+  "Assistant HOD",
+  "Zonal Leader",
+  "Admin",
+  "District Leader",
+  "HOD",
+  "Assistant Sub Team Head",
+  "Sub Team Head",
+  "Assistant Community Leader",
+  "Community Leader",
+  "Pastoral Leader",
+  "Directional Leader",
 ];
 
 // ── Small helpers ─────────────────────────────────────────────────────────────

@@ -40,6 +40,8 @@ const HODBulkAddWorker = lazy(() => import("./pages/HODBulkAddWorker"));
 const HODAddWorker = lazy(() => import("./pages/HODAddWorker"));
 const WorkerAttendanceHistory = lazy(() => import("./pages/WorkerAttendanceHistory"));
 const AuditLog = lazy(() => import("./pages/AuditLog"));
+const LeadershipRegistration = lazy(() => import("./pages/LeadershipRegistration"));
+const LeadershipRegistrationAdmin = lazy(() => import("./pages/LeadershipRegistrationAdmin"));
 const AdminDepartmentRedirect = lazy(() => import("./pages/AdminDepartmentRedirect"));
 const AdminWorkersRedirect = lazy(() => import("./pages/AdminWorkersRedirect"));
 const AdminSummaryDetail = lazy(() => import("./pages/AdminSummaryDetail"));
@@ -83,6 +85,15 @@ const AppRoutes = () => {
               }
             />
             <Route path="/new/worker" element={<NewWorker />} />
+            <Route path="/leadership-registration" element={<LeadershipRegistration />} />
+            <Route
+              path="/admin/leadership-registrations"
+              element={
+                <PrivateRoute>
+                  <LeadershipRegistrationAdmin />
+                </PrivateRoute>
+              }
+            />
             <Route
               path="/summary"
               element={

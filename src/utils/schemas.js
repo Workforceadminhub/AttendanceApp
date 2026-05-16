@@ -62,5 +62,21 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-const schemas = { workerSchema, departmentSchema, loginSchema };
+export const leadershipRegistrationSchema = z.object({
+  fullName: z.string().trim().min(2, "Full name is required"),
+  email,
+  phoneNumber: phone,
+  sex: z.enum(["Male", "Female"], { errorMap: () => ({ message: "Sex is required" }) }),
+  leadershipStatus: z.enum(["New Leader", "Existing Leader"], {
+    errorMap: () => ({ message: "Leadership status is required" }),
+  }),
+  leadershipRole: z.string().optional(),
+  campus: z.enum(
+    ["Gbagada", "Magodo", "Ikorodu", "Jericho", "Yaba", "Ilupeju", "Akobo", "Port Harcourt", "Oluyole", "Surulere", "Ogba", "Toronto"],
+    { errorMap: () => ({ message: "Campus is required" }) }
+  ),
+  course: z.enum(["BLC", "ALC"], { errorMap: () => ({ message: "Course is required" }) }),
+});
+
+const schemas = { workerSchema, departmentSchema, loginSchema, leadershipRegistrationSchema };
 export default schemas;

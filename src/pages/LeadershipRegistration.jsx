@@ -198,6 +198,15 @@ function RegistrationForm({ prefilled, rawPhone, onReset }) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
+      {/* Back link — always visible */}
+      <button
+        type="button"
+        onClick={onReset}
+        className="inline-flex items-center gap-1.5 text-sm text-ink-500 hover:text-ink transition"
+      >
+        ← Back
+      </button>
+
       {/* Confirmed identity banner (pre-filled) */}
       {!isManual && (
         <div className="rounded-lg border border-ink-200 bg-ink-100 px-4 py-3 flex items-start gap-3">

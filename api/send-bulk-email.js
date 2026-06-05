@@ -164,22 +164,25 @@ async function sendViaResend({ from, subject, html, recipients }) {
   const resend = new Resend(process.env.RESEND_API_KEY);
   let sent = 0;
   const failed = [];
+  const errors = [];
   for (const group of chunk(recipients, RESEND_BATCH)) {
     const payload = group.map((to) => ({ from, to, subject, html }));
     try {
       const { error } = await resend.batch.send(payload);
       if (error) {
         failed.push(...group);
+        errors.push(error?.message || JSON.stringify(error));
         console.error("Resend batch error:", error);
       } else {
         sent += group.length;
       }
     } catch (e) {
       failed.push(...group);
+      errors.push(e?.message || String(e));
       console.error("Resend batch threw:", e?.message || e);
     }
   }
-  return { sent, failed };
+  return { sent, failed, errors };
 }
 
 /**
@@ -190,6 +193,7 @@ async function sendViaBrevo({ from, subject, html, recipients }) {
   const sender = parseFrom(from);
   let sent = 0;
   const failed = [];
+  const errors = [];
   for (const group of chunk(recipients, BREVO_BATCH)) {
     try {
       const apiRes = await fetch("https://api.brevo.com/v3/smtp/email", {
@@ -211,14 +215,16 @@ async function sendViaBrevo({ from, subject, html, recipients }) {
       } else {
         failed.push(...group);
         const errText = await apiRes.text().catch(() => "");
+        errors.push(`HTTP ${apiRes.status}: ${errText}`);
         console.error("Brevo error:", apiRes.status, errText);
       }
     } catch (e) {
       failed.push(...group);
+      errors.push(e?.message || String(e));
       console.error("Brevo threw:", e?.message || e);
     }
   }
-  return { sent, failed };
+  return { sent, failed, errors };
 }
 
 export default async function handler(req, res) {
@@ -291,8 +297,15 @@ export default async function handler(req, res) {
     html,
     recipients: clean,
   };
-  const { sent, failed } =
+  const { sent, failed, errors } =
     provider === "brevo" ? await sendViaBrevo(args) : await sendViaResend(args);
 
-  return res.status(200).json({ provider, sent, failed });
+  // Surface a de-duplicated provider error sample when nothing sent / some failed.
+  const errorSample = [...new Set(errors || [])].slice(0, 3);
+  return res.status(200).json({
+    provider,
+    sent,
+    failed,
+    ...(errorSample.length ? { errors: errorSample } : {}),
+  });
 }

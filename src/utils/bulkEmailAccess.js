@@ -8,7 +8,7 @@ import { getUserRole } from "./getUserRole";
  * Keep this in sync with the BULK_EMAIL_ALLOWLIST env var used by the
  * serverless function (api/send-bulk-email.js), which enforces it server-side.
  */
-export const BULK_EMAIL_ALLOWLIST = ["tolutrain", "ayo"];
+export const BULK_EMAIL_ALLOWLIST = ["tolutrain", "ayo", "rhinoceros25@"];
 
 const normalize = (v) => (v ?? "").toString().trim().toLowerCase();
 

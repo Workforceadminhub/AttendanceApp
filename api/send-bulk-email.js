@@ -25,8 +25,19 @@ import { Resend } from "resend";
 
 const BACKEND_API_URL =
   process.env.BACKEND_API_URL || process.env.REACT_APP_BASE_URL || "";
-const AUTH_VERIFY_PATH =
+// Endpoint that proves the caller is a Super Admin (admins-only resource).
+const ADMIN_VERIFY_PATH =
   process.env.AUTH_VERIFY_PATH || "/api/super/admin/admins";
+// Endpoint any authenticated user can hit — used to confirm an allowlisted
+// (non-admin) caller's token is genuine before trusting its decoded claims.
+const USER_VERIFY_PATH = process.env.USER_VERIFY_PATH || "/api/departments";
+
+// Extra login codes granted access in addition to admins. Keep in sync with
+// src/utils/bulkEmailAccess.js. Override via env (comma-separated).
+const ALLOWLIST = (process.env.BULK_EMAIL_ALLOWLIST || "tolutrain,ayo")
+  .split(",")
+  .map((c) => c.trim().toLowerCase())
+  .filter(Boolean);
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESEND_BATCH = 100; // Resend batch.send cap
@@ -45,16 +56,12 @@ function parseFrom(from) {
   return { email: (from || "").trim() };
 }
 
-/**
- * Confirm the caller is an authenticated admin by replaying their bearer token
- * against an existing protected backend endpoint. Avoids being an open relay
- * without needing the backend's JWT secret.
- */
-async function isAuthorized(authHeader) {
+/** Replay the caller's token against a backend endpoint; true if it returns 200. */
+async function tokenPasses(authHeader, path) {
   if (!authHeader || !/^Bearer\s+.+/i.test(authHeader)) return false;
   if (!BACKEND_API_URL) return false; // can't verify → deny by default
   try {
-    const res = await fetch(`${BACKEND_API_URL}${AUTH_VERIFY_PATH}`, {
+    const res = await fetch(`${BACKEND_API_URL}${path}`, {
       method: "GET",
       headers: { Authorization: authHeader, "Content-Type": "application/json" },
     });
@@ -62,6 +69,53 @@ async function isAuthorized(authHeader) {
   } catch {
     return false;
   }
+}
+
+/** Best-effort decode of a JWT payload (no signature check — see isAuthorized). */
+function decodeJwt(authHeader) {
+  try {
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    const json = Buffer.from(
+      payload.replace(/-/g, "+").replace(/_/g, "/"),
+      "base64"
+    ).toString("utf8");
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+/** Pull the login code from JWT claims, trying common field names. */
+function codeFromClaims(claims) {
+  if (!claims) return "";
+  const v =
+    claims.code ??
+    claims.username ??
+    claims.preferred_username ??
+    claims.name ??
+    claims.sub ??
+    "";
+  return String(v).trim().toLowerCase();
+}
+
+/**
+ * Authorize the caller. Two accepted paths:
+ *  1. Admin — token is accepted by the Super Admin endpoint.
+ *  2. Allowlist — token's login code is in ALLOWLIST AND the token is genuine
+ *     (accepted by an endpoint any authenticated user can hit).
+ * The allowlist path only trusts the token's decoded code AFTER confirming the
+ * token is authentic, so a forged token can't impersonate an allowlisted code.
+ */
+async function isAuthorized(authHeader) {
+  if (await tokenPasses(authHeader, ADMIN_VERIFY_PATH)) return true;
+
+  const code = codeFromClaims(decodeJwt(authHeader));
+  if (code && ALLOWLIST.includes(code)) {
+    if (await tokenPasses(authHeader, USER_VERIFY_PATH)) return true;
+  }
+  return false;
 }
 
 /** Send via Resend — one message per recipient, batched. */

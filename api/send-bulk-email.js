@@ -132,10 +132,19 @@ async function authorize(authHeader, requesterCode) {
   }
 
   // 3. Allowlist by code (JWT claim preferred, request value as fallback).
-  const code = codeFromClaims(decodeJwt(authHeader)) || String(requesterCode || "").trim().toLowerCase();
+  const jwtCode = codeFromClaims(decodeJwt(authHeader));
+  const reqCode = String(requesterCode || "").trim().toLowerCase();
+  const code = jwtCode || reqCode;
   if (code && ALLOWLIST.includes(code)) return { ok: true };
 
-  return { ok: false, status: 403, reason: "not_in_allowlist" };
+  // Echo back ONLY the caller's own evaluated code (no cross-user leak) to make
+  // allowlist mismatches diagnosable.
+  return {
+    ok: false,
+    status: 403,
+    reason: "not_in_allowlist",
+    debug: { jwtCode: jwtCode || null, reqCode: reqCode || null, allowlist: ALLOWLIST },
+  };
 }
 
 /** Send via Resend — one message per recipient, batched. */
@@ -224,10 +233,10 @@ export default async function handler(req, res) {
   // ── Auth: caller must be an admin or an allowlisted login code ──
   const auth = await authorize(req.headers.authorization, body.requesterCode);
   if (!auth.ok) {
-    console.error("bulk-email authorize failed:", auth.reason);
+    console.error("bulk-email authorize failed:", auth.reason, auth.debug || "");
     return res
       .status(auth.status)
-      .json({ error: "Unauthorized.", reason: auth.reason });
+      .json({ error: "Unauthorized.", reason: auth.reason, ...(auth.debug ? { debug: auth.debug } : {}) });
   }
 
   const { subject, html, recipients } = body;

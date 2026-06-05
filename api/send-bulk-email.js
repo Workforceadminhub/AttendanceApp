@@ -56,18 +56,17 @@ function parseFrom(from) {
   return { email: (from || "").trim() };
 }
 
-/** Replay the caller's token against a backend endpoint; true if it returns 200. */
-async function tokenPasses(authHeader, path) {
-  if (!authHeader || !/^Bearer\s+.+/i.test(authHeader)) return false;
-  if (!BACKEND_API_URL) return false; // can't verify → deny by default
+/** Replay the caller's token against a backend endpoint; returns the HTTP status (0 on network error). */
+async function statusOf(authHeader, path) {
   try {
     const res = await fetch(`${BACKEND_API_URL}${path}`, {
       method: "GET",
       headers: { Authorization: authHeader, "Content-Type": "application/json" },
     });
-    return res.status === 200;
-  } catch {
-    return false;
+    return res.status;
+  } catch (e) {
+    console.error("verify fetch failed:", path, e?.message || e);
+    return 0;
   }
 }
 
@@ -101,21 +100,42 @@ function codeFromClaims(claims) {
 }
 
 /**
- * Authorize the caller. Two accepted paths:
+ * Authorize the caller. Returns { ok, status, reason }.
  *  1. Admin — token is accepted by the Super Admin endpoint.
- *  2. Allowlist — token's login code is in ALLOWLIST AND the token is genuine
- *     (accepted by an endpoint any authenticated user can hit).
- * The allowlist path only trusts the token's decoded code AFTER confirming the
- * token is authentic, so a forged token can't impersonate an allowlisted code.
+ *  2. Allowlist — the caller's login code is in ALLOWLIST AND the token is
+ *     genuine (accepted by an endpoint any authenticated user can hit).
+ * The login code is taken from the JWT when present, otherwise from the
+ * request (requesterCode) — but only trusted AFTER the token is confirmed
+ * authentic, so it can't be spoofed by an unauthenticated caller.
  */
-async function isAuthorized(authHeader) {
-  if (await tokenPasses(authHeader, ADMIN_VERIFY_PATH)) return true;
-
-  const code = codeFromClaims(decodeJwt(authHeader));
-  if (code && ALLOWLIST.includes(code)) {
-    if (await tokenPasses(authHeader, USER_VERIFY_PATH)) return true;
+async function authorize(authHeader, requesterCode) {
+  if (!authHeader || !/^Bearer\s+.+/i.test(authHeader)) {
+    return { ok: false, status: 401, reason: "missing_bearer_token" };
   }
-  return false;
+  if (!BACKEND_API_URL) {
+    // Misconfiguration, not an auth failure — surface it clearly.
+    return { ok: false, status: 500, reason: "backend_url_not_configured" };
+  }
+
+  // 1. Admin fast-path.
+  const adminStatus = await statusOf(authHeader, ADMIN_VERIFY_PATH);
+  if (adminStatus === 200) return { ok: true };
+
+  // 2. Confirm the token is a genuine logged-in user before trusting any code.
+  const userStatus = await statusOf(authHeader, USER_VERIFY_PATH);
+  if (userStatus !== 200) {
+    return {
+      ok: false,
+      status: 401,
+      reason: `token_rejected (admin:${adminStatus}, user:${userStatus})`,
+    };
+  }
+
+  // 3. Allowlist by code (JWT claim preferred, request value as fallback).
+  const code = codeFromClaims(decodeJwt(authHeader)) || String(requesterCode || "").trim().toLowerCase();
+  if (code && ALLOWLIST.includes(code)) return { ok: true };
+
+  return { ok: false, status: 403, reason: "not_in_allowlist" };
 }
 
 /** Send via Resend — one message per recipient, batched. */
@@ -190,13 +210,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "EMAIL_FROM is not configured." });
   }
 
-  // ── Auth: caller must be a logged-in admin ──
-  const authorized = await isAuthorized(req.headers.authorization);
-  if (!authorized) {
-    return res.status(401).json({ error: "Unauthorized." });
-  }
-
-  // ── Parse + validate payload ──
+  // ── Parse body (needed for both auth and payload) ──
   let body = req.body;
   if (typeof body === "string") {
     try {
@@ -205,7 +219,18 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Invalid JSON body." });
     }
   }
-  const { subject, html, recipients } = body || {};
+  body = body || {};
+
+  // ── Auth: caller must be an admin or an allowlisted login code ──
+  const auth = await authorize(req.headers.authorization, body.requesterCode);
+  if (!auth.ok) {
+    console.error("bulk-email authorize failed:", auth.reason);
+    return res
+      .status(auth.status)
+      .json({ error: "Unauthorized.", reason: auth.reason });
+  }
+
+  const { subject, html, recipients } = body;
 
   if (!subject || !String(subject).trim()) {
     return res.status(400).json({ error: "Subject is required." });

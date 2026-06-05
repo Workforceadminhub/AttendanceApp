@@ -64,6 +64,16 @@ export const sendBulkEmail = async ({ subject, html, recipients, provider }) => 
   }
 
   const token = sessionStorage.getItem("accessToken");
+  // The caller's login code lets the function authorize allowlisted users when
+  // the JWT doesn't embed it. It's only trusted after the token is verified
+  // server-side, so it can't be used to bypass auth.
+  let requesterCode;
+  try {
+    requesterCode = JSON.parse(sessionStorage.getItem("authUser") || "{}")?.code;
+  } catch {
+    requesterCode = undefined;
+  }
+
   const res = await fetch("/api/send-bulk-email", {
     method: "POST",
     headers: {
@@ -75,6 +85,7 @@ export const sendBulkEmail = async ({ subject, html, recipients, provider }) => 
       html,
       recipients,
       ...(provider ? { provider } : {}),
+      ...(requesterCode ? { requesterCode } : {}),
     }),
   });
 
@@ -86,7 +97,10 @@ export const sendBulkEmail = async ({ subject, html, recipients, provider }) => 
   }
 
   if (!res.ok || !data || data.error) {
-    throw new Error(data?.error || `Failed to send bulk email (HTTP ${res.status}).`);
+    const detail = data?.reason ? ` (${data.reason})` : "";
+    throw new Error(
+      (data?.error || `Failed to send bulk email (HTTP ${res.status}).`) + detail
+    );
   }
   return data;
 };

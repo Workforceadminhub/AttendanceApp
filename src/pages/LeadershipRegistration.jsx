@@ -12,7 +12,23 @@ const CAMPUSES = [
 ];
 
 const LEADERSHIP_ROLES = [
-  "HOD", "Ass. HOD", "Cell Leader", "Ass. Cell Leader", "Team Lead", "Sub Team Lead",
+  "Assistant Small Group Leader",
+  "Small Group Leader",
+  "E-Group Leader",
+  "Assistant Cell Leader",
+  "Cell Leader",
+  "Interest Group Leader",
+  "Assistant HOD",
+  "Zonal Leader",
+  "Admin",
+  "District Leader",
+  "HOD",
+  "Assistant Sub Team Head",
+  "Sub Team Head",
+  "Assistant Community Leader",
+  "Community Leader",
+  "Pastoral Leader",
+  "Directional Leader",
 ];
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
@@ -182,6 +198,15 @@ function RegistrationForm({ prefilled, rawPhone, onReset }) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
+      {/* Back link — always visible */}
+      <button
+        type="button"
+        onClick={onReset}
+        className="inline-flex items-center gap-1.5 text-sm text-ink-500 hover:text-ink transition"
+      >
+        ← Back
+      </button>
+
       {/* Confirmed identity banner (pre-filled) */}
       {!isManual && (
         <div className="rounded-lg border border-ink-200 bg-ink-100 px-4 py-3 flex items-start gap-3">

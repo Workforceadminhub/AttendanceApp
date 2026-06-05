@@ -55,7 +55,7 @@ export const fetchRegistrations = async ({ page = 1, limit = 15, campus, course,
 
   const response = await apiRequest(
     "GET",
-    "/super/admin/leadership-registrations",
+    "/api/super/admin/leadership-registrations",
     params
   );
   if (!response || response.error) {

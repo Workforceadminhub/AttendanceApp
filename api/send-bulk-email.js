@@ -153,23 +153,10 @@ async function authorize(authHeader, requesterCode) {
   const claims = decodeJwt(authHeader);
   if (isAdminFromClaims(claims)) return { ok: true };
 
-  const jwtCode = codeFromClaims(claims);
-  const reqCode = String(requesterCode || "").trim().toLowerCase();
-  const code = jwtCode || reqCode;
+  const code = codeFromClaims(claims) || String(requesterCode || "").trim().toLowerCase();
   if (code && ALLOWLIST.includes(code)) return { ok: true };
 
-  // Echo back ONLY the caller's own evaluated identity (no cross-user leak).
-  return {
-    ok: false,
-    status: 403,
-    reason: "not_authorized",
-    debug: {
-      role: claims?.role ?? null,
-      department: claims?.department ?? null,
-      jwtCode: jwtCode || null,
-      reqCode: reqCode || null,
-    },
-  };
+  return { ok: false, status: 403, reason: "not_authorized" };
 }
 
 /** Send via Resend — one message per recipient, batched. */
@@ -177,22 +164,25 @@ async function sendViaResend({ from, subject, html, recipients }) {
   const resend = new Resend(process.env.RESEND_API_KEY);
   let sent = 0;
   const failed = [];
+  const errors = [];
   for (const group of chunk(recipients, RESEND_BATCH)) {
     const payload = group.map((to) => ({ from, to, subject, html }));
     try {
       const { error } = await resend.batch.send(payload);
       if (error) {
         failed.push(...group);
+        errors.push(error?.message || JSON.stringify(error));
         console.error("Resend batch error:", error);
       } else {
         sent += group.length;
       }
     } catch (e) {
       failed.push(...group);
+      errors.push(e?.message || String(e));
       console.error("Resend batch threw:", e?.message || e);
     }
   }
-  return { sent, failed };
+  return { sent, failed, errors };
 }
 
 /**
@@ -203,6 +193,7 @@ async function sendViaBrevo({ from, subject, html, recipients }) {
   const sender = parseFrom(from);
   let sent = 0;
   const failed = [];
+  const errors = [];
   for (const group of chunk(recipients, BREVO_BATCH)) {
     try {
       const apiRes = await fetch("https://api.brevo.com/v3/smtp/email", {
@@ -224,14 +215,16 @@ async function sendViaBrevo({ from, subject, html, recipients }) {
       } else {
         failed.push(...group);
         const errText = await apiRes.text().catch(() => "");
+        errors.push(`HTTP ${apiRes.status}: ${errText}`);
         console.error("Brevo error:", apiRes.status, errText);
       }
     } catch (e) {
       failed.push(...group);
+      errors.push(e?.message || String(e));
       console.error("Brevo threw:", e?.message || e);
     }
   }
-  return { sent, failed };
+  return { sent, failed, errors };
 }
 
 export default async function handler(req, res) {
@@ -258,10 +251,10 @@ export default async function handler(req, res) {
   // ── Auth: caller must be an admin or an allowlisted login code ──
   const auth = await authorize(req.headers.authorization, body.requesterCode);
   if (!auth.ok) {
-    console.error("bulk-email authorize failed:", auth.reason, auth.debug || "");
+    console.error("bulk-email authorize failed:", auth.reason);
     return res
       .status(auth.status)
-      .json({ error: "Unauthorized.", reason: auth.reason, ...(auth.debug ? { debug: auth.debug } : {}) });
+      .json({ error: "Unauthorized.", reason: auth.reason });
   }
 
   const { subject, html, recipients } = body;
@@ -304,8 +297,15 @@ export default async function handler(req, res) {
     html,
     recipients: clean,
   };
-  const { sent, failed } =
+  const { sent, failed, errors } =
     provider === "brevo" ? await sendViaBrevo(args) : await sendViaResend(args);
 
-  return res.status(200).json({ provider, sent, failed });
+  // Surface a de-duplicated provider error sample when nothing sent / some failed.
+  const errorSample = [...new Set(errors || [])].slice(0, 3);
+  return res.status(200).json({
+    provider,
+    sent,
+    failed,
+    ...(errorSample.length ? { errors: errorSample } : {}),
+  });
 }

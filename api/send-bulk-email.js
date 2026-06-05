@@ -42,6 +42,10 @@ const ALLOWLIST = (process.env.BULK_EMAIL_ALLOWLIST || "tolutrain,ayo,rhinoceros
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESEND_BATCH = 100; // Resend batch.send cap
 const BREVO_BATCH = 1000; // Brevo messageVersions cap
+// Friendly sender name shown in inboxes. Used when EMAIL_FROM is a bare
+// address. Override with EMAIL_FROM_NAME or by putting the name in EMAIL_FROM.
+const DEFAULT_FROM_NAME =
+  process.env.EMAIL_FROM_NAME || "Harvesters International Christian Centre, Gbagada";
 
 function chunk(arr, size) {
   const out = [];
@@ -54,6 +58,17 @@ function parseFrom(from) {
   const m = /^\s*(.*?)\s*<\s*([^>]+)\s*>\s*$/.exec(from || "");
   if (m) return { name: m[1] || undefined, email: m[2] };
   return { email: (from || "").trim() };
+}
+
+/**
+ * Resolve EMAIL_FROM into a sender with a guaranteed display name.
+ * Returns { name, email, header } where header is the RFC "Name <email>" form.
+ */
+function resolveSender(raw) {
+  const parsed = parseFrom(raw);
+  const name = parsed.name || DEFAULT_FROM_NAME;
+  const email = parsed.email;
+  return { name, email, header: `${name} <${email}>` };
 }
 
 /** Replay the caller's token against a backend endpoint; returns the HTTP status (0 on network error). */
@@ -292,7 +307,7 @@ export default async function handler(req, res) {
   }
 
   const args = {
-    from: process.env.EMAIL_FROM,
+    from: resolveSender(process.env.EMAIL_FROM).header, // "Display Name <email>"
     subject,
     html,
     recipients: clean,

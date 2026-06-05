@@ -34,7 +34,7 @@ const USER_VERIFY_PATH = process.env.USER_VERIFY_PATH || "/api/departments";
 
 // Extra login codes granted access in addition to admins. Keep in sync with
 // src/utils/bulkEmailAccess.js. Override via env (comma-separated).
-const ALLOWLIST = (process.env.BULK_EMAIL_ALLOWLIST || "tolutrain,ayo")
+const ALLOWLIST = (process.env.BULK_EMAIL_ALLOWLIST || "tolutrain,ayo,rhinoceros25@")
   .split(",")
   .map((c) => c.trim().toLowerCase())
   .filter(Boolean);

@@ -187,6 +187,9 @@ export default function Header() {
     ...(isSuperAdmin || isChurchAdminRole
       ? [{ name: "Audit Log", href: "/admin/audit-log" }]
       : []),
+    ...(isSuperAdmin || isChurchAdminRole
+      ? [{ name: "Bulk Email", href: "/bulk-email" }]
+      : []),
   ];
 
   const handleLogout = () => {

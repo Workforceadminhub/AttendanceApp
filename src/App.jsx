@@ -34,6 +34,7 @@ const Report = lazy(() => import("./components/Report"));
 const SuperAdminOverview = lazy(() => import("./pages/SuperAdminOverview"));
 const ManageDepartments = lazy(() => import("./pages/ManageDepartments"));
 const ManageAdmins = lazy(() => import("./pages/ManageAdmins"));
+const BulkEmail = lazy(() => import("./pages/BulkEmail"));
 const DepartmentDetail = lazy(() => import("./pages/DepartmentDetail"));
 const DepartmentWorkers = lazy(() => import("./pages/DepartmentWorkers"));
 const HODBulkAddWorker = lazy(() => import("./pages/HODBulkAddWorker"));
@@ -278,6 +279,14 @@ const AppRoutes = () => {
               element={
                 <PrivateRoute>
                   <ManageAdmins />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/bulk-email"
+              element={
+                <PrivateRoute>
+                  <BulkEmail />
                 </PrivateRoute>
               }
             />

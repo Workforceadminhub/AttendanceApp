@@ -86,6 +86,25 @@ function decodeJwt(authHeader) {
   }
 }
 
+/** True if the (verified) token claims indicate a Super Admin or Church Admin. */
+function isAdminFromClaims(claims) {
+  if (!claims) return false;
+  const dept = String(claims.department || "").trim().toLowerCase();
+  const role = String(claims.role || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-");
+  const plvl = String(claims.permissionLevel || "").trim().toUpperCase();
+  return (
+    dept === "super admin" ||
+    dept === "church admin" ||
+    role === "super-admin" ||
+    role === "church-admin" ||
+    plvl === "SUPER_ADMIN" ||
+    plvl === "CHURCH_ADMIN"
+  );
+}
+
 /** Pull the login code from JWT claims, trying common field names. */
 function codeFromClaims(claims) {
   if (!claims) return "";
@@ -101,12 +120,10 @@ function codeFromClaims(claims) {
 
 /**
  * Authorize the caller. Returns { ok, status, reason }.
- *  1. Admin — token is accepted by the Super Admin endpoint.
- *  2. Allowlist — the caller's login code is in ALLOWLIST AND the token is
- *     genuine (accepted by an endpoint any authenticated user can hit).
- * The login code is taken from the JWT when present, otherwise from the
- * request (requesterCode) — but only trusted AFTER the token is confirmed
- * authentic, so it can't be spoofed by an unauthenticated caller.
+ * Step 1 confirms the token is a genuine logged-in user (so its signed claims
+ * can be trusted). Step 2 then authorizes:
+ *   - Super Admins / Church Admins, identified from the verified token's claims;
+ *   - or an allowlisted login code (JWT claim, else frontend-sent requesterCode).
  */
 async function authorize(authHeader, requesterCode) {
   if (!authHeader || !/^Bearer\s+.+/i.test(authHeader)) {
@@ -117,25 +134,42 @@ async function authorize(authHeader, requesterCode) {
     return { ok: false, status: 500, reason: "backend_url_not_configured" };
   }
 
-  // 1. Admin fast-path.
-  const adminStatus = await statusOf(authHeader, ADMIN_VERIFY_PATH);
-  if (adminStatus === 200) return { ok: true };
-
-  // 2. Confirm the token is a genuine logged-in user before trusting any code.
-  const userStatus = await statusOf(authHeader, USER_VERIFY_PATH);
+  // 1. Authenticity: accept any genuine logged-in user's token. Try the
+  //    universal endpoint first, falling back to the admin endpoint.
+  let userStatus = await statusOf(authHeader, USER_VERIFY_PATH);
+  let adminStatus = 0;
   if (userStatus !== 200) {
-    return {
-      ok: false,
-      status: 401,
-      reason: `token_rejected (admin:${adminStatus}, user:${userStatus})`,
-    };
+    adminStatus = await statusOf(authHeader, ADMIN_VERIFY_PATH);
+    if (adminStatus !== 200) {
+      return {
+        ok: false,
+        status: 401,
+        reason: `token_rejected (user:${userStatus}, admin:${adminStatus})`,
+      };
+    }
   }
 
-  // 3. Allowlist by code (JWT claim preferred, request value as fallback).
-  const code = codeFromClaims(decodeJwt(authHeader)) || String(requesterCode || "").trim().toLowerCase();
+  // 2. Authorize from the (now-verified) token claims.
+  const claims = decodeJwt(authHeader);
+  if (isAdminFromClaims(claims)) return { ok: true };
+
+  const jwtCode = codeFromClaims(claims);
+  const reqCode = String(requesterCode || "").trim().toLowerCase();
+  const code = jwtCode || reqCode;
   if (code && ALLOWLIST.includes(code)) return { ok: true };
 
-  return { ok: false, status: 403, reason: "not_in_allowlist" };
+  // Echo back ONLY the caller's own evaluated identity (no cross-user leak).
+  return {
+    ok: false,
+    status: 403,
+    reason: "not_authorized",
+    debug: {
+      role: claims?.role ?? null,
+      department: claims?.department ?? null,
+      jwtCode: jwtCode || null,
+      reqCode: reqCode || null,
+    },
+  };
 }
 
 /** Send via Resend — one message per recipient, batched. */
@@ -224,10 +258,10 @@ export default async function handler(req, res) {
   // ── Auth: caller must be an admin or an allowlisted login code ──
   const auth = await authorize(req.headers.authorization, body.requesterCode);
   if (!auth.ok) {
-    console.error("bulk-email authorize failed:", auth.reason);
+    console.error("bulk-email authorize failed:", auth.reason, auth.debug || "");
     return res
       .status(auth.status)
-      .json({ error: "Unauthorized.", reason: auth.reason });
+      .json({ error: "Unauthorized.", reason: auth.reason, ...(auth.debug ? { debug: auth.debug } : {}) });
   }
 
   const { subject, html, recipients } = body;

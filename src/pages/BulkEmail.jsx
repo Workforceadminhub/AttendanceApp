@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef } from "react";
+import { Navigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
   BoldIcon,
@@ -11,10 +12,20 @@ import Layout from "../components/Layout";
 import { Button, Card } from "../components/ui";
 import { buildEmail } from "../emails/template";
 import { parseRecipients, sendBulkEmail } from "../services/email";
+import { canSendBulkEmail } from "../utils/bulkEmailAccess";
 
 const PREVIEW_WIDTHS = { desktop: "100%", mobile: "375px" };
 
 export default function BulkEmail() {
+  // Block direct-URL access for users without Bulk Email permission.
+  // (The serverless function also enforces this server-side.)
+  if (!canSendBulkEmail()) {
+    return <Navigate to="/" replace />;
+  }
+  return <BulkEmailComposer />;
+}
+
+function BulkEmailComposer() {
   const [subject, setSubject] = useState("");
   const [preheader, setPreheader] = useState("");
   const [heading, setHeading] = useState("");

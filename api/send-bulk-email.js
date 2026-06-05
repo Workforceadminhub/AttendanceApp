@@ -25,8 +25,19 @@ import { Resend } from "resend";
 
 const BACKEND_API_URL =
   process.env.BACKEND_API_URL || process.env.REACT_APP_BASE_URL || "";
-const AUTH_VERIFY_PATH =
+// Endpoint that proves the caller is a Super Admin (admins-only resource).
+const ADMIN_VERIFY_PATH =
   process.env.AUTH_VERIFY_PATH || "/api/super/admin/admins";
+// Endpoint any authenticated user can hit — used to confirm an allowlisted
+// (non-admin) caller's token is genuine before trusting its decoded claims.
+const USER_VERIFY_PATH = process.env.USER_VERIFY_PATH || "/api/departments";
+
+// Extra login codes granted access in addition to admins. Keep in sync with
+// src/utils/bulkEmailAccess.js. Override via env (comma-separated).
+const ALLOWLIST = (process.env.BULK_EMAIL_ALLOWLIST || "tolutrain,ayo")
+  .split(",")
+  .map((c) => c.trim().toLowerCase())
+  .filter(Boolean);
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESEND_BATCH = 100; // Resend batch.send cap
@@ -45,23 +56,86 @@ function parseFrom(from) {
   return { email: (from || "").trim() };
 }
 
-/**
- * Confirm the caller is an authenticated admin by replaying their bearer token
- * against an existing protected backend endpoint. Avoids being an open relay
- * without needing the backend's JWT secret.
- */
-async function isAuthorized(authHeader) {
-  if (!authHeader || !/^Bearer\s+.+/i.test(authHeader)) return false;
-  if (!BACKEND_API_URL) return false; // can't verify → deny by default
+/** Replay the caller's token against a backend endpoint; returns the HTTP status (0 on network error). */
+async function statusOf(authHeader, path) {
   try {
-    const res = await fetch(`${BACKEND_API_URL}${AUTH_VERIFY_PATH}`, {
+    const res = await fetch(`${BACKEND_API_URL}${path}`, {
       method: "GET",
       headers: { Authorization: authHeader, "Content-Type": "application/json" },
     });
-    return res.status === 200;
-  } catch {
-    return false;
+    return res.status;
+  } catch (e) {
+    console.error("verify fetch failed:", path, e?.message || e);
+    return 0;
   }
+}
+
+/** Best-effort decode of a JWT payload (no signature check — see isAuthorized). */
+function decodeJwt(authHeader) {
+  try {
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    const json = Buffer.from(
+      payload.replace(/-/g, "+").replace(/_/g, "/"),
+      "base64"
+    ).toString("utf8");
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+/** Pull the login code from JWT claims, trying common field names. */
+function codeFromClaims(claims) {
+  if (!claims) return "";
+  const v =
+    claims.code ??
+    claims.username ??
+    claims.preferred_username ??
+    claims.name ??
+    claims.sub ??
+    "";
+  return String(v).trim().toLowerCase();
+}
+
+/**
+ * Authorize the caller. Returns { ok, status, reason }.
+ *  1. Admin — token is accepted by the Super Admin endpoint.
+ *  2. Allowlist — the caller's login code is in ALLOWLIST AND the token is
+ *     genuine (accepted by an endpoint any authenticated user can hit).
+ * The login code is taken from the JWT when present, otherwise from the
+ * request (requesterCode) — but only trusted AFTER the token is confirmed
+ * authentic, so it can't be spoofed by an unauthenticated caller.
+ */
+async function authorize(authHeader, requesterCode) {
+  if (!authHeader || !/^Bearer\s+.+/i.test(authHeader)) {
+    return { ok: false, status: 401, reason: "missing_bearer_token" };
+  }
+  if (!BACKEND_API_URL) {
+    // Misconfiguration, not an auth failure — surface it clearly.
+    return { ok: false, status: 500, reason: "backend_url_not_configured" };
+  }
+
+  // 1. Admin fast-path.
+  const adminStatus = await statusOf(authHeader, ADMIN_VERIFY_PATH);
+  if (adminStatus === 200) return { ok: true };
+
+  // 2. Confirm the token is a genuine logged-in user before trusting any code.
+  const userStatus = await statusOf(authHeader, USER_VERIFY_PATH);
+  if (userStatus !== 200) {
+    return {
+      ok: false,
+      status: 401,
+      reason: `token_rejected (admin:${adminStatus}, user:${userStatus})`,
+    };
+  }
+
+  // 3. Allowlist by code (JWT claim preferred, request value as fallback).
+  const code = codeFromClaims(decodeJwt(authHeader)) || String(requesterCode || "").trim().toLowerCase();
+  if (code && ALLOWLIST.includes(code)) return { ok: true };
+
+  return { ok: false, status: 403, reason: "not_in_allowlist" };
 }
 
 /** Send via Resend — one message per recipient, batched. */
@@ -136,13 +210,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "EMAIL_FROM is not configured." });
   }
 
-  // ── Auth: caller must be a logged-in admin ──
-  const authorized = await isAuthorized(req.headers.authorization);
-  if (!authorized) {
-    return res.status(401).json({ error: "Unauthorized." });
-  }
-
-  // ── Parse + validate payload ──
+  // ── Parse body (needed for both auth and payload) ──
   let body = req.body;
   if (typeof body === "string") {
     try {
@@ -151,7 +219,18 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Invalid JSON body." });
     }
   }
-  const { subject, html, recipients } = body || {};
+  body = body || {};
+
+  // ── Auth: caller must be an admin or an allowlisted login code ──
+  const auth = await authorize(req.headers.authorization, body.requesterCode);
+  if (!auth.ok) {
+    console.error("bulk-email authorize failed:", auth.reason);
+    return res
+      .status(auth.status)
+      .json({ error: "Unauthorized.", reason: auth.reason });
+  }
+
+  const { subject, html, recipients } = body;
 
   if (!subject || !String(subject).trim()) {
     return res.status(400).json({ error: "Subject is required." });

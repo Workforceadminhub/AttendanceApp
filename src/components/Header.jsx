@@ -7,6 +7,7 @@ import { getUser } from "../utils/getUser";
 import { clearFilterCache } from "../utils/filterCache";
 import { getUserRole } from "../utils/getUserRole";
 import { getDepartmentRoute } from "../utils/routeObject";
+import { canSendBulkEmail } from "../utils/bulkEmailAccess";
 import MobileSheet from "./ui/MobileSheet";
 
 /**
@@ -187,7 +188,7 @@ export default function Header() {
     ...(isSuperAdmin || isChurchAdminRole
       ? [{ name: "Audit Log", href: "/admin/audit-log" }]
       : []),
-    ...(isSuperAdmin || isChurchAdminRole
+    ...(canSendBulkEmail(authUser)
       ? [{ name: "Bulk Email", href: "/bulk-email" }]
       : []),
   ];
@@ -280,10 +281,13 @@ export default function Header() {
                 <NavLink href={approvalsItem.href}>{approvalsItem.name}</NavLink>
               )}
               <NavLink href={attendanceItem.href}>{attendanceItem.name}</NavLink>
-              {settingsDropdown.length > 0 && (
-                <NavDropdown label="Settings" items={settingsDropdown} />
-              )}
             </>
+          )}
+
+          {/* Settings dropdown — shown in both nav modes when it has items
+              (e.g. an allowlisted HOD whose only entry is Bulk Email). */}
+          {settingsDropdown.length > 0 && (
+            <NavDropdown label="Settings" items={settingsDropdown} />
           )}
 
           <span className="h-5 w-px bg-ink-200 mx-1" />

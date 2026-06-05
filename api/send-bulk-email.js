@@ -153,23 +153,10 @@ async function authorize(authHeader, requesterCode) {
   const claims = decodeJwt(authHeader);
   if (isAdminFromClaims(claims)) return { ok: true };
 
-  const jwtCode = codeFromClaims(claims);
-  const reqCode = String(requesterCode || "").trim().toLowerCase();
-  const code = jwtCode || reqCode;
+  const code = codeFromClaims(claims) || String(requesterCode || "").trim().toLowerCase();
   if (code && ALLOWLIST.includes(code)) return { ok: true };
 
-  // Echo back ONLY the caller's own evaluated identity (no cross-user leak).
-  return {
-    ok: false,
-    status: 403,
-    reason: "not_authorized",
-    debug: {
-      role: claims?.role ?? null,
-      department: claims?.department ?? null,
-      jwtCode: jwtCode || null,
-      reqCode: reqCode || null,
-    },
-  };
+  return { ok: false, status: 403, reason: "not_authorized" };
 }
 
 /** Send via Resend — one message per recipient, batched. */
@@ -258,10 +245,10 @@ export default async function handler(req, res) {
   // ── Auth: caller must be an admin or an allowlisted login code ──
   const auth = await authorize(req.headers.authorization, body.requesterCode);
   if (!auth.ok) {
-    console.error("bulk-email authorize failed:", auth.reason, auth.debug || "");
+    console.error("bulk-email authorize failed:", auth.reason);
     return res
       .status(auth.status)
-      .json({ error: "Unauthorized.", reason: auth.reason, ...(auth.debug ? { debug: auth.debug } : {}) });
+      .json({ error: "Unauthorized.", reason: auth.reason });
   }
 
   const { subject, html, recipients } = body;

@@ -2,25 +2,17 @@
  * Vercel serverless function — POST /api/email-webhook
  *
  * Receives email event callbacks from Brevo (and Resend) and logs ALL of them
- * to the Supabase `email_events` table (see db/email_events.sql).
+ * to the Supabase `email_events` table, linked to the originating send via the
+ * campaign id (the provider tag set in api/send-bulk-email.js).
  *
- * Events captured: delivered, opened, click, hard_bounce, soft_bounce, spam,
- * unsubscribed, deferred, blocked, invalid_email, error (Brevo) and the
- * email.* equivalents (Resend).
+ * Security: the provider must call the URL with the shared secret, either as a
+ * `?token=...` query param or an `x-webhook-secret` header, matching
+ * EMAIL_WEBHOOK_SECRET. (Brevo transactional webhooks aren't signed.)
  *
- * Security: the provider must call the URL with the shared secret, either as
- * a `?token=...` query param or an `x-webhook-secret` header, matching the
- * EMAIL_WEBHOOK_SECRET env var. (Brevo transactional webhooks aren't signed,
- * so a URL secret is the standard guard.)
- *
- * Required Vercel environment variables:
- *   SUPABASE_URL                — your Supabase project URL.
- *   SUPABASE_SERVICE_ROLE_KEY   — service role key (server-only; bypasses RLS).
- *   EMAIL_WEBHOOK_SECRET        — shared secret included in the webhook URL.
+ * Env: EMAIL_WEBHOOK_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
  */
-import { createClient } from "@supabase/supabase-js";
+import { insertRows, supabaseConfigured } from "./_lib/supabase.js";
 
-/** Pull a value from common Brevo/Resend field name variants. */
 function pick(obj, ...keys) {
   for (const k of keys) {
     if (obj && obj[k] != null && obj[k] !== "") return obj[k];
@@ -28,15 +20,25 @@ function pick(obj, ...keys) {
   return undefined;
 }
 
-/** Normalise one provider payload into an email_events row (or null if unrecognised). */
+/** First tag value from common Brevo/Resend shapes (that's our campaign id). */
+function campaignFrom(payload, data) {
+  const t = pick(payload, "tag", "tags") ?? pick(data || {}, "tags", "tag");
+  if (Array.isArray(t)) {
+    const first = t[0];
+    return typeof first === "object" ? first?.value ?? first?.name ?? null : first ?? null;
+  }
+  return t ?? null;
+}
+
 function normalize(payload) {
   if (!payload || typeof payload !== "object") return null;
 
-  // Resend: { type: "email.delivered", created_at, data: { email_id, to, subject, from } }
+  // Resend: { type: "email.delivered", created_at, data: { email_id, to, subject, tags } }
   if (typeof payload.type === "string" && payload.data) {
     const d = payload.data;
     const to = Array.isArray(d.to) ? d.to[0] : d.to;
     return {
+      campaign_id: campaignFrom(payload, d),
       provider: "resend",
       event: payload.type.replace(/^email\./, ""),
       email: to || null,
@@ -47,7 +49,7 @@ function normalize(payload) {
     };
   }
 
-  // Brevo: { event, email, "message-id", subject, date, ts, ... }
+  // Brevo: { event, email, "message-id", subject, date, ts, tag/tags, ... }
   if (typeof payload.event === "string") {
     let occurred = pick(payload, "date");
     if (!occurred) {
@@ -55,6 +57,7 @@ function normalize(payload) {
       if (ts) occurred = new Date(Number(ts) * 1000).toISOString();
     }
     return {
+      campaign_id: campaignFrom(payload),
       provider: "brevo",
       event: payload.event,
       email: pick(payload, "email", "recipient") || null,
@@ -68,7 +71,6 @@ function normalize(payload) {
   return null;
 }
 
-/** Constant-time-ish string compare to avoid trivial timing leaks. */
 function safeEqual(a, b) {
   if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
   let diff = 0;
@@ -87,21 +89,17 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "EMAIL_WEBHOOK_SECRET is not configured." });
   }
   const provided =
-    (req.query && (req.query.token || req.query.secret)) ||
-    req.headers["x-webhook-secret"];
+    (req.query && (req.query.token || req.query.secret)) || req.headers["x-webhook-secret"];
   if (!safeEqual(String(provided || ""), secret)) {
     return res.status(401).json({ error: "Unauthorized." });
   }
 
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !serviceKey) {
+  if (!supabaseConfigured()) {
     return res
       .status(500)
       .json({ error: "Supabase is not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)." });
   }
 
-  // Parse body (Vercel usually parses JSON; fall back to manual).
   let body = req.body;
   if (typeof body === "string") {
     try {
@@ -111,7 +109,6 @@ export default async function handler(req, res) {
     }
   }
 
-  // Brevo sends one event per call; some setups batch as an array. Handle both.
   const events = Array.isArray(body)
     ? body
     : Array.isArray(body?.items)
@@ -120,24 +117,15 @@ export default async function handler(req, res) {
 
   const rows = events.map(normalize).filter(Boolean);
   if (rows.length === 0) {
-    // Acknowledge so the provider doesn't retry an unrecognised (e.g. test) ping.
     console.warn("email-webhook: no recognisable events in payload");
     return res.status(200).json({ received: 0 });
   }
 
   try {
-    const supabase = createClient(supabaseUrl, serviceKey, {
-      auth: { persistSession: false },
-    });
-    const { error } = await supabase.from("email_events").insert(rows);
-    if (error) {
-      console.error("email-webhook insert error:", error.message || error);
-      // 500 → provider will retry, so we don't silently drop events.
-      return res.status(500).json({ error: "Failed to store events." });
-    }
+    await insertRows("email_events", rows);
   } catch (e) {
-    console.error("email-webhook threw:", e?.message || e);
-    return res.status(500).json({ error: "Failed to store events." });
+    console.error("email-webhook insert error:", e?.message || e);
+    return res.status(500).json({ error: "Failed to store events." }); // provider will retry
   }
 
   return res.status(200).json({ received: rows.length });

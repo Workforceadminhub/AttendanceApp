@@ -55,6 +55,18 @@ export async function createMeetingWorker(data, apiKey) {
   return response;
 }
 
+export async function getMeetingRegistrations(meetingDate, status = "all") {
+  const response = await apiRequest(
+    "GET",
+    "/api/super/admin/meeting/leaders/registrations",
+    { meeting_date: meetingDate, status }
+  );
+  if (!response || response.error) {
+    throw new Error(response?.error || "Failed to fetch registrations.");
+  }
+  return response;
+}
+
 export async function updateMeetingWorker(workerId, data, apiKey) {
   const response = await apiRequest(
     "PUT",

@@ -301,7 +301,7 @@ function EditWorkerStep({ worker, token, onBack, onDone }) {
     try {
       const isConfirmed = attending === "yes";
       const payload = { meeting_date: MEETING_DATE, is_confirmed: isConfirmed };
-      if (!isConfirmed) payload.decline_reason = declineReason.trim();
+      if (!isConfirmed) payload.notes = declineReason.trim();
       if (hasMissing) {
         if (missing.has("email")) payload.email = form.email.trim();
         if (missing.has("phone")) payload.phone = form.phone.trim();

@@ -189,7 +189,10 @@ export default function Header() {
       ? [{ name: "Audit Log", href: "/admin/audit-log" }]
       : []),
     ...(canSendBulkEmail(authUser)
-      ? [{ name: "Bulk Email", href: "/bulk-email" }]
+      ? [
+          { name: "Bulk Email", href: "/bulk-email" },
+          { name: "Email Activity", href: "/bulk-email/report" },
+        ]
       : []),
   ];
 

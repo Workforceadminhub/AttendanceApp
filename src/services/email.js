@@ -105,4 +105,36 @@ export const sendBulkEmail = async ({ subject, html, recipients, provider }) => 
   return data;
 };
 
+/**
+ * Fetch the running list of bulk sends with aggregated deliverability,
+ * from the same-origin report function.
+ * @returns {Promise<{ sends: Array }>}
+ */
+export const fetchEmailReport = async () => {
+  const token = sessionStorage.getItem("accessToken");
+  let requesterCode;
+  try {
+    requesterCode = JSON.parse(sessionStorage.getItem("authUser") || "{}")?.code;
+  } catch {
+    requesterCode = undefined;
+  }
+  const qs = requesterCode ? `?requesterCode=${encodeURIComponent(requesterCode)}` : "";
+
+  const res = await fetch(`/api/email-report${qs}`, {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+
+  let data = null;
+  try {
+    data = await res.json();
+  } catch {
+    /* non-JSON */
+  }
+  if (!res.ok || !data || data.error) {
+    const detail = data?.reason ? ` (${data.reason})` : "";
+    throw new Error((data?.error || `Failed to load report (HTTP ${res.status}).`) + detail);
+  }
+  return data;
+};
+
 export default sendBulkEmail;

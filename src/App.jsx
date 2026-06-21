@@ -35,6 +35,7 @@ const SuperAdminOverview = lazy(() => import("./pages/SuperAdminOverview"));
 const ManageDepartments = lazy(() => import("./pages/ManageDepartments"));
 const ManageAdmins = lazy(() => import("./pages/ManageAdmins"));
 const BulkEmail = lazy(() => import("./pages/BulkEmail"));
+const BulkEmailReport = lazy(() => import("./pages/BulkEmailReport"));
 const DepartmentDetail = lazy(() => import("./pages/DepartmentDetail"));
 const DepartmentWorkers = lazy(() => import("./pages/DepartmentWorkers"));
 const HODBulkAddWorker = lazy(() => import("./pages/HODBulkAddWorker"));
@@ -43,6 +44,7 @@ const WorkerAttendanceHistory = lazy(() => import("./pages/WorkerAttendanceHisto
 const AuditLog = lazy(() => import("./pages/AuditLog"));
 const LeadershipRegistration = lazy(() => import("./pages/LeadershipRegistration"));
 const LeadershipRegistrationAdmin = lazy(() => import("./pages/LeadershipRegistrationAdmin"));
+const LeadersMeetingConfirm = lazy(() => import("./pages/LeadersMeetingConfirm"));
 const AdminDepartmentRedirect = lazy(() => import("./pages/AdminDepartmentRedirect"));
 const AdminWorkersRedirect = lazy(() => import("./pages/AdminWorkersRedirect"));
 const AdminSummaryDetail = lazy(() => import("./pages/AdminSummaryDetail"));
@@ -87,6 +89,7 @@ const AppRoutes = () => {
             />
             <Route path="/new/worker" element={<NewWorker />} />
             <Route path="/leadership-registration" element={<LeadershipRegistration />} />
+            <Route path="/leadersmeeting/confirm" element={<LeadersMeetingConfirm />} />
             <Route
               path="/admin/leadership-registrations"
               element={
@@ -287,6 +290,14 @@ const AppRoutes = () => {
               element={
                 <PrivateRoute>
                   <BulkEmail />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/bulk-email/report"
+              element={
+                <PrivateRoute>
+                  <BulkEmailReport />
                 </PrivateRoute>
               }
             />

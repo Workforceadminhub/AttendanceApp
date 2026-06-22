@@ -9,6 +9,7 @@ import { getUserRole } from "../utils/getUserRole";
 import { getDepartmentRoute } from "../utils/routeObject";
 import { canSendBulkEmail } from "../utils/bulkEmailAccess";
 import MobileSheet from "./ui/MobileSheet";
+import { useHubNav } from "../contexts/RBACContext";
 
 /**
  * Quiet Cockpit Header.
@@ -102,6 +103,11 @@ export default function Header() {
   } = getUserRole();
 
   const canAccessApprovals = isAdmin;
+
+  // Hub nav items — only appear when RBAC context loads successfully.
+  // If legacy JWT is rejected by /rbac/me, these stay false → no change to existing nav.
+  const showTrainings = useHubNav("trainings");
+  const showCourses = useHubNav("courses");
 
   const departmentRouteForUser =
     getDepartmentRoute(authUser?.department)?.replace?.(/^\//, "") || "";
@@ -287,6 +293,21 @@ export default function Header() {
             </>
           )}
 
+          {/* Hub nav — single dropdown, gated by RBAC context */}
+          {(showTrainings || showCourses) && (
+            <NavDropdown
+              label="Hub"
+              items={[
+                ...(showTrainings ? [{ name: "Trainings", href: "/hub/trainings" }] : []),
+                ...(showCourses ? [{ name: "Courses", href: "/hub/courses" }] : []),
+                ...(showTrainings ? [
+                  { name: "My Certificates", href: "/hub/certificates" },
+                  { name: "My Nominations", href: "/hub/trainings/nominations" },
+                ] : []),
+              ]}
+            />
+          )}
+
           {/* Settings dropdown — shown in both nav modes when it has items
               (e.g. an allowlisted HOD whose only entry is Bulk Email). */}
           {settingsDropdown.length > 0 && (
@@ -434,6 +455,32 @@ export default function Header() {
             </>
           )}
         </NavGroup>
+
+        {/* Hub nav — additive, gated by RBAC context */}
+        {(showTrainings || showCourses) && (
+          <NavGroup label="Hub">
+            {showTrainings && (
+              <SheetLink href="/hub/trainings" onClick={() => setMobileOpen(false)}>
+                Trainings
+              </SheetLink>
+            )}
+            {showCourses && (
+              <SheetLink href="/hub/courses" onClick={() => setMobileOpen(false)}>
+                Courses
+              </SheetLink>
+            )}
+            {showTrainings && (
+              <SheetLink href="/hub/certificates" onClick={() => setMobileOpen(false)}>
+                My Certificates
+              </SheetLink>
+            )}
+            {showTrainings && (
+              <SheetLink href="/hub/trainings/nominations" onClick={() => setMobileOpen(false)}>
+                My Nominations
+              </SheetLink>
+            )}
+          </NavGroup>
+        )}
 
         {settingsDropdown.length > 0 && (
           <NavGroup label="Manage">

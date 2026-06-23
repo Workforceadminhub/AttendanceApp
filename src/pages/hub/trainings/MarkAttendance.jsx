@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import Header from "../../../components/Header";
 import Layout from "../../../components/Layout";
-import { Tag } from "../../../components/ui";
 import { useCanAction } from "../../../contexts/RBACContext";
 import {
   fetchTraining,
@@ -42,8 +41,8 @@ export default function MarkAttendance() {
   const sessions = sessionsData?.data ?? [];
 
   const sessionDates = useMemo(
-    () => sessions.map((s) => s.session_date).filter(Boolean),
-    [sessions]
+    () => (sessionsData?.data ?? []).map((s) => s.session_date).filter(Boolean),
+    [sessionsData]
   );
 
   const addSessionMut = useMutation({

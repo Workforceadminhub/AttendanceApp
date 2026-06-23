@@ -16,7 +16,6 @@ import {
   fetchRegistrationRequests,
   fetchTrainingCertificates,
   registerForTraining,
-  completeEnrollment,
 } from "../../../services/hub/trainings";
 
 const TABS = [

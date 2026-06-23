@@ -202,7 +202,7 @@ export default function LeadersMeetingReport() {
               hasFilter
                 ? filteredUnconfirmed
                 : summary
-                  ? (summary.total_leaders || 0) - (summary.total_confirmed || 0)
+                  ? (summary.total_unconfirmed ?? 0)
                   : "-"
             }
             loading={loading}

@@ -7,7 +7,7 @@ import Stat from "../components/ui/Stat";
 import Card from "../components/ui/Card";
 import Tag from "../components/ui/Tag";
 import Button from "../components/ui/Button";
-import { getMeetingRegistrations } from "../services/meeting";
+import { getMeetingRegistrations, getMeetingRegistrationsSummary } from "../services/meeting";
 
 const MEETING_DATE = "2026-07-18";
 const STATUS_OPTIONS = ["all", "confirmed", "unconfirmed"];
@@ -74,6 +74,7 @@ export default function LeadersMeetingReport() {
   const [filterTeam, setFilterTeam] = useState("");
   const [filterDept, setFilterDept] = useState("");
   const [summary, setSummary] = useState(null);
+  const [serverSummary, setServerSummary] = useState(null);
   const [registrations, setRegistrations] = useState([]);
   const [count, setCount] = useState(0);
 
@@ -89,10 +90,22 @@ export default function LeadersMeetingReport() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await getMeetingRegistrations(MEETING_DATE, status);
+      const [res, summaryRes] = await Promise.all([
+        getMeetingRegistrations(MEETING_DATE, status),
+        getMeetingRegistrationsSummary(MEETING_DATE).catch((err) => {
+          console.warn("[Summary endpoint]", err.message);
+          return null;
+        }),
+      ]);
       setSummary(res.summary || null);
       setRegistrations(res.data || []);
       setCount(res.count || 0);
+
+      if (summaryRes) {
+        const sData = summaryRes.data || summaryRes;
+        console.log("[Summary API response]", JSON.stringify(sData, null, 2));
+        setServerSummary(sData);
+      }
     } catch (err) {
       toast.error(err.message || "Failed to load meeting data.");
     } finally {
@@ -160,19 +173,38 @@ export default function LeadersMeetingReport() {
   };
 
   const grouped = (() => {
-    const counts = {};
-    registrations.forEach((r) => {
-      const key = `${(r.team || "").toLowerCase()}|${(r.department || "").toLowerCase()}`;
-      if (!counts[key]) counts[key] = { total: 0, confirmed: 0 };
-      counts[key].total += 1;
-      if (r.is_confirmed) counts[key].confirmed += 1;
+    // Build case-insensitive lookup: normalized name → TEAM_STRUCTURE team name
+    const teamNameLookup = {};
+    TEAM_STRUCTURE.forEach(({ teams: deptTeams }) => {
+      deptTeams.forEach((t) => {
+        const lower = t.toLowerCase();
+        teamNameLookup[lower] = t;
+        if (lower.endsWith("s")) {
+          teamNameLookup[lower.slice(0, -1)] = t;
+        }
+      });
     });
+
+    // Count confirmed per TEAM_STRUCTURE team from registrations.
+    // API r.team may match a TEAM_STRUCTURE team name (e.g. "Ministry")
+    // or a directorate name (e.g. "Senior Leadership"), in which case
+    // r.department holds the team name (e.g. "Pastoral Leaders").
+    const confirmedByTeam = {};
+    registrations.forEach((r) => {
+      if (!r.is_confirmed) return;
+      const rTeam = (r.team || "").toLowerCase().trim();
+      const rDept = (r.department || "").toLowerCase().trim();
+      const matched = teamNameLookup[rTeam] || teamNameLookup[rDept];
+      if (matched) {
+        confirmedByTeam[matched] = (confirmedByTeam[matched] || 0) + 1;
+      }
+    });
+
     return TEAM_STRUCTURE.map(({ directorate, teams: deptTeams, bg, light }) => {
       const rows = deptTeams.map((t) => {
-        const key = `${directorate.toLowerCase()}|${t.toLowerCase()}`;
-        const s = counts[key] || { total: 0, confirmed: 0 };
+        const confirmed = confirmedByTeam[t] || 0;
         const strength = TEAM_STRENGTH[t] ?? 0;
-        return { team: t, total: strength, confirmed: s.confirmed, absent: strength - s.confirmed, pct: strength ? ((s.confirmed / strength) * 100).toFixed(2) : "0.00" };
+        return { team: t, total: strength, confirmed, absent: strength - confirmed, pct: strength ? ((confirmed / strength) * 100).toFixed(2) : "0.00" };
       });
       const dirTotal = rows.reduce((a, r) => a + r.total, 0);
       const dirConfirmed = rows.reduce((a, r) => a + r.confirmed, 0);

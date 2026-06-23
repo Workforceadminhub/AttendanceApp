@@ -7,7 +7,7 @@ import Stat from "../components/ui/Stat";
 import Card from "../components/ui/Card";
 import Tag from "../components/ui/Tag";
 import Button from "../components/ui/Button";
-import { getMeetingRegistrations, getMeetingRegistrationsSummary } from "../services/meeting";
+import { getMeetingRegistrations } from "../services/meeting";
 
 const MEETING_DATE = "2026-07-18";
 const STATUS_OPTIONS = ["all", "confirmed", "unconfirmed"];
@@ -74,7 +74,6 @@ export default function LeadersMeetingReport() {
   const [filterTeam, setFilterTeam] = useState("");
   const [filterDept, setFilterDept] = useState("");
   const [summary, setSummary] = useState(null);
-  const [serverSummary, setServerSummary] = useState(null);
   const [registrations, setRegistrations] = useState([]);
   const [count, setCount] = useState(0);
 
@@ -90,22 +89,10 @@ export default function LeadersMeetingReport() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [res, summaryRes] = await Promise.all([
-        getMeetingRegistrations(MEETING_DATE, status),
-        getMeetingRegistrationsSummary(MEETING_DATE).catch((err) => {
-          console.warn("[Summary endpoint]", err.message);
-          return null;
-        }),
-      ]);
+      const res = await getMeetingRegistrations(MEETING_DATE, status);
       setSummary(res.summary || null);
       setRegistrations(res.data || []);
       setCount(res.count || 0);
-
-      if (summaryRes) {
-        const sData = summaryRes.data || summaryRes;
-        console.log("[Summary API response]", JSON.stringify(sData, null, 2));
-        setServerSummary(sData);
-      }
     } catch (err) {
       toast.error(err.message || "Failed to load meeting data.");
     } finally {

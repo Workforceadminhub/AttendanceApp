@@ -12,13 +12,36 @@ import { getMeetingRegistrations } from "../services/meeting";
 const MEETING_DATE = "2026-07-18";
 const STATUS_OPTIONS = ["all", "confirmed", "unconfirmed"];
 
+const TEAM_STRENGTH = {
+  "Programs": 168,
+  "Mission": 21,
+  "NLP": 15,
+  "Membership": 82,
+  "Ministry": 55,
+  "Maturity": 23,
+  "Kidzone": 25,
+  "Stir House": 14,
+  "Admin & Facility": 2,
+  "Communication (DMU)": 7,
+  "Finance": 4,
+  "District (Pastor Biola)": 236,
+  "District (Pastor Isaac)": 143,
+  "Men of Harvest": 23,
+  "Singles Ministry": 58,
+  "Women of Wisdom": 71,
+  "Directional Leaders": 11,
+  "Pastoral Leaders": 23,
+};
+
+const TOTAL_STRENGTH = Object.values(TEAM_STRENGTH).reduce((a, b) => a + b, 0);
+
 const TEAM_STRUCTURE = [
   { directorate: "Attraction", teams: ["Programs", "Mission"], bg: "#f59e0b", light: "rgba(245,158,11,0.10)" },
   { directorate: "NLP", teams: ["NLP"], bg: "#06b6d4", light: "rgba(6,182,212,0.10)" },
   { directorate: "SPD", teams: ["Membership", "Ministry", "Maturity"], bg: "#a855f7", light: "rgba(168,85,247,0.10)" },
   { directorate: "Next Gen", teams: ["Kidzone", "Stir House"], bg: "#eab308", light: "rgba(234,179,8,0.10)" },
   { directorate: "General Services", teams: ["Admin & Facility", "Communication (DMU)", "Finance"], bg: "#64748b", light: "rgba(100,116,139,0.10)" },
-  { directorate: "Communities", teams: ["Districts", "Men of Harvest", "Singles Ministry", "Women of Wisdom"], bg: "#ec4899", light: "rgba(236,72,153,0.10)" },
+  { directorate: "Communities", teams: ["District (Pastor Biola)", "District (Pastor Isaac)", "Men of Harvest", "Singles Ministry", "Women of Wisdom"], bg: "#ec4899", light: "rgba(236,72,153,0.10)" },
   { directorate: "Senior Leadership", teams: ["Directional Leaders", "Pastoral Leaders"], bg: "#84cc16", light: "rgba(132,204,22,0.10)" },
 ];
 
@@ -148,7 +171,8 @@ export default function LeadersMeetingReport() {
       const rows = deptTeams.map((t) => {
         const key = `${directorate.toLowerCase()}|${t.toLowerCase()}`;
         const s = counts[key] || { total: 0, confirmed: 0 };
-        return { team: t, total: s.total, confirmed: s.confirmed, absent: s.total - s.confirmed, pct: s.total ? ((s.confirmed / s.total) * 100).toFixed(2) : "0.00" };
+        const strength = TEAM_STRENGTH[t] ?? 0;
+        return { team: t, total: strength, confirmed: s.confirmed, absent: strength - s.confirmed, pct: strength ? ((s.confirmed / strength) * 100).toFixed(2) : "0.00" };
       });
       const dirTotal = rows.reduce((a, r) => a + r.total, 0);
       const dirConfirmed = rows.reduce((a, r) => a + r.confirmed, 0);
@@ -177,7 +201,7 @@ export default function LeadersMeetingReport() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
           <Stat
             eyebrow="Total Leaders"
-            value={hasFilter ? filteredTotal : (summary?.total_leaders ?? "-")}
+            value={hasFilter ? filteredTotal : TOTAL_STRENGTH}
             loading={loading}
           />
           <Stat
@@ -190,8 +214,8 @@ export default function LeadersMeetingReport() {
             value={
               hasFilter
                 ? filteredPct
-                : summary?.total_leaders
-                  ? `${Math.round((summary.total_confirmed / summary.total_leaders) * 100)}%`
+                : summary
+                  ? `${Math.round(((summary.total_confirmed ?? 0) / TOTAL_STRENGTH) * 100)}%`
                   : "-"
             }
             loading={loading}
@@ -202,15 +226,15 @@ export default function LeadersMeetingReport() {
               hasFilter
                 ? filteredUnconfirmed
                 : summary
-                  ? (summary.total_unconfirmed ?? 0)
+                  ? TOTAL_STRENGTH - (summary.total_confirmed ?? 0)
                   : "-"
             }
             loading={loading}
             footnote={
               hasFilter
                 ? filteredTotal ? `${Math.round((filteredUnconfirmed / filteredTotal) * 100)}%` : undefined
-                : summary?.total_leaders
-                  ? `${Math.round(((summary.total_leaders - summary.total_confirmed) / summary.total_leaders) * 100)}%`
+                : summary
+                  ? `${Math.round(((TOTAL_STRENGTH - (summary.total_confirmed ?? 0)) / TOTAL_STRENGTH) * 100)}%`
                   : undefined
             }
           />

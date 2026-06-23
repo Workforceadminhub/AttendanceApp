@@ -83,6 +83,14 @@ export function renderBody(body = "") {
 
   return blocks
     .map((block) => {
+      // image block: ![alt](url) on its own line
+      const imgMatch = /^!\[([^\]]*)\]\(([^)\s]+)\)$/.exec(block.trim());
+      if (imgMatch) {
+        const alt = escapeHtml(imgMatch[1]);
+        const src = safeUrl(imgMatch[2]);
+        return `<img src="${escapeHtml(src)}" alt="${alt}" width="520" style="display:block;width:100%;max-width:520px;height:auto;border-radius:6px;margin:0 0 16px;" />`;
+      }
+
       const lines = block.split("\n");
       const isList = lines.every((l) => /^[-*]\s+/.test(l.trim()));
       if (isList) {

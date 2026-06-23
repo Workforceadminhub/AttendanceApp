@@ -8,22 +8,12 @@
  * Request body: { data: string (base64), filename: string, contentType: string }
  * Response:     { url: string }
  *
- * Env: AWS_S3_BUCKET, AWS_S3_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+ * Env: AWS_S3_BUCKET, AWS_S3_REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY
  */
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { authorize } from "./_lib/auth.js";
 
-const BUCKET = process.env.AWS_S3_BUCKET;
-const REGION = process.env.AWS_S3_REGION || "eu-west-1";
 const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
-
-const s3 = new S3Client({
-  region: REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
-});
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -31,7 +21,17 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed." });
   }
 
-  if (!BUCKET || !process.env.AWS_ACCESS_KEY_ID) {
+  const bucket = process.env.AWS_S3_BUCKET;
+  const region = process.env.AWS_S3_REGION || "eu-west-1";
+  const accessKeyId = process.env.S3_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
+
+  if (!bucket || !accessKeyId || !secretAccessKey) {
+    console.error("S3 config check:", {
+      bucket: !!bucket,
+      accessKeyId: !!accessKeyId,
+      secretAccessKey: !!secretAccessKey,
+    });
     return res.status(500).json({ error: "AWS S3 is not configured." });
   }
 
@@ -66,10 +66,15 @@ export default async function handler(req, res) {
 
   const key = `email-images/${Date.now()}-${filename.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
 
+  const s3 = new S3Client({
+    region,
+    credentials: { accessKeyId, secretAccessKey },
+  });
+
   try {
     await s3.send(
       new PutObjectCommand({
-        Bucket: BUCKET,
+        Bucket: bucket,
         Key: key,
         Body: buffer,
         ContentType: contentType,
@@ -80,6 +85,6 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Failed to upload image." });
   }
 
-  const url = `https://${BUCKET}.s3.${REGION}.amazonaws.com/${key}`;
+  const url = `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
   return res.status(200).json({ url });
 }

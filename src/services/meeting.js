@@ -27,11 +27,11 @@ export async function getMeetingSession() {
   return apiKey;
 }
 
-export async function searchMeetingWorkers(name, apiKey) {
+export async function searchMeetingWorkers(name, apiKey, date) {
   const response = await apiRequest(
     "GET",
     "/api/meeting/leaders/workers/search",
-    { name },
+    { name, date },
     { headers: { "x-api-key": apiKey } },
     false
   );
@@ -63,6 +63,18 @@ export async function getMeetingRegistrations(meetingDate, status = "all") {
   );
   if (!response || response.error) {
     throw new Error(response?.error || "Failed to fetch registrations.");
+  }
+  return response;
+}
+
+export async function getMeetingRegistrationsSummary(meetingDate) {
+  const response = await apiRequest(
+    "GET",
+    "/api/super/admin/meeting/leaders/registrations/summary",
+    { meeting_date: meetingDate }
+  );
+  if (!response || response.error) {
+    throw new Error(response?.error || "Failed to fetch meeting summary.");
   }
   return response;
 }

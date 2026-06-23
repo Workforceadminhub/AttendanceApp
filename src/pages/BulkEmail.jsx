@@ -6,12 +6,13 @@ import {
   ItalicIcon,
   LinkIcon,
   ListBulletIcon,
+  PhotoIcon,
 } from "@heroicons/react/24/outline";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
 import { Button, Card } from "../components/ui";
 import { buildEmail } from "../emails/template";
-import { parseRecipients, sendBulkEmail } from "../services/email";
+import { parseRecipients, sendBulkEmail, uploadEmailImage } from "../services/email";
 import { canSendBulkEmail } from "../utils/bulkEmailAccess";
 
 const PREVIEW_WIDTHS = { desktop: "100%", mobile: "375px" };
@@ -34,9 +35,11 @@ function BulkEmailComposer() {
   const [ctaUrl, setCtaUrl] = useState("");
   const [recipientsRaw, setRecipientsRaw] = useState("");
   const [previewMode, setPreviewMode] = useState("desktop");
-  const [provider, setProvider] = useState("resend");
+  const [provider, setProvider] = useState("zoho");
+  const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
   const bodyRef = useRef(null);
+  const fileRef = useRef(null);
 
   // Recipients are parsed live so the operator sees the count + bad entries.
   const { valid, invalid } = useMemo(
@@ -106,6 +109,37 @@ function BulkEmailComposer() {
       toast.error("Could not copy HTML");
     }
   }, [html]);
+
+  const handleImageUpload = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return toast.error("Only image files are allowed.");
+    if (file.size > 5 * 1024 * 1024) return toast.error("Image must be under 5 MB.");
+    setUploading(true);
+    try {
+      const url = await uploadEmailImage(file);
+      const ta = bodyRef.current;
+      const pos = ta ? ta.selectionStart : body.length;
+      const before = body.slice(0, pos);
+      const after = body.slice(pos);
+      const pad = before.length && !before.endsWith("\n") ? "\n\n" : before.length ? "\n" : "";
+      const insert = `${pad}![](${url})\n\n`;
+      setBody(before + insert + after);
+      toast.success("Image inserted");
+      requestAnimationFrame(() => {
+        if (ta) {
+          const caret = pos + insert.length;
+          ta.focus();
+          ta.setSelectionRange(caret, caret);
+        }
+      });
+    } catch (err) {
+      toast.error(err?.message || "Failed to upload image.");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }, [body]);
 
   const handleSend = useCallback(async () => {
     if (!subject.trim()) return toast.error("Add a subject line.");
@@ -188,14 +222,16 @@ function BulkEmailComposer() {
                   { key: "italic", title: "Italic", Icon: ItalicIcon, run: () => applyFormat("wrap", "*") },
                   { key: "link", title: "Link", Icon: LinkIcon, run: () => applyFormat("link") },
                   { key: "list", title: "Bullet list", Icon: ListBulletIcon, run: () => applyFormat("list") },
-                ].map(({ key, title, Icon, run }) => (
+                  { key: "image", title: uploading ? "Uploading…" : "Insert image", Icon: PhotoIcon, run: () => fileRef.current?.click(), disabled: uploading },
+                ].map(({ key, title, Icon, run, disabled }) => (
                   <button
                     key={key}
                     type="button"
                     title={title}
                     aria-label={title}
                     onClick={run}
-                    className="inline-flex items-center justify-center h-7 w-7 rounded text-ink-600 hover:bg-white hover:text-ink-900"
+                    disabled={disabled}
+                    className={"inline-flex items-center justify-center h-7 w-7 rounded text-ink-600 hover:bg-white hover:text-ink-900" + (disabled ? " opacity-50 cursor-not-allowed" : "")}
                   >
                     <Icon className="h-4 w-4" />
                   </button>
@@ -210,8 +246,15 @@ function BulkEmailComposer() {
               />
               <p className="text-xs text-ink-400 mt-1">
                 Blank line = new paragraph. Use the toolbar for{" "}
-                <strong>**bold**</strong>, <em>*italic*</em>, links and lists.
+                <strong>**bold**</strong>, <em>*italic*</em>, links, lists, and images.
               </p>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -259,6 +302,7 @@ function BulkEmailComposer() {
               <label className={labelCls}>Send with</label>
               <div className="inline-flex rounded-md border border-ink-200 overflow-hidden text-sm">
                 {[
+                  { key: "zoho", label: "Zoho" },
                   { key: "resend", label: "Resend" },
                   { key: "brevo", label: "Brevo" },
                 ].map((p) => (

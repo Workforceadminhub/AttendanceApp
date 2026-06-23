@@ -137,4 +137,50 @@ export const fetchEmailReport = async () => {
   return data;
 };
 
+/**
+ * Upload an image for use in a bulk email. Returns the public URL.
+ * @param {File} file
+ * @returns {Promise<string>} Public image URL.
+ */
+export const uploadEmailImage = async (file) => {
+  const token = sessionStorage.getItem("accessToken");
+  let requesterCode;
+  try {
+    requesterCode = JSON.parse(sessionStorage.getItem("authUser") || "{}")?.code;
+  } catch {
+    requesterCode = undefined;
+  }
+
+  const base64 = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  const res = await fetch("/api/upload-email-image", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({
+      data: base64,
+      filename: file.name,
+      contentType: file.type,
+      ...(requesterCode ? { requesterCode } : {}),
+    }),
+  });
+
+  let data = null;
+  try {
+    data = await res.json();
+  } catch { /* non-JSON */ }
+
+  if (!res.ok || !data || data.error) {
+    throw new Error(data?.error || `Upload failed (HTTP ${res.status}).`);
+  }
+  return data.url;
+};
+
 export default sendBulkEmail;

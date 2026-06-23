@@ -13,6 +13,7 @@
  * vars documented in .env.example.
  */
 import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import { ulid } from "ulid";
 import { authorize } from "./_lib/auth.js";
 import { insertRows, supabaseConfigured } from "./_lib/supabase.js";
@@ -20,6 +21,7 @@ import { insertRows, supabaseConfigured } from "./_lib/supabase.js";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESEND_BATCH = 100;
 const BREVO_BATCH = 1000;
+const ZOHO_BATCH = 50;
 const DEFAULT_FROM_NAME =
   process.env.EMAIL_FROM_NAME || "Harvesters International Christian Centre, Gbagada";
 
@@ -112,6 +114,50 @@ async function sendViaBrevo({ from, subject, html, recipients, campaignId }) {
   return { sent, failed, errors };
 }
 
+async function sendViaZoho({ from, subject, html, recipients, campaignId }) {
+  const sender = parseFrom(from);
+  const transporter = nodemailer.createTransport({
+    host: process.env.ZOHO_SMTP_HOST || "smtp.zoho.com",
+    port: 465,
+    secure: true,
+    auth: {
+      user: process.env.ZOHO_SMTP_USER,
+      pass: process.env.ZOHO_SMTP_PASS,
+    },
+  });
+
+  let sent = 0;
+  const failed = [];
+  const errors = [];
+
+  for (const group of chunk(recipients, ZOHO_BATCH)) {
+    const results = await Promise.allSettled(
+      group.map((to) =>
+        transporter.sendMail({
+          from: sender.email ? `${sender.name || ""} <${sender.email}>` : from,
+          to,
+          subject,
+          html,
+          headers: { "X-Campaign-Id": campaignId },
+        })
+      )
+    );
+
+    for (let i = 0; i < results.length; i++) {
+      if (results[i].status === "fulfilled") {
+        sent++;
+      } else {
+        failed.push(group[i]);
+        errors.push(results[i].reason?.message || String(results[i].reason));
+        console.error("Zoho send failed:", group[i], results[i].reason?.message);
+      }
+    }
+  }
+
+  transporter.close();
+  return { sent, failed, errors };
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -152,7 +198,7 @@ export default async function handler(req, res) {
   }
 
   const provider = String(body.provider || process.env.EMAIL_PROVIDER || "resend").toLowerCase();
-  if (provider !== "resend" && provider !== "brevo") {
+  if (provider !== "resend" && provider !== "brevo" && provider !== "zoho") {
     return res.status(400).json({ error: `Unknown provider "${provider}".` });
   }
   if (provider === "resend" && !process.env.RESEND_API_KEY) {
@@ -160,6 +206,9 @@ export default async function handler(req, res) {
   }
   if (provider === "brevo" && !process.env.BREVO_API_KEY) {
     return res.status(500).json({ error: "BREVO_API_KEY is not configured." });
+  }
+  if (provider === "zoho" && !process.env.ZOHO_SMTP_USER) {
+    return res.status(500).json({ error: "ZOHO_SMTP_USER is not configured." });
   }
 
   const clean = [...new Set(recipients.map((r) => String(r).trim().toLowerCase()))].filter((r) =>
@@ -174,7 +223,11 @@ export default async function handler(req, res) {
   const args = { from: sender.header, subject, html, recipients: clean, campaignId };
 
   const { sent, failed, errors } =
-    provider === "brevo" ? await sendViaBrevo(args) : await sendViaResend(args);
+    provider === "zoho"
+      ? await sendViaZoho(args)
+      : provider === "brevo"
+        ? await sendViaBrevo(args)
+        : await sendViaResend(args);
 
   // Log the send to Supabase for the report (best-effort — never fail the send).
   if (supabaseConfigured()) {

@@ -45,9 +45,8 @@ function NameSearchStep({ onResults, token }) {
 
   const handleSearch = async () => {
     const trimmed = name.trim();
-    const tokens = trimmed.split(/\s+/).filter(Boolean);
-    if (tokens.length < 2) {
-      toast.error("Please enter your first name and surname.");
+    if (!trimmed) {
+      toast.error("Please enter a name to search.");
       return;
     }
     setIsSearching(true);
@@ -110,9 +109,8 @@ function SelectWorkerStep({ workers, searchedName, onSelect, onBack, onRetrySear
 
   const handleRetry = async () => {
     const trimmed = retryName.trim();
-    const tokens = trimmed.split(/\s+/).filter(Boolean);
-    if (tokens.length < 2) {
-      toast.error("Please enter your first name and surname.");
+    if (!trimmed) {
+      toast.error("Please enter a name to search.");
       return;
     }
     setIsSearching(true);

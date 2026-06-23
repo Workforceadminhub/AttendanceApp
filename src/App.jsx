@@ -11,6 +11,8 @@ import PrivateRoute from "./components/PrivateRoute";
 import RouteErrorBoundary from "./components/RouteErrorBoundary";
 import LoadingState from "./components/LoadingState";
 import { DepartmentsProvider, useDepartmentRoutes } from "./contexts/DepartmentsContext";
+import { RBACProvider } from "./contexts/RBACContext";
+import HubRoute from "./components/auth/HubRoute";
 
 // Code-split heavy pages — keeps initial bundle small
 const Dashboard = lazy(() => import("./components/Workers/Dashboard"));
@@ -49,6 +51,21 @@ const LeadersMeetingReport = lazy(() => import("./pages/LeadersMeetingReport"));
 const AdminDepartmentRedirect = lazy(() => import("./pages/AdminDepartmentRedirect"));
 const AdminWorkersRedirect = lazy(() => import("./pages/AdminWorkersRedirect"));
 const AdminSummaryDetail = lazy(() => import("./pages/AdminSummaryDetail"));
+
+// Hub pages (RBAC, Trainings, Courses, Certificates)
+const TrainingList = lazy(() => import("./pages/hub/trainings/TrainingList"));
+const CreateTraining = lazy(() => import("./pages/hub/trainings/CreateTraining"));
+const TrainingDetail = lazy(() => import("./pages/hub/trainings/TrainingDetail"));
+const CourseList = lazy(() => import("./pages/hub/courses/CourseList"));
+const VerifyCertificate = lazy(() => import("./pages/hub/certificates/VerifyCertificate"));
+const NominateWorkers = lazy(() => import("./pages/hub/trainings/NominateWorkers"));
+const MyNominations = lazy(() => import("./pages/hub/trainings/MyNominations"));
+const MarkAttendance = lazy(() => import("./pages/hub/trainings/MarkAttendance"));
+const DepartmentAssignments = lazy(() => import("./pages/hub/trainings/DepartmentAssignments"));
+const CourseDetail = lazy(() => import("./pages/hub/courses/CourseDetail"));
+const CreateCourse = lazy(() => import("./pages/hub/courses/CreateCourse"));
+const WorkerCertificates = lazy(() => import("./pages/hub/certificates/WorkerCertificates"));
+const CertificateTemplates = lazy(() => import("./pages/hub/certificates/CertificateTemplates"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -479,6 +496,106 @@ const AppRoutes = () => {
               }
             />
 
+            {/* ── Hub routes (additive — existing routes above are untouched) ── */}
+            <Route
+              path="/hub/trainings"
+              element={
+                <HubRoute requiredNav="trainings">
+                  <TrainingList />
+                </HubRoute>
+              }
+            />
+            <Route
+              path="/hub/trainings/create"
+              element={
+                <HubRoute requiredNav="trainings">
+                  <CreateTraining />
+                </HubRoute>
+              }
+            />
+            <Route
+              path="/hub/trainings/:id"
+              element={
+                <HubRoute requiredNav="trainings">
+                  <TrainingDetail />
+                </HubRoute>
+              }
+            />
+            <Route
+              path="/hub/trainings/:id/nominate"
+              element={
+                <HubRoute requiredNav="trainings">
+                  <NominateWorkers />
+                </HubRoute>
+              }
+            />
+            <Route
+              path="/hub/trainings/:id/attendance"
+              element={
+                <HubRoute requiredNav="trainings">
+                  <MarkAttendance />
+                </HubRoute>
+              }
+            />
+            <Route
+              path="/hub/trainings/:id/assignments"
+              element={
+                <HubRoute requiredNav="trainings">
+                  <DepartmentAssignments />
+                </HubRoute>
+              }
+            />
+            <Route
+              path="/hub/trainings/nominations"
+              element={
+                <HubRoute requiredNav="trainings">
+                  <MyNominations />
+                </HubRoute>
+              }
+            />
+            <Route
+              path="/hub/courses"
+              element={
+                <HubRoute requiredNav="courses">
+                  <CourseList />
+                </HubRoute>
+              }
+            />
+            <Route
+              path="/hub/courses/create"
+              element={
+                <HubRoute requiredNav="courses">
+                  <CreateCourse />
+                </HubRoute>
+              }
+            />
+            <Route
+              path="/hub/courses/:id"
+              element={
+                <HubRoute requiredNav="courses">
+                  <CourseDetail />
+                </HubRoute>
+              }
+            />
+            <Route
+              path="/hub/certificates"
+              element={
+                <HubRoute requiredNav="trainings">
+                  <WorkerCertificates />
+                </HubRoute>
+              }
+            />
+            <Route
+              path="/hub/certificates/templates"
+              element={
+                <HubRoute requiredNav="admin_panel">
+                  <CertificateTemplates />
+                </HubRoute>
+              }
+            />
+            {/* Public — no auth required */}
+            <Route path="/verify/:certificateNumber" element={<VerifyCertificate />} />
+
             <Route path="*" exact={true} element={<NotFound />} />
         </Routes>
       </Suspense>
@@ -490,11 +607,13 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <DepartmentsProvider>
-          <SkeletonTheme baseColor="#e5e5e5" highlightColor="#d6d4d4">
-            <AppRoutes />
-          </SkeletonTheme>
-        </DepartmentsProvider>
+        <RBACProvider>
+          <DepartmentsProvider>
+            <SkeletonTheme baseColor="#e5e5e5" highlightColor="#d6d4d4">
+              <AppRoutes />
+            </SkeletonTheme>
+          </DepartmentsProvider>
+        </RBACProvider>
       </BrowserRouter>
       <ToastContainer
         hideProgressBar

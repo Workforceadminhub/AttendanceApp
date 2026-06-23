@@ -38,8 +38,6 @@ export default function MarkAttendance() {
     queryKey: ["hub-training-sessions", id],
     queryFn: () => fetchSessions(id),
   });
-  const sessions = sessionsData?.data ?? [];
-
   const sessionDates = useMemo(
     () => (sessionsData?.data ?? []).map((s) => s.session_date).filter(Boolean),
     [sessionsData]

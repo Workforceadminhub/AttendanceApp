@@ -20,8 +20,8 @@ const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 const s3 = new S3Client({
   region: REGION,
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    accessKeyId: process.env.S3_ACCESS_KEY_ID,
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
   },
 });
 
@@ -31,7 +31,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed." });
   }
 
-  if (!BUCKET || !process.env.AWS_ACCESS_KEY_ID) {
+  if (!BUCKET || !process.env.S3_ACCESS_KEY_ID) {
     return res.status(500).json({ error: "AWS S3 is not configured." });
   }
 

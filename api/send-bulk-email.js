@@ -114,6 +114,10 @@ async function sendViaBrevo({ from, subject, html, recipients, campaignId }) {
   return { sent, failed, errors };
 }
 
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function sendViaZoho({ from, subject, html, recipients, campaignId }) {
   const sender = parseFrom(from);
   const transporter = nodemailer.createTransport({
@@ -124,34 +128,38 @@ async function sendViaZoho({ from, subject, html, recipients, campaignId }) {
       user: process.env.ZOHO_SMTP_USER,
       pass: process.env.ZOHO_SMTP_PASS,
     },
+    pool: true,
+    maxConnections: 1,
+    rateDelta: 1000,
+    rateLimit: 2,
   });
 
+  const fromAddr = sender.email ? `${sender.name || ""} <${sender.email}>` : from;
   let sent = 0;
   const failed = [];
   const errors = [];
 
-  for (const group of chunk(recipients, ZOHO_BATCH)) {
-    const results = await Promise.allSettled(
-      group.map((to) =>
-        transporter.sendMail({
-          from: sender.email ? `${sender.name || ""} <${sender.email}>` : from,
-          to,
-          subject,
-          html,
-          headers: { "X-Campaign-Id": campaignId },
-        })
-      )
-    );
-
-    for (let i = 0; i < results.length; i++) {
-      if (results[i].status === "fulfilled") {
-        sent++;
-      } else {
-        failed.push(group[i]);
-        errors.push(results[i].reason?.message || String(results[i].reason));
-        console.error("Zoho send failed:", group[i], results[i].reason?.message);
+  for (let i = 0; i < recipients.length; i++) {
+    try {
+      await transporter.sendMail({
+        from: fromAddr,
+        to: recipients[i],
+        subject,
+        html,
+        headers: { "X-Campaign-Id": campaignId },
+      });
+      sent++;
+    } catch (e) {
+      failed.push(recipients[i]);
+      const msg = e?.message || String(e);
+      if (!errors.includes(msg)) errors.push(msg);
+      console.error("Zoho send failed:", recipients[i], msg);
+      if (msg.includes("Unusual sending activity")) {
+        failed.push(...recipients.slice(i + 1));
+        break;
       }
     }
+    if (i < recipients.length - 1) await delay(500);
   }
 
   transporter.close();

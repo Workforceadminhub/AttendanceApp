@@ -118,7 +118,10 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const ZOHO_TIME_BUDGET_MS = 25_000; // stop 5s before typical 30s timeout
+
 async function sendViaZoho({ from, subject, html, recipients, campaignId }) {
+  const startTime = Date.now();
   const sender = parseFrom(from);
   const transporter = nodemailer.createTransport({
     host: process.env.ZOHO_SMTP_HOST || "smtp.zoho.com",
@@ -137,9 +140,14 @@ async function sendViaZoho({ from, subject, html, recipients, campaignId }) {
   const fromAddr = sender.email ? `${sender.name || ""} <${sender.email}>` : from;
   let sent = 0;
   const failed = [];
+  const remaining = [];
   const errors = [];
 
   for (let i = 0; i < recipients.length; i++) {
+    if (Date.now() - startTime > ZOHO_TIME_BUDGET_MS) {
+      remaining.push(...recipients.slice(i));
+      break;
+    }
     try {
       await transporter.sendMail({
         from: fromAddr,
@@ -155,7 +163,7 @@ async function sendViaZoho({ from, subject, html, recipients, campaignId }) {
       if (!errors.includes(msg)) errors.push(msg);
       console.error("Zoho send failed:", recipients[i], msg);
       if (msg.includes("Unusual sending activity")) {
-        failed.push(...recipients.slice(i + 1));
+        remaining.push(...recipients.slice(i + 1));
         break;
       }
     }
@@ -163,7 +171,7 @@ async function sendViaZoho({ from, subject, html, recipients, campaignId }) {
   }
 
   transporter.close();
-  return { sent, failed, errors };
+  return { sent, failed, remaining, errors };
 }
 
 export default async function handler(req, res) {
@@ -230,7 +238,7 @@ export default async function handler(req, res) {
   const sender = resolveSender(process.env.EMAIL_FROM);
   const args = { from: sender.header, subject, html, recipients: clean, campaignId };
 
-  const { sent, failed, errors } =
+  const { sent, failed, remaining, errors } =
     provider === "zoho"
       ? await sendViaZoho(args)
       : provider === "brevo"
@@ -263,6 +271,7 @@ export default async function handler(req, res) {
     campaignId,
     sent,
     failed,
+    ...(remaining?.length ? { remaining } : {}),
     ...(errorSample.length ? { errors: errorSample } : {}),
   });
 }

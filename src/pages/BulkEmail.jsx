@@ -151,16 +151,26 @@ function BulkEmailComposer() {
     if (!ok) return;
 
     setSending(true);
+    let pending = valid;
+    let totalSent = 0;
+    let totalFailed = [];
     try {
-      const res = await sendBulkEmail({ subject, html, recipients: valid, provider });
-      const sent = res?.sent ?? valid.length;
-      const failedCount = res?.failed?.length || 0;
+      while (pending.length > 0) {
+        toast.info(`Sending… ${totalSent} sent, ${pending.length} remaining`, { autoClose: 3000 });
+        const res = await sendBulkEmail({ subject, html, recipients: pending, provider });
+        totalSent += res?.sent || 0;
+        if (res?.failed?.length) totalFailed.push(...res.failed);
+        pending = res?.remaining || [];
+      }
       toast.success(
-        `Sent to ${sent} recipient${sent === 1 ? "" : "s"} via ${provider}` +
-          (failedCount ? ` (${failedCount} failed).` : ".")
+        `Sent to ${totalSent} recipient${totalSent === 1 ? "" : "s"} via ${provider}` +
+          (totalFailed.length ? ` (${totalFailed.length} failed).` : ".")
       );
     } catch (err) {
       toast.error(err?.message || "Failed to send email.");
+      if (totalSent > 0) {
+        toast.info(`${totalSent} sent before error. ${pending.length} unsent.`);
+      }
     } finally {
       setSending(false);
     }

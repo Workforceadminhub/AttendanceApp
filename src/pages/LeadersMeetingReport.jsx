@@ -121,7 +121,7 @@ export default function LeadersMeetingReport() {
     if (filterDirectorate && r.team !== filterDirectorate) return false;
     if (filterTeam && r.department !== filterTeam) return false;
     if (filterDept && r.department !== filterDept) return false;
-    if (status === "declined" && !r.notes) return false;
+    if (status === "declined" && !(r.is_confirmed === false && r.confirmed_at)) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
       if (
@@ -137,6 +137,7 @@ export default function LeadersMeetingReport() {
   const hasFilter = filterDirectorate || filterTeam || filterDept || search.trim();
   const filteredTotal = filtered.length;
   const filteredConfirmed = filtered.filter((r) => r.is_confirmed).length;
+  const filteredNotAttending = filtered.filter((r) => r.is_confirmed === false && r.confirmed_at).length;
   const filteredUnconfirmed = filteredTotal - filteredConfirmed;
   const filteredPct = filteredTotal ? `${Math.round((filteredConfirmed / filteredTotal) * 100)}%` : "-";
 
@@ -148,7 +149,7 @@ export default function LeadersMeetingReport() {
       r.team || "",
       r.department || "",
       r.role || "",
-      r.is_confirmed ? "Confirmed" : r.notes ? "Declined" : "No Response",
+      r.is_confirmed ? "Confirmed" : (r.is_confirmed === false && r.confirmed_at) ? "Not Attending" : "No Response",
       r.confirmed_at ? new Date(r.confirmed_at).toLocaleDateString() : "",
     ]);
     const csv = [headers, ...rows].map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
@@ -219,7 +220,7 @@ export default function LeadersMeetingReport() {
         </div>
 
         {/* Summary cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-8">
           <Stat
             eyebrow="Total Leaders"
             value={hasFilter ? filteredTotal : TOTAL_STRENGTH}
@@ -239,6 +240,11 @@ export default function LeadersMeetingReport() {
                   ? `${Math.round(((summary.total_confirmed ?? 0) / TOTAL_STRENGTH) * 100)}%`
                   : "-"
             }
+            loading={loading}
+          />
+          <Stat
+            eyebrow="Not Attending"
+            value={hasFilter ? filteredNotAttending : (summary?.total_declined ?? "-")}
             loading={loading}
           />
           <Stat
@@ -469,14 +475,14 @@ export default function LeadersMeetingReport() {
                         <td className={td}>
                           {r.is_confirmed ? (
                             <Tag tone="success">Confirmed</Tag>
-                          ) : r.notes ? (
-                            <Tag tone="error">Declined</Tag>
+                          ) : (r.is_confirmed === false && r.confirmed_at) ? (
+                            <Tag tone="error">Not Attending</Tag>
                           ) : (
                             <Tag tone="warning">No Response</Tag>
                           )}
                         </td>
                         {status === "declined" && (
-                          <td className={`${td} max-w-xs whitespace-normal text-ink-600 italic`}>{r.notes || "-"}</td>
+                          <td className={`${td} max-w-xs whitespace-normal text-ink-600 italic`}>{r.notes || r.decline_reason || "-"}</td>
                         )}
                         <td className={td}>{formatDate(r.confirmed_at)}</td>
                       </tr>

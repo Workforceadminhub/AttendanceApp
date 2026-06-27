@@ -134,10 +134,13 @@ export default function LeadersMeetingReport() {
   )].sort();
 
   const filtered = scopedRegistrations.filter((r) => {
+    // Only show workers who have responded (confirmed or explicitly declined)
+    if (!r.is_confirmed && !r.confirmed_at) return false;
     if (filterDirectorate && !selectedApiTeams.includes(r.team)) return false;
     if (filterTeam && r.team !== filterTeam) return false;
     if (filterSubTeam && r.district_sub_team !== filterSubTeam) return false;
     if (filterDept && r.department !== filterDept) return false;
+    if (status === "confirmed" && !r.is_confirmed) return false;
     if (status === "not attending" && !(r.is_confirmed === false && r.confirmed_at)) return false;
     if (search.trim()) {
       const q = search.toLowerCase();

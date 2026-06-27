@@ -240,6 +240,19 @@ export default function LeadersMeetingReport() {
       .filter((g) => !myTeam || g.apiTeams.includes(myTeam));
   })();
 
+  // Department-level breakdown for Team Admin view
+  const groupedByDept = myTeam ? (() => {
+    const map = {};
+    scopedRegistrations.forEach((r) => {
+      const dept = r.department || "Unknown";
+      if (!map[dept]) map[dept] = { department: dept, total: 0, confirmed: 0, notAttending: 0 };
+      map[dept].total += 1;
+      if (r.is_confirmed) map[dept].confirmed += 1;
+      else if (r.is_confirmed === false && r.confirmed_at) map[dept].notAttending += 1;
+    });
+    return Object.values(map).sort((a, b) => a.department.localeCompare(b.department));
+  })() : null;
+
   return (
     <div className="min-h-screen bg-cream">
       <Header />
@@ -344,8 +357,14 @@ export default function LeadersMeetingReport() {
             <table className="min-w-full divide-y divide-ink-100">
               <thead className="bg-cream-200">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-ink-700 uppercase tracking-wide">Directorate</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-ink-700 uppercase tracking-wide">Team</th>
+                  {myTeam ? (
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-ink-700 uppercase tracking-wide">Department</th>
+                  ) : (
+                    <>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-ink-700 uppercase tracking-wide">Directorate</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-ink-700 uppercase tracking-wide">Team</th>
+                    </>
+                  )}
                   <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">Total</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">Confirmed</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">% Confirmed</th>
@@ -360,6 +379,38 @@ export default function LeadersMeetingReport() {
                       Loading...
                     </td>
                   </tr>
+                ) : myTeam ? (
+                  /* Team Admin: rows by department */
+                  <>
+                    {(groupedByDept ?? []).length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-8 text-center text-sm text-ink-400">No data available.</td>
+                      </tr>
+                    ) : (groupedByDept ?? []).map((d) => {
+                      const absent = d.total - d.confirmed - d.notAttending;
+                      const pct = d.total ? ((d.confirmed / d.total) * 100).toFixed(2) : "0.00";
+                      return (
+                        <tr key={d.department} className="hover:bg-cream-100">
+                          <td className="px-4 py-2 text-sm text-ink-800 font-medium">{d.department}</td>
+                          <td className="px-4 py-2 text-sm text-ink-800 text-center font-mono">{d.total}</td>
+                          <td className="px-4 py-2 text-sm text-forest text-center font-mono font-medium">{d.confirmed}</td>
+                          <td className="px-4 py-2 text-sm text-ink-800 text-center font-mono">{pct}%</td>
+                          <td className="px-4 py-2 text-sm text-sienna text-center font-mono font-medium">{d.notAttending}</td>
+                          <td className="px-4 py-2 text-sm text-brick text-center font-mono font-medium">{absent}</td>
+                        </tr>
+                      );
+                    })}
+                    <tr className="bg-cream-200 border-t-2 border-ink-200">
+                      <td className="px-4 py-3 text-sm font-bold text-ink-900 uppercase">Total</td>
+                      <td className="px-4 py-3 text-sm font-bold text-ink-900 text-center font-mono">{(groupedByDept ?? []).reduce((a, d) => a + d.total, 0)}</td>
+                      <td className="px-4 py-3 text-sm font-bold text-ink-900 text-center font-mono">{(groupedByDept ?? []).reduce((a, d) => a + d.confirmed, 0)}</td>
+                      <td className="px-4 py-3 text-sm font-bold text-ink-900 text-center font-mono">
+                        {(() => { const t = (groupedByDept ?? []).reduce((a, d) => a + d.total, 0); const c = (groupedByDept ?? []).reduce((a, d) => a + d.confirmed, 0); return t ? ((c / t) * 100).toFixed(2) : "0.00"; })()}%
+                      </td>
+                      <td className="px-4 py-3 text-sm font-bold text-ink-900 text-center font-mono">{(groupedByDept ?? []).reduce((a, d) => a + d.notAttending, 0)}</td>
+                      <td className="px-4 py-3 text-sm font-bold text-ink-900 text-center font-mono">{(groupedByDept ?? []).reduce((a, d) => a + d.total - d.confirmed - d.notAttending, 0)}</td>
+                    </tr>
+                  </>
                 ) : grouped.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-4 py-8 text-center text-sm text-ink-400">

@@ -501,8 +501,13 @@ function EditWorkerStep({ worker, token, onBack, onDone }) {
               <Label htmlFor="edit-birthdate">
                 Date of Birth {missingBadge}
               </Label>
-              <input id="edit-birthdate" type="date"
-                value={form.birthdate} onChange={set("birthdate")} className={inputClass} />
+              <BirthDatePicker
+                value={form.birthdate}
+                onChange={(val) => {
+                  setForm((prev) => ({ ...prev, birthdate: val }));
+                  setErrors((prev) => ({ ...prev, birthdate: undefined }));
+                }}
+              />
             </div>
           )}
 
@@ -715,6 +720,8 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
         team: form.team,
         district_sub_team: form.team === "Districts" ? form.district_sub_team : undefined,
         department: form.department,
+        is_confirmed: true,
+        meeting_date: MEETING_DATE,
       };
       await createMeetingWorker(payload, token);
       onDone("create");

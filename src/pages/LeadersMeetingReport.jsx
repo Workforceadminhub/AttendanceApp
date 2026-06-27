@@ -10,7 +10,7 @@ import Button from "../components/ui/Button";
 import { getMeetingRegistrations } from "../services/meeting";
 
 const MEETING_DATE = "2026-07-18";
-const STATUS_OPTIONS = ["all", "confirmed", "unconfirmed"];
+const STATUS_OPTIONS = ["all", "confirmed", "declined"];
 
 const TEAM_STRENGTH = {
   "Programs": 168,
@@ -89,7 +89,8 @@ export default function LeadersMeetingReport() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await getMeetingRegistrations(MEETING_DATE, status);
+      const apiStatus = status === "declined" ? "unconfirmed" : status;
+      const res = await getMeetingRegistrations(MEETING_DATE, apiStatus);
       setSummary(res.summary || null);
       setRegistrations(res.data || []);
       setCount(res.count || 0);
@@ -120,6 +121,7 @@ export default function LeadersMeetingReport() {
     if (filterDirectorate && r.team !== filterDirectorate) return false;
     if (filterTeam && r.department !== filterTeam) return false;
     if (filterDept && r.department !== filterDept) return false;
+    if (status === "declined" && !r.notes) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
       if (
@@ -146,7 +148,7 @@ export default function LeadersMeetingReport() {
       r.team || "",
       r.department || "",
       r.role || "",
-      r.is_confirmed ? "Confirmed" : "Unconfirmed",
+      r.is_confirmed ? "Confirmed" : r.notes ? "Declined" : "No Response",
       r.confirmed_at ? new Date(r.confirmed_at).toLocaleDateString() : "",
     ]);
     const csv = [headers, ...rows].map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
@@ -439,19 +441,20 @@ export default function LeadersMeetingReport() {
                     <th className={th}>Team</th>
                     <th className={th}>Role</th>
                     <th className={th}>Status</th>
+                    {status === "declined" && <th className={th}>Reason</th>}
                     <th className={th}>Confirmed At</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-ink-50">
                   {loading ? (
                     <tr>
-                      <td colSpan={7} className="px-3 py-8 text-center text-sm text-ink-400">
+                      <td colSpan={status === "declined" ? 8 : 7} className="px-3 py-8 text-center text-sm text-ink-400">
                         Loading registrations...
                       </td>
                     </tr>
                   ) : filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-3 py-8 text-center text-sm text-ink-400">
+                      <td colSpan={status === "declined" ? 8 : 7} className="px-3 py-8 text-center text-sm text-ink-400">
                         No registrations found.
                       </td>
                     </tr>
@@ -466,10 +469,15 @@ export default function LeadersMeetingReport() {
                         <td className={td}>
                           {r.is_confirmed ? (
                             <Tag tone="success">Confirmed</Tag>
+                          ) : r.notes ? (
+                            <Tag tone="error">Declined</Tag>
                           ) : (
-                            <Tag tone="warning">Unconfirmed</Tag>
+                            <Tag tone="warning">No Response</Tag>
                           )}
                         </td>
+                        {status === "declined" && (
+                          <td className={`${td} max-w-xs whitespace-normal text-ink-600 italic`}>{r.notes || "-"}</td>
+                        )}
                         <td className={td}>{formatDate(r.confirmed_at)}</td>
                       </tr>
                     ))

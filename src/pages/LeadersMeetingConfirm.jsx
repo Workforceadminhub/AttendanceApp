@@ -268,6 +268,7 @@ function EditWorkerStep({ worker, token, onBack, onDone }) {
     address: worker.address || "",
     employment: worker.employment || "",
     occupation: worker.occupation || "",
+    district_sub_team: worker.district_sub_team || "",
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -295,6 +296,7 @@ function EditWorkerStep({ worker, token, onBack, onDone }) {
       if (missing.has("address") && !form.address.trim()) errs.address = "Address is required";
       if (missing.has("employment") && !form.employment) errs.employment = "Employment status is required";
       if (missing.has("occupation") && !form.occupation.trim()) errs.occupation = "Occupation is required";
+      if (missing.has("district_sub_team") && !form.district_sub_team.trim()) errs.district_sub_team = "District/Sub-team is required";
     }
     return errs;
   };
@@ -319,6 +321,7 @@ function EditWorkerStep({ worker, token, onBack, onDone }) {
         if (missing.has("address") && form.address.trim()) payload.address = form.address.trim();
         if (missing.has("employment") && form.employment) payload.employment = form.employment;
         if (missing.has("occupation") && form.occupation.trim()) payload.occupation = form.occupation.trim();
+        if (missing.has("district_sub_team") && form.district_sub_team.trim()) payload.district_sub_team = form.district_sub_team.trim();
       }
       await updateMeetingWorker(worker.id, payload, token);
       onDone(isConfirmed ? "confirm" : "decline");
@@ -408,6 +411,7 @@ function EditWorkerStep({ worker, token, onBack, onDone }) {
             {!missing.has("address") && worker.address && <ReadonlyField label="Address" value={worker.address} />}
             {!missing.has("employment") && worker.employment && <ReadonlyField label="Employment Status" value={worker.employment} />}
             {!missing.has("occupation") && worker.occupation && <ReadonlyField label="Occupation" value={worker.occupation} />}
+            {!missing.has("district_sub_team") && worker.district_sub_team && <ReadonlyField label="District/Sub-team" value={worker.district_sub_team} />}
           </div>
 
           {/* Missing fields (editable) */}
@@ -533,6 +537,20 @@ function EditWorkerStep({ worker, token, onBack, onDone }) {
               <input id="edit-occupation" type="text" placeholder="e.g. Engineer"
                 value={form.occupation} onChange={set("occupation")} className={inputClass} />
               <FieldError message={errors.occupation} />
+            </div>
+          )}
+
+          {missing.has("district_sub_team") && (
+            <div>
+              <Label htmlFor="edit-district-sub-team" required>
+                District/Sub-team {missingBadge}
+              </Label>
+              <select id="edit-district-sub-team" value={form.district_sub_team} onChange={set("district_sub_team")} className={selectClass}>
+                <option value="">Select</option>
+                <option>Pastor Biola Cluster</option>
+                <option>Pastor Isaac Cluster</option>
+              </select>
+              <FieldError message={errors.district_sub_team} />
             </div>
           )}
         </>

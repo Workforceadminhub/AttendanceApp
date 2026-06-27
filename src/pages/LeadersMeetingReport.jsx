@@ -36,7 +36,7 @@ const TEAM_STRENGTH = {
   "Pastoral Leaders": 23,
 };
 
-const effectiveStrength = Object.values(TEAM_STRENGTH).reduce((a, b) => a + b, 0);
+const TOTAL_STRENGTH = Object.values(TEAM_STRENGTH).reduce((a, b) => a + b, 0);
 
 const TEAM_STRUCTURE = [
   { directorate: "Attraction", teams: ["Programs", "Mission"], apiTeams: ["Programs", "Mission"], bg: "#f59e0b", light: "rgba(245,158,11,0.10)" },
@@ -120,9 +120,9 @@ export default function LeadersMeetingReport() {
 
   // For Team Admin, compute total strength from only their team's sub-teams
   const effectiveStrength = (() => {
-    if (!myTeam) return effectiveStrength;
+    if (!myTeam) return TOTAL_STRENGTH;
     const entry = TEAM_STRUCTURE.find((t) => t.apiTeams.includes(myTeam));
-    if (!entry) return effectiveStrength;
+    if (!entry) return TOTAL_STRENGTH;
     return entry.teams.reduce((sum, t) => sum + (TEAM_STRENGTH[t] ?? 0), 0);
   })();
 

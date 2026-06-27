@@ -441,19 +441,20 @@ export default function LeadersMeetingReport() {
                     <th className={th}>Team</th>
                     <th className={th}>Role</th>
                     <th className={th}>Status</th>
+                    {status === "declined" && <th className={th}>Reason</th>}
                     <th className={th}>Confirmed At</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-ink-50">
                   {loading ? (
                     <tr>
-                      <td colSpan={7} className="px-3 py-8 text-center text-sm text-ink-400">
+                      <td colSpan={status === "declined" ? 8 : 7} className="px-3 py-8 text-center text-sm text-ink-400">
                         Loading registrations...
                       </td>
                     </tr>
                   ) : filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-3 py-8 text-center text-sm text-ink-400">
+                      <td colSpan={status === "declined" ? 8 : 7} className="px-3 py-8 text-center text-sm text-ink-400">
                         No registrations found.
                       </td>
                     </tr>
@@ -474,6 +475,9 @@ export default function LeadersMeetingReport() {
                             <Tag tone="warning">No Response</Tag>
                           )}
                         </td>
+                        {status === "declined" && (
+                          <td className={`${td} max-w-xs whitespace-normal text-ink-600 italic`}>{r.notes || "-"}</td>
+                        )}
                         <td className={td}>{formatDate(r.confirmed_at)}</td>
                       </tr>
                     ))

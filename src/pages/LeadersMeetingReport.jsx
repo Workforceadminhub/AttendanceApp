@@ -44,7 +44,8 @@ const TEAM_STRUCTURE = [
   { directorate: "SPD", teams: ["Membership", "Ministry", "Maturity"], apiTeams: ["Membership", "Ministry", "Maturity"], bg: "#a855f7", light: "rgba(168,85,247,0.10)" },
   { directorate: "Next Gen", teams: ["Kidzone", "Stir House"], apiTeams: ["Next Gen"], bg: "#eab308", light: "rgba(234,179,8,0.10)" },
   { directorate: "General Services", teams: ["Admin & Facility", "Communication (DMU)", "Finance"], apiTeams: ["General Service"], bg: "#64748b", light: "rgba(100,116,139,0.10)" },
-  { directorate: "Communities", teams: ["District (Pastor Biola)", "District (Pastor Isaac)", "Men of Harvest", "Singles Ministry", "Women of Wisdom"], apiTeams: ["Districts", "Interactive Groups"], bg: "#ec4899", light: "rgba(236,72,153,0.10)" },
+  { directorate: "Communities", teams: ["District (Pastor Biola)", "District (Pastor Isaac)"], apiTeams: ["Districts"], bg: "#ec4899", light: "rgba(236,72,153,0.10)" },
+  { directorate: "Interactive Groups", teams: ["Men of Harvest", "Singles Ministry", "Women of Wisdom"], apiTeams: ["Interactive Groups"], bg: "#f43f5e", light: "rgba(244,63,94,0.10)" },
   { directorate: "Senior Leadership", teams: ["Directional Leaders", "Pastoral Leaders"], apiTeams: ["Senior Leadership"], bg: "#84cc16", light: "rgba(132,204,22,0.10)" },
 ];
 

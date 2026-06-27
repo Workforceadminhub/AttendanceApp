@@ -375,7 +375,7 @@ export default function LeadersMeetingReport() {
                       <th className="px-4 py-3 text-left text-xs font-semibold text-ink-700 uppercase tracking-wide">Team</th>
                     </>
                   )}
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">Total</th>
+                  {!myTeam && <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">Total</th>}
                   <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">Confirmed</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">% Confirmed</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">Not Attending</th>
@@ -402,7 +402,6 @@ export default function LeadersMeetingReport() {
                       return (
                         <tr key={d.department} className="hover:bg-cream-100">
                           <td className="px-4 py-2 text-sm text-ink-800 font-medium">{d.department}</td>
-                          <td className="px-4 py-2 text-sm text-ink-800 text-center font-mono">{d.total}</td>
                           <td className="px-4 py-2 text-sm text-forest text-center font-mono font-medium">{d.confirmed}</td>
                           <td className="px-4 py-2 text-sm text-ink-800 text-center font-mono">{pct}%</td>
                           <td className="px-4 py-2 text-sm text-sienna text-center font-mono font-medium">{d.notAttending}</td>
@@ -412,7 +411,6 @@ export default function LeadersMeetingReport() {
                     })}
                     <tr className="bg-cream-200 border-t-2 border-ink-200">
                       <td className="px-4 py-3 text-sm font-bold text-ink-900 uppercase">Total</td>
-                      <td className="px-4 py-3 text-sm font-bold text-ink-900 text-center font-mono">{(groupedByDept ?? []).reduce((a, d) => a + d.total, 0)}</td>
                       <td className="px-4 py-3 text-sm font-bold text-ink-900 text-center font-mono">{(groupedByDept ?? []).reduce((a, d) => a + d.confirmed, 0)}</td>
                       <td className="px-4 py-3 text-sm font-bold text-ink-900 text-center font-mono">
                         {(() => { const t = (groupedByDept ?? []).reduce((a, d) => a + d.total, 0); const c = (groupedByDept ?? []).reduce((a, d) => a + d.confirmed, 0); return t ? ((c / t) * 100).toFixed(2) : "0.00"; })()}%

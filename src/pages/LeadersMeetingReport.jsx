@@ -36,7 +36,7 @@ const TEAM_STRENGTH = {
   "Pastoral Leaders": 23,
 };
 
-const TOTAL_STRENGTH = Object.values(TEAM_STRENGTH).reduce((a, b) => a + b, 0);
+const effectiveStrength = Object.values(TEAM_STRENGTH).reduce((a, b) => a + b, 0);
 
 const TEAM_STRUCTURE = [
   { directorate: "Attraction", teams: ["Programs", "Mission"], apiTeams: ["Programs", "Mission"], bg: "#f59e0b", light: "rgba(245,158,11,0.10)" },
@@ -117,6 +117,14 @@ export default function LeadersMeetingReport() {
   const scopedRegistrations = myTeam
     ? registrations.filter((r) => r.team === myTeam)
     : registrations;
+
+  // For Team Admin, compute total strength from only their team's sub-teams
+  const effectiveStrength = (() => {
+    if (!myTeam) return effectiveStrength;
+    const entry = TEAM_STRUCTURE.find((t) => t.apiTeams.includes(myTeam));
+    if (!entry) return effectiveStrength;
+    return entry.teams.reduce((sum, t) => sum + (TEAM_STRENGTH[t] ?? 0), 0);
+  })();
 
   const directorates = TEAM_STRUCTURE.map((t) => t.directorate);
   const selectedDirectorateEntry = TEAM_STRUCTURE.find((t) => t.directorate === filterDirectorate);
@@ -284,7 +292,7 @@ export default function LeadersMeetingReport() {
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-8">
           <Stat
             eyebrow="Total Leaders"
-            value={hasFilter ? filteredTotal : TOTAL_STRENGTH}
+            value={hasFilter ? filteredTotal : effectiveStrength}
             loading={loading}
           />
           <Stat
@@ -298,7 +306,7 @@ export default function LeadersMeetingReport() {
               hasFilter
                 ? filteredPct
                 : summary
-                  ? `${Math.round(((summary.total_confirmed ?? 0) / TOTAL_STRENGTH) * 100)}%`
+                  ? `${Math.round(((summary.total_confirmed ?? 0) / effectiveStrength) * 100)}%`
                   : "-"
             }
             loading={loading}
@@ -314,7 +322,7 @@ export default function LeadersMeetingReport() {
               hasFilter
                 ? filteredUnconfirmed
                 : summary
-                  ? TOTAL_STRENGTH - (summary.total_confirmed ?? 0)
+                  ? effectiveStrength - (summary.total_confirmed ?? 0)
                   : "-"
             }
             loading={loading}
@@ -322,7 +330,7 @@ export default function LeadersMeetingReport() {
               hasFilter
                 ? filteredTotal ? `${Math.round((filteredUnconfirmed / filteredTotal) * 100)}%` : undefined
                 : summary
-                  ? `${Math.round(((TOTAL_STRENGTH - (summary.total_confirmed ?? 0)) / TOTAL_STRENGTH) * 100)}%`
+                  ? `${Math.round(((effectiveStrength - (summary.total_confirmed ?? 0)) / effectiveStrength) * 100)}%`
                   : undefined
             }
           />

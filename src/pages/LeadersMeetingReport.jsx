@@ -301,6 +301,24 @@ export default function LeadersMeetingReport() {
             value={hasFilter ? filteredNotAttending : (summary?.total_declined ?? "-")}
             loading={loading}
           />
+          <Stat
+            eyebrow="Unconfirmed"
+            value={
+              hasFilter
+                ? filteredUnconfirmed
+                : summary
+                  ? TOTAL_STRENGTH - (summary.total_confirmed ?? 0)
+                  : "-"
+            }
+            loading={loading}
+            footnote={
+              hasFilter
+                ? filteredTotal ? `${Math.round((filteredUnconfirmed / filteredTotal) * 100)}%` : undefined
+                : summary
+                  ? `${Math.round(((TOTAL_STRENGTH - (summary.total_confirmed ?? 0)) / TOTAL_STRENGTH) * 100)}%`
+                  : undefined
+            }
+          />
         </div>
 
         {/* View toggle + Export */}

@@ -179,13 +179,27 @@ export default function LeadersMeetingReport() {
     // API r.team may match a TEAM_STRUCTURE team name (e.g. "Ministry")
     // or a directorate name (e.g. "Senior Leadership"), in which case
     // r.department holds the team name (e.g. "Pastoral Leaders").
+    const DISTRICT_SUB_TEAM_MAP = {
+      "pastor biola cluster": "District (Pastor Biola)",
+      "pastor isaac cluster": "District (Pastor Isaac)",
+    };
+
     const confirmedByTeam = {};
     const notAttendingByTeam = {};
     registrations.forEach((r) => {
       const rTeam = (r.team || "").toLowerCase().trim();
       const rDept = (r.department || "").toLowerCase().trim();
-      const matched = teamNameLookup[rTeam] || teamNameLookup[rDept];
+      const rSubTeam = (r.district_sub_team || "").toLowerCase().trim();
+
+      let matched;
+      if (rTeam === "districts" && rSubTeam) {
+        matched = DISTRICT_SUB_TEAM_MAP[rSubTeam];
+      }
+      if (!matched) {
+        matched = teamNameLookup[rTeam] || teamNameLookup[rDept];
+      }
       if (!matched) return;
+
       if (r.is_confirmed) {
         confirmedByTeam[matched] = (confirmedByTeam[matched] || 0) + 1;
       } else if (r.is_confirmed === false && r.confirmed_at) {

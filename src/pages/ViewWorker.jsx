@@ -532,6 +532,24 @@ export default function ViewWorker() {
  />
  </div>
 
+ {/* District/Sub-team */}
+ {editedWorker.team === "Districts" && (
+ <div>
+ <label className="block text-sm font-medium text-ink-700 mb-2">
+ District/Sub-team
+ </label>
+ <select
+ value={editedWorker.district_sub_team || ""}
+ onChange={(e) => handleInputChange("district_sub_team", e.target.value)}
+ className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
+ >
+ <option value="">Select District/Sub-team</option>
+ <option value="Pastor Biola Cluster">Pastor Biola Cluster</option>
+ <option value="Pastor Isaac Cluster">Pastor Isaac Cluster</option>
+ </select>
+ </div>
+ )}
+
  {/* Address */}
  <div className="md:col-span-2">
  <label className="block text-sm font-medium text-ink-700 mb-2">

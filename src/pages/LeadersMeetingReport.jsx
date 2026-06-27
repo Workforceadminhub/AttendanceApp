@@ -36,13 +36,13 @@ const TEAM_STRENGTH = {
 const TOTAL_STRENGTH = Object.values(TEAM_STRENGTH).reduce((a, b) => a + b, 0);
 
 const TEAM_STRUCTURE = [
-  { directorate: "Attraction", teams: ["Programs", "Mission"], bg: "#f59e0b", light: "rgba(245,158,11,0.10)" },
-  { directorate: "NLP", teams: ["NLP"], bg: "#06b6d4", light: "rgba(6,182,212,0.10)" },
-  { directorate: "SPD", teams: ["Membership", "Ministry", "Maturity"], bg: "#a855f7", light: "rgba(168,85,247,0.10)" },
-  { directorate: "Next Gen", teams: ["Kidzone", "Stir House"], bg: "#eab308", light: "rgba(234,179,8,0.10)" },
-  { directorate: "General Services", teams: ["Admin & Facility", "Communication (DMU)", "Finance"], bg: "#64748b", light: "rgba(100,116,139,0.10)" },
-  { directorate: "Communities", teams: ["District (Pastor Biola)", "District (Pastor Isaac)", "Men of Harvest", "Singles Ministry", "Women of Wisdom"], bg: "#ec4899", light: "rgba(236,72,153,0.10)" },
-  { directorate: "Senior Leadership", teams: ["Directional Leaders", "Pastoral Leaders"], bg: "#84cc16", light: "rgba(132,204,22,0.10)" },
+  { directorate: "Attraction", teams: ["Programs", "Mission"], apiTeams: ["Programs", "Mission"], bg: "#f59e0b", light: "rgba(245,158,11,0.10)" },
+  { directorate: "NLP", teams: ["NLP"], apiTeams: ["NLP"], bg: "#06b6d4", light: "rgba(6,182,212,0.10)" },
+  { directorate: "SPD", teams: ["Membership", "Ministry", "Maturity"], apiTeams: ["Membership", "Ministry", "Maturity"], bg: "#a855f7", light: "rgba(168,85,247,0.10)" },
+  { directorate: "Next Gen", teams: ["Kidzone", "Stir House"], apiTeams: ["Next Gen"], bg: "#eab308", light: "rgba(234,179,8,0.10)" },
+  { directorate: "General Services", teams: ["Admin & Facility", "Communication (DMU)", "Finance"], apiTeams: ["General Service"], bg: "#64748b", light: "rgba(100,116,139,0.10)" },
+  { directorate: "Communities", teams: ["District (Pastor Biola)", "District (Pastor Isaac)", "Men of Harvest", "Singles Ministry", "Women of Wisdom"], apiTeams: ["Districts", "Interactive Groups"], bg: "#ec4899", light: "rgba(236,72,153,0.10)" },
+  { directorate: "Senior Leadership", teams: ["Directional Leaders", "Pastoral Leaders"], apiTeams: ["Senior Leadership"], bg: "#84cc16", light: "rgba(132,204,22,0.10)" },
 ];
 
 const th =
@@ -106,20 +106,24 @@ export default function LeadersMeetingReport() {
   }, [fetchData]);
 
   const directorates = TEAM_STRUCTURE.map((t) => t.directorate);
-  const teams = filterDirectorate
-    ? (TEAM_STRUCTURE.find((t) => t.directorate === filterDirectorate)?.teams || [])
-    : TEAM_STRUCTURE.flatMap((t) => t.teams);
+  const selectedDirectorateEntry = TEAM_STRUCTURE.find((t) => t.directorate === filterDirectorate);
+  const selectedApiTeams = selectedDirectorateEntry?.apiTeams || [];
+
+  const apiTeamOptions = filterDirectorate
+    ? [...new Set(registrations.filter((r) => selectedApiTeams.includes(r.team)).map((r) => r.team).filter(Boolean))].sort()
+    : [...new Set(registrations.map((r) => r.team).filter(Boolean))].sort();
+
   const departments = [...new Set(
     registrations
-      .filter((r) => !filterDirectorate || r.team === filterDirectorate)
-      .filter((r) => !filterTeam || r.department === filterTeam)
+      .filter((r) => !filterDirectorate || selectedApiTeams.includes(r.team))
+      .filter((r) => !filterTeam || r.team === filterTeam)
       .map((r) => r.department)
       .filter(Boolean)
   )].sort();
 
   const filtered = registrations.filter((r) => {
-    if (filterDirectorate && r.team !== filterDirectorate) return false;
-    if (filterTeam && r.department !== filterTeam) return false;
+    if (filterDirectorate && !selectedApiTeams.includes(r.team)) return false;
+    if (filterTeam && r.team !== filterTeam) return false;
     if (filterDept && r.department !== filterDept) return false;
     if (status === "declined" && !(r.is_confirmed === false && r.confirmed_at)) return false;
     if (search.trim()) {
@@ -437,7 +441,7 @@ export default function LeadersMeetingReport() {
                   className="w-full sm:w-44 rounded-md border border-ink-200 bg-white px-3 py-1.5 text-sm text-ink-800 focus:outline-none focus:ring-2 focus:ring-ink-900/10 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="">All Teams</option>
-                  {teams.map((t) => <option key={t} value={t}>{t}</option>)}
+                  {apiTeamOptions.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
                 <select
                   value={filterDept}

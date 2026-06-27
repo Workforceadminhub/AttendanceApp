@@ -298,24 +298,6 @@ export default function LeadersMeetingReport() {
             value={hasFilter ? filteredNotAttending : (summary?.total_declined ?? "-")}
             loading={loading}
           />
-          <Stat
-            eyebrow="Unconfirmed"
-            value={
-              hasFilter
-                ? filteredUnconfirmed
-                : summary
-                  ? TOTAL_STRENGTH - (summary.total_confirmed ?? 0)
-                  : "-"
-            }
-            loading={loading}
-            footnote={
-              hasFilter
-                ? filteredTotal ? `${Math.round((filteredUnconfirmed / filteredTotal) * 100)}%` : undefined
-                : summary
-                  ? `${Math.round(((TOTAL_STRENGTH - (summary.total_confirmed ?? 0)) / TOTAL_STRENGTH) * 100)}%`
-                  : undefined
-            }
-          />
         </div>
 
         {/* View toggle + Export */}
@@ -527,7 +509,7 @@ export default function LeadersMeetingReport() {
                 <select
                   value={filterDept}
                   onChange={(e) => setFilterDept(e.target.value)}
-                  disabled={!filterTeam}
+                  disabled={!myTeam && !filterTeam}
                   className="w-full sm:w-44 rounded-md border border-ink-200 bg-white px-3 py-1.5 text-sm text-ink-800 focus:outline-none focus:ring-2 focus:ring-ink-900/10 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="">All Departments</option>

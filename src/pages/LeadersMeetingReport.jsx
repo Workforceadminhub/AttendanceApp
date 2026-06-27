@@ -10,6 +10,7 @@ import Button from "../components/ui/Button";
 import { getMeetingRegistrations } from "../services/meeting";
 import { getUserRole } from "../utils/getUserRole";
 import { getUser } from "../utils/getUser";
+import { teamsAndDepartments } from "../utils/teams";
 
 const MEETING_DATE = "2026-07-18";
 const STATUS_OPTIONS = ["all", "confirmed", "not attending"];
@@ -245,7 +246,13 @@ export default function LeadersMeetingReport() {
 
   // Department-level breakdown for Team Admin view
   const groupedByDept = myTeam ? (() => {
+    const teamEntry = teamsAndDepartments.find((t) => t.team === myTeam);
+    const allDepts = teamEntry?.department ?? [];
     const map = {};
+    // Seed all known departments with zero counts
+    allDepts.forEach((dept) => {
+      map[dept] = { department: dept, total: 0, confirmed: 0, notAttending: 0 };
+    });
     scopedRegistrations.forEach((r) => {
       const dept = r.department || "Unknown";
       if (!map[dept]) map[dept] = { department: dept, total: 0, confirmed: 0, notAttending: 0 };

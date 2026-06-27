@@ -398,7 +398,6 @@ export default function LeadersMeetingReport() {
                       </tr>
                     ) : (groupedByDept ?? []).map((d) => {
                       const absent = d.total - d.confirmed - d.notAttending;
-                      const pct = d.total ? ((d.confirmed / d.total) * 100).toFixed(2) : "0.00";
                       return (
                         <tr key={d.department} className="hover:bg-cream-100">
                           <td className="px-4 py-2 text-sm text-ink-800 font-medium">{d.department}</td>
@@ -559,7 +558,7 @@ export default function LeadersMeetingReport() {
                     <th className={th}>Directorate</th>
                     <th className={th}>Team</th>
                     <th className={th}>Role</th>
-                    {filterTeam === "Districts" || myTeam === "Districts" && <th className={th}>Cluster</th>}
+                    {(filterTeam === "Districts" || myTeam === "Districts") && <th className={th}>Cluster</th>}
                     <th className={th}>Status</th>
                     {status === "not attending" && <th className={th}>Reason</th>}
                     <th className={th}>Confirmed At</th>
@@ -586,7 +585,7 @@ export default function LeadersMeetingReport() {
                         <td className={td}>{r.team || "-"}</td>
                         <td className={td}>{r.department || "-"}</td>
                         <td className={td}>{r.role || "-"}</td>
-                        {filterTeam === "Districts" || myTeam === "Districts" && (
+                        {(filterTeam === "Districts" || myTeam === "Districts") && (
                           <td className={td}>{r.district_sub_team || <span className="text-ink-400 italic">Unassigned</span>}</td>
                         )}
                         <td className={td}>

@@ -207,6 +207,12 @@ export default function LeadersMeetingReport() {
         }
       });
     });
+    // Extra mappings for DB department names that differ from display names
+    teamNameLookup["admin and facility"] = "Admin & Facility";
+    teamNameLookup["communications (dmu)"] = "Communication (DMU)";
+    // Next Gen departments use suffix pattern e.g. "Administration - Kidszone"
+    const nextGenDeptMap = { "kidszone": "Kidzone", "stirhouse": "Stir House", "stir house": "Stir House" };
+    Object.entries(nextGenDeptMap).forEach(([k, v]) => { teamNameLookup[k] = v; });
 
     // Count confirmed per TEAM_STRUCTURE team from registrations.
     // API r.team may match a TEAM_STRUCTURE team name (e.g. "Ministry")
@@ -229,7 +235,9 @@ export default function LeadersMeetingReport() {
         matched = DISTRICT_SUB_TEAM_MAP[rSubTeam];
       }
       if (!matched) {
-        matched = teamNameLookup[rTeam] || teamNameLookup[rDept];
+        // Also try the suffix after " - " (e.g. "Administration - Kidszone" → "kidszone")
+        const rDeptSuffix = rDept.includes(" - ") ? rDept.split(" - ").pop().trim() : null;
+        matched = teamNameLookup[rTeam] || teamNameLookup[rDept] || (rDeptSuffix && teamNameLookup[rDeptSuffix]);
       }
       if (!matched) return;
 

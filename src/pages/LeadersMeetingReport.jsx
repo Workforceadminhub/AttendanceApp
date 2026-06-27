@@ -8,9 +8,12 @@ import Card from "../components/ui/Card";
 import Tag from "../components/ui/Tag";
 import Button from "../components/ui/Button";
 import { getMeetingRegistrations } from "../services/meeting";
+import { getUserRole } from "../utils/getUserRole";
+import { getUser } from "../utils/getUser";
+import { teamsAndDepartments } from "../utils/teams";
 
 const MEETING_DATE = "2026-07-18";
-const STATUS_OPTIONS = ["all", "confirmed", "declined"];
+const STATUS_OPTIONS = ["all", "confirmed", "not attending"];
 
 const TEAM_STRENGTH = {
   "Programs": 168,
@@ -36,13 +39,13 @@ const TEAM_STRENGTH = {
 const TOTAL_STRENGTH = Object.values(TEAM_STRENGTH).reduce((a, b) => a + b, 0);
 
 const TEAM_STRUCTURE = [
-  { directorate: "Attraction", teams: ["Programs", "Mission"], bg: "#f59e0b", light: "rgba(245,158,11,0.10)" },
-  { directorate: "NLP", teams: ["NLP"], bg: "#06b6d4", light: "rgba(6,182,212,0.10)" },
-  { directorate: "SPD", teams: ["Membership", "Ministry", "Maturity"], bg: "#a855f7", light: "rgba(168,85,247,0.10)" },
-  { directorate: "Next Gen", teams: ["Kidzone", "Stir House"], bg: "#eab308", light: "rgba(234,179,8,0.10)" },
-  { directorate: "General Services", teams: ["Admin & Facility", "Communication (DMU)", "Finance"], bg: "#64748b", light: "rgba(100,116,139,0.10)" },
-  { directorate: "Communities", teams: ["District (Pastor Biola)", "District (Pastor Isaac)", "Men of Harvest", "Singles Ministry", "Women of Wisdom"], bg: "#ec4899", light: "rgba(236,72,153,0.10)" },
-  { directorate: "Senior Leadership", teams: ["Directional Leaders", "Pastoral Leaders"], bg: "#84cc16", light: "rgba(132,204,22,0.10)" },
+  { directorate: "Attraction", teams: ["Programs", "Mission"], apiTeams: ["Programs", "Mission"], bg: "#f59e0b", light: "rgba(245,158,11,0.10)" },
+  { directorate: "NLP", teams: ["NLP"], apiTeams: ["NLP"], bg: "#06b6d4", light: "rgba(6,182,212,0.10)" },
+  { directorate: "SPD", teams: ["Membership", "Ministry", "Maturity"], apiTeams: ["Membership", "Ministry", "Maturity"], bg: "#a855f7", light: "rgba(168,85,247,0.10)" },
+  { directorate: "Next Gen", teams: ["Kidzone", "Stir House"], apiTeams: ["Next Gen"], bg: "#eab308", light: "rgba(234,179,8,0.10)" },
+  { directorate: "General Services", teams: ["Admin & Facility", "Communication (DMU)", "Finance"], apiTeams: ["General Service"], bg: "#64748b", light: "rgba(100,116,139,0.10)" },
+  { directorate: "Communities", teams: ["District (Pastor Biola)", "District (Pastor Isaac)", "Men of Harvest", "Singles Ministry", "Women of Wisdom"], apiTeams: ["Districts", "Interactive Groups"], bg: "#ec4899", light: "rgba(236,72,153,0.10)" },
+  { directorate: "Senior Leadership", teams: ["Directional Leaders", "Pastoral Leaders"], apiTeams: ["Senior Leadership"], bg: "#84cc16", light: "rgba(132,204,22,0.10)" },
 ];
 
 const th =
@@ -72,24 +75,29 @@ export default function LeadersMeetingReport() {
   const [search, setSearch] = useState("");
   const [filterDirectorate, setFilterDirectorate] = useState("");
   const [filterTeam, setFilterTeam] = useState("");
+  const [filterSubTeam, setFilterSubTeam] = useState("");
   const [filterDept, setFilterDept] = useState("");
   const [summary, setSummary] = useState(null);
   const [registrations, setRegistrations] = useState([]);
   const [count, setCount] = useState(0);
 
+  const { isSuperAdmin, isChurchAdmin, isTeamAdmin } = getUserRole();
+  const authUser = getUser();
+  const myTeam = isTeamAdmin && !isSuperAdmin && !isChurchAdmin
+    ? (typeof authUser?.team === "string" ? authUser.team : authUser?.team?.name || "")
+    : null;
+
   useEffect(() => {
-    const authUser = JSON.parse(sessionStorage.getItem("authUser") || "null");
-    const dept = (authUser?.department || "").toLowerCase();
-    if (dept !== "super admin" && dept !== "church admin") {
+    if (!isSuperAdmin && !isChurchAdmin && !isTeamAdmin) {
       toast.error("You do not have permission to view this page.");
       navigate("/login", { replace: true });
     }
-  }, [navigate]);
+  }, [navigate, isSuperAdmin, isChurchAdmin, isTeamAdmin]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const apiStatus = status === "declined" ? "unconfirmed" : status;
+      const apiStatus = status === "not attending" ? "unconfirmed" : status;
       const res = await getMeetingRegistrations(MEETING_DATE, apiStatus);
       setSummary(res.summary || null);
       setRegistrations(res.data || []);
@@ -105,23 +113,36 @@ export default function LeadersMeetingReport() {
     fetchData();
   }, [fetchData]);
 
+  // If Team Admin, scope all data to their team only
+  const scopedRegistrations = myTeam
+    ? registrations.filter((r) => r.team === myTeam)
+    : registrations;
+
   const directorates = TEAM_STRUCTURE.map((t) => t.directorate);
-  const teams = filterDirectorate
-    ? (TEAM_STRUCTURE.find((t) => t.directorate === filterDirectorate)?.teams || [])
-    : TEAM_STRUCTURE.flatMap((t) => t.teams);
+  const selectedDirectorateEntry = TEAM_STRUCTURE.find((t) => t.directorate === filterDirectorate);
+  const selectedApiTeams = selectedDirectorateEntry?.apiTeams || [];
+
+  const apiTeamOptions = filterDirectorate
+    ? [...new Set(scopedRegistrations.filter((r) => selectedApiTeams.includes(r.team)).map((r) => r.team).filter(Boolean))].sort()
+    : [...new Set(scopedRegistrations.map((r) => r.team).filter(Boolean))].sort();
+
   const departments = [...new Set(
-    registrations
-      .filter((r) => !filterDirectorate || r.team === filterDirectorate)
-      .filter((r) => !filterTeam || r.department === filterTeam)
+    scopedRegistrations
+      .filter((r) => !filterDirectorate || selectedApiTeams.includes(r.team))
+      .filter((r) => !filterTeam || r.team === filterTeam)
       .map((r) => r.department)
       .filter(Boolean)
   )].sort();
 
-  const filtered = registrations.filter((r) => {
-    if (filterDirectorate && r.team !== filterDirectorate) return false;
-    if (filterTeam && r.department !== filterTeam) return false;
+  const filtered = scopedRegistrations.filter((r) => {
+    // Only show workers who have responded (confirmed or explicitly declined)
+    if (!r.is_confirmed && !r.confirmed_at) return false;
+    if (filterDirectorate && !selectedApiTeams.includes(r.team)) return false;
+    if (filterTeam && r.team !== filterTeam) return false;
+    if (filterSubTeam && r.district_sub_team !== filterSubTeam) return false;
     if (filterDept && r.department !== filterDept) return false;
-    if (status === "declined" && !(r.is_confirmed === false && r.confirmed_at)) return false;
+    if (status === "confirmed" && !r.is_confirmed) return false;
+    if (status === "not attending" && !(r.is_confirmed === false && r.confirmed_at)) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
       if (
@@ -179,28 +200,68 @@ export default function LeadersMeetingReport() {
     // API r.team may match a TEAM_STRUCTURE team name (e.g. "Ministry")
     // or a directorate name (e.g. "Senior Leadership"), in which case
     // r.department holds the team name (e.g. "Pastoral Leaders").
+    const DISTRICT_SUB_TEAM_MAP = {
+      "pastor biola cluster": "District (Pastor Biola)",
+      "pastor isaac cluster": "District (Pastor Isaac)",
+    };
+
     const confirmedByTeam = {};
-    registrations.forEach((r) => {
-      if (!r.is_confirmed) return;
+    const notAttendingByTeam = {};
+    scopedRegistrations.forEach((r) => {
       const rTeam = (r.team || "").toLowerCase().trim();
       const rDept = (r.department || "").toLowerCase().trim();
-      const matched = teamNameLookup[rTeam] || teamNameLookup[rDept];
-      if (matched) {
+      const rSubTeam = (r.district_sub_team || "").toLowerCase().trim();
+
+      let matched;
+      if (rTeam === "districts" && rSubTeam) {
+        matched = DISTRICT_SUB_TEAM_MAP[rSubTeam];
+      }
+      if (!matched) {
+        matched = teamNameLookup[rTeam] || teamNameLookup[rDept];
+      }
+      if (!matched) return;
+
+      if (r.is_confirmed) {
         confirmedByTeam[matched] = (confirmedByTeam[matched] || 0) + 1;
+      } else if (r.is_confirmed === false && r.confirmed_at) {
+        notAttendingByTeam[matched] = (notAttendingByTeam[matched] || 0) + 1;
       }
     });
 
-    return TEAM_STRUCTURE.map(({ directorate, teams: deptTeams, bg, light }) => {
-      const rows = deptTeams.map((t) => {
-        const confirmed = confirmedByTeam[t] || 0;
-        const strength = TEAM_STRENGTH[t] ?? 0;
-        return { team: t, total: strength, confirmed, absent: strength - confirmed, pct: strength ? ((confirmed / strength) * 100).toFixed(2) : "0.00" };
-      });
-      const dirTotal = rows.reduce((a, r) => a + r.total, 0);
-      const dirConfirmed = rows.reduce((a, r) => a + r.confirmed, 0);
-      return { directorate, bg, light, rows, total: dirTotal, confirmed: dirConfirmed, absent: dirTotal - dirConfirmed, pct: dirTotal ? ((dirConfirmed / dirTotal) * 100).toFixed(2) : "0.00" };
-    });
+    return TEAM_STRUCTURE
+      .map(({ directorate, teams: deptTeams, apiTeams, bg, light }) => {
+        const rows = deptTeams.map((t) => {
+          const confirmed = confirmedByTeam[t] || 0;
+          const notAttending = notAttendingByTeam[t] || 0;
+          const strength = TEAM_STRENGTH[t] ?? 0;
+          return { team: t, total: strength, confirmed, notAttending, absent: strength - confirmed, pct: strength ? ((confirmed / strength) * 100).toFixed(2) : "0.00" };
+        });
+        const dirTotal = rows.reduce((a, r) => a + r.total, 0);
+        const dirConfirmed = rows.reduce((a, r) => a + r.confirmed, 0);
+        const dirNotAttending = rows.reduce((a, r) => a + r.notAttending, 0);
+        return { directorate, bg, light, rows, apiTeams, total: dirTotal, confirmed: dirConfirmed, notAttending: dirNotAttending, absent: dirTotal - dirConfirmed, pct: dirTotal ? ((dirConfirmed / dirTotal) * 100).toFixed(2) : "0.00" };
+      })
+      .filter((g) => !myTeam || g.apiTeams.includes(myTeam));
   })();
+
+  // Department-level breakdown for Team Admin view
+  const groupedByDept = myTeam ? (() => {
+    const teamEntry = teamsAndDepartments.find((t) => t.team === myTeam);
+    const allDepts = teamEntry?.department ?? [];
+    const map = {};
+    // Seed all known departments with zero counts
+    allDepts.forEach((dept) => {
+      map[dept] = { department: dept, total: 0, confirmed: 0, notAttending: 0 };
+    });
+    scopedRegistrations.forEach((r) => {
+      const dept = r.department || "Unknown";
+      if (!map[dept]) map[dept] = { department: dept, total: 0, confirmed: 0, notAttending: 0 };
+      map[dept].total += 1;
+      if (r.is_confirmed) map[dept].confirmed += 1;
+      else if (r.is_confirmed === false && r.confirmed_at) map[dept].notAttending += 1;
+    });
+    return Object.values(map).sort((a, b) => a.department.localeCompare(b.department));
+  })() : null;
 
   return (
     <div className="min-h-screen bg-cream">
@@ -306,24 +367,57 @@ export default function LeadersMeetingReport() {
             <table className="min-w-full divide-y divide-ink-100">
               <thead className="bg-cream-200">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-ink-700 uppercase tracking-wide">Directorate</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-ink-700 uppercase tracking-wide">Team</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">Total</th>
+                  {myTeam ? (
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-ink-700 uppercase tracking-wide">Department</th>
+                  ) : (
+                    <>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-ink-700 uppercase tracking-wide">Directorate</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-ink-700 uppercase tracking-wide">Team</th>
+                    </>
+                  )}
+                  {!myTeam && <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">Total</th>}
                   <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">Confirmed</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">% Confirmed</th>
+                  {!myTeam && <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">% Confirmed</th>}
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">Not Attending</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">Unconfirmed</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-ink-50">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-sm text-ink-400">
+                    <td colSpan={7} className="px-4 py-8 text-center text-sm text-ink-400">
                       Loading...
                     </td>
                   </tr>
+                ) : myTeam ? (
+                  /* Team Admin: rows by department */
+                  <>
+                    {(groupedByDept ?? []).length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-8 text-center text-sm text-ink-400">No data available.</td>
+                      </tr>
+                    ) : (groupedByDept ?? []).map((d) => {
+                      const absent = d.total - d.confirmed - d.notAttending;
+                      const pct = d.total ? ((d.confirmed / d.total) * 100).toFixed(2) : "0.00";
+                      return (
+                        <tr key={d.department} className="hover:bg-cream-100">
+                          <td className="px-4 py-2 text-sm text-ink-800 font-medium">{d.department}</td>
+                          <td className="px-4 py-2 text-sm text-forest text-center font-mono font-medium">{d.confirmed}</td>
+                          <td className="px-4 py-2 text-sm text-sienna text-center font-mono font-medium">{d.notAttending}</td>
+                          <td className="px-4 py-2 text-sm text-brick text-center font-mono font-medium">{absent}</td>
+                        </tr>
+                      );
+                    })}
+                    <tr className="bg-cream-200 border-t-2 border-ink-200">
+                      <td className="px-4 py-3 text-sm font-bold text-ink-900 uppercase">Total</td>
+                      <td className="px-4 py-3 text-sm font-bold text-ink-900 text-center font-mono">{(groupedByDept ?? []).reduce((a, d) => a + d.confirmed, 0)}</td>
+                      <td className="px-4 py-3 text-sm font-bold text-ink-900 text-center font-mono">{(groupedByDept ?? []).reduce((a, d) => a + d.notAttending, 0)}</td>
+                      <td className="px-4 py-3 text-sm font-bold text-ink-900 text-center font-mono">{(groupedByDept ?? []).reduce((a, d) => a + d.total - d.confirmed - d.notAttending, 0)}</td>
+                    </tr>
+                  </>
                 ) : grouped.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-sm text-ink-400">
+                    <td colSpan={7} className="px-4 py-8 text-center text-sm text-ink-400">
                       No data available.
                     </td>
                   </tr>
@@ -346,6 +440,7 @@ export default function LeadersMeetingReport() {
                             <td className="px-4 py-2 text-sm text-ink-800 text-center font-mono">{r.total}</td>
                             <td className="px-4 py-2 text-sm text-forest text-center font-mono font-medium">{r.confirmed}</td>
                             <td className="px-4 py-2 text-sm text-ink-800 text-center font-mono">{r.pct}%</td>
+                            <td className="px-4 py-2 text-sm text-sienna text-center font-mono font-medium">{r.notAttending}</td>
                             <td className="px-4 py-2 text-sm text-brick text-center font-mono font-medium">{r.absent}</td>
                           </tr>
                         ))}
@@ -366,6 +461,9 @@ export default function LeadersMeetingReport() {
                           const c = grouped.reduce((a, g) => a + g.confirmed, 0);
                           return t ? ((c / t) * 100).toFixed(2) : "0.00";
                         })()}%
+                      </td>
+                      <td className="px-4 py-3 text-sm font-bold text-ink-900 text-center font-mono">
+                        {grouped.reduce((a, g) => a + g.notAttending, 0)}
                       </td>
                       <td className="px-4 py-3 text-sm font-bold text-ink-900 text-center font-mono">
                         {grouped.reduce((a, g) => a + g.absent, 0)}
@@ -398,27 +496,42 @@ export default function LeadersMeetingReport() {
                 ))}
               </div>
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                <select
-                  value={filterDirectorate}
-                  onChange={(e) => { setFilterDirectorate(e.target.value); setFilterTeam(""); setFilterDept(""); }}
-                  className="w-full sm:w-44 rounded-md border border-ink-200 bg-white px-3 py-1.5 text-sm text-ink-800 focus:outline-none focus:ring-2 focus:ring-ink-900/10"
-                >
-                  <option value="">All Directorates</option>
-                  {directorates.map((d) => <option key={d} value={d}>{d}</option>)}
-                </select>
-                <select
-                  value={filterTeam}
-                  onChange={(e) => { setFilterTeam(e.target.value); setFilterDept(""); }}
-                  disabled={!filterDirectorate}
-                  className="w-full sm:w-44 rounded-md border border-ink-200 bg-white px-3 py-1.5 text-sm text-ink-800 focus:outline-none focus:ring-2 focus:ring-ink-900/10 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <option value="">All Teams</option>
-                  {teams.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>
+                {!myTeam && (
+                  <select
+                    value={filterDirectorate}
+                    onChange={(e) => { setFilterDirectorate(e.target.value); setFilterTeam(""); setFilterSubTeam(""); setFilterDept(""); }}
+                    className="w-full sm:w-44 rounded-md border border-ink-200 bg-white px-3 py-1.5 text-sm text-ink-800 focus:outline-none focus:ring-2 focus:ring-ink-900/10"
+                  >
+                    <option value="">All Directorates</option>
+                    {directorates.map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                )}
+                {!myTeam && (
+                  <select
+                    value={filterTeam}
+                    onChange={(e) => { setFilterTeam(e.target.value); setFilterSubTeam(""); setFilterDept(""); }}
+                    disabled={!filterDirectorate}
+                    className="w-full sm:w-44 rounded-md border border-ink-200 bg-white px-3 py-1.5 text-sm text-ink-800 focus:outline-none focus:ring-2 focus:ring-ink-900/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <option value="">All Teams</option>
+                    {apiTeamOptions.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                )}
+                {(filterTeam === "Districts" || myTeam === "Districts" || myTeam === "Districts") && (
+                  <select
+                    value={filterSubTeam}
+                    onChange={(e) => { setFilterSubTeam(e.target.value); setFilterDept(""); }}
+                    className="w-full sm:w-52 rounded-md border border-ink-200 bg-white px-3 py-1.5 text-sm text-ink-800 focus:outline-none focus:ring-2 focus:ring-ink-900/10"
+                  >
+                    <option value="">All Clusters</option>
+                    <option value="Pastor Biola Cluster">Pastor Biola Cluster</option>
+                    <option value="Pastor Isaac Cluster">Pastor Isaac Cluster</option>
+                  </select>
+                )}
                 <select
                   value={filterDept}
                   onChange={(e) => setFilterDept(e.target.value)}
-                  disabled={!filterTeam}
+                  disabled={!myTeam && !filterTeam}
                   className="w-full sm:w-44 rounded-md border border-ink-200 bg-white px-3 py-1.5 text-sm text-ink-800 focus:outline-none focus:ring-2 focus:ring-ink-900/10 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="">All Departments</option>
@@ -446,21 +559,22 @@ export default function LeadersMeetingReport() {
                     <th className={th}>Directorate</th>
                     <th className={th}>Team</th>
                     <th className={th}>Role</th>
+                    {filterTeam === "Districts" || myTeam === "Districts" && <th className={th}>Cluster</th>}
                     <th className={th}>Status</th>
-                    {status === "declined" && <th className={th}>Reason</th>}
+                    {status === "not attending" && <th className={th}>Reason</th>}
                     <th className={th}>Confirmed At</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-ink-50">
                   {loading ? (
                     <tr>
-                      <td colSpan={status === "declined" ? 8 : 7} className="px-3 py-8 text-center text-sm text-ink-400">
+                      <td colSpan={7 + (status === "not attending" ? 1 : 0) + (filterTeam === "Districts" || myTeam === "Districts" ? 1 : 0)} className="px-3 py-8 text-center text-sm text-ink-400">
                         Loading registrations...
                       </td>
                     </tr>
                   ) : filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={status === "declined" ? 8 : 7} className="px-3 py-8 text-center text-sm text-ink-400">
+                      <td colSpan={7 + (status === "not attending" ? 1 : 0) + (filterTeam === "Districts" || myTeam === "Districts" ? 1 : 0)} className="px-3 py-8 text-center text-sm text-ink-400">
                         No registrations found.
                       </td>
                     </tr>
@@ -472,6 +586,9 @@ export default function LeadersMeetingReport() {
                         <td className={td}>{r.team || "-"}</td>
                         <td className={td}>{r.department || "-"}</td>
                         <td className={td}>{r.role || "-"}</td>
+                        {filterTeam === "Districts" || myTeam === "Districts" && (
+                          <td className={td}>{r.district_sub_team || <span className="text-ink-400 italic">Unassigned</span>}</td>
+                        )}
                         <td className={td}>
                           {r.is_confirmed ? (
                             <Tag tone="success">Confirmed</Tag>
@@ -481,7 +598,7 @@ export default function LeadersMeetingReport() {
                             <Tag tone="warning">No Response</Tag>
                           )}
                         </td>
-                        {status === "declined" && (
+                        {status === "not attending" && (
                           <td className={`${td} max-w-xs whitespace-normal text-ink-600 italic`}>{r.notes || r.decline_reason || "-"}</td>
                         )}
                         <td className={td}>{formatDate(r.confirmed_at)}</td>

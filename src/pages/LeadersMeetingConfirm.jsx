@@ -720,6 +720,8 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
         team: form.team,
         district_sub_team: form.team === "Districts" ? form.district_sub_team : undefined,
         department: form.department,
+        is_confirmed: true,
+        meeting_date: MEETING_DATE,
       };
       await createMeetingWorker(payload, token);
       onDone("create");

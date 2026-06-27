@@ -39,12 +39,16 @@ const TEAM_STRENGTH = {
 const TOTAL_STRENGTH = Object.values(TEAM_STRENGTH).reduce((a, b) => a + b, 0);
 
 const TEAM_STRUCTURE = [
-  { directorate: "Attraction", teams: ["Programs", "Mission"], apiTeams: ["Programs", "Mission"], bg: "#f59e0b", light: "rgba(245,158,11,0.10)" },
+  { directorate: "Attraction", teams: ["Programs"], apiTeams: ["Programs"], bg: "#f59e0b", light: "rgba(245,158,11,0.10)" },
+  { directorate: "Attraction", teams: ["Mission"], apiTeams: ["Mission"], bg: "#f59e0b", light: "rgba(245,158,11,0.10)" },
   { directorate: "NLP", teams: ["NLP"], apiTeams: ["NLP"], bg: "#06b6d4", light: "rgba(6,182,212,0.10)" },
-  { directorate: "SPD", teams: ["Membership", "Ministry", "Maturity"], apiTeams: ["Membership", "Ministry", "Maturity"], bg: "#a855f7", light: "rgba(168,85,247,0.10)" },
+  { directorate: "SPD", teams: ["Membership"], apiTeams: ["Membership"], bg: "#a855f7", light: "rgba(168,85,247,0.10)" },
+  { directorate: "SPD", teams: ["Ministry"], apiTeams: ["Ministry"], bg: "#a855f7", light: "rgba(168,85,247,0.10)" },
+  { directorate: "SPD", teams: ["Maturity"], apiTeams: ["Maturity"], bg: "#a855f7", light: "rgba(168,85,247,0.10)" },
   { directorate: "Next Gen", teams: ["Kidzone", "Stir House"], apiTeams: ["Next Gen"], bg: "#eab308", light: "rgba(234,179,8,0.10)" },
   { directorate: "General Services", teams: ["Admin & Facility", "Communication (DMU)", "Finance"], apiTeams: ["General Service"], bg: "#64748b", light: "rgba(100,116,139,0.10)" },
-  { directorate: "Communities", teams: ["District (Pastor Biola)", "District (Pastor Isaac)", "Men of Harvest", "Singles Ministry", "Women of Wisdom"], apiTeams: ["Districts", "Interactive Groups"], bg: "#ec4899", light: "rgba(236,72,153,0.10)" },
+  { directorate: "Communities", teams: ["District (Pastor Biola)", "District (Pastor Isaac)"], apiTeams: ["Districts"], bg: "#ec4899", light: "rgba(236,72,153,0.10)" },
+  { directorate: "Interactive Groups", teams: ["Men of Harvest", "Singles Ministry", "Women of Wisdom"], apiTeams: ["Interactive Groups"], bg: "#f43f5e", light: "rgba(244,63,94,0.10)" },
   { directorate: "Senior Leadership", teams: ["Directional Leaders", "Pastoral Leaders"], apiTeams: ["Senior Leadership"], bg: "#84cc16", light: "rgba(132,204,22,0.10)" },
 ];
 
@@ -117,6 +121,14 @@ export default function LeadersMeetingReport() {
   const scopedRegistrations = myTeam
     ? registrations.filter((r) => r.team === myTeam)
     : registrations;
+
+  // For Team Admin, compute total strength from only their team's sub-teams
+  const effectiveStrength = (() => {
+    if (!myTeam) return TOTAL_STRENGTH;
+    const entry = TEAM_STRUCTURE.find((t) => t.apiTeams.includes(myTeam));
+    if (!entry) return TOTAL_STRENGTH;
+    return entry.teams.reduce((sum, t) => sum + (TEAM_STRENGTH[t] ?? 0), 0);
+  })();
 
   const directorates = TEAM_STRUCTURE.map((t) => t.directorate);
   const selectedDirectorateEntry = TEAM_STRUCTURE.find((t) => t.directorate === filterDirectorate);
@@ -228,20 +240,37 @@ export default function LeadersMeetingReport() {
       }
     });
 
-    return TEAM_STRUCTURE
-      .map(({ directorate, teams: deptTeams, apiTeams, bg, light }) => {
-        const rows = deptTeams.map((t) => {
-          const confirmed = confirmedByTeam[t] || 0;
-          const notAttending = notAttendingByTeam[t] || 0;
-          const strength = TEAM_STRENGTH[t] ?? 0;
-          return { team: t, total: strength, confirmed, notAttending, absent: strength - confirmed, pct: strength ? ((confirmed / strength) * 100).toFixed(2) : "0.00" };
-        });
-        const dirTotal = rows.reduce((a, r) => a + r.total, 0);
-        const dirConfirmed = rows.reduce((a, r) => a + r.confirmed, 0);
-        const dirNotAttending = rows.reduce((a, r) => a + r.notAttending, 0);
-        return { directorate, bg, light, rows, apiTeams, total: dirTotal, confirmed: dirConfirmed, notAttending: dirNotAttending, absent: dirTotal - dirConfirmed, pct: dirTotal ? ((dirConfirmed / dirTotal) * 100).toFixed(2) : "0.00" };
-      })
-      .filter((g) => !myTeam || g.apiTeams.includes(myTeam));
+    // Map then merge duplicate directorate entries (e.g. Attraction has Programs + Mission as separate entries)
+    const mapped = TEAM_STRUCTURE.map(({ directorate, teams: deptTeams, apiTeams, bg, light }) => {
+      const rows = deptTeams.map((t) => {
+        const confirmed = confirmedByTeam[t] || 0;
+        const notAttending = notAttendingByTeam[t] || 0;
+        const strength = TEAM_STRENGTH[t] ?? 0;
+        return { team: t, total: strength, confirmed, notAttending, absent: strength - confirmed, pct: strength ? ((confirmed / strength) * 100).toFixed(2) : "0.00" };
+      });
+      const dirTotal = rows.reduce((a, r) => a + r.total, 0);
+      const dirConfirmed = rows.reduce((a, r) => a + r.confirmed, 0);
+      const dirNotAttending = rows.reduce((a, r) => a + r.notAttending, 0);
+      return { directorate, bg, light, rows, apiTeams, total: dirTotal, confirmed: dirConfirmed, notAttending: dirNotAttending, absent: dirTotal - dirConfirmed, pct: dirTotal ? ((dirConfirmed / dirTotal) * 100).toFixed(2) : "0.00" };
+    });
+
+    const merged = [];
+    mapped.forEach((g) => {
+      const existing = merged.find((m) => m.directorate === g.directorate);
+      if (existing) {
+        existing.rows = [...existing.rows, ...g.rows];
+        existing.apiTeams = [...existing.apiTeams, ...g.apiTeams];
+        existing.total += g.total;
+        existing.confirmed += g.confirmed;
+        existing.notAttending += g.notAttending;
+        existing.absent += g.absent;
+        existing.pct = existing.total ? ((existing.confirmed / existing.total) * 100).toFixed(2) : "0.00";
+      } else {
+        merged.push({ ...g });
+      }
+    });
+
+    return merged.filter((g) => !myTeam || g.apiTeams.includes(myTeam));
   })();
 
   // Department-level breakdown for Team Admin view
@@ -284,7 +313,7 @@ export default function LeadersMeetingReport() {
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-8">
           <Stat
             eyebrow="Total Leaders"
-            value={hasFilter ? filteredTotal : TOTAL_STRENGTH}
+            value={hasFilter ? filteredTotal : effectiveStrength}
             loading={loading}
           />
           <Stat
@@ -298,7 +327,7 @@ export default function LeadersMeetingReport() {
               hasFilter
                 ? filteredPct
                 : summary
-                  ? `${Math.round(((summary.total_confirmed ?? 0) / TOTAL_STRENGTH) * 100)}%`
+                  ? `${Math.round(((summary.total_confirmed ?? 0) / effectiveStrength) * 100)}%`
                   : "-"
             }
             loading={loading}
@@ -314,7 +343,7 @@ export default function LeadersMeetingReport() {
               hasFilter
                 ? filteredUnconfirmed
                 : summary
-                  ? TOTAL_STRENGTH - (summary.total_confirmed ?? 0)
+                  ? effectiveStrength - (summary.total_confirmed ?? 0)
                   : "-"
             }
             loading={loading}
@@ -322,7 +351,7 @@ export default function LeadersMeetingReport() {
               hasFilter
                 ? filteredTotal ? `${Math.round((filteredUnconfirmed / filteredTotal) * 100)}%` : undefined
                 : summary
-                  ? `${Math.round(((TOTAL_STRENGTH - (summary.total_confirmed ?? 0)) / TOTAL_STRENGTH) * 100)}%`
+                  ? `${Math.round(((effectiveStrength - (summary.total_confirmed ?? 0)) / effectiveStrength) * 100)}%`
                   : undefined
             }
           />

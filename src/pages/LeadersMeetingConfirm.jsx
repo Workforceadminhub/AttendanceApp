@@ -15,6 +15,7 @@ import {
 } from "@heroicons/react/24/outline";
 import BirthDatePicker from "../components/BirthDatePicker";
 import { DROPDOWN_OPTIONS } from "../utils/sampleWorkersExcel";
+import { teamsAndDepartments } from "../utils/teams";
 
 // ── Shared UI helpers ────────────────────────────────────────────────────────
 
@@ -644,6 +645,9 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
     address: "",
     employment: "",
     occupation: "",
+    team: "",
+    district_sub_team: "",
+    department: "",
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -652,6 +656,14 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
     setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
+
+  const setTeam = (e) => {
+    setForm((prev) => ({ ...prev, team: e.target.value, district_sub_team: "", department: "" }));
+    setErrors((prev) => ({ ...prev, team: undefined, district_sub_team: undefined, department: undefined }));
+  };
+
+  const selectedTeamData = teamsAndDepartments.find((t) => t.team === form.team);
+  const departmentOptions = selectedTeamData?.department || [];
 
   const validate = () => {
     const errs = {};
@@ -674,6 +686,9 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
     if (!form.employment) errs.employment = "Employment status is required";
     if (!form.occupation.trim()) errs.occupation = "Occupation is required";
     if (!form.address.trim()) errs.address = "Address is required";
+    if (!form.team) errs.team = "Team is required";
+    if (form.team === "Districts" && !form.district_sub_team) errs.district_sub_team = "District/Sub-team is required";
+    if (!form.department) errs.department = "Department is required";
     return errs;
   };
 
@@ -697,6 +712,9 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
         address: form.address.trim(),
         employment: form.employment,
         occupation: form.occupation.trim(),
+        team: form.team,
+        district_sub_team: form.team === "Districts" ? form.district_sub_team : undefined,
+        department: form.department,
       };
       await createMeetingWorker(payload, token);
       onDone("create");
@@ -841,6 +859,45 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
             value={form.occupation} onChange={set("occupation")} className={inputClass} />
           <FieldError message={errors.occupation} />
         </div>
+
+        {/* Team */}
+        <div className="sm:col-span-2">
+          <Label htmlFor="create-team" required>Team</Label>
+          <select id="create-team" value={form.team} onChange={setTeam} className={selectClass}>
+            <option value="">Select Team</option>
+            {teamsAndDepartments.map((t) => (
+              <option key={t.team} value={t.team}>{t.team}</option>
+            ))}
+          </select>
+          <FieldError message={errors.team} />
+        </div>
+
+        {/* District/Sub-team — only for Districts */}
+        {form.team === "Districts" && (
+          <div className="sm:col-span-2">
+            <Label htmlFor="create-district-sub-team" required>District/Sub-team</Label>
+            <select id="create-district-sub-team" value={form.district_sub_team} onChange={set("district_sub_team")} className={selectClass}>
+              <option value="">Select District/Sub-team</option>
+              <option value="Pastor Biola Cluster">Pastor Biola Cluster</option>
+              <option value="Pastor Isaac Cluster">Pastor Isaac Cluster</option>
+            </select>
+            <FieldError message={errors.district_sub_team} />
+          </div>
+        )}
+
+        {/* Department — filtered by team */}
+        {form.team && (
+          <div className="sm:col-span-2">
+            <Label htmlFor="create-department" required>Department</Label>
+            <select id="create-department" value={form.department} onChange={set("department")} className={selectClass}>
+              <option value="">Select Department</option>
+              {departmentOptions.map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+            <FieldError message={errors.department} />
+          </div>
+        )}
 
         {/* Address */}
         <div className="sm:col-span-2">

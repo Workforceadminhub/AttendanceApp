@@ -8,6 +8,7 @@ import Card from "../components/ui/Card";
 import Tag from "../components/ui/Tag";
 import Button from "../components/ui/Button";
 import { getMeetingRegistrations } from "../services/meeting";
+import { getUserRole } from "../utils/getUserRole";
 
 const MEETING_DATE = "2026-07-18";
 const STATUS_OPTIONS = ["all", "confirmed", "not attending"];
@@ -79,9 +80,8 @@ export default function LeadersMeetingReport() {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
-    const authUser = JSON.parse(sessionStorage.getItem("authUser") || "null");
-    const dept = (authUser?.department || "").toLowerCase();
-    if (dept !== "super admin" && dept !== "church admin") {
+    const { isSuperAdmin, isChurchAdmin, isTeamAdmin } = getUserRole();
+    if (!isSuperAdmin && !isChurchAdmin && !isTeamAdmin) {
       toast.error("You do not have permission to view this page.");
       navigate("/login", { replace: true });
     }

@@ -72,6 +72,7 @@ export default function LeadersMeetingReport() {
   const [search, setSearch] = useState("");
   const [filterDirectorate, setFilterDirectorate] = useState("");
   const [filterTeam, setFilterTeam] = useState("");
+  const [filterSubTeam, setFilterSubTeam] = useState("");
   const [filterDept, setFilterDept] = useState("");
   const [summary, setSummary] = useState(null);
   const [registrations, setRegistrations] = useState([]);
@@ -124,6 +125,7 @@ export default function LeadersMeetingReport() {
   const filtered = registrations.filter((r) => {
     if (filterDirectorate && !selectedApiTeams.includes(r.team)) return false;
     if (filterTeam && r.team !== filterTeam) return false;
+    if (filterSubTeam && r.district_sub_team !== filterSubTeam) return false;
     if (filterDept && r.department !== filterDept) return false;
     if (status === "declined" && !(r.is_confirmed === false && r.confirmed_at)) return false;
     if (search.trim()) {
@@ -428,7 +430,7 @@ export default function LeadersMeetingReport() {
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                 <select
                   value={filterDirectorate}
-                  onChange={(e) => { setFilterDirectorate(e.target.value); setFilterTeam(""); setFilterDept(""); }}
+                  onChange={(e) => { setFilterDirectorate(e.target.value); setFilterTeam(""); setFilterSubTeam(""); setFilterDept(""); }}
                   className="w-full sm:w-44 rounded-md border border-ink-200 bg-white px-3 py-1.5 text-sm text-ink-800 focus:outline-none focus:ring-2 focus:ring-ink-900/10"
                 >
                   <option value="">All Directorates</option>
@@ -436,13 +438,24 @@ export default function LeadersMeetingReport() {
                 </select>
                 <select
                   value={filterTeam}
-                  onChange={(e) => { setFilterTeam(e.target.value); setFilterDept(""); }}
+                  onChange={(e) => { setFilterTeam(e.target.value); setFilterSubTeam(""); setFilterDept(""); }}
                   disabled={!filterDirectorate}
                   className="w-full sm:w-44 rounded-md border border-ink-200 bg-white px-3 py-1.5 text-sm text-ink-800 focus:outline-none focus:ring-2 focus:ring-ink-900/10 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="">All Teams</option>
                   {apiTeamOptions.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
+                {filterTeam === "Districts" && (
+                  <select
+                    value={filterSubTeam}
+                    onChange={(e) => { setFilterSubTeam(e.target.value); setFilterDept(""); }}
+                    className="w-full sm:w-52 rounded-md border border-ink-200 bg-white px-3 py-1.5 text-sm text-ink-800 focus:outline-none focus:ring-2 focus:ring-ink-900/10"
+                  >
+                    <option value="">All Clusters</option>
+                    <option value="Pastor Biola Cluster">Pastor Biola Cluster</option>
+                    <option value="Pastor Isaac Cluster">Pastor Isaac Cluster</option>
+                  </select>
+                )}
                 <select
                   value={filterDept}
                   onChange={(e) => setFilterDept(e.target.value)}
@@ -474,6 +487,7 @@ export default function LeadersMeetingReport() {
                     <th className={th}>Directorate</th>
                     <th className={th}>Team</th>
                     <th className={th}>Role</th>
+                    {filterTeam === "Districts" && <th className={th}>Cluster</th>}
                     <th className={th}>Status</th>
                     {status === "declined" && <th className={th}>Reason</th>}
                     <th className={th}>Confirmed At</th>
@@ -482,13 +496,13 @@ export default function LeadersMeetingReport() {
                 <tbody className="divide-y divide-ink-50">
                   {loading ? (
                     <tr>
-                      <td colSpan={status === "declined" ? 8 : 7} className="px-3 py-8 text-center text-sm text-ink-400">
+                      <td colSpan={7 + (status === "declined" ? 1 : 0) + (filterTeam === "Districts" ? 1 : 0)} className="px-3 py-8 text-center text-sm text-ink-400">
                         Loading registrations...
                       </td>
                     </tr>
                   ) : filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={status === "declined" ? 8 : 7} className="px-3 py-8 text-center text-sm text-ink-400">
+                      <td colSpan={7 + (status === "declined" ? 1 : 0) + (filterTeam === "Districts" ? 1 : 0)} className="px-3 py-8 text-center text-sm text-ink-400">
                         No registrations found.
                       </td>
                     </tr>
@@ -500,6 +514,9 @@ export default function LeadersMeetingReport() {
                         <td className={td}>{r.team || "-"}</td>
                         <td className={td}>{r.department || "-"}</td>
                         <td className={td}>{r.role || "-"}</td>
+                        {filterTeam === "Districts" && (
+                          <td className={td}>{r.district_sub_team || <span className="text-ink-400 italic">Unassigned</span>}</td>
+                        )}
                         <td className={td}>
                           {r.is_confirmed ? (
                             <Tag tone="success">Confirmed</Tag>

@@ -180,25 +180,30 @@ export default function LeadersMeetingReport() {
     // or a directorate name (e.g. "Senior Leadership"), in which case
     // r.department holds the team name (e.g. "Pastoral Leaders").
     const confirmedByTeam = {};
+    const notAttendingByTeam = {};
     registrations.forEach((r) => {
-      if (!r.is_confirmed) return;
       const rTeam = (r.team || "").toLowerCase().trim();
       const rDept = (r.department || "").toLowerCase().trim();
       const matched = teamNameLookup[rTeam] || teamNameLookup[rDept];
-      if (matched) {
+      if (!matched) return;
+      if (r.is_confirmed) {
         confirmedByTeam[matched] = (confirmedByTeam[matched] || 0) + 1;
+      } else if (r.is_confirmed === false && r.confirmed_at) {
+        notAttendingByTeam[matched] = (notAttendingByTeam[matched] || 0) + 1;
       }
     });
 
     return TEAM_STRUCTURE.map(({ directorate, teams: deptTeams, bg, light }) => {
       const rows = deptTeams.map((t) => {
         const confirmed = confirmedByTeam[t] || 0;
+        const notAttending = notAttendingByTeam[t] || 0;
         const strength = TEAM_STRENGTH[t] ?? 0;
-        return { team: t, total: strength, confirmed, absent: strength - confirmed, pct: strength ? ((confirmed / strength) * 100).toFixed(2) : "0.00" };
+        return { team: t, total: strength, confirmed, notAttending, absent: strength - confirmed, pct: strength ? ((confirmed / strength) * 100).toFixed(2) : "0.00" };
       });
       const dirTotal = rows.reduce((a, r) => a + r.total, 0);
       const dirConfirmed = rows.reduce((a, r) => a + r.confirmed, 0);
-      return { directorate, bg, light, rows, total: dirTotal, confirmed: dirConfirmed, absent: dirTotal - dirConfirmed, pct: dirTotal ? ((dirConfirmed / dirTotal) * 100).toFixed(2) : "0.00" };
+      const dirNotAttending = rows.reduce((a, r) => a + r.notAttending, 0);
+      return { directorate, bg, light, rows, total: dirTotal, confirmed: dirConfirmed, notAttending: dirNotAttending, absent: dirTotal - dirConfirmed, pct: dirTotal ? ((dirConfirmed / dirTotal) * 100).toFixed(2) : "0.00" };
     });
   })();
 
@@ -311,19 +316,20 @@ export default function LeadersMeetingReport() {
                   <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">Total</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">Confirmed</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">% Confirmed</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">Not Attending</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">Unconfirmed</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-ink-50">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-sm text-ink-400">
+                    <td colSpan={7} className="px-4 py-8 text-center text-sm text-ink-400">
                       Loading...
                     </td>
                   </tr>
                 ) : grouped.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-sm text-ink-400">
+                    <td colSpan={7} className="px-4 py-8 text-center text-sm text-ink-400">
                       No data available.
                     </td>
                   </tr>
@@ -346,6 +352,7 @@ export default function LeadersMeetingReport() {
                             <td className="px-4 py-2 text-sm text-ink-800 text-center font-mono">{r.total}</td>
                             <td className="px-4 py-2 text-sm text-forest text-center font-mono font-medium">{r.confirmed}</td>
                             <td className="px-4 py-2 text-sm text-ink-800 text-center font-mono">{r.pct}%</td>
+                            <td className="px-4 py-2 text-sm text-sienna text-center font-mono font-medium">{r.notAttending}</td>
                             <td className="px-4 py-2 text-sm text-brick text-center font-mono font-medium">{r.absent}</td>
                           </tr>
                         ))}
@@ -366,6 +373,9 @@ export default function LeadersMeetingReport() {
                           const c = grouped.reduce((a, g) => a + g.confirmed, 0);
                           return t ? ((c / t) * 100).toFixed(2) : "0.00";
                         })()}%
+                      </td>
+                      <td className="px-4 py-3 text-sm font-bold text-ink-900 text-center font-mono">
+                        {grouped.reduce((a, g) => a + g.notAttending, 0)}
                       </td>
                       <td className="px-4 py-3 text-sm font-bold text-ink-900 text-center font-mono">
                         {grouped.reduce((a, g) => a + g.absent, 0)}

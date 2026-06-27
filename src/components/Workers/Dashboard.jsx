@@ -248,7 +248,7 @@ export default function Dashboard() {
               to="/report/confirmation-leaders-meeting"
               className="inline-flex items-center gap-2 rounded-lg border border-ink-200 bg-white px-4 py-2 text-sm font-medium text-ink transition hover:bg-ink-100 shrink-0"
             >
-              Leaders Meeting
+              Leaders Meeting Confirmation Report
             </Link>
           )}
         </div>

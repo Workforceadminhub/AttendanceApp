@@ -501,8 +501,13 @@ function EditWorkerStep({ worker, token, onBack, onDone }) {
               <Label htmlFor="edit-birthdate">
                 Date of Birth {missingBadge}
               </Label>
-              <input id="edit-birthdate" type="date"
-                value={form.birthdate} onChange={set("birthdate")} className={inputClass} />
+              <BirthDatePicker
+                value={form.birthdate}
+                onChange={(val) => {
+                  setForm((prev) => ({ ...prev, birthdate: val }));
+                  setErrors((prev) => ({ ...prev, birthdate: undefined }));
+                }}
+              />
             </div>
           )}
 

@@ -10,7 +10,7 @@ import Button from "../components/ui/Button";
 import { getMeetingRegistrations } from "../services/meeting";
 
 const MEETING_DATE = "2026-07-18";
-const STATUS_OPTIONS = ["all", "confirmed", "declined"];
+const STATUS_OPTIONS = ["all", "confirmed", "not attending"];
 
 const TEAM_STRENGTH = {
   "Programs": 168,
@@ -90,7 +90,7 @@ export default function LeadersMeetingReport() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const apiStatus = status === "declined" ? "unconfirmed" : status;
+      const apiStatus = status === "not attending" ? "unconfirmed" : status;
       const res = await getMeetingRegistrations(MEETING_DATE, apiStatus);
       setSummary(res.summary || null);
       setRegistrations(res.data || []);
@@ -127,7 +127,7 @@ export default function LeadersMeetingReport() {
     if (filterTeam && r.team !== filterTeam) return false;
     if (filterSubTeam && r.district_sub_team !== filterSubTeam) return false;
     if (filterDept && r.department !== filterDept) return false;
-    if (status === "declined" && !(r.is_confirmed === false && r.confirmed_at)) return false;
+    if (status === "not attending" && !(r.is_confirmed === false && r.confirmed_at)) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
       if (
@@ -489,20 +489,20 @@ export default function LeadersMeetingReport() {
                     <th className={th}>Role</th>
                     {filterTeam === "Districts" && <th className={th}>Cluster</th>}
                     <th className={th}>Status</th>
-                    {status === "declined" && <th className={th}>Reason</th>}
+                    {status === "not attending" && <th className={th}>Reason</th>}
                     <th className={th}>Confirmed At</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-ink-50">
                   {loading ? (
                     <tr>
-                      <td colSpan={7 + (status === "declined" ? 1 : 0) + (filterTeam === "Districts" ? 1 : 0)} className="px-3 py-8 text-center text-sm text-ink-400">
+                      <td colSpan={7 + (status === "not attending" ? 1 : 0) + (filterTeam === "Districts" ? 1 : 0)} className="px-3 py-8 text-center text-sm text-ink-400">
                         Loading registrations...
                       </td>
                     </tr>
                   ) : filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={7 + (status === "declined" ? 1 : 0) + (filterTeam === "Districts" ? 1 : 0)} className="px-3 py-8 text-center text-sm text-ink-400">
+                      <td colSpan={7 + (status === "not attending" ? 1 : 0) + (filterTeam === "Districts" ? 1 : 0)} className="px-3 py-8 text-center text-sm text-ink-400">
                         No registrations found.
                       </td>
                     </tr>
@@ -526,7 +526,7 @@ export default function LeadersMeetingReport() {
                             <Tag tone="warning">No Response</Tag>
                           )}
                         </td>
-                        {status === "declined" && (
+                        {status === "not attending" && (
                           <td className={`${td} max-w-xs whitespace-normal text-ink-600 italic`}>{r.notes || r.decline_reason || "-"}</td>
                         )}
                         <td className={td}>{formatDate(r.confirmed_at)}</td>

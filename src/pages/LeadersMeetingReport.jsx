@@ -130,7 +130,7 @@ export default function LeadersMeetingReport() {
     return entry.teams.reduce((sum, t) => sum + (TEAM_STRENGTH[t] ?? 0), 0);
   })();
 
-  const directorates = TEAM_STRUCTURE.map((t) => t.directorate);
+  const directorates = [...new Set(TEAM_STRUCTURE.map((t) => t.directorate))];
   const selectedDirectorateEntry = TEAM_STRUCTURE.find((t) => t.directorate === filterDirectorate);
   const selectedApiTeams = selectedDirectorateEntry?.apiTeams || [];
 

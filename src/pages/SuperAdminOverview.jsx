@@ -252,9 +252,8 @@ export default function SuperAdminOverview() {
             </div>
           ) : !directorateStats || directorateStats.length === 0 ? (
             <EmptyState
-              variant="no-activity"
-              title="No attendance recorded"
-              hint="Attendance data will appear here once the first session is marked."
+              title="No attendance data"
+              hint="Attendance data will appear here once recorded."
             />
           ) : (
             <>
@@ -422,7 +421,7 @@ export default function SuperAdminOverview() {
               </ResponsiveContainer>
             </div>
           ) : (
-            <EmptyState variant="no-period-data" title="No data for this period" hint="Worker distribution will appear once team data is available." />
+            <EmptyState title="No chart data" />
           )}
         </section>
 
@@ -452,7 +451,7 @@ export default function SuperAdminOverview() {
               <LoadingState />
             </div>
           ) : hasNoBreakdownData ? (
-            <EmptyState variant="no-data" title="No data available" hint="Worker data will appear here once loaded." />
+            <EmptyState title="No data available" hint="Worker data will appear here once loaded." />
           ) : (
             <>
               {/* Mobile cards */}
@@ -725,105 +724,12 @@ function CockpitTooltip({ active, payload, label }) {
   );
 }
 
-function EmptyState({ title, hint, variant = "no-data" }) {
+function EmptyState({ title, hint }) {
   return (
-    <div className="flex flex-col items-center justify-center py-14 px-6 text-center">
-      <EmptyStateIcon variant={variant} />
-      <p className="mt-5 text-base font-semibold text-ink-900 tracking-tight">{title}</p>
-      {hint && <p className="mt-1.5 text-sm text-ink-500 max-w-xs leading-relaxed">{hint}</p>}
-    </div>
-  );
-}
-
-function EmptyStateIcon({ variant }) {
-  const wrapperBase =
-    "flex items-center justify-center w-16 h-16 rounded-full";
-
-  if (variant === "no-activity") {
-    return (
-      <div className={`${wrapperBase} bg-forest/10`}>
-        <svg
-          viewBox="0 0 40 40"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-8 h-8"
-          aria-hidden="true"
-        >
-          {/* Chat bubble */}
-          <path
-            d="M20 7a13 13 0 0 0-11.26 19.5L7 33l6.74-1.74A13 13 0 1 0 20 7Z"
-            fill="#4A6B3F"
-            opacity="0.15"
-          />
-          <path
-            d="M20 7a13 13 0 0 0-11.26 19.5L7 33l6.74-1.74A13 13 0 1 0 20 7Z"
-            stroke="#4A6B3F"
-            strokeWidth="1.75"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <circle cx="14" cy="20" r="1.5" fill="#4A6B3F" />
-          <circle cx="20" cy="20" r="1.5" fill="#4A6B3F" />
-          <circle cx="26" cy="20" r="1.5" fill="#4A6B3F" />
-        </svg>
-      </div>
-    );
-  }
-
-  if (variant === "no-period-data") {
-    return (
-      <div className={`${wrapperBase} bg-mustard/10`}>
-        <svg
-          viewBox="0 0 40 40"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-8 h-8"
-          aria-hidden="true"
-        >
-          {/* Calendar */}
-          <rect
-            x="6"
-            y="9"
-            width="22"
-            height="22"
-            rx="3"
-            fill="#A87B0F"
-            opacity="0.12"
-            stroke="#A87B0F"
-            strokeWidth="1.75"
-          />
-          <line x1="12" y1="6" x2="12" y2="12" stroke="#A87B0F" strokeWidth="1.75" strokeLinecap="round" />
-          <line x1="22" y1="6" x2="22" y2="12" stroke="#A87B0F" strokeWidth="1.75" strokeLinecap="round" />
-          <line x1="6" y1="16" x2="28" y2="16" stroke="#A87B0F" strokeWidth="1.5" />
-          {/* Magnifying glass overlay */}
-          <circle cx="29" cy="29" r="6" fill="white" />
-          <circle cx="29" cy="29" r="4.5" stroke="#A87B0F" strokeWidth="1.75" fill="none" />
-          <line x1="32.5" y1="32.5" x2="35.5" y2="35.5" stroke="#A87B0F" strokeWidth="1.75" strokeLinecap="round" />
-        </svg>
-      </div>
-    );
-  }
-
-  // default: "no-data" — checkmark
-  return (
-    <div className={`${wrapperBase} bg-ink-100`}>
-      <svg
-        viewBox="0 0 40 40"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="w-8 h-8"
-        aria-hidden="true"
-      >
-        <circle cx="20" cy="20" r="13" fill="#0A0E1A" opacity="0.06" stroke="#0A0E1A" strokeWidth="1.75" opacity="0.25" />
-        <path
-          d="M14 20.5l4.5 4.5 8-9"
-          stroke="#0A0E1A"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.5"
-        />
-      </svg>
+    <div className="text-center py-12 px-4">
+      <div className="qc-eyebrow text-ink-400">No data</div>
+      <p className="mt-2 text-base font-medium text-ink-900">{title}</p>
+      {hint && <p className="mt-1 text-sm text-ink-500">{hint}</p>}
     </div>
   );
 }

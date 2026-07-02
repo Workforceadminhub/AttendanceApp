@@ -98,15 +98,26 @@ export function useDepartmentsContext() {
 export function useEffectiveRouteList() {
   const { departments } = useDepartmentsContext();
   const authUser = getUser();
+  const authSessionKey = authUser
+    ? [
+        authUser.route ?? "",
+        authUser.department ?? "",
+        typeof authUser.team === "string" ? authUser.team : authUser.team?.name ?? "",
+      ].join("|")
+    : "";
+
   return useMemo(() => {
     if (Array.isArray(departments) && departments.length > 0) {
       setDynamicDepartments(departments);
     }
-    if (authUser) {
-      ensureSessionRoute(authUser);
+    if (authSessionKey) {
+      const user = getUser();
+      if (user) {
+        ensureSessionRoute(user);
+      }
     }
     return getEffectiveRouteList();
-  }, [departments, authUser?.route, authUser?.department, authUser?.team]);
+  }, [departments, authSessionKey]);
 }
 
 export function useDepartmentRoutes() {

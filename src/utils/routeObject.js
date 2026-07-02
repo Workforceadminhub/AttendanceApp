@@ -135,6 +135,7 @@ export const routeObject = [
 // created departments work without redeploy.
 
 let _dynamicList = null; // null = not loaded yet → fall back to static
+let _sessionRoutes = []; // routes from the logged-in admin (before dept cache catches up)
 
 function slugify(s) {
   return String(s || "")
@@ -175,12 +176,135 @@ export function setDynamicDepartments(departments) {
 /**
  * Returns the effective list of departments to route through.
  * Prefers the live API list once loaded; falls back to the static array.
- * Used by all helpers in this file.
+ * Also merges session routes so a newly created admin can navigate before
+ * the departments cache refreshes.
  * @returns {Array<{ department: string, route: string, team: string }>}
  */
 export function getEffectiveRouteList() {
-  if (Array.isArray(_dynamicList) && _dynamicList.length > 0) return _dynamicList;
-  return routeObject;
+  let base;
+  if (Array.isArray(_dynamicList) && _dynamicList.length > 0) {
+    const seen = new Set(_dynamicList.map((d) => `${d.department}|${d.route}`));
+    const fallback = routeObject.filter(
+      (s) => !seen.has(`${s.department}|${s.route}`)
+    );
+    base = [..._dynamicList, ...fallback];
+  } else {
+    base = routeObject;
+  }
+
+  if (_sessionRoutes.length === 0) return base;
+
+  const seen = new Set(base.map((d) => d.route));
+  const extra = _sessionRoutes.filter((s) => s.route && !seen.has(s.route));
+  return extra.length ? [...base, ...extra] : base;
+}
+
+/**
+ * Register the logged-in admin's route so dashboard/attendance/summary
+ * paths resolve immediately (even if /api/departments cache is stale).
+ * @param {object} authUser
+ */
+export function ensureSessionRoute(authUser) {
+  if (!authUser) return;
+
+  const route =
+    normalizeRoute(authUser.route) ||
+    normalizeRoute(getDepartmentRoute(authUser.department));
+  if (!route) return;
+
+  const department =
+    authUser.department ||
+    getDepartmentNameFromRoute(route) ||
+    route.replace(/^\//, "");
+  const team =
+    typeof authUser.team === "string"
+      ? authUser.team.split(",")[0]?.trim() || ""
+      : authUser.team?.name || authUser.team || "";
+
+  const entry = { department, route, team };
+  if (_sessionRoutes.some((s) => s.route === route)) return;
+  _sessionRoutes = [..._sessionRoutes, entry];
+}
+
+export function clearSessionRoutes() {
+  _sessionRoutes = [];
+}
+
+/**
+ * Parse the route suffix from a dashboard/attendance/summary path.
+ * e.g. "/dashboard/kidzone" → "/kidzone", "/dashboard/admin/nlp" → "/admin/nlp"
+ * @param {string} pathname
+ * @returns {string}
+ */
+export function getPathRouteSuffix(pathname) {
+  if (!pathname) return "";
+  const match = pathname.match(/^\/(?:dashboard|attendance|summary)(\/.*)?$/);
+  return match?.[1] || "";
+}
+
+/**
+ * Resolve department/team context for the current URL, falling back to the
+ * logged-in admin's stored route when the path isn't in the dept list yet.
+ * @param {string} pathname
+ * @param {object} [authUser]
+ * @returns {{ department: string, route: string, team: string }|null}
+ */
+export function getRouteContext(pathname, authUser) {
+  const suffix = getPathRouteSuffix(pathname);
+  if (!suffix) return null;
+
+  const list = getEffectiveRouteList();
+  const exact = list.find((r) => r.route === suffix);
+  if (exact) return exact;
+
+  if (suffix.startsWith("/admin/")) {
+    const slug = suffix.slice("/admin/".length);
+    const teamMatch = list.find((r) => teamToSlug(r.team) === slug);
+    if (teamMatch) {
+      return { department: teamMatch.team, route: suffix, team: teamMatch.team };
+    }
+  }
+
+  const stored = normalizeRoute(authUser?.route);
+  if (stored && stored === suffix) {
+    const team =
+      typeof authUser.team === "string"
+        ? authUser.team.split(",")[0]?.trim() || ""
+        : authUser.team?.name || authUser.team || "";
+    return { department: authUser.department, route: stored, team };
+  }
+
+  if (authUser?.department) {
+    const deptRoute = normalizeRoute(getDepartmentRoute(authUser.department));
+    if (deptRoute === suffix) {
+      const team =
+        typeof authUser.team === "string"
+          ? authUser.team.split(",")[0]?.trim() || ""
+          : authUser.team?.name || authUser.team || "";
+      return { department: authUser.department, route: deptRoute, team };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Register an admin's route immediately after creation so React Router and
+ * dashboard pages resolve it before /api/departments cache refreshes.
+ * @param {{ department: string, route: string, team?: string }} params
+ */
+export function registerAdminRoute({ department, route, team }) {
+  if (!department || !route) return;
+  const normalized = normalizeRoute(route);
+  const teamName =
+    typeof team === "string" ? team.split(",")[0]?.trim() || team : team || "";
+  ensureSessionRoute({ department, route: normalized, team: teamName });
+  const entry = { department, route: normalized, team: teamName };
+  if (Array.isArray(_dynamicList)) {
+    if (!_dynamicList.some((d) => d.route === normalized)) {
+      _dynamicList = [..._dynamicList, entry];
+    }
+  }
 }
 
 export const attendanceRoutes = routeObject.map(
@@ -366,3 +490,116 @@ export const departmentNameForApi = (departmentName) => {
   };
   return apiNames[departmentName] ?? departmentName;
 };
+
+function normalizeRole(value) {
+  return (value ?? "")
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-")
+    .replace(/-+/g, "-");
+}
+
+function teamToSlug(teamName) {
+  const name = String(teamName || "")
+    .split(",")[0]
+    .trim();
+  return name.toLowerCase().replaceAll(" ", "");
+}
+
+function getTeamSlugs() {
+  return new Set(
+    getEffectiveRouteList().map((item) => teamToSlug(item.team)).filter(Boolean)
+  );
+}
+
+/**
+ * Whether a stored admin route matches a registered dashboard/attendance path.
+ * @param {string} route
+ * @returns {boolean}
+ */
+export function isRegisteredAdminRoute(route) {
+  const normalized = normalizeRoute(route);
+  if (!normalized) return false;
+  if (normalized === "/super-admin") return true;
+
+  if (normalized.startsWith("/admin/")) {
+    const slug = normalized.slice("/admin/".length);
+    return getTeamSlugs().has(slug);
+  }
+
+  return !!getDepartmentNameFromRoute(normalized);
+}
+
+/**
+ * Derive the route slug stored on an admin record from role, department, and team.
+ * Team admins → /admin/{teamSlug}; HOD/sub-team-admin → department route.
+ * @param {{ role?: string, department?: string, team?: string|string[], route?: string }} params
+ * @returns {string|null}
+ */
+export function resolveAdminRoute({ role, department, team, route } = {}) {
+  const explicit = normalizeRoute(route);
+  if (explicit && isRegisteredAdminRoute(explicit)) return explicit;
+
+  const roleRaw = normalizeRole(role);
+  if (roleRaw === "super-admin" || roleRaw === "superadmin") return "/super-admin";
+  if (roleRaw === "church-admin" || roleRaw === "churchadmin") return null;
+
+  const isTeamAdminRole =
+    roleRaw === "team-admin" ||
+    roleRaw === "teamadmin" ||
+    roleRaw === "team-head" ||
+    roleRaw === "teamhead" ||
+    roleRaw === "admin";
+
+  const teamName = Array.isArray(team)
+    ? team[0]
+    : typeof team === "string"
+      ? team.split(",")[0]?.trim()
+      : team;
+
+  if (isTeamAdminRole && teamName) {
+    const slug = teamToSlug(teamName);
+    if (slug) return `/admin/${slug}`;
+  }
+
+  if (department) {
+    const deptRoute = getDepartmentRoute(department);
+    if (deptRoute) return normalizeRoute(deptRoute);
+  }
+
+  return null;
+}
+
+/**
+ * Post-login landing path for an authenticated user.
+ * The route stored on the admin record (returned by /auth/signin) is the
+ * source of truth — it must match what was saved at create time.
+ * @param {object} authUser
+ * @returns {string}
+ */
+export function getPostLoginPath(authUser) {
+  if (!authUser) return "/login";
+
+  if (
+    authUser.department === "Super Admin" ||
+    authUser.permissionLevel === "SUPER_ADMIN"
+  ) {
+    return "/overview/super-admin";
+  }
+
+  if (
+    authUser.department === "Church Admin" ||
+    authUser.permissionLevel === "CHURCH_ADMIN"
+  ) {
+    return "/attendance/dashboard";
+  }
+
+  const storedRoute = normalizeRoute(authUser.route);
+  if (storedRoute) return `/dashboard${storedRoute}`;
+
+  const fallback = resolveAdminRoute(authUser);
+  if (fallback) return `/dashboard${fallback}`;
+
+  return "/attendance/dashboard";
+}

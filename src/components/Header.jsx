@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { getUser } from "../utils/getUser";
 import { clearFilterCache } from "../utils/filterCache";
 import { getUserRole } from "../utils/getUserRole";
-import { getDepartmentRoute } from "../utils/routeObject";
+import { getDepartmentRoute, clearSessionRoutes } from "../utils/routeObject";
 import { canSendBulkEmail } from "../utils/bulkEmailAccess";
 import MobileSheet from "./ui/MobileSheet";
 import { useHubNav } from "../contexts/RBACContext";
@@ -205,6 +205,7 @@ export default function Header() {
   const handleLogout = () => {
     sessionStorage.removeItem("authUser");
     sessionStorage.removeItem("accessToken");
+    clearSessionRoutes();
     clearFilterCache();
     navigate("/login");
   };

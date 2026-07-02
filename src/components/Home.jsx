@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getUser } from "../utils/getUser";
+import { getPostLoginPath } from "../utils/routeObject";
 
 export default function Home() {
   const navigate = useNavigate();
@@ -8,13 +9,7 @@ export default function Home() {
 
   useEffect(() => {
     if (authUser) {
-      if (authUser.department === "Super Admin") {
-        navigate("/overview/super-admin", { replace: true });
-      } else if (authUser.route) {
-        navigate(`/dashboard${authUser.route}`, { replace: true });
-      } else {
-        navigate("/attendance/dashboard", { replace: true });
-      }
+      navigate(getPostLoginPath(authUser), { replace: true });
     }
   }, [authUser, navigate]);
 

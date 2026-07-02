@@ -596,6 +596,56 @@ const AppRoutes = () => {
             {/* Public — no auth required */}
             <Route path="/verify/:certificateNumber" element={<VerifyCertificate />} />
 
+            {/* Fallback param routes — catch new dept/admin slugs before dept cache refreshes */}
+            <Route
+              path="/dashboard/admin/:teamRoute"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/:departmentRoute"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/attendance/admin/:teamRoute"
+              element={
+                <PrivateRoute>
+                  <DepartmentAttendance />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/attendance/:departmentRoute"
+              element={
+                <PrivateRoute>
+                  <DepartmentAttendance />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/summary/admin/:teamRoute"
+              element={
+                <PrivateRoute>
+                  <AdminSummaryDetail />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/summary/:departmentRoute"
+              element={
+                <PrivateRoute>
+                  <DepartmentSummary />
+                </PrivateRoute>
+              }
+            />
+
             <Route path="*" exact={true} element={<NotFound />} />
         </Routes>
       </Suspense>

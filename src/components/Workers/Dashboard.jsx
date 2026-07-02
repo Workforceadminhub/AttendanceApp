@@ -15,7 +15,7 @@ import { toast } from "react-toastify";
 import { ADMIN_ENUMS } from "../../utils/enums";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
 import ReactSelectDropdown from "../ReactSelect";
-import { getAdminSelectOptions, getEffectiveRouteList } from "../../utils/routeObject";
+import { getAdminSelectOptions, getRouteContext } from "../../utils/routeObject";
 import { filterByUserPermissions } from "../../utils/filterByPermissions";
 import { expandPermissions } from "../../utils/expandPermissions";
 import { getUser } from "../../utils/getUser";
@@ -94,10 +94,14 @@ export default function Dashboard() {
   const authUser = useMemo(() => getUser(), []);
   const options = getAdminSelectOptions(isChurchAdmin, team, authUser);
 
-  const routeSuffix = pathname.replace(/^\/dashboard/, "") || "";
-  const departmentInfo = getEffectiveRouteList().find((r) => r.route === routeSuffix);
+  const departmentInfo = useMemo(
+    () => getRouteContext(pathname, authUser),
+    [pathname, authUser]
+  );
   const summaryHref = authUser?.route
-    ? `/department/${authUser.route.replace(/^\//, "")}`
+    ? `/department/${authUser.route.replace(/^\//, "").replace(/^admin\//, "")}`
+    : departmentInfo?.route
+    ? `/department/${departmentInfo.route.replace(/^\//, "").replace(/^admin\//, "")}`
     : "/summary";
 
   const defaultDate = getNextSunday();

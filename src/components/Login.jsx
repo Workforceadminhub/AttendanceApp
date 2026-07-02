@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import loginService from "../services/login";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
+import { getPostLoginPath, resolveAdminRoute, ensureSessionRoute } from "../utils/routeObject";
 
 const Login = () => {
   const [code, setCode] = useState("");
@@ -32,24 +33,15 @@ const Login = () => {
           assignedDepartments:
             data.assignedDepartments ?? data.user?.assignedDepartments ?? [],
         };
+        // Trust the route stored in DB; only derive when the backend didn't return one
+        if (!authUser.route?.trim()) {
+          const derived = resolveAdminRoute(authUser);
+          if (derived) authUser.route = derived;
+        }
+        ensureSessionRoute(authUser);
         sessionStorage.setItem("authUser", JSON.stringify(authUser));
         sessionStorage.setItem("accessToken", data.accessToken);
-        const isSuperAdmin =
-          authUser.department === "Super Admin" ||
-          authUser.permissionLevel === "SUPER_ADMIN";
-        const isChurchAdmin =
-          authUser.department === "Church Admin" ||
-          authUser.permissionLevel === "CHURCH_ADMIN";
-
-        if (isSuperAdmin) {
-          navigate("/overview/super-admin");
-        } else if (isChurchAdmin) {
-          navigate("/attendance/dashboard");
-        } else if (authUser.route) {
-          navigate(`/dashboard${authUser.route}`);
-        } else {
-          navigate("/attendance/dashboard");
-        }
+        navigate(getPostLoginPath(authUser));
       }
       setIsLoading(false);
     } catch (err) {

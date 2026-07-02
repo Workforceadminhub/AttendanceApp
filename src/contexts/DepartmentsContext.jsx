@@ -1,7 +1,12 @@
 import { createContext, useContext, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchDepartments } from "../services/departments";
-import { setDynamicDepartments, routeObject as staticRouteObject } from "../utils/routeObject";
+import {
+  setDynamicDepartments,
+  getEffectiveRouteList,
+  ensureSessionRoute,
+} from "../utils/routeObject";
+import { getUser } from "../utils/getUser";
 
 const DepartmentsContext = createContext({
   departments: [],
@@ -90,45 +95,18 @@ export function useDepartmentsContext() {
   return useContext(DepartmentsContext);
 }
 
-function slugify(s) {
-  return String(s || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
-function normalizeRoute(r) {
-  if (!r) return null;
-  const s = String(r).trim();
-  return s.startsWith("/") ? s : `/${s}`;
-}
-
-function toRouteEntry(d) {
-  if (!d || d.isactive === false) return null;
-  const name = d.name || d.department;
-  if (!name) return null;
-  const route = normalizeRoute(d.route) || `/${slugify(name)}`;
-  return { department: name, route, team: d.team || "" };
-}
-
 export function useEffectiveRouteList() {
   const { departments } = useDepartmentsContext();
+  const authUser = getUser();
   return useMemo(() => {
-    const dyn = departments.map(toRouteEntry).filter(Boolean);
-    // While the API hasn't resolved (or returned empty), fall back to the
-    // static map so routes still register on first paint / direct navigation.
-    if (dyn.length === 0) return staticRouteObject;
-    // Merge: dynamic entries are canonical, but keep static entries as ALIASES
-    // when the same department exists with a different route slug. That way
-    // pre-existing URLs like /dashboard/wadata still resolve to the right
-    // department name even if backend stores route=/workforceadmin.
-    // Dedup only on exact (department, route) pairs.
-    const seen = new Set(dyn.map((d) => `${d.department}|${d.route}`));
-    const fallback = staticRouteObject.filter(
-      (s) => !seen.has(`${s.department}|${s.route}`)
-    );
-    return [...dyn, ...fallback];
-  }, [departments]);
+    if (Array.isArray(departments) && departments.length > 0) {
+      setDynamicDepartments(departments);
+    }
+    if (authUser) {
+      ensureSessionRoute(authUser);
+    }
+    return getEffectiveRouteList();
+  }, [departments, authUser?.route, authUser?.department, authUser?.team]);
 }
 
 export function useDepartmentRoutes() {

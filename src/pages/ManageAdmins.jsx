@@ -13,7 +13,13 @@ import {
  deleteAdmin,
 } from "../services/admins";
 import { fetchDepartments } from "../services/departments";
-import { getEffectiveRouteList } from "../utils/routeObject";
+import {
+ getEffectiveRouteList,
+ getTeamForDepartment,
+ resolveAdminRoute,
+ registerAdminRoute,
+} from "../utils/routeObject";
+import { useInvalidateDepartments } from "../contexts/DepartmentsContext";
 import {
  TrashIcon,
  ArrowUpIcon,
@@ -64,6 +70,7 @@ const ROLE_OPTIONS = [
 
 export default function ManageAdmins() {
  const navigate = useNavigate();
+ const invalidateDepartments = useInvalidateDepartments();
  const [admins, setAdmins] = useState([]);
  const [departments, setDepartments] = useState([]);
  const [isLoading, setIsLoading] = useState(false);
@@ -85,11 +92,10 @@ export default function ManageAdmins() {
  // Collapsed team groups (true = collapsed, default all collapsed)
  const [collapsedTeams, setCollapsedTeams] = useState(null);
 
- // Add admin form
+ // Add admin form (route is derived on submit — not stored in form state)
  const [formData, setFormData] = useState({
  code: "",
  role: "",
- route: "",
  department: "",
  team: [],
  permissions: [],
@@ -107,13 +113,34 @@ export default function ManageAdmins() {
  });
  const [updateRole, setUpdateRole] = useState(false);
 
- // Get unique team and department names from departments data
+ // Get unique team names from departments data
  const teamOptions = useMemo(() => {
  const teams = departments
  .map((d) => d.team)
  .filter((team) => team && team.trim() !== "");
  return [...new Set(teams)].sort();
  }, [departments]);
+
+ const departmentOptions = useMemo(() => {
+ const names = [
+ ...new Set(
+ getEffectiveRouteList()
+ .map((item) => item.department)
+ .filter(Boolean)
+ ),
+ ].sort((a, b) => a.localeCompare(b));
+ return names.map((name) => ({ value: name, label: name }));
+ }, []);
+
+ const landingRoute = useMemo(
+ () =>
+ resolveAdminRoute({
+ role: includeRole ? formData.role : undefined,
+ department: formData.department,
+ team: formData.team,
+ }),
+ [formData.department, formData.team, formData.role, includeRole]
+ );
 
  // Group departments by team for permissions UI
  const permissionsByTeam = useMemo(() => {
@@ -223,7 +250,6 @@ export default function ManageAdmins() {
  setFormData({
  code: "",
  role: "",
- route: "",
  department: "",
  team: [],
  permissions: [],
@@ -250,19 +276,31 @@ export default function ManageAdmins() {
  toast.error("Please select a role");
  return;
  }
+ if (!landingRoute) {
+ toast.error(
+ "Could not determine a landing route. Pick a known department and matching team."
+ );
+ return;
+ }
 
  setIsSubmitting(true);
  try {
  const adminData = {
- ...formData,
+ code: formData.code.trim(),
  department: formData.department.trim(),
  team: formData.team.join(", "),
+ route: landingRoute,
+ permissions: formData.permissions,
+ ...(includeRole && formData.role ? { role: formData.role } : {}),
  };
- if (!includeRole) {
- delete adminData.role;
- }
  await createAdmin(adminData);
+ registerAdminRoute({
+ department: adminData.department,
+ route: adminData.route,
+ team: adminData.team,
+ });
  toast.success("Admin created successfully");
+ invalidateDepartments();
  setIsAddModalOpen(false);
  loadAdmins();
  } catch (error) {
@@ -715,7 +753,12 @@ export default function ManageAdmins() {
  <input
  type="checkbox"
  checked={includeRole}
- onChange={(e) => setIncludeRole(e.target.checked)}
+ onChange={(e) => {
+ setIncludeRole(e.target.checked);
+ if (!e.target.checked) {
+ setFormData((prev) => ({ ...prev, role: "" }));
+ }
+ }}
  className="h-4 w-4 text-ink-900 focus:ring-ink-900/10 border-ink-300 rounded"
  />
  <span className="text-xs text-ink-500">Include role</span>
@@ -736,20 +779,27 @@ export default function ManageAdmins() {
  </div>
 
  <div>
- <label
- htmlFor="department"
- className="block text-sm font-medium text-ink-700"
- >
+ <label className="block text-sm font-medium text-ink-700 mb-1">
  Department *
  </label>
- <input
- type="text"
- id="department"
- name="department"
- value={formData.department}
- onChange={handleInputChange}
- className="mt-1 block w-full rounded-md border-ink-300 focus:border-ink-900 focus:ring-ink-900/10 sm:text-sm border px-3 py-2"
- placeholder="e.g. Pastoral Care"
+ <Select
+ options={departmentOptions}
+ value={
+ departmentOptions.find((d) => d.value === formData.department) || null
+ }
+ onChange={(opt) => {
+ const department = opt?.value || "";
+ const teamForDept = department ? getTeamForDepartment(department) : null;
+ setFormData((prev) => ({
+ ...prev,
+ department,
+ team: teamForDept ? [teamForDept] : prev.team,
+ }));
+ }}
+ placeholder="Select department"
+ styles={selectStyles}
+ menuPlacement="auto"
+ isClearable
  />
  </div>
 
@@ -761,7 +811,12 @@ export default function ManageAdmins() {
  isMulti
  options={teamOptions.map((t) => ({ value: t, label: t }))}
  value={formData.team.map((t) => ({ value: t, label: t }))}
- onChange={(opts) => setFormData((prev) => ({ ...prev, team: opts ? opts.map((o) => o.value) : [] }))}
+ onChange={(opts) =>
+ setFormData((prev) => ({
+ ...prev,
+ team: opts ? opts.map((o) => o.value) : [],
+ }))
+ }
  placeholder="Select team(s)"
  styles={selectStyles}
  menuPlacement="auto"
@@ -770,21 +825,30 @@ export default function ManageAdmins() {
  </div>
 
  <div>
- <label
- htmlFor="route"
- className="block text-sm font-medium text-ink-700"
- >
- Route
+ <label className="block text-sm font-medium text-ink-700">
+ Landing route
  </label>
- <input
- type="text"
- id="route"
- name="route"
- value={formData.route}
- onChange={handleInputChange}
- className="mt-1 block w-full rounded-md border-ink-300 focus:border-ink-900 focus:ring-ink-900/10 sm:text-sm border px-3 py-2"
- placeholder="/route-path"
- />
+ <div
+ className={`mt-1 block w-full rounded-md border sm:text-sm border px-3 py-2 ${
+ landingRoute
+ ? "border-ink-200 bg-cream-200 text-ink-700"
+ : "border-amber-300 bg-amber-50 text-amber-800"
+ }`}
+ >
+ {landingRoute ? (
+ <>
+ <span className="font-medium">{landingRoute}</span>
+ <span className="text-ink-500 ml-2">
+ → /dashboard{landingRoute}
+ </span>
+ </>
+ ) : (
+ "Select department and team to preview landing page"
+ )}
+ </div>
+ <p className="text-xs text-ink-400 mt-1">
+ Auto-set on create. HOD uses the department route; team admin uses /admin/team.
+ </p>
  </div>
 
  <div>

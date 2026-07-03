@@ -1,4 +1,7 @@
 import axios from "axios";
+import { clearAuthTokens, getAccessToken } from "./authSession";
+import { authErrorMessage } from "./safeMessages";
+import { redactSensitive } from "./redactSensitive";
 
 if (!process.env.REACT_APP_BASE_URL) {
   throw new Error("REACT_APP_BASE_URL environment variable is required but not set.");
@@ -20,8 +23,7 @@ api.interceptors.response.use(
       // Skip redirect for login requests (invalid credentials should stay on the login page)
       const url = error.config?.url || "";
       if (!url.includes("/auth/signin")) {
-        sessionStorage.removeItem("accessToken");
-        sessionStorage.removeItem("authUser");
+        clearAuthTokens();
         // Redirect to login only if not already there
         if (window.location.pathname !== "/login") {
           window.location.href = "/login?session=expired";
@@ -51,8 +53,7 @@ function serializeParams(data) {
  * Get auth token from storage (adjust to your setup)
  */
 function getAuthToken() {
-  // Example: use localStorage or cookies
-  return sessionStorage.getItem("accessToken");
+  return getAccessToken();
 }
 
 /**
@@ -110,7 +111,11 @@ export async function apiRequest(
     return response.data;
   } catch (error) {
     if (process.env.NODE_ENV !== "production") {
-      console.error("[API Error]", error.response?.data || error.message);
+      // eslint-disable-next-line no-console
+      console.error(
+        "[API Error]",
+        redactSensitive(error.response?.data || error.message)
+      );
     }
     const status = error.response?.status;
     const url = error.config?.url || "";
@@ -120,13 +125,7 @@ export async function apiRequest(
     // Login 401s (wrong password) still need to throw so the login page can show the error.
     if (status === 401 && !url.includes("/auth/signin")) return;
 
-    const message =
-      status === 401 ? "Invalid credentials. Please try again." :
-      status === 403 ? "You do not have permission to perform this action." :
-      status === 404 ? "The requested resource was not found." :
-      status >= 500 ? "A server error occurred. Please try again later." :
-      "An error occurred. Please try again.";
-    throw new Error(message);
+    throw new Error(authErrorMessage(status));
   }
 }
 

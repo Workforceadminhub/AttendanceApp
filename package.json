@@ -45,6 +45,7 @@
     "eject": "react-scripts eject",
     "update:leaders": "node scripts/updateLeaders",
     "lint": "eslint src --ext .js,.jsx",
+    "audit:deps": "npm audit --audit-level=moderate",
     "analyze": "source-map-explorer 'build/static/js/*.js'",
     "build:analyze": "npm run build && npm run analyze"
   },

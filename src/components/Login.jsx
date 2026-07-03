@@ -1,12 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import loginService from "../services/login";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
-import { getPostLoginPath, resolveAdminRoute, ensureSessionRoute } from "../utils/routeObject";
+import { getPostLoginPath } from "../utils/routeObject";
+import { AUTH_ERROR_MESSAGE } from "../utils/safeMessages";
 
 const Login = () => {
   const [code, setCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const loginInFlight = useRef(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -23,30 +25,22 @@ const Login = () => {
   };
 
   const handleLogin = async () => {
+    if (loginInFlight.current || isLoading || !code.trim()) return;
+    loginInFlight.current = true;
     try {
       setIsLoading(true);
       const data = await loginService(code.trim());
-      if (data.accessToken) {
-        const authUser = {
-          ...data.user,
-          permissionLevel: data.permissionLevel ?? data.user?.permissionLevel,
-          assignedDepartments:
-            data.assignedDepartments ?? data.user?.assignedDepartments ?? [],
-        };
-        // Trust the route stored in DB; only derive when the backend didn't return one
-        if (!authUser.route?.trim()) {
-          const derived = resolveAdminRoute(authUser);
-          if (derived) authUser.route = derived;
-        }
-        ensureSessionRoute(authUser);
-        sessionStorage.setItem("authUser", JSON.stringify(authUser));
-        sessionStorage.setItem("accessToken", data.accessToken);
-        navigate(getPostLoginPath(authUser));
+      if (data?.accessToken && data?.authUser) {
+        navigate(getPostLoginPath(data.authUser));
+      } else if (data?.accessToken) {
+        toast.error(AUTH_ERROR_MESSAGE);
       }
       setIsLoading(false);
-    } catch (err) {
-      toast.error(err.message || "Login failed. Please try again.");
+    } catch {
+      toast.error(AUTH_ERROR_MESSAGE);
       setIsLoading(false);
+    } finally {
+      loginInFlight.current = false;
     }
   };
 

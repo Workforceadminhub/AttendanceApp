@@ -17,6 +17,8 @@
  *      redirect-to-login if refresh also fails.
  */
 
+import { clearAuthTokens } from "./authSession";
+
 const REFRESH_KEY = "refreshToken";
 
 let refreshInFlight = null;
@@ -60,7 +62,5 @@ export function setRefreshToken(t) {
 }
 
 export function clearAuth() {
-  sessionStorage.removeItem("accessToken");
-  sessionStorage.removeItem(REFRESH_KEY);
-  sessionStorage.removeItem("authUser");
+  clearAuthTokens();
 }

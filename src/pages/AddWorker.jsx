@@ -127,6 +127,10 @@ export default function AddWorker() {
  );
  return;
  }
+ if (newWorker.team === "Districts" && !newWorker.district_sub_team) {
+ toast.error("Please select a District/Sub-team");
+ return;
+ }
 
  setIsLoading(true);
  try {
@@ -569,6 +573,7 @@ export default function AddWorker() {
  ...newWorker,
  team: e.target.value,
  department: "", // Reset department when team changes
+ district_sub_team: "", // Reset district/sub-team when team changes
  })
  }
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
@@ -581,6 +586,24 @@ export default function AddWorker() {
  ))}
  </select>
  </div>
+
+ {/* District/Sub-team — before Department for Districts */}
+ {newWorker.team === "Districts" && (
+ <div>
+ <label className="block text-sm font-medium text-ink-700 mb-2">
+ District/Sub-team <span className="text-brick">*</span>
+ </label>
+ <select
+ value={newWorker.district_sub_team}
+ onChange={(e) => setNewWorker({ ...newWorker, district_sub_team: e.target.value })}
+ className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
+ >
+ <option value="">Select District/Sub-team</option>
+ <option value="Pastor Biola Cluster">Pastor Biola Cluster</option>
+ <option value="Pastor Isaac Cluster">Pastor Isaac Cluster</option>
+ </select>
+ </div>
+ )}
 
  {/* Department */}
  <div>
@@ -751,24 +774,6 @@ export default function AddWorker() {
  placeholder="Enter occupation"
  />
  </div>
-
- {/* District/Sub-team */}
- {newWorker.team === "Districts" && (
- <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
- District/Sub-team
- </label>
- <select
- value={newWorker.district_sub_team}
- onChange={(e) => setNewWorker({ ...newWorker, district_sub_team: e.target.value })}
- className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
- >
- <option value="">Select District/Sub-team</option>
- <option value="Pastor Biola Cluster">Pastor Biola Cluster</option>
- <option value="Pastor Isaac Cluster">Pastor Isaac Cluster</option>
- </select>
- </div>
- )}
 
  {/* Address */}
  <div className="md:col-span-2">

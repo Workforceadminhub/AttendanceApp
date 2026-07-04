@@ -1,4 +1,5 @@
 import apiRequest from "../utils/apiClient";
+import { teamsAndDepartments } from "../utils/teams";
 
 /**
  * Fetch all departments (including empty or unmapped).
@@ -42,6 +43,13 @@ export const fetchTeamsAndDepartmentsForFilter = async () => {
   const departmentsByTeam = {};
   const allDepartmentNames = new Set();
 
+  // Seed with the static team → departments map so teams whose departments
+  // aren't yet mapped in the departments table still appear in the filters.
+  teamsAndDepartments.forEach(({ team, department }) => {
+    departmentsByTeam[team] = [...department];
+    department.forEach((d) => allDepartmentNames.add(d));
+  });
+
   departmentsList.forEach((d) => {
     const name = d?.name ?? d?.department ?? String(d);
     const team = d?.team ?? d?.teamName;
@@ -53,7 +61,10 @@ export const fetchTeamsAndDepartmentsForFilter = async () => {
     }
   });
 
-  const teamNamesSet = new Set(teamsList);
+  const teamNamesSet = new Set([
+    ...teamsAndDepartments.map((t) => t.team),
+    ...teamsList,
+  ]);
   if (departmentsByTeam["(No team)"]?.length) {
     teamNamesSet.add("(No team)");
   }

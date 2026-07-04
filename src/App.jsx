@@ -33,7 +33,6 @@ const AllWorkers = lazy(() => import("./pages/AllWorkers"));
 const TeamMismatch = lazy(() => import("./pages/TeamMismatch"));
 const PastoralFix = lazy(() => import("./pages/PastoralFix"));
 const Report = lazy(() => import("./components/Report"));
-const SuperAdminOverview = lazy(() => import("./pages/SuperAdminOverview"));
 const ManageDepartments = lazy(() => import("./pages/ManageDepartments"));
 const ManageAdmins = lazy(() => import("./pages/ManageAdmins"));
 const BulkEmail = lazy(() => import("./pages/BulkEmail"));
@@ -207,11 +206,12 @@ const AppRoutes = () => {
             />
 
             {/* Super Admin Routes - Based on login response route: "/super-admin" */}
+            {/* Super Admin home — same dashboard as Church Admin */}
             <Route
               path="/overview/super-admin"
               element={
                 <PrivateRoute>
-                  <SuperAdminOverview />
+                  <Dashboard />
                 </PrivateRoute>
               }
             />

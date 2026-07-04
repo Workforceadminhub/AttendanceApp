@@ -27,6 +27,9 @@ import AdminDepartmentSummaryTable from "./AdminDepartmentSummaryTable";
 import SundayWorkersAttendanceTable from "./SundayWorkersAttendanceTable";
 import Stat from "../ui/Stat";
 import Tag from "../ui/Tag";
+import MobileSheet from "../ui/MobileSheet";
+import { enableAttendance } from "../../services/enableAttendance";
+import { disableAttendance } from "../../services/disableAttendance";
 import {
   ClipboardDocumentCheckIcon,
   TableCellsIcon,
@@ -89,7 +92,10 @@ export default function Dashboard() {
   const location = useLocation();
   const pathname = location.pathname;
   const team = getDepartmentByUser(pathname);
-  const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
+  const { isSubTeamAdmin, isTeamAdmin, isSuperAdmin } = getUserRole();
+  // Super Admin gets the campus-wide (Church Admin) dashboard: same data, same layout.
+  const isChurchAdmin =
+    team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT || isSuperAdmin;
   const isAdminMember = checkAdminStatus(pathname);
   const authUser = useMemo(() => getUser(), []);
   const options = getAdminSelectOptions(isChurchAdmin, team, authUser);
@@ -114,6 +120,40 @@ export default function Dashboard() {
     }, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  // Super Admin can manually open/close the attendance window; other roles
+  // only see the schedule-based status banner.
+  const [attendanceEnabled, setAttendanceEnabled] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("attendanceEnabled") || "false");
+    } catch {
+      return false;
+    }
+  });
+  const [isTogglingAttendance, setIsTogglingAttendance] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  const handleAttendanceToggle = async () => {
+    setIsTogglingAttendance(true);
+    try {
+      if (attendanceEnabled) {
+        await disableAttendance();
+        setAttendanceEnabled(false);
+        localStorage.setItem("attendanceEnabled", "false");
+        toast.success("Attendance has been disabled successfully");
+      } else {
+        await enableAttendance();
+        setAttendanceEnabled(true);
+        localStorage.setItem("attendanceEnabled", "true");
+        toast.success("Attendance has been enabled successfully");
+      }
+    } catch (error) {
+      toast.error(`Failed to ${attendanceEnabled ? "disable" : "enable"} attendance`);
+    } finally {
+      setIsTogglingAttendance(false);
+      setShowConfirmModal(false);
+    }
+  };
 
   const sundayOptions = useMemo(() => {
     const sundays = getSundaysInYear();
@@ -200,7 +240,6 @@ export default function Dashboard() {
       : activeGroup
     : team?.department || "All";
 
-  const { isSubTeamAdmin, isTeamAdmin } = getUserRole();
   const quickLinks = useMemo(() => {
     const links = [];
     if (departmentInfo) {
@@ -225,7 +264,11 @@ export default function Dashboard() {
     return links;
   }, [departmentInfo, isSubTeamAdmin, summaryHref]);
 
-  const scope = isAdminMember ? team?.team : team?.department;
+  const scope = isSuperAdmin
+    ? ADMIN_ENUMS.ADMIN_TEAM
+    : isAdminMember
+    ? team?.team
+    : team?.department;
 
   return (
     <div className="min-h-screen bg-cream">
@@ -257,29 +300,62 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Attendance window banner */}
-        <div
-          className={`qc-card mb-6 px-4 sm:px-5 py-3 flex flex-wrap items-center justify-between gap-3 ${
-            attendanceStatus.isOpen
-              ? "border-sienna/40 bg-sienna/[0.03]"
-              : ""
-          }`}
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <Tag
-              tone={attendanceStatus.isOpen ? "live" : "neutral"}
-              live={attendanceStatus.isOpen}
+        {/* Attendance window: Super Admin controls it, everyone else sees status */}
+        {isSuperAdmin ? (
+          <div
+            className={`qc-card mb-6 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 ${
+              attendanceEnabled ? "border-sienna/40 bg-sienna/[0.03]" : ""
+            }`}
+          >
+            <div className="flex flex-col">
+              <div className="qc-eyebrow">Attendance window</div>
+              <div className="mt-1 flex items-center gap-3">
+                <Tag
+                  tone={attendanceEnabled ? "live" : "neutral"}
+                  live={attendanceEnabled}
+                >
+                  {attendanceEnabled ? "Live · Accepting" : "Closed"}
+                </Tag>
+                {attendanceEnabled && (
+                  <span className="qc-num text-2xs uppercase tracking-tag text-sienna-dark">
+                    Workers can mark
+                  </span>
+                )}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowConfirmModal(true)}
+              disabled={isTogglingAttendance}
+              className={attendanceEnabled ? "qc-btn-secondary" : "qc-btn-live"}
             >
-              {attendanceStatus.isOpen ? "Live" : "Closed"}
-            </Tag>
-            <div className="text-sm text-ink-700 min-w-0 truncate">
-              {attendanceStatus.message}
+              {attendanceEnabled ? "Close window" : "Open window"}
+            </button>
+          </div>
+        ) : (
+          <div
+            className={`qc-card mb-6 px-4 sm:px-5 py-3 flex flex-wrap items-center justify-between gap-3 ${
+              attendanceStatus.isOpen
+                ? "border-sienna/40 bg-sienna/[0.03]"
+                : ""
+            }`}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <Tag
+                tone={attendanceStatus.isOpen ? "live" : "neutral"}
+                live={attendanceStatus.isOpen}
+              >
+                {attendanceStatus.isOpen ? "Live" : "Closed"}
+              </Tag>
+              <div className="text-sm text-ink-700 min-w-0 truncate">
+                {attendanceStatus.message}
+              </div>
+            </div>
+            <div className="qc-num text-2xs uppercase tracking-tag text-ink-500">
+              {attendanceStatus.remaining}
             </div>
           </div>
-          <div className="qc-num text-2xs uppercase tracking-tag text-ink-500">
-            {attendanceStatus.remaining}
-          </div>
-        </div>
+        )}
 
         {/* Filters row */}
         <div className="mb-6 flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
@@ -405,6 +481,57 @@ export default function Dashboard() {
           </div>
         )}
       </Layout>
+
+      {/* Super Admin: attendance window toggle confirmation */}
+      {isSuperAdmin && (
+        <MobileSheet
+          open={showConfirmModal}
+          onClose={() => !isTogglingAttendance && setShowConfirmModal(false)}
+          title={
+            attendanceEnabled
+              ? "Close attendance window"
+              : "Open attendance window"
+          }
+          footer={
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+                disabled={isTogglingAttendance}
+                className="qc-btn-secondary flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAttendanceToggle}
+                disabled={isTogglingAttendance}
+                className={`flex-1 ${
+                  attendanceEnabled ? "qc-btn-danger" : "qc-btn-live"
+                }`}
+              >
+                {isTogglingAttendance
+                  ? "Working…"
+                  : attendanceEnabled
+                  ? "Close"
+                  : "Open"}
+              </button>
+            </div>
+          }
+        >
+          <p className="text-sm text-ink-700 leading-relaxed">
+            {attendanceEnabled
+              ? "Workers will not be able to mark attendance until you reopen the window."
+              : "Workers will be able to mark their attendance immediately. The "}
+            {!attendanceEnabled && (
+              <Tag tone="live" live>
+                Live
+              </Tag>
+            )}
+            {!attendanceEnabled && " indicator will appear app-wide while open."}
+          </p>
+        </MobileSheet>
+      )}
     </div>
   );
 }

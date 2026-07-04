@@ -26,6 +26,7 @@ import ViewHistoryButton from "../ViewHistoryButton";
 import { TrashIcon, ArrowUpIcon, ArrowDownIcon } from "@heroicons/react/24/outline";
 import Modal from "../Modal";
 import { getUser } from "../../utils/getUser";
+import { expandPermissions } from "../../utils/expandPermissions";
 import LoadingState from "../LoadingState";
 
 /** Convert "Sunday - d/m/y" → Date object */
@@ -348,7 +349,7 @@ export default function DepartmentAttendance() {
 
  const queryAdminWorkers = useCallback(() => {
  setIsLoading(true);
- const rawPermissions = authUser?.permissions ?? [];
+ const rawPermissions = expandPermissions(authUser);
  const basePermissions = filterTeamFromPermissions(rawPermissions, authUser?.team);
 
  const isTeamFilter =
@@ -375,8 +376,7 @@ export default function DepartmentAttendance() {
  setIsLoading(false);
  });
  }, [
- authUser?.permissions,
- authUser?.team,
+ authUser,
  isChurchAdmin,
  isSuperAdmin,
  activeGroup,
@@ -386,7 +386,7 @@ export default function DepartmentAttendance() {
 
  const queryWorkers = useCallback(() => {
  setIsLoading(true);
- const permissions = authUser?.permissions ?? [];
+ const permissions = expandPermissions(authUser);
 
  if (isSubTeamAdmin && selectedDepartmentFilter !== "All") {
  fetchWorkers(selectedDepartmentFilter, selectedSunday, permissions, "")
@@ -427,7 +427,7 @@ export default function DepartmentAttendance() {
  setIsLoading(false);
  });
  }, [
- authUser?.permissions,
+ authUser,
  isSubTeamAdmin,
  selectedDepartmentFilter,
  apiDepartments,

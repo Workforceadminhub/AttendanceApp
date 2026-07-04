@@ -17,6 +17,7 @@ import {
 } from "../../utils/filterCache";
 import apiRequest from "../../utils/apiClient";
 import { teamsAndDepartments } from "../../utils/teams";
+import { expandPermissions } from "../../utils/expandPermissions";
 import { fetchTeamsAndDepartmentsForFilter } from "../../services/departments";
 import {
  TrashIcon,
@@ -181,7 +182,7 @@ export default function Workers() {
 
  const queryAdminWorkers = useCallback((search = "") => {
  setIsLoading(true);
- const rawPermissions = authUser?.permissions ?? [];
+ const rawPermissions = expandPermissions(authUser);
  // Filter out team name from permissions (team name shouldn't be in permissions array)
  const permissions = rawPermissions.filter((perm) => perm !== authUser?.team);
  fetchAdminWorkers("All", "All", dateForAttendance, search, permissions)
@@ -193,11 +194,11 @@ export default function Workers() {
  toast.error(`Error loading workers: ${error.message}`);
  setIsLoading(false);
  });
- }, [authUser?.permissions, authUser?.team, dateForAttendance]);
+ }, [authUser, dateForAttendance]);
 
  const queryWorkers = useCallback((search = "") => {
  setIsLoading(true);
- const rawPermissions = authUser?.permissions ?? [];
+ const rawPermissions = expandPermissions(authUser);
  // Filter out team name from permissions (team name shouldn't be in permissions array)
  const permissions = rawPermissions.filter((perm) => perm !== authUser?.team);
  fetchWorkers(team.department, dateForAttendance, permissions, search)
@@ -209,7 +210,7 @@ export default function Workers() {
  toast.error(`Error loading workers: ${error.message}`);
  setIsLoading(false);
  });
- }, [authUser?.permissions, authUser?.team, team.department, dateForAttendance]);
+ }, [authUser, team.department, dateForAttendance]);
 
  const clearSelection = useCallback(() => {
  setSelectedWorkers(new Set());

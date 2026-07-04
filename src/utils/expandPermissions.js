@@ -16,8 +16,6 @@
 
 import { getEffectiveRouteList } from "./routeObject";
 
-const ROLE_TO_FULL_EXPANSION = new Set(["Super Admin", "Church Admin"]);
-
 // Role names + team aggregate names that aren't departments but are valid
 // permission tokens the backend recognizes.
 const META_TOKENS = [
@@ -51,18 +49,20 @@ const META_TOKENS = [
 export function expandPermissions(authUser) {
   const raw = Array.isArray(authUser?.permissions) ? authUser.permissions : [];
 
-  // If the array looks like a real allowlist (multiple items, not just role
-  // names), use it as-is.
-  const hasOnlyRoleNames = raw.length > 0 && raw.every((p) => ROLE_TO_FULL_EXPANSION.has(p));
-  if (raw.length > 0 && !hasOnlyRoleNames) return raw;
-
-  // Otherwise, if user is super/church admin (by role or by raw permissions),
-  // expand to all known departments + meta tokens.
+  // Campus-wide roles always get the full expansion. Their stored permissions
+  // array may be a stale or partial allowlist (e.g. only Ministry departments
+  // from a previous role), which would silently scope the whole app down.
+  const roleRaw = String(authUser?.role || "").toLowerCase().replace(/[\s_]/g, "-");
   const isSuper =
-    authUser?.role === "super-admin" ||
+    roleRaw === "super-admin" ||
+    roleRaw === "superadmin" ||
+    authUser?.permissionLevel === "SUPER_ADMIN" ||
     authUser?.department === "Super Admin" ||
     raw.includes("Super Admin");
   const isChurch =
+    roleRaw === "church-admin" ||
+    roleRaw === "churchadmin" ||
+    authUser?.permissionLevel === "CHURCH_ADMIN" ||
     authUser?.department === "Church Admin" ||
     raw.includes("Church Admin");
 

@@ -17,6 +17,7 @@ import ReactSelectDropdown from "../ReactSelect";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
 import { filterByUserPermissions } from "../../utils/filterByPermissions";
 import { getUser } from "../../utils/getUser";
+import { expandPermissions } from "../../utils/expandPermissions";
 import { toast } from "react-toastify";
 import { debounce } from "lodash";
 import { getUserRole } from "../../utils/getUserRole";
@@ -55,7 +56,7 @@ export default function DepartmentSummary() {
 
   const queryAdminAttendance = useCallback(() => {
     setIsLoading(true);
-    const permissions = authUser?.permissions ?? [];
+    const permissions = expandPermissions(authUser);
     fetchAdminAttendance(activeGroup, isChurchAdmin, null, startDateStr, endDateStr, permissions)
       .then((attendance) => {
         const filtered = filterByUserPermissions(attendance ?? [], authUser, pathname);
@@ -70,7 +71,7 @@ export default function DepartmentSummary() {
 
   const queryAttendance = useCallback(() => {
     setIsLoading(true);
-    const permissions = authUser?.permissions ?? [];
+    const permissions = expandPermissions(authUser);
     fetchAttendance(null, startDateStr, endDateStr, permissions)
       .then((attendance) => {
         const filtered = filterByUserPermissions(attendance ?? [], authUser, pathname);

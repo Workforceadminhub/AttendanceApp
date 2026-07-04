@@ -16,6 +16,7 @@ import {
   fetchAttendance,
 } from "../../../services/attendance";
 import { getUser } from "../../../utils/getUser";
+import { expandPermissions } from "../../../utils/expandPermissions";
 import { fetchHistoryOptions } from "../../../services/history";
 import { DEBOUNCE_INTERVAL } from "../../../utils/constants";
 import Layout from "../../Layout";
@@ -43,7 +44,7 @@ export default function DepartmentSummaryHistory() {
 
   const queryAdminAttendance = useCallback(() => {
     setIsLoading(true);
-    const permissions = authUser?.permissions ?? [];
+    const permissions = expandPermissions(authUser);
     fetchAdminAttendance(activeGroup, isChurchAdmin, activeHistory, permissions)
       .then((attendance) => {
         setAttendanceSummary(attendance);
@@ -53,11 +54,11 @@ export default function DepartmentSummaryHistory() {
         setIsLoading(false);
         toast.error(`Error loading summary: ${error.message}`);
       });
-  }, [activeGroup, isChurchAdmin, activeHistory, authUser?.permissions]);
+  }, [activeGroup, isChurchAdmin, activeHistory, authUser]);
 
   const queryAttendance = useCallback(() => {
     setIsLoading(true);
-    const permissions = authUser?.permissions ?? [];
+    const permissions = expandPermissions(authUser);
     fetchAttendance(activeHistory, permissions)
       .then((attendance) => {
         setAttendanceSummary(attendance);
@@ -67,7 +68,7 @@ export default function DepartmentSummaryHistory() {
         setIsLoading(false);
         toast.error(`Error loading summary: ${error.message}`);
       });
-  }, [activeHistory, authUser?.permissions]);
+  }, [activeHistory, authUser]);
 
   useEffect(() => {
     fetchHistoryOptions().then((res) =>

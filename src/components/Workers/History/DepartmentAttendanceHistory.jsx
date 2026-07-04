@@ -8,6 +8,7 @@ import { checkAdminStatus } from "../../../utils/checkAdminStatus";
 import { getAdminSelectOptions, filterPermissionsByTeam } from "../../../utils/routeObject";
 import { fetchAdminWorkers, fetchWorkers } from "../../../services/workers";
 import { getUser } from "../../../utils/getUser";
+import { expandPermissions } from "../../../utils/expandPermissions";
 import { switchOffAttendance } from "../../../utils/switchOffAttendance";
 import { addAttendance } from "../../../services/attendance";
 import { getUserRole, filterTeamFromPermissions } from "../../../utils/getUserRole";
@@ -135,7 +136,7 @@ export default function DepartmentAttendanceHistory() {
 
   const queryAdminWorkers = useCallback(() => {
     setIsLoading(true);
-    const rawPermissions = authUser?.permissions ?? [];
+    const rawPermissions = expandPermissions(authUser);
     const basePermissions = filterTeamFromPermissions(rawPermissions, authUser?.team);
 
     const isTeamFilter =
@@ -162,8 +163,7 @@ export default function DepartmentAttendanceHistory() {
         setIsLoading(false);
       });
   }, [
-    authUser?.permissions,
-    authUser?.team,
+    authUser,
     isChurchAdmin,
     isSuperAdmin,
     activeGroup,
@@ -173,7 +173,7 @@ export default function DepartmentAttendanceHistory() {
 
   const queryWorkers = useCallback(() => {
     setIsLoading(true);
-    const permissions = authUser?.permissions ?? [];
+    const permissions = expandPermissions(authUser);
     fetchWorkers(team.department, activeHistory, permissions, "")
       .then((res) => {
         setData(res);
@@ -183,7 +183,7 @@ export default function DepartmentAttendanceHistory() {
         setIsLoading(false);
       })
       .finally(() => setIsLoading(false));
-  }, [team.department, activeHistory, authUser?.permissions]);
+  }, [team.department, activeHistory, authUser]);
 
   useEffect(() => {
     switchOffAttendance()

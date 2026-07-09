@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "react-toastify";
 import { leadershipRegistrationSchema } from "../utils/schemas";
 import { lookupWorkerByPhone, submitRegistration } from "../services/leadershipRegistrations";
+import { PUBLIC_LOOKUP_HINT, PUBLIC_SUBMIT_ERROR } from "../utils/safeMessages";
 import { CheckCircleIcon, MagnifyingGlassIcon, UserCircleIcon } from "@heroicons/react/24/outline";
 
 const CAMPUSES = [
@@ -120,10 +121,7 @@ function PhoneLookupStep({ onFound, onManual }) {
 
       {notFound && (
         <div className="rounded-lg border border-ink-200 bg-ink-100 p-4 space-y-2">
-          <p className="text-sm text-ink font-medium">Not in our records yet</p>
-          <p className="text-xs text-ink-500 leading-relaxed">
-            Complete the form manually below.
-          </p>
+          <p className="text-sm text-ink font-medium">{PUBLIC_LOOKUP_HINT}</p>
           <button
             type="button"
             onClick={() => onManual(phone)}
@@ -174,8 +172,8 @@ function RegistrationForm({ prefilled, rawPhone, onReset }) {
       await submitRegistration(payload);
       setSubmitted(true);
       window.scrollTo({ top: 0, behavior: "smooth" });
-    } catch (err) {
-      toast.error(err.message || "Submission failed. Please try again.");
+    } catch {
+      toast.error(PUBLIC_SUBMIT_ERROR);
     }
   };
 

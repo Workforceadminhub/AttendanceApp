@@ -1,3 +1,3 @@
-export const getUser = () => {
-  return JSON.parse(sessionStorage.getItem("authUser"));
-};
+import { getSessionUser } from "./authSession";
+
+export const getUser = () => getSessionUser();

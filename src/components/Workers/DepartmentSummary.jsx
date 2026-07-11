@@ -137,7 +137,7 @@ export default function DepartmentSummary() {
           )}
         </div>
         <div className="mt-8 flex flex-wrap items-center gap-4">
-          <DateRangeFilter onDateRangeChange={handleDateRangeChange} />
+          <DateRangeFilter onDateRangeChange={handleDateRangeChange} defaultRange="thisMonth" />
           {isAdminMember && (
             <ReactSelectDropdown
               title={isChurchAdmin ? "Select Team" : "Select Department"}

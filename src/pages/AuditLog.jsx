@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
@@ -6,26 +6,58 @@ import DateRangeFilter from "../components/DateRangeFilter";
 import LoadingState from "../components/LoadingState";
 import { fetchAuditLogs } from "../services/overview";
 import { getUserRole } from "../utils/getUserRole";
-import { format } from "date-fns";
+import { format, startOfDay, endOfDay } from "date-fns";
 
-const EVENT_FILTERS = [
- { value: "", label: "All Events" },
- { value: "login", label: "Login" },
- { value: "workers_fetched", label: "Workers Fetched" },
- { value: "workers_listed_admin", label: "Workers Listed (Admin)" },
- { value: "admin_attendance_fetched", label: "Admin Attendance Fetched" },
- { value: "attendance_closed", label: "Attendance Closed" },
-];
+const FRIENDLY_MAP = {
+  "/api/hub/rbac/me": "Permissions Loaded",
+};
 
 export default function AuditLog() {
- const { isSuperAdmin, isChurchAdmin } = getUserRole();
- const [page, setPage] = useState(1);
- const [eventFilter, setEventFilter] = useState("");
- const [dateRange, setDateRange] = useState({
- startDate: null,
- endDate: null,
- });
- const limit = 20;
+  const { isSuperAdmin, isChurchAdmin } = getUserRole();
+  const [page, setPage] = useState(1);
+  const [eventFilter, setEventFilter] = useState("");
+  const [dateRange, setDateRange] = useState(() => {
+    const now = new Date();
+    return {
+      startDate: startOfDay(now),
+      endDate: endOfDay(now),
+    };
+  });
+  const [dynamicEvents, setDynamicEvents] = useState([]);
+  const limit = 20;
+
+  useEffect(() => {
+    fetchAuditLogs(1, 1000, {})
+      .then((res) => {
+        const list = Array.isArray(res?.data) ? res.data : [];
+        const unique = [...new Set(list.map((log) => log.event).filter(Boolean))].sort();
+        setDynamicEvents(unique);
+      })
+      .catch(() => {});
+  }, []);
+
+  const eventOptions = useMemo(() => {
+    const base = [
+      { value: "", label: "All Events" },
+      { value: "login", label: "Login" },
+      { value: "workers_fetched", label: "Workers Fetched" },
+      { value: "workers_listed_admin", label: "Workers Listed (Admin)" },
+      { value: "admin_attendance_fetched", label: "Admin Attendance Fetched" },
+      { value: "attendance_closed", label: "Attendance Closed" },
+    ];
+    
+    dynamicEvents.forEach((evt) => {
+      if (!base.some((b) => b.value === evt)) {
+        const label = FRIENDLY_MAP[evt] || evt
+          .split("_")
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(" ");
+        base.push({ value: evt, label });
+      }
+    });
+    
+    return base;
+  }, [dynamicEvents]);
 
  const handleDateRangeChange = useCallback(({ startDate, endDate }) => {
  setDateRange({ startDate, endDate });
@@ -39,11 +71,11 @@ export default function AuditLog() {
  ? format(dateRange.endDate, "yyyy-MM-dd")
  : null;
 
- const filters = {
- ...(startDateStr && { startDate: startDateStr }),
- ...(endDateStr && { endDate: endDateStr }),
- ...(eventFilter && { event: eventFilter }),
- };
+  const filters = {
+    ...(startDateStr && { fromDate: startDateStr }),
+    ...(endDateStr && { toDate: endDateStr }),
+    ...(eventFilter && { event: eventFilter }),
+  };
 
  const { data, isLoading } = useQuery({
  queryKey: ["auditLogs", page, limit, filters],
@@ -81,6 +113,7 @@ export default function AuditLog() {
  <div className="min-h-screen bg-cream">
  <Header />
  <Layout>
+
  <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
  <div>
  <div className="qc-eyebrow">System</div>
@@ -93,7 +126,7 @@ export default function AuditLog() {
  </div>
  <div className="qc-num text-2xs uppercase tracking-tag text-ink-500">
  <span className="qc-num text-base text-ink-900 font-medium mr-1.5">
- {pagination.total ?? 0}
+ {Number(pagination.total ?? 0).toLocaleString()}
  </span>
  entries
  </div>
@@ -114,11 +147,11 @@ export default function AuditLog() {
  }}
  className="qc-input"
  >
- {EVENT_FILTERS.map((opt) => (
- <option key={opt.value} value={opt.value}>
- {opt.label}
- </option>
- ))}
+  {eventOptions.map((opt) => (
+  <option key={opt.value} value={opt.value}>
+  {opt.label}
+  </option>
+  ))}
  </select>
  </div>
  </div>
@@ -176,7 +209,7 @@ export default function AuditLog() {
  </td>
  <td className="whitespace-nowrap px-3 py-4 text-sm">
  <span className="inline-flex rounded-full px-2 text-xs font-medium leading-5 bg-cream-200 text-ink-800">
- {log.event ?? "-"}
+ {FRIENDLY_MAP[log.event] || (log.event ?? "-")}
  </span>
  </td>
  <td className="px-3 py-4 text-sm text-ink-500 font-mono max-w-[12rem] truncate" title={meta.path}>

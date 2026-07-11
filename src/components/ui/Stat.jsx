@@ -35,7 +35,7 @@ export default function Stat({
         ) : (
           <>
             <span className="qc-num text-3xl text-ink-900 font-medium leading-none">
-              {value}
+              {typeof value === "number" ? value.toLocaleString() : value}
             </span>
             {unit && (
               <span className="text-sm text-ink-500 font-medium">{unit}</span>

@@ -1,12 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import loginService from "../services/login";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { hubSignIn } from "../services/hub/auth";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
-import { getPostLoginPath } from "../utils/routeObject";
+import { getPostLoginPath, resolveAdminRoute, ensureSessionRoute } from "../utils/routeObject";
+import { persistSession } from "../utils/authSession";
 import { AUTH_ERROR_MESSAGE } from "../utils/safeMessages";
 
 const Login = () => {
+  const [mode, setMode] = useState("code");
   const [code, setCode] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const loginInFlight = useRef(false);
   const navigate = useNavigate();
@@ -25,15 +30,43 @@ const Login = () => {
   };
 
   const handleLogin = async () => {
-    if (loginInFlight.current || isLoading || !code.trim()) return;
+    const hasInput = mode === "code" ? code.trim() : email.trim() && password;
+    if (loginInFlight.current || isLoading || !hasInput) return;
     loginInFlight.current = true;
     try {
       setIsLoading(true);
-      const data = await loginService(code.trim());
-      if (data?.accessToken && data?.authUser) {
-        navigate(getPostLoginPath(data.authUser));
-      } else if (data?.accessToken) {
-        toast.error(AUTH_ERROR_MESSAGE);
+      if (mode === "email") {
+        const data = await hubSignIn(email.trim(), password);
+        if (data?.mustResetPassword) {
+          toast.info("You must set a new password before continuing.");
+          navigate("/forgot-password", { state: { email: email.trim(), forced: true } });
+          setIsLoading(false);
+          return;
+        }
+        if (data?.accessToken) {
+          const authUser = persistSession(data.accessToken, data.user ?? {}, {
+            permissionLevel: data.permissionLevel ?? data.user?.permissionLevel,
+            assignedDepartments:
+              data.assignedDepartments ?? data.user?.assignedDepartments ?? [],
+          });
+          // Trust the route stored in DB; only derive when the backend didn't return one
+          if (!authUser.route?.trim()) {
+            const derived = resolveAdminRoute(authUser);
+            if (derived) authUser.route = derived;
+          }
+          ensureSessionRoute(authUser);
+          sessionStorage.setItem("authUser", JSON.stringify(authUser));
+          navigate(getPostLoginPath(authUser));
+        } else {
+          toast.error(AUTH_ERROR_MESSAGE);
+        }
+      } else {
+        const data = await loginService(code.trim());
+        if (data?.accessToken && data?.authUser) {
+          navigate(getPostLoginPath(data.authUser));
+        } else if (data?.accessToken) {
+          toast.error(AUTH_ERROR_MESSAGE);
+        }
       }
       setIsLoading(false);
     } catch {
@@ -110,35 +143,86 @@ const Login = () => {
               Mark attendance.
             </h2>
             <p className="mt-2 text-sm text-ink-500">
-              Enter your pass ID to continue.
+              {mode === "email"
+                ? "Enter your email and password to continue."
+                : "Enter your pass ID to continue."}
             </p>
 
             <div className="mt-8 space-y-5">
-              <div>
-                <label htmlFor="id" className="qc-label">
-                  ID
-                </label>
-                <input
-                  type="text"
-                  id="id"
-                  name="id"
-                  autoComplete="off"
-                  autoFocus
-                  inputMode="text"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  onBlur={() => setCode((c) => c.trimEnd())}
-                  onKeyDown={handleKeyPress}
-                  disabled={isLoading}
-                  className="qc-input qc-num"
-                />
-              </div>
+              {mode === "code" ? (
+                <div>
+                  <label htmlFor="id" className="qc-label">
+                    ID
+                  </label>
+                  <input
+                    type="text"
+                    id="id"
+                    name="id"
+                    autoComplete="off"
+                    autoFocus
+                    inputMode="text"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    onBlur={() => setCode((c) => c.trimEnd())}
+                    onKeyDown={handleKeyPress}
+                    disabled={isLoading}
+                    className="qc-input qc-num"
+                  />
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label htmlFor="email" className="qc-label">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      autoComplete="email"
+                      autoFocus
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      onKeyDown={handleKeyPress}
+                      disabled={isLoading}
+                      className="qc-input"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <label htmlFor="password" className="qc-label">
+                        Password
+                      </label>
+                      <Link
+                        to="/forgot-password"
+                        className="text-xs text-ink-500 hover:text-ink-900 underline"
+                      >
+                        Forgot password?
+                      </Link>
+                    </div>
+                    <input
+                      type="password"
+                      id="password"
+                      name="password"
+                      autoComplete="current-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      onKeyDown={handleKeyPress}
+                      disabled={isLoading}
+                      className="qc-input"
+                    />
+                  </div>
+                </>
+              )}
 
               <button
                 type="button"
                 onClick={handleLogin}
                 onKeyDown={handleKeyPress}
-                disabled={isLoading || !code.trim()}
+                disabled={
+                  isLoading ||
+                  (mode === "code" ? !code.trim() : !email.trim() || !password)
+                }
                 className="qc-btn-primary w-full"
               >
                 {isLoading ? (
@@ -154,6 +238,17 @@ const Login = () => {
                 )}
               </button>
             </div>
+
+            <button
+              type="button"
+              onClick={() => setMode((m) => (m === "code" ? "email" : "code"))}
+              disabled={isLoading}
+              className="mt-4 text-xs text-ink-500 hover:text-ink-900 underline"
+            >
+              {mode === "code"
+                ? "Sign in with email and password instead"
+                : "Sign in with pass ID instead"}
+            </button>
 
             <div className="mt-10 pt-6 border-t border-ink-200">
               <p className="text-xs font-medium text-ink-700">

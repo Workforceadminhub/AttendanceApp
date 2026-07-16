@@ -105,6 +105,33 @@ export default function LeadersMeetingReport() {
     }
   }, [navigate, isSuperAdmin, isChurchAdmin, isTeamAdmin]);
 
+  const handleSummaryClick = useCallback((directorate, teamName) => {
+    setFilterDirectorate(directorate);
+    
+    const entry = TEAM_STRUCTURE.find((item) => item.teams.includes(teamName));
+    if (entry) {
+      const apiTeam = entry.apiTeams[0];
+      setFilterTeam(apiTeam);
+      
+      if (apiTeam === "Districts") {
+        if (teamName.includes("Biola")) {
+          setFilterSubTeam("Pastor Biola Cluster");
+        } else if (teamName.includes("Isaac")) {
+          setFilterSubTeam("Pastor Isaac Cluster");
+        } else {
+          setFilterSubTeam("");
+        }
+      } else {
+        setFilterSubTeam("");
+      }
+    } else {
+      setFilterTeam("");
+      setFilterSubTeam("");
+    }
+    setFilterDept("");
+    setView("list");
+  }, []);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -858,13 +885,27 @@ export default function LeadersMeetingReport() {
                             {i === 0 && (
                               <td
                                 rowSpan={g.rows.length}
-                                className="px-4 py-2 text-sm font-semibold text-ink-900 uppercase align-top border-r border-white/50"
+                                className="px-4 py-2 text-sm font-semibold text-ink-900 uppercase align-top border-r border-white/50 cursor-pointer hover:underline"
                                 style={{ backgroundColor: `${g.bg}33` }}
+                                onClick={() => {
+                                  setFilterDirectorate(g.directorate);
+                                  setFilterTeam("");
+                                  setFilterSubTeam("");
+                                  setFilterDept("");
+                                  setView("list");
+                                }}
+                                title={`View all ${g.directorate} registrations`}
                               >
                                 {g.directorate}
                               </td>
                             )}
-                            <td className="px-4 py-2 text-sm text-ink-800 font-medium">{r.team}</td>
+                            <td 
+                              className="px-4 py-2 text-sm text-ink-800 font-medium cursor-pointer hover:underline"
+                              onClick={() => handleSummaryClick(g.directorate, r.team)}
+                              title={`View ${r.team} registrations`}
+                            >
+                              {r.team}
+                            </td>
                             <td className="px-4 py-2 text-sm text-ink-800 text-center font-mono">{r.total.toLocaleString()}</td>
                             <td className="px-4 py-2 text-sm text-forest text-center font-mono font-medium">{r.confirmed.toLocaleString()}</td>
                             <td className="px-4 py-2 text-sm text-ink-800 text-center font-mono">{r.pct}%</td>

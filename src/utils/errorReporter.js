@@ -1,3 +1,5 @@
+import { redactSensitive } from "./redactSensitive";
+
 /**
  * Error reporter — abstracts Sentry / similar so the rest of the codebase
  * doesn't import vendor SDKs directly.
@@ -45,9 +47,10 @@ export function initErrorReporter() {
 
 /** @param {Error|string} err  @param {object} [context] */
 export function reportError(err, context) {
+  const safeContext = context ? redactSensitive(context) : undefined;
   if (process.env.NODE_ENV !== "production") {
     // eslint-disable-next-line no-console
-    console.error("[errorReporter]", err, context);
+    console.error("[errorReporter]", err, safeContext);
     return;
   }
   // === Replace with Sentry.captureException(err, { extra: context }) once initialized ===
@@ -55,9 +58,10 @@ export function reportError(err, context) {
 
 /** Capture a non-fatal note (e.g. user dismissed a modal twice). */
 export function reportMessage(msg, context) {
+  const safeContext = context ? redactSensitive(context) : undefined;
   if (process.env.NODE_ENV !== "production") {
     // eslint-disable-next-line no-console
-    console.warn("[errorReporter]", msg, context);
+    console.warn("[errorReporter]", msg, safeContext);
     return;
   }
   // === Replace with Sentry.captureMessage(msg, { extra: context }) ===

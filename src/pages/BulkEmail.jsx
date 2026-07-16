@@ -14,6 +14,7 @@ import { Button, Card } from "../components/ui";
 import { buildEmail } from "../emails/template";
 import { parseRecipients, sendBulkEmail, uploadEmailImage } from "../services/email";
 import { canSendBulkEmail } from "../utils/bulkEmailAccess";
+import { validateImageFile } from "../utils/validateImageFile";
 
 const PREVIEW_WIDTHS = { desktop: "100%", mobile: "375px" };
 
@@ -113,8 +114,8 @@ function BulkEmailComposer() {
   const handleImageUpload = useCallback(async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) return toast.error("Only image files are allowed.");
-    if (file.size > 5 * 1024 * 1024) return toast.error("Image must be under 5 MB.");
+    const check = await validateImageFile(file);
+    if (!check.ok) return toast.error(check.error);
     setUploading(true);
     try {
       const url = await uploadEmailImage(file);
@@ -370,6 +371,7 @@ function BulkEmailComposer() {
                 title="Email preview"
                 srcDoc={html}
                 sandbox=""
+                referrerPolicy="no-referrer"
                 style={{
                   width: PREVIEW_WIDTHS[previewMode],
                   maxWidth: "100%",

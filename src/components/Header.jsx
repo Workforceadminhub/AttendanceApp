@@ -4,9 +4,9 @@ import { useState, useRef, useEffect } from "react";
 import { Bars3Icon, XMarkIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 import { useNavigate } from "react-router-dom";
 import { getUser } from "../utils/getUser";
-import { clearFilterCache } from "../utils/filterCache";
+import { logoutSession } from "../utils/authSession";
 import { getUserRole } from "../utils/getUserRole";
-import { getDepartmentRoute, clearSessionRoutes } from "../utils/routeObject";
+import { getDepartmentRoute } from "../utils/routeObject";
 import { canSendBulkEmail } from "../utils/bulkEmailAccess";
 import MobileSheet from "./ui/MobileSheet";
 import { useHubNav } from "../contexts/RBACContext";
@@ -203,10 +203,7 @@ export default function Header() {
   ];
 
   const handleLogout = () => {
-    sessionStorage.removeItem("authUser");
-    sessionStorage.removeItem("accessToken");
-    clearSessionRoutes();
-    clearFilterCache();
+    logoutSession();
     navigate("/login");
   };
 

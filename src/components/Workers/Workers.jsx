@@ -16,6 +16,7 @@ import {
  initializeFilterData,
 } from "../../utils/filterCache";
 import apiRequest from "../../utils/apiClient";
+import { logoutSession } from "../../utils/authSession";
 import { teamsAndDepartments } from "../../utils/teams";
 import { expandPermissions } from "../../utils/expandPermissions";
 import { fetchTeamsAndDepartmentsForFilter } from "../../services/departments";
@@ -168,9 +169,7 @@ export default function Workers() {
  error.message.includes("Unauthorized")
  ) {
  toast.error("Authentication failed. Please log in again.");
- // Clear session and redirect to login
- sessionStorage.removeItem("authUser");
- sessionStorage.removeItem("accessToken");
+ logoutSession();
  navigate("/login");
  } else {
  toast.error(`Error loading workers: ${error.message}`);

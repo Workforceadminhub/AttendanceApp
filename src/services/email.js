@@ -2,6 +2,9 @@
 // NOT the AWS API. The function holds the Resend key server-side and verifies the
 // caller's token, so we call it directly with fetch rather than via apiClient.
 
+import { getAccessToken, getSessionUser } from "../utils/authSession";
+import { validateImageFile } from "../utils/validateImageFile";
+
 /**
  * Parse a free-form recipients string (pasted list / CSV column) into a clean,
  * de-duplicated array of valid email addresses, plus the rejected entries.
@@ -63,16 +66,11 @@ export const sendBulkEmail = async ({ subject, html, recipients, provider }) => 
     throw new Error("At least one recipient is required.");
   }
 
-  const token = sessionStorage.getItem("accessToken");
+  const token = getAccessToken();
   // The caller's login code lets the function authorize allowlisted users when
   // the JWT doesn't embed it. It's only trusted after the token is verified
   // server-side, so it can't be used to bypass auth.
-  let requesterCode;
-  try {
-    requesterCode = JSON.parse(sessionStorage.getItem("authUser") || "{}")?.code;
-  } catch {
-    requesterCode = undefined;
-  }
+  const requesterCode = getSessionUser()?.code;
 
   const res = await fetch("/api/send-bulk-email", {
     method: "POST",
@@ -111,13 +109,8 @@ export const sendBulkEmail = async ({ subject, html, recipients, provider }) => 
  * @returns {Promise<{ sends: Array }>}
  */
 export const fetchEmailReport = async () => {
-  const token = sessionStorage.getItem("accessToken");
-  let requesterCode;
-  try {
-    requesterCode = JSON.parse(sessionStorage.getItem("authUser") || "{}")?.code;
-  } catch {
-    requesterCode = undefined;
-  }
+  const token = getAccessToken();
+  const requesterCode = getSessionUser()?.code;
   const qs = requesterCode ? `?requesterCode=${encodeURIComponent(requesterCode)}` : "";
 
   const res = await fetch(`/api/email-report${qs}`, {
@@ -143,13 +136,11 @@ export const fetchEmailReport = async () => {
  * @returns {Promise<string>} Public image URL.
  */
 export const uploadEmailImage = async (file) => {
-  const token = sessionStorage.getItem("accessToken");
-  let requesterCode;
-  try {
-    requesterCode = JSON.parse(sessionStorage.getItem("authUser") || "{}")?.code;
-  } catch {
-    requesterCode = undefined;
-  }
+  const check = await validateImageFile(file);
+  if (!check.ok) throw new Error(check.error);
+
+  const token = getAccessToken();
+  const requesterCode = getSessionUser()?.code;
 
   const base64 = await new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -167,7 +158,7 @@ export const uploadEmailImage = async (file) => {
     body: JSON.stringify({
       data: base64,
       filename: file.name,
-      contentType: file.type,
+      contentType: check.contentType,
       ...(requesterCode ? { requesterCode } : {}),
     }),
   });

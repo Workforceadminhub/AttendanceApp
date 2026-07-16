@@ -7,6 +7,7 @@ import LoadingState from "../components/LoadingState";
 import { EyeIcon, ArrowUpIcon, ArrowDownIcon } from "@heroicons/react/24/outline";
 import { saveAs } from "file-saver";
 import apiRequest from "../utils/apiClient";
+import { maskEmail, maskPhone } from "../utils/pii";
 
 export default function AllWorkers() {
  const navigate = useNavigate();
@@ -484,10 +485,10 @@ export default function AllWorkers() {
  </Link>
  </td>
  <td className="px-4 py-3 whitespace-nowrap text-sm text-ink-500">
- {worker.email || "N/A"}
+ {worker.email ? maskEmail(worker.email) : "N/A"}
  </td>
  <td className="px-4 py-3 whitespace-nowrap text-sm text-ink-500">
- {worker.phonenumber || "N/A"}
+ {worker.phonenumber ? maskPhone(worker.phonenumber) : "N/A"}
  </td>
  <td className="px-4 py-3 whitespace-nowrap text-sm text-ink-500">
  {worker.department || "N/A"}

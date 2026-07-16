@@ -1,4 +1,5 @@
 import apiRequest from "../utils/apiClient";
+import { PUBLIC_LOOKUP_HINT, PUBLIC_SUBMIT_ERROR } from "../utils/safeMessages";
 
 /**
  * Look up a worker by exact phone number (public, no auth).
@@ -17,7 +18,7 @@ export const lookupWorkerByPhone = async (phone) => {
     false
   );
   if (!response || response.error) {
-    throw new Error(response?.error || "Worker not found.");
+    throw new Error(PUBLIC_LOOKUP_HINT);
   }
   return response.data ?? response;
 };
@@ -35,7 +36,7 @@ export const submitRegistration = async (data) => {
     false // public endpoint — no Bearer token
   );
   if (!response || response.error) {
-    throw new Error(response?.error || "Submission failed. Please try again.");
+    throw new Error(PUBLIC_SUBMIT_ERROR);
   }
   return response;
 };

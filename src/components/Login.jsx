@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import loginService from "../services/login";
 import { hubSignIn } from "../services/hub/auth";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { getPostLoginPath, resolveAdminRoute, ensureSessionRoute } from "../utils/routeObject";
+import { persistSession } from "../utils/authSession";
+import { AUTH_ERROR_MESSAGE } from "../utils/safeMessages";
 
 const Login = () => {
   const [mode, setMode] = useState("code");
@@ -11,6 +13,7 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const loginInFlight = useRef(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -27,39 +30,50 @@ const Login = () => {
   };
 
   const handleLogin = async () => {
+    const hasInput = mode === "code" ? code.trim() : email.trim() && password;
+    if (loginInFlight.current || isLoading || !hasInput) return;
+    loginInFlight.current = true;
     try {
       setIsLoading(true);
-      const data =
-        mode === "email"
-          ? await hubSignIn(email.trim(), password)
-          : await loginService(code.trim());
-      if (data.mustResetPassword) {
-        toast.info("You must set a new password before continuing.");
-        navigate("/forgot-password", { state: { email: email.trim(), forced: true } });
-        setIsLoading(false);
-        return;
-      }
-      if (data.accessToken) {
-        const authUser = {
-          ...data.user,
-          permissionLevel: data.permissionLevel ?? data.user?.permissionLevel,
-          assignedDepartments:
-            data.assignedDepartments ?? data.user?.assignedDepartments ?? [],
-        };
-        // Trust the route stored in DB; only derive when the backend didn't return one
-        if (!authUser.route?.trim()) {
-          const derived = resolveAdminRoute(authUser);
-          if (derived) authUser.route = derived;
+      if (mode === "email") {
+        const data = await hubSignIn(email.trim(), password);
+        if (data?.mustResetPassword) {
+          toast.info("You must set a new password before continuing.");
+          navigate("/forgot-password", { state: { email: email.trim(), forced: true } });
+          setIsLoading(false);
+          return;
         }
-        ensureSessionRoute(authUser);
-        sessionStorage.setItem("authUser", JSON.stringify(authUser));
-        sessionStorage.setItem("accessToken", data.accessToken);
-        navigate(getPostLoginPath(authUser));
+        if (data?.accessToken) {
+          const authUser = persistSession(data.accessToken, data.user ?? {}, {
+            permissionLevel: data.permissionLevel ?? data.user?.permissionLevel,
+            assignedDepartments:
+              data.assignedDepartments ?? data.user?.assignedDepartments ?? [],
+          });
+          // Trust the route stored in DB; only derive when the backend didn't return one
+          if (!authUser.route?.trim()) {
+            const derived = resolveAdminRoute(authUser);
+            if (derived) authUser.route = derived;
+          }
+          ensureSessionRoute(authUser);
+          sessionStorage.setItem("authUser", JSON.stringify(authUser));
+          navigate(getPostLoginPath(authUser));
+        } else {
+          toast.error(AUTH_ERROR_MESSAGE);
+        }
+      } else {
+        const data = await loginService(code.trim());
+        if (data?.accessToken && data?.authUser) {
+          navigate(getPostLoginPath(data.authUser));
+        } else if (data?.accessToken) {
+          toast.error(AUTH_ERROR_MESSAGE);
+        }
       }
       setIsLoading(false);
-    } catch (err) {
-      toast.error(err.message || "Login failed. Please try again.");
+    } catch {
+      toast.error(AUTH_ERROR_MESSAGE);
       setIsLoading(false);
+    } finally {
+      loginInFlight.current = false;
     }
   };
 

@@ -137,7 +137,7 @@ export const inviteAdminByEmail = async (data) => {
 
   const response = await apiRequest(
     "POST",
-    "/api/super/admin/admins/invite",
+    "/api/hub/super/admin/admins/invite",
     body
   );
   if (!response || response.error) {
@@ -169,7 +169,7 @@ export const assignAccessByEmail = async (data) => {
 
   const response = await apiRequest(
     "PUT",
-    "/api/super/admin/by-email/access",
+    "/api/hub/super/admin/by-email/access",
     body
   );
   if (!response || response.error) {

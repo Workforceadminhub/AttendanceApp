@@ -125,7 +125,9 @@ export async function apiRequest(
     // Login 401s (wrong password) still need to throw so the login page can show the error.
     if (status === 401 && !url.includes("/auth/signin")) return;
 
-    throw new Error(authErrorMessage(status));
+    const err = new Error(authErrorMessage(status));
+    err.status = status;
+    throw err;
   }
 }
 

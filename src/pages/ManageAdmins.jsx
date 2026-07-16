@@ -417,11 +417,15 @@ export default function ManageAdmins() {
 
  setIsSubmitting(true);
  try {
+ // Backend scope filtering reads departments from `permissions`, so the
+ // selected department must always be included or the invitee sees no data.
  const payload = {
  email,
  team: emailFormData.team.join(", "),
  department: emailFormData.department,
- permissions: emailFormData.permissions,
+ permissions: emailFormData.department
+ ? [...new Set([...emailFormData.permissions, emailFormData.department])]
+ : emailFormData.permissions,
  role: emailFormData.role,
  };
  if (emailModalMode === "invite") {
@@ -434,10 +438,20 @@ export default function ManageAdmins() {
  setEmailModalMode(null);
  loadAdmins();
  } catch (error) {
+ // 502 on invite means the access row and temp password were saved but the
+ // invite email failed to send, so treat it as a partial success.
+ if (emailModalMode === "invite" && error?.status === 502) {
+ toast.warn(
+ "Invite saved, but the email could not be sent. Retry the invite to resend it."
+ );
+ setEmailModalMode(null);
+ loadAdmins();
+ } else {
  toast.error(
  error.message ||
  (emailModalMode === "invite" ? "Failed to send invite" : "Failed to assign access")
  );
+ }
  } finally {
  setIsSubmitting(false);
  }

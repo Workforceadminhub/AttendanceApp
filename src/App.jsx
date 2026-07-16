@@ -26,6 +26,8 @@ const UnmarkedAttendance = lazy(() => import("./components/Workers/Unmarked"));
 const Workers = lazy(() => import("./components/Workers/Workers"));
 const ChurchAdminWorkers = lazy(() => import("./components/Workers/ChurchAdminWorkers"));
 const AddWorker = lazy(() => import("./pages/AddWorker"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const ChurchAdminAddWorker = lazy(() => import("./pages/ChurchAdminAddWorker"));
 const ViewWorker = lazy(() => import("./pages/ViewWorker"));
 const PendingWorkers = lazy(() => import("./pages/PendingWorkers"));
@@ -96,6 +98,8 @@ const AppRoutes = () => {
         <Routes>
             <Route index element={<Home />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route
               path="/report"
               element={

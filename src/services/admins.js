@@ -115,6 +115,70 @@ export const assignRole = async (id, role) => {
 };
 
 /**
+ * Invite an admin by email (Email RBAC).
+ * Backend upserts access, sets a temp password with mustResetPassword=true,
+ * and emails the invite.
+ * @param {Object} data
+ * @param {string} data.email - Invitee email (required)
+ * @param {string} [data.team] - Team name
+ * @param {string} [data.department] - Department name
+ * @param {Array<string>} [data.permissions] - List of permissions
+ * @param {string} [data.role] - Role (e.g. "HOD")
+ * @param {string} [data.userinfo] - Optional display info
+ * @returns {Promise<Object>} Invite result
+ */
+export const inviteAdminByEmail = async (data) => {
+  const body = { email: data.email };
+  if (data.team) body.team = data.team;
+  if (data.department) body.department = data.department;
+  if (Array.isArray(data.permissions)) body.permissions = data.permissions;
+  if (data.role) body.role = data.role;
+  if (data.userinfo) body.userinfo = data.userinfo;
+
+  const response = await apiRequest(
+    "POST",
+    "/api/super/admin/admins/invite",
+    body
+  );
+  if (!response || response.error) {
+    throw new Error(response?.error || "Failed to send invite");
+  }
+  return response.data || response;
+};
+
+/**
+ * Assign team/department access keyed by email (Email RBAC).
+ * Upserts team, permissions, role, department for the email.
+ * Does not set a password (use inviteAdminByEmail for that).
+ * @param {Object} data
+ * @param {string} data.email - Target email (required)
+ * @param {string} [data.team] - Team name
+ * @param {string} [data.department] - Department name
+ * @param {Array<string>} [data.permissions] - List of permissions
+ * @param {string} [data.role] - Role
+ * @param {boolean} [data.isactive] - Active flag
+ * @returns {Promise<Object>} Updated access
+ */
+export const assignAccessByEmail = async (data) => {
+  const body = { email: data.email };
+  if (data.team) body.team = data.team;
+  if (data.department) body.department = data.department;
+  if (Array.isArray(data.permissions)) body.permissions = data.permissions;
+  if (data.role) body.role = data.role;
+  if (typeof data.isactive === "boolean") body.isactive = data.isactive;
+
+  const response = await apiRequest(
+    "PUT",
+    "/api/super/admin/by-email/access",
+    body
+  );
+  if (!response || response.error) {
+    throw new Error(response?.error || "Failed to assign access");
+  }
+  return response.data || response;
+};
+
+/**
  * Delete an admin user
  * @param {number} id - Admin ID
  * @returns {Promise<Object>} Deletion result

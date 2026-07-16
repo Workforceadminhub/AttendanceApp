@@ -11,6 +11,8 @@ import {
  createAdmin,
  updateAdmin,
  deleteAdmin,
+ inviteAdminByEmail,
+ assignAccessByEmail,
 } from "../services/admins";
 import { fetchDepartments } from "../services/departments";
 import {
@@ -28,6 +30,7 @@ import {
  ChevronDownIcon,
  ChevronRightIcon,
  UserCircleIcon,
+ EnvelopeIcon,
 } from "@heroicons/react/24/outline";
 
 const selectStyles = {
@@ -85,6 +88,17 @@ export default function ManageAdmins() {
  const [isAssignRoleModalOpen, setIsAssignRoleModalOpen] = useState(false);
  const [assignRoleAdmin, setAssignRoleAdmin] = useState(null);
  const [assignRoleRole, setAssignRoleRole] = useState("");
+
+ // Email RBAC modal: "invite" (temp password + email) or "access" (upsert access only)
+ const [emailModalMode, setEmailModalMode] = useState(null);
+ const [emailFormData, setEmailFormData] = useState({
+ email: "",
+ role: "",
+ department: "",
+ team: [],
+ permissions: [],
+ isactive: true,
+ });
 
  // Sorting
  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
@@ -363,6 +377,72 @@ export default function ManageAdmins() {
  }
  };
 
+ // Email RBAC: open invite modal (blank) or access modal (optionally prefilled from a row)
+ const handleOpenEmailModal = (mode, admin = null) => {
+ let teamArr = [];
+ if (admin) {
+ if (Array.isArray(admin.team)) {
+ teamArr = admin.team;
+ } else if (typeof admin.team === "string" && admin.team.trim()) {
+ teamArr = admin.team.split(",").map((t) => t.trim()).filter(Boolean);
+ }
+ }
+ setEmailFormData({
+ email: admin?.email || "",
+ role: admin?.role || "",
+ department: admin?.department || "",
+ team: teamArr,
+ permissions: admin && Array.isArray(admin.permissions) ? [...admin.permissions] : [],
+ isactive: admin?.isactive !== false,
+ });
+ setEmailModalMode(mode);
+ };
+
+ const handleEmailPermissionToggle = (permission) => {
+ setEmailFormData((prev) => ({
+ ...prev,
+ permissions: prev.permissions.includes(permission)
+ ? prev.permissions.filter((p) => p !== permission)
+ : [...prev.permissions, permission],
+ }));
+ };
+
+ const handleEmailModalSubmit = async (e) => {
+ e.preventDefault();
+ const email = emailFormData.email.trim();
+ if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+ toast.error("A valid email is required");
+ return;
+ }
+
+ setIsSubmitting(true);
+ try {
+ const payload = {
+ email,
+ team: emailFormData.team.join(", "),
+ department: emailFormData.department,
+ permissions: emailFormData.permissions,
+ role: emailFormData.role,
+ };
+ if (emailModalMode === "invite") {
+ await inviteAdminByEmail(payload);
+ toast.success("Invite sent. The user will receive a temporary password by email.");
+ } else {
+ await assignAccessByEmail({ ...payload, isactive: emailFormData.isactive });
+ toast.success("Access updated successfully");
+ }
+ setEmailModalMode(null);
+ loadAdmins();
+ } catch (error) {
+ toast.error(
+ error.message ||
+ (emailModalMode === "invite" ? "Failed to send invite" : "Failed to assign access")
+ );
+ } finally {
+ setIsSubmitting(false);
+ }
+ };
+
  const handleEditSubmit = async (e) => {
  e.preventDefault();
  if (!selectedAdmin) return;
@@ -513,6 +593,22 @@ export default function ManageAdmins() {
  <button
  type="button"
  className="qc-btn-ghost"
+ onClick={() => handleOpenEmailModal("invite")}
+ disabled={isLoading}
+ >
+ Invite by email
+ </button>
+ <button
+ type="button"
+ className="qc-btn-ghost"
+ onClick={() => handleOpenEmailModal("access")}
+ disabled={isLoading}
+ >
+ Assign access
+ </button>
+ <button
+ type="button"
+ className="qc-btn-ghost"
  onClick={loadAdmins}
  disabled={isLoading}
  >
@@ -552,6 +648,15 @@ export default function ManageAdmins() {
  </th>
  <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
  <button
+ onClick={() => handleSort("email")}
+ className="flex items-center hover:text-ink-700"
+ >
+ <span>Email</span>
+ {getSortIcon("email")}
+ </button>
+ </th>
+ <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
+ <button
  onClick={() => handleSort("role")}
  className="flex items-center hover:text-ink-700"
  >
@@ -585,7 +690,7 @@ export default function ManageAdmins() {
  onClick={() => toggleTeamCollapse(group.team)}
  >
  <td
- colSpan="6"
+ colSpan="7"
  className="px-6 py-2 text-sm font-semibold text-ink-700"
  >
  <div className="flex items-center">
@@ -608,6 +713,9 @@ export default function ManageAdmins() {
  </td>
  <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-900">
  {admin.code}
+ </td>
+ <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-900">
+ {admin.email || <span className="text-ink-400">-</span>}
  </td>
  <td className="px-6 py-4 whitespace-nowrap text-sm">
  <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-ink-100 text-ink-900">
@@ -665,6 +773,14 @@ export default function ManageAdmins() {
  <UserCircleIcon className="h-4 w-4" />
  </button>
  <button
+ onClick={() => handleOpenEmailModal("access", admin)}
+ className="text-ink-900 hover:text-ink-900"
+ title="Assign Access by Email"
+ type="button"
+ >
+ <EnvelopeIcon className="h-4 w-4" />
+ </button>
+ <button
  onClick={() => handleDelete(admin)}
  disabled={isLoading}
  className="text-brick hover:text-brick/80 disabled:opacity-50"
@@ -682,7 +798,7 @@ export default function ManageAdmins() {
  {sortedAdmins.length === 0 && (
  <tr>
  <td
- colSpan="6"
+ colSpan="7"
  className="px-6 py-8 text-center text-ink-500"
  >
  <div className="flex flex-col items-center">
@@ -1177,6 +1293,224 @@ export default function ManageAdmins() {
  disabled={isSubmitting}
  >
  {isSubmitting ? "Updating..." : "Update Role"}
+ </button>
+ </div>
+ </form>
+ </GenericModal>
+
+ {/* Email RBAC Modal — Invite by email / Assign access by email */}
+ <GenericModal
+ isOpen={!!emailModalMode}
+ onClose={() => setEmailModalMode(null)}
+ title={emailModalMode === "invite" ? "Invite Admin by Email" : "Assign Access by Email"}
+ size="medium"
+ >
+ <form onSubmit={handleEmailModalSubmit} className="space-y-4">
+ <p className="text-xs text-ink-500">
+ {emailModalMode === "invite"
+ ? "Sends an invite email with a temporary password. The user must reset it on first sign in."
+ : "Creates or updates team, department, role, and permissions for this email. No password is set."}
+ </p>
+
+ <div>
+ <label htmlFor="rbac-email" className="block text-sm font-medium text-ink-700">
+ Email *
+ </label>
+ <input
+ type="email"
+ id="rbac-email"
+ value={emailFormData.email}
+ onChange={(e) =>
+ setEmailFormData((prev) => ({ ...prev, email: e.target.value }))
+ }
+ className="mt-1 block w-full rounded-md border-ink-300 focus:border-ink-900 focus:ring-ink-900/10 sm:text-sm border px-3 py-2"
+ placeholder="e.g. hod.sound@church.org"
+ />
+ </div>
+
+ <div>
+ <label className="block text-sm font-medium text-ink-700 mb-1">
+ Role
+ </label>
+ <Select
+ options={ROLE_OPTIONS}
+ value={ROLE_OPTIONS.find((r) => r.value === emailFormData.role) || null}
+ onChange={(opt) =>
+ setEmailFormData((prev) => ({ ...prev, role: opt?.value || "" }))
+ }
+ placeholder="Select a role (optional)"
+ styles={selectStyles}
+ menuPlacement="auto"
+ isClearable
+ />
+ </div>
+
+ <div>
+ <label className="block text-sm font-medium text-ink-700 mb-1">
+ Department
+ </label>
+ <Select
+ options={departmentOptions}
+ value={
+ departmentOptions.find((d) => d.value === emailFormData.department) || null
+ }
+ onChange={(opt) => {
+ const department = opt?.value || "";
+ const teamForDept = department ? getTeamForDepartment(department) : null;
+ setEmailFormData((prev) => ({
+ ...prev,
+ department,
+ team: teamForDept ? [teamForDept] : prev.team,
+ }));
+ }}
+ placeholder="Select department (optional)"
+ styles={selectStyles}
+ menuPlacement="auto"
+ isClearable
+ />
+ </div>
+
+ <div>
+ <label className="block text-sm font-medium text-ink-700 mb-1">
+ Team
+ </label>
+ <Select
+ isMulti
+ options={teamOptions.map((t) => ({ value: t, label: t }))}
+ value={emailFormData.team.map((t) => ({ value: t, label: t }))}
+ onChange={(opts) =>
+ setEmailFormData((prev) => ({
+ ...prev,
+ team: opts ? opts.map((o) => o.value) : [],
+ }))
+ }
+ placeholder="Select team(s) (optional)"
+ styles={selectStyles}
+ menuPlacement="auto"
+ isClearable
+ />
+ </div>
+
+ {emailModalMode === "access" && (
+ <label className="flex items-center space-x-2 cursor-pointer">
+ <input
+ type="checkbox"
+ checked={emailFormData.isactive}
+ onChange={(e) =>
+ setEmailFormData((prev) => ({ ...prev, isactive: e.target.checked }))
+ }
+ className="h-4 w-4 text-ink-900 focus:ring-ink-900/10 border-ink-300 rounded"
+ />
+ <span className="text-sm text-ink-700">Active</span>
+ </label>
+ )}
+
+ <div>
+ <div className="flex items-center justify-between mb-2">
+ <label className="block text-sm font-medium text-ink-700">
+ Permissions
+ </label>
+ <button
+ type="button"
+ onClick={() => {
+ const allChecked = allPermissionDepts.every((d) =>
+ emailFormData.permissions.includes(d)
+ );
+ setEmailFormData((prev) => ({
+ ...prev,
+ permissions: allChecked ? [] : [...allPermissionDepts],
+ }));
+ }}
+ className="text-xs text-ink-900 hover:text-ink-900 font-medium"
+ >
+ {allPermissionDepts.every((d) => emailFormData.permissions.includes(d))
+ ? "Uncheck All"
+ : "Check All"}
+ </button>
+ </div>
+ <div className="max-h-60 overflow-y-auto border rounded-md p-2 space-y-1">
+ {permissionsByTeam.map((group) => {
+ const teamDepts = group.departments;
+ const allTeamChecked = teamDepts.every((d) =>
+ emailFormData.permissions.includes(d)
+ );
+ const isCollapsed = collapsedPermTeams[group.team];
+ return (
+ <div key={group.team} className="mb-1">
+ <div
+ className="flex items-center justify-between bg-cream rounded px-2 py-1.5 cursor-pointer select-none hover:bg-cream-200"
+ onClick={() => togglePermTeamCollapse(group.team)}
+ >
+ <div className="flex items-center">
+ {isCollapsed ? (
+ <ChevronRightIcon className="h-3.5 w-3.5 mr-1.5 text-ink-500" />
+ ) : (
+ <ChevronDownIcon className="h-3.5 w-3.5 mr-1.5 text-ink-500" />
+ )}
+ <span className="text-xs font-semibold text-ink-600 uppercase tracking-wide">
+ {group.team}
+ </span>
+ <span className="ml-1.5 text-xs text-ink-400">
+ ({teamDepts.filter((d) => emailFormData.permissions.includes(d)).length}/{teamDepts.length})
+ </span>
+ </div>
+ <button
+ type="button"
+ onClick={(e) => {
+ e.stopPropagation();
+ setEmailFormData((prev) => ({
+ ...prev,
+ permissions: allTeamChecked
+ ? prev.permissions.filter((p) => !teamDepts.includes(p))
+ : [...new Set([...prev.permissions, ...teamDepts])],
+ }));
+ }}
+ className="text-xs text-ink-900 hover:text-ink-900 font-medium"
+ >
+ {allTeamChecked ? "Uncheck" : "Check All"}
+ </button>
+ </div>
+ {!isCollapsed && (
+ <div className="ml-5 mt-1 space-y-0.5">
+ {teamDepts.map((dept) => (
+ <label
+ key={dept}
+ className="flex items-center space-x-2 py-0.5 px-2 hover:bg-cream rounded cursor-pointer"
+ >
+ <input
+ type="checkbox"
+ checked={emailFormData.permissions.includes(dept)}
+ onChange={() => handleEmailPermissionToggle(dept)}
+ className="h-4 w-4 text-ink-900 focus:ring-ink-900/10 border-ink-300 rounded"
+ />
+ <span className="text-sm text-ink-700">{dept}</span>
+ </label>
+ ))}
+ </div>
+ )}
+ </div>
+ );
+ })}
+ </div>
+ </div>
+
+ <div className="flex justify-end space-x-3 pt-4">
+ <button
+ type="button"
+ onClick={() => setEmailModalMode(null)}
+ className="px-4 py-2 text-sm font-medium text-ink-700 bg-cream-200 rounded-md hover:bg-ink-200"
+ disabled={isSubmitting}
+ >
+ Cancel
+ </button>
+ <button
+ type="submit"
+ className="px-4 py-2 text-sm font-medium text-white bg-ink-900 rounded-md hover:bg-ink-800 disabled:opacity-50"
+ disabled={isSubmitting}
+ >
+ {isSubmitting
+ ? emailModalMode === "invite" ? "Sending..." : "Saving..."
+ : emailModalMode === "invite" ? "Send Invite" : "Assign Access"}
  </button>
  </div>
  </form>

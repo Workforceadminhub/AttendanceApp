@@ -1,11 +1,15 @@
 import { useState, useEffect } from "react";
 import loginService from "../services/login";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { hubSignIn } from "../services/hub/auth";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { getPostLoginPath, resolveAdminRoute, ensureSessionRoute } from "../utils/routeObject";
 
 const Login = () => {
+  const [mode, setMode] = useState("code");
   const [code, setCode] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -25,7 +29,16 @@ const Login = () => {
   const handleLogin = async () => {
     try {
       setIsLoading(true);
-      const data = await loginService(code.trim());
+      const data =
+        mode === "email"
+          ? await hubSignIn(email.trim(), password)
+          : await loginService(code.trim());
+      if (data.mustResetPassword) {
+        toast.info("You must set a new password before continuing.");
+        navigate("/forgot-password", { state: { email: email.trim(), forced: true } });
+        setIsLoading(false);
+        return;
+      }
       if (data.accessToken) {
         const authUser = {
           ...data.user,
@@ -116,35 +129,86 @@ const Login = () => {
               Mark attendance.
             </h2>
             <p className="mt-2 text-sm text-ink-500">
-              Enter your pass ID to continue.
+              {mode === "email"
+                ? "Enter your email and password to continue."
+                : "Enter your pass ID to continue."}
             </p>
 
             <div className="mt-8 space-y-5">
-              <div>
-                <label htmlFor="id" className="qc-label">
-                  ID
-                </label>
-                <input
-                  type="text"
-                  id="id"
-                  name="id"
-                  autoComplete="off"
-                  autoFocus
-                  inputMode="text"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  onBlur={() => setCode((c) => c.trimEnd())}
-                  onKeyDown={handleKeyPress}
-                  disabled={isLoading}
-                  className="qc-input qc-num"
-                />
-              </div>
+              {mode === "code" ? (
+                <div>
+                  <label htmlFor="id" className="qc-label">
+                    ID
+                  </label>
+                  <input
+                    type="text"
+                    id="id"
+                    name="id"
+                    autoComplete="off"
+                    autoFocus
+                    inputMode="text"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    onBlur={() => setCode((c) => c.trimEnd())}
+                    onKeyDown={handleKeyPress}
+                    disabled={isLoading}
+                    className="qc-input qc-num"
+                  />
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label htmlFor="email" className="qc-label">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      autoComplete="email"
+                      autoFocus
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      onKeyDown={handleKeyPress}
+                      disabled={isLoading}
+                      className="qc-input"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <label htmlFor="password" className="qc-label">
+                        Password
+                      </label>
+                      <Link
+                        to="/forgot-password"
+                        className="text-xs text-ink-500 hover:text-ink-900 underline"
+                      >
+                        Forgot password?
+                      </Link>
+                    </div>
+                    <input
+                      type="password"
+                      id="password"
+                      name="password"
+                      autoComplete="current-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      onKeyDown={handleKeyPress}
+                      disabled={isLoading}
+                      className="qc-input"
+                    />
+                  </div>
+                </>
+              )}
 
               <button
                 type="button"
                 onClick={handleLogin}
                 onKeyDown={handleKeyPress}
-                disabled={isLoading || !code.trim()}
+                disabled={
+                  isLoading ||
+                  (mode === "code" ? !code.trim() : !email.trim() || !password)
+                }
                 className="qc-btn-primary w-full"
               >
                 {isLoading ? (
@@ -160,6 +224,17 @@ const Login = () => {
                 )}
               </button>
             </div>
+
+            <button
+              type="button"
+              onClick={() => setMode((m) => (m === "code" ? "email" : "code"))}
+              disabled={isLoading}
+              className="mt-4 text-xs text-ink-500 hover:text-ink-900 underline"
+            >
+              {mode === "code"
+                ? "Sign in with email and password instead"
+                : "Sign in with pass ID instead"}
+            </button>
 
             <div className="mt-10 pt-6 border-t border-ink-200">
               <p className="text-xs font-medium text-ink-700">

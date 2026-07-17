@@ -48,6 +48,7 @@ const AuditLog = lazy(() => import("./pages/AuditLog"));
 const LeadershipRegistration = lazy(() => import("./pages/LeadershipRegistration"));
 const LeadershipRegistrationAdmin = lazy(() => import("./pages/LeadershipRegistrationAdmin"));
 const LeadersMeetingConfirm = lazy(() => import("./pages/LeadersMeetingConfirm"));
+const LeadersMeetingPresent = lazy(() => import("./pages/LeadersMeetingPresent"));
 const LeadersMeetingReport = lazy(() => import("./pages/LeadersMeetingReport"));
 const AdminDepartmentRedirect = lazy(() => import("./pages/AdminDepartmentRedirect"));
 const AdminWorkersRedirect = lazy(() => import("./pages/AdminWorkersRedirect"));
@@ -111,6 +112,7 @@ const AppRoutes = () => {
             <Route path="/new/worker" element={<NewWorker />} />
             <Route path="/leadership-registration" element={<LeadershipRegistration />} />
             <Route path="/leadersmeeting/confirm" element={<LeadersMeetingConfirm />} />
+            <Route path="/leaders-meeting" element={<LeadersMeetingPresent />} />
             <Route
               path="/admin/leadership-registrations"
               element={

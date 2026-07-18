@@ -93,11 +93,11 @@ export async function updateMeetingWorker(workerId, data, apiKey) {
   return response;
 }
 
-export async function markMeetingWorkerPresent(workerId, meetingDate, apiKey) {
+export async function markMeetingWorkerPresent(workerId, data, apiKey) {
   const response = await apiRequest(
     "POST",
     `/api/meeting/leaders/workers/${workerId}/present`,
-    { meeting_date: meetingDate },
+    data,
     { headers: { "x-api-key": apiKey } },
     false
   );

@@ -50,6 +50,7 @@ const LeadershipRegistrationAdmin = lazy(() => import("./pages/LeadershipRegistr
 const LeadersMeetingConfirm = lazy(() => import("./pages/LeadersMeetingConfirm"));
 const LeadersMeetingPresent = lazy(() => import("./pages/LeadersMeetingPresent"));
 const LeadersMeetingReport = lazy(() => import("./pages/LeadersMeetingReport"));
+const LeadersMeetingPresentReport = lazy(() => import("./pages/LeadersMeetingPresentReport"));
 const AdminDepartmentRedirect = lazy(() => import("./pages/AdminDepartmentRedirect"));
 const AdminWorkersRedirect = lazy(() => import("./pages/AdminWorkersRedirect"));
 const AdminSummaryDetail = lazy(() => import("./pages/AdminSummaryDetail"));
@@ -126,6 +127,14 @@ const AppRoutes = () => {
               element={
                 <PrivateRoute>
                   <LeadersMeetingReport />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/report/leaders-meeting"
+              element={
+                <PrivateRoute>
+                  <LeadersMeetingPresentReport />
                 </PrivateRoute>
               }
             />

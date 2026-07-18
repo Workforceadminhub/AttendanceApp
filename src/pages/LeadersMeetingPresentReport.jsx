@@ -573,6 +573,7 @@ export default function LeadersMeetingPresentReport() {
         worksheet.columns = [
           { header: "#", key: "index", width: 6 },
           { header: "Name", key: "name", width: 30 },
+          { header: "Phone Number", key: "phone", width: 16 },
           { header: "Directorate", key: "directorate", width: 20 },
           { header: "Team", key: "team", width: 25 },
           { header: "Department", key: "department", width: 30 },
@@ -616,6 +617,7 @@ export default function LeadersMeetingPresentReport() {
           const row = worksheet.addRow({
             index: idx + 1,
             name: leader.name || "",
+            phone: leader.phone || leader.phonenumber || leader.phone_number || "",
             directorate: directorateName,
             team: teamName,
             department: leader.department || "",

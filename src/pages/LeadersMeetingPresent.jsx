@@ -37,6 +37,17 @@ function Label({ htmlFor, children, required }) {
   );
 }
 
+function ReadonlyField({ label, value }) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-ink-500 mb-1">{label}</p>
+      <p className="rounded-lg border border-ink-200 bg-ink-100 px-3 py-2.5 text-sm text-ink">
+        {value || <span className="text-ink-400 italic">-</span>}
+      </p>
+    </div>
+  );
+}
+
 function splitWorkerName(worker) {
   if (worker?.firstname || worker?.lastname) {
     return {
@@ -301,15 +312,14 @@ function EditPresentStep({ worker, token, onBack, onDone }) {
   const alreadyPresent = worker.isPresent === true || worker.is_present === true;
   const nameParts = splitWorkerName(worker);
   const missing = new Set(worker.isMissing || []);
-  const apiEmail = worker.email || "";
-  const showEmail = missing.has("email") || !String(apiEmail).trim();
+  const showEmail = missing.has("email");
   const initialRole = isPlaceholderRole(worker.role) ? "" : worker.role || "";
 
   const [form, setForm] = useState({
     firstname: nameParts.firstname,
     lastname: nameParts.lastname,
     othername: nameParts.othername,
-    email: apiEmail,
+    email: worker.email || "",
     role: initialRole,
     department: worker.department || "",
     team: worker.team || "",
@@ -339,7 +349,7 @@ function EditPresentStep({ worker, token, onBack, onDone }) {
     !isPlaceholderRole(form.role) &&
     Boolean(form.team) &&
     Boolean(form.department) &&
-    isValidOptionalEmail(form.email);
+    (!showEmail || isValidOptionalEmail(form.email));
 
   const validate = () => {
     const errs = {};
@@ -391,6 +401,8 @@ function EditPresentStep({ worker, token, onBack, onDone }) {
   };
 
   if (alreadyPresent) {
+    const phone =
+      worker.phone || worker.phonenumber || worker.phone_number || "";
     return (
       <div className="space-y-5">
         <button
@@ -408,6 +420,20 @@ function EditPresentStep({ worker, token, onBack, onDone }) {
               {worker.name ? `${worker.name}, you` : "You"} have already been marked present
               for this meeting. No further action is needed.
             </p>
+          </div>
+        </div>
+
+        <div>
+          <p className="text-sm font-medium text-ink mb-3">Your details</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <ReadonlyField label="First Name" value={nameParts.firstname} />
+            <ReadonlyField label="Last Name" value={nameParts.lastname} />
+            <ReadonlyField label="Other Name" value={nameParts.othername} />
+            <ReadonlyField label="Phone Number" value={phone} />
+            {worker.email ? <ReadonlyField label="Email Address" value={worker.email} /> : null}
+            <ReadonlyField label="Role" value={worker.role} />
+            <ReadonlyField label="Team" value={worker.team} />
+            <ReadonlyField label="Department" value={worker.department} />
           </div>
         </div>
       </div>

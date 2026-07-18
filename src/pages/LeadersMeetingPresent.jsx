@@ -3,7 +3,6 @@ import { toast } from "react-toastify";
 import {
   getMeetingSession,
   searchMeetingWorkers,
-  updateMeetingWorker,
   createMeetingWorker,
   markMeetingWorkerPresent,
 } from "../services/meeting";
@@ -19,9 +18,6 @@ import { DROPDOWN_OPTIONS } from "../utils/sampleWorkersExcel";
 import { teamsAndDepartments } from "../utils/teams";
 
 const MEETING_DATE = "2026-07-18";
-const AGE_RANGES = ["18-25", "26-35", "36-45", "46-55", "56-65", "65+"];
-const EMPLOYMENT_OPTIONS = ["Employed", "Self-employed", "Unemployed", "Student", "Retired"];
-const MARITAL_OPTIONS = ["Single", "Married", "Divorced", "Widowed"];
 
 const inputClass =
   "w-full rounded-lg border border-ink-200 bg-white px-3 py-2.5 text-sm text-ink placeholder-ink-500 focus:outline-none focus:ring-2 focus:ring-ink focus:border-transparent transition";
@@ -41,16 +37,59 @@ function Label({ htmlFor, children, required }) {
   );
 }
 
-function ReadonlyField({ label, value }) {
-  return (
-    <div>
-      <p className="text-xs font-medium text-ink-500 mb-1">{label}</p>
-      <p className="rounded-lg border border-ink-200 bg-ink-100 px-3 py-2.5 text-sm text-ink">
-        {value || <span className="text-ink-400 italic">-</span>}
-      </p>
-    </div>
-  );
+function splitWorkerName(worker) {
+  if (worker?.firstname || worker?.lastname) {
+    return {
+      firstname: worker.firstname || "",
+      lastname: worker.lastname || "",
+      othername: worker.othername || "",
+    };
+  }
+  const parts = String(worker?.name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  return {
+    firstname: parts[0] || "",
+    lastname: parts.length > 1 ? parts[parts.length - 1] : "",
+    othername: parts.length > 2 ? parts.slice(1, -1).join(" ") : "",
+  };
 }
+
+function isPlaceholderRole(role) {
+  return String(role || "").trim().toLowerCase() === "worker";
+}
+
+/** Present-form phone rules: 0XXXXXXXXXX (11), 234… / +234…, or local without leading 0. */
+function isValidPresentPhone(raw) {
+  const trimmed = String(raw ?? "").trim();
+  if (!trimmed) return false;
+
+  if (trimmed.startsWith("+234")) {
+    const rest = trimmed.slice(4).replace(/\D/g, "");
+    return rest.length >= 10;
+  }
+  if (trimmed.startsWith("234")) {
+    const rest = trimmed.slice(3).replace(/\D/g, "");
+    return rest.length >= 10;
+  }
+  if (trimmed.startsWith("0")) {
+    const digits = trimmed.replace(/\D/g, "");
+    return digits.length === 11;
+  }
+  const digits = trimmed.replace(/\D/g, "");
+  return digits.length > 0 && !digits.startsWith("0");
+}
+
+function isValidOptionalEmail(raw) {
+  const trimmed = String(raw ?? "").trim();
+  if (!trimmed) return true;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+}
+
+const PRESENT_ROLE_OPTIONS = DROPDOWN_OPTIONS["Worker Role"].filter(
+  (role) => !isPlaceholderRole(role)
+);
 
 function NameSearchStep({ onResults, token }) {
   const [name, setName] = useState("");
@@ -260,20 +299,21 @@ function SelectWorkerStep({
 
 function EditPresentStep({ worker, token, onBack, onDone }) {
   const alreadyPresent = worker.isPresent === true || worker.is_present === true;
+  const nameParts = splitWorkerName(worker);
   const missing = new Set(worker.isMissing || []);
-  const hasMissing = missing.size > 0;
+  const apiEmail = worker.email || "";
+  const showEmail = missing.has("email") || !String(apiEmail).trim();
+  const initialRole = isPlaceholderRole(worker.role) ? "" : worker.role || "";
+
   const [form, setForm] = useState({
-    email: worker.email || "",
-    phone: worker.phone || "",
-    role: worker.role || "",
-    birthdate: worker.birthdate || "",
-    gender: worker.gender || "",
-    maritalstatus: worker.maritalstatus || "",
-    agerange: worker.agerange || "",
-    address: worker.address || "",
-    employment: worker.employment || "",
-    occupation: worker.occupation || "",
-    district_sub_team: worker.district_sub_team || "",
+    firstname: nameParts.firstname,
+    lastname: nameParts.lastname,
+    othername: nameParts.othername,
+    email: apiEmail,
+    role: initialRole,
+    department: worker.department || "",
+    team: worker.team || "",
+    phone: worker.phone || worker.phonenumber || worker.phone_number || "",
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -283,26 +323,39 @@ function EditPresentStep({ worker, token, onBack, onDone }) {
     setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
+  const setTeam = (e) => {
+    setForm((prev) => ({ ...prev, team: e.target.value, department: "" }));
+    setErrors((prev) => ({ ...prev, team: undefined, department: undefined }));
+  };
+
+  const selectedTeamData = teamsAndDepartments.find((t) => t.team === form.team);
+  const departmentOptions = selectedTeamData?.department || [];
+
+  const canMarkPresent =
+    Boolean(form.firstname.trim()) &&
+    Boolean(form.lastname.trim()) &&
+    isValidPresentPhone(form.phone) &&
+    Boolean(form.role.trim()) &&
+    !isPlaceholderRole(form.role) &&
+    Boolean(form.team) &&
+    Boolean(form.department) &&
+    isValidOptionalEmail(form.email);
+
   const validate = () => {
     const errs = {};
-    if (hasMissing) {
-      if (missing.has("email")) {
-        if (!form.email.trim()) errs.email = "Email is required";
-        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
-          errs.email = "Invalid email address";
-      }
-      if (missing.has("phone") && !form.phone.trim()) errs.phone = "Phone is required";
-      if (missing.has("gender") && !form.gender) errs.gender = "Gender is required";
-      if (missing.has("maritalstatus") && !form.maritalstatus)
-        errs.maritalstatus = "Marital status is required";
-      if (missing.has("agerange") && !form.agerange) errs.agerange = "Age range is required";
-      if (missing.has("address") && !form.address.trim()) errs.address = "Address is required";
-      if (missing.has("employment") && !form.employment)
-        errs.employment = "Employment status is required";
-      if (missing.has("occupation") && !form.occupation.trim())
-        errs.occupation = "Occupation is required";
-      if (missing.has("district_sub_team") && !form.district_sub_team.trim())
-        errs.district_sub_team = "District/Sub-team is required";
+    if (!form.firstname.trim()) errs.firstname = "First name is required";
+    if (!form.lastname.trim()) errs.lastname = "Last name is required";
+    if (!form.phone.trim()) errs.phone = "Phone number is required";
+    else if (!isValidPresentPhone(form.phone)) {
+      errs.phone =
+        "Enter a valid phone: 11 digits starting with 0, or 234/+234, or local without leading 0";
+    }
+    if (!form.role.trim() || isPlaceholderRole(form.role))
+      errs.role = "Please select a role";
+    if (!form.team) errs.team = "Team is required";
+    if (!form.department) errs.department = "Department is required";
+    if (showEmail && form.email.trim() && !isValidOptionalEmail(form.email)) {
+      errs.email = "Invalid email address";
     }
     return errs;
   };
@@ -314,27 +367,21 @@ function EditPresentStep({ worker, token, onBack, onDone }) {
       setErrors(errs);
       return;
     }
+    if (!canMarkPresent) return;
     setIsSubmitting(true);
     try {
-      if (hasMissing) {
-        const payload = { meeting_date: MEETING_DATE };
-        if (missing.has("email")) payload.email = form.email.trim();
-        if (missing.has("phone")) payload.phone = form.phone.trim();
-        if (missing.has("gender")) payload.gender = form.gender;
-        if (missing.has("role") && form.role.trim()) payload.role = form.role.trim();
-        if (missing.has("birthdate") && form.birthdate) payload.birthdate = form.birthdate;
-        if (missing.has("maritalstatus") && form.maritalstatus)
-          payload.maritalstatus = form.maritalstatus;
-        if (missing.has("agerange") && form.agerange) payload.agerange = form.agerange;
-        if (missing.has("address") && form.address.trim()) payload.address = form.address.trim();
-        if (missing.has("employment") && form.employment) payload.employment = form.employment;
-        if (missing.has("occupation") && form.occupation.trim())
-          payload.occupation = form.occupation.trim();
-        if (missing.has("district_sub_team") && form.district_sub_team.trim())
-          payload.district_sub_team = form.district_sub_team.trim();
-        await updateMeetingWorker(worker.id, payload, token);
-      }
-      await markMeetingWorkerPresent(worker.id, MEETING_DATE, token);
+      const payload = {
+        meeting_date: MEETING_DATE,
+        firstname: form.firstname.trim(),
+        lastname: form.lastname.trim(),
+        othername: form.othername.trim() || undefined,
+        role: form.role.trim(),
+        department: form.department,
+        team: form.team,
+        phone: form.phone.trim(),
+      };
+      if (showEmail && form.email.trim()) payload.email = form.email.trim();
+      await markMeetingWorkerPresent(worker.id, payload, token);
       onDone();
     } catch (err) {
       toast.error(err.message || "Failed to mark present. Please try again.");
@@ -367,12 +414,6 @@ function EditPresentStep({ worker, token, onBack, onDone }) {
     );
   }
 
-  const missingBadge = (
-    <span className="ml-1.5 inline-block rounded bg-mustard-50 px-1.5 py-0.5 text-2xs font-medium text-mustard">
-      Missing
-    </span>
-  );
-
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
       <button
@@ -383,182 +424,132 @@ function EditPresentStep({ worker, token, onBack, onDone }) {
         &larr; Back
       </button>
 
-      <div className="rounded-lg border border-ink-200 bg-ink-100 px-4 py-3 flex items-center gap-3">
-        <UserCircleIcon className="h-5 w-5 text-ink-500 shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-ink truncate">{worker.name}</p>
-          {(worker.department || worker.team) && (
-            <p className="text-xs text-ink-500 truncate">
-              {[worker.department, worker.team].filter(Boolean).join(" · ")}
-            </p>
-          )}
+      <div className="rounded-lg border border-ink-200 bg-ink-100 px-4 py-3">
+        <p className="text-sm font-medium text-ink">Review and update your details</p>
+        <p className="text-xs text-ink-500 mt-0.5">
+          Edit any field below, then mark yourself present.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="edit-firstname" required>First Name</Label>
+          <input
+            id="edit-firstname"
+            type="text"
+            placeholder="Enter first name"
+            value={form.firstname}
+            onChange={set("firstname")}
+            className={inputClass}
+          />
+          <FieldError message={errors.firstname} />
+        </div>
+        <div>
+          <Label htmlFor="edit-lastname" required>Last Name</Label>
+          <input
+            id="edit-lastname"
+            type="text"
+            placeholder="Enter last name"
+            value={form.lastname}
+            onChange={set("lastname")}
+            className={inputClass}
+          />
+          <FieldError message={errors.lastname} />
+        </div>
+        <div>
+          <Label htmlFor="edit-othername">Other Name</Label>
+          <input
+            id="edit-othername"
+            type="text"
+            placeholder="Optional"
+            value={form.othername}
+            onChange={set("othername")}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <Label htmlFor="edit-phone" required>Phone Number</Label>
+          <input
+            id="edit-phone"
+            type="tel"
+            placeholder="07044208143 or +234..."
+            value={form.phone}
+            onChange={(e) => {
+              const cleaned = e.target.value.replace(/[^\d+]/g, "");
+              setForm((prev) => ({ ...prev, phone: cleaned }));
+              setErrors((prev) => ({ ...prev, phone: undefined }));
+            }}
+            className={inputClass}
+          />
+          <FieldError message={errors.phone} />
+        </div>
+        {showEmail && (
+          <div className="sm:col-span-2">
+            <Label htmlFor="edit-email">Email Address</Label>
+            <input
+              id="edit-email"
+              type="email"
+              placeholder="Optional"
+              value={form.email}
+              onChange={set("email")}
+              className={inputClass}
+            />
+            <FieldError message={errors.email} />
+          </div>
+        )}
+        <div>
+          <Label htmlFor="edit-role" required>Role</Label>
+          <select id="edit-role" value={form.role} onChange={set("role")} className={selectClass}>
+            <option value="">Select Role</option>
+            {PRESENT_ROLE_OPTIONS.map((o) => (
+              <option key={o}>{o}</option>
+            ))}
+            {form.role &&
+              !isPlaceholderRole(form.role) &&
+              !PRESENT_ROLE_OPTIONS.includes(form.role) && (
+                <option value={form.role}>{form.role}</option>
+              )}
+          </select>
+          <FieldError message={errors.role} />
+        </div>
+        <div>
+          <Label htmlFor="edit-team" required>Team</Label>
+          <select id="edit-team" value={form.team} onChange={setTeam} className={selectClass}>
+            <option value="">Select Team</option>
+            {teamsAndDepartments.map((t) => (
+              <option key={t.team} value={t.team}>{t.team}</option>
+            ))}
+          </select>
+          <FieldError message={errors.team} />
+        </div>
+        <div className="sm:col-span-2">
+          <Label htmlFor="edit-department" required>Department</Label>
+          <select
+            id="edit-department"
+            value={form.department}
+            onChange={set("department")}
+            className={selectClass}
+            disabled={!form.team}
+          >
+            <option value="">{form.team ? "Select Department" : "Select team first"}</option>
+            {departmentOptions.map((d) => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+            {form.department && !departmentOptions.includes(form.department) && (
+              <option value={form.department}>{form.department}</option>
+            )}
+          </select>
+          <FieldError message={errors.department} />
         </div>
       </div>
 
-      {!hasMissing ? (
-        <>
-          <div className="rounded-lg border border-forest-50 bg-forest-50 px-4 py-3">
-            <p className="text-sm text-forest font-medium">
-              Your details are complete. Nothing to update.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {worker.role && <ReadonlyField label="Role" value={worker.role} />}
-            {worker.department && <ReadonlyField label="Department" value={worker.department} />}
-            {worker.team && <ReadonlyField label="Team" value={worker.team} />}
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {!missing.has("email") && worker.email && (
-              <ReadonlyField label="Email Address" value={worker.email} />
-            )}
-            {!missing.has("phone") && worker.phone && (
-              <ReadonlyField label="Phone Number" value={worker.phone} />
-            )}
-            {!missing.has("gender") && worker.gender && (
-              <ReadonlyField label="Gender" value={worker.gender} />
-            )}
-            {!missing.has("maritalstatus") && worker.maritalstatus && (
-              <ReadonlyField label="Marital Status" value={worker.maritalstatus} />
-            )}
-            {!missing.has("agerange") && worker.agerange && (
-              <ReadonlyField label="Age Range" value={worker.agerange} />
-            )}
-            {!missing.has("role") && worker.role && (
-              <ReadonlyField label="Role" value={worker.role} />
-            )}
-            {!missing.has("birthdate") && worker.birthdate && (
-              <ReadonlyField label="Date of Birth" value={worker.birthdate} />
-            )}
-            {!missing.has("address") && worker.address && (
-              <ReadonlyField label="Address" value={worker.address} />
-            )}
-            {!missing.has("employment") && worker.employment && (
-              <ReadonlyField label="Employment Status" value={worker.employment} />
-            )}
-            {!missing.has("occupation") && worker.occupation && (
-              <ReadonlyField label="Occupation" value={worker.occupation} />
-            )}
-            {!missing.has("district_sub_team") && worker.district_sub_team && (
-              <ReadonlyField label="District/Sub-team" value={worker.district_sub_team} />
-            )}
-          </div>
-
-          <p className="text-xs text-ink-500">
-            Please complete the fields marked{" "}
-            <span className="rounded bg-mustard-50 px-1 py-0.5 text-2xs font-medium text-mustard">
-              Missing
-            </span>{" "}
-            below.
-          </p>
-
-          {missing.has("email") && (
-            <div>
-              <Label htmlFor="edit-email" required>Email Address {missingBadge}</Label>
-              <input id="edit-email" type="email" placeholder="you@example.com" value={form.email}
-                onChange={set("email")} className={inputClass} />
-              <FieldError message={errors.email} />
-            </div>
-          )}
-          {missing.has("phone") && (
-            <div>
-              <Label htmlFor="edit-phone" required>Phone Number {missingBadge}</Label>
-              <input id="edit-phone" type="tel" placeholder="08012345678" value={form.phone}
-                onChange={set("phone")} className={inputClass} />
-              <FieldError message={errors.phone} />
-            </div>
-          )}
-          {missing.has("gender") && (
-            <div>
-              <Label htmlFor="edit-gender" required>Gender {missingBadge}</Label>
-              <select id="edit-gender" value={form.gender} onChange={set("gender")} className={selectClass}>
-                <option value="">Select</option><option>Male</option><option>Female</option>
-              </select>
-              <FieldError message={errors.gender} />
-            </div>
-          )}
-          {missing.has("maritalstatus") && (
-            <div>
-              <Label htmlFor="edit-maritalstatus" required>Marital Status {missingBadge}</Label>
-              <select id="edit-maritalstatus" value={form.maritalstatus} onChange={set("maritalstatus")} className={selectClass}>
-                <option value="">Select</option>
-                {MARITAL_OPTIONS.map((option) => <option key={option}>{option}</option>)}
-              </select>
-              <FieldError message={errors.maritalstatus} />
-            </div>
-          )}
-          {missing.has("agerange") && (
-            <div>
-              <Label htmlFor="edit-agerange" required>Age Range {missingBadge}</Label>
-              <select id="edit-agerange" value={form.agerange} onChange={set("agerange")} className={selectClass}>
-                <option value="">Select</option>
-                {AGE_RANGES.map((option) => <option key={option}>{option}</option>)}
-              </select>
-              <FieldError message={errors.agerange} />
-            </div>
-          )}
-          {missing.has("role") && (
-            <div>
-              <Label htmlFor="edit-role">Role {missingBadge}</Label>
-              <input id="edit-role" type="text" placeholder="e.g. Member" value={form.role}
-                onChange={set("role")} className={inputClass} />
-            </div>
-          )}
-          {missing.has("birthdate") && (
-            <div>
-              <Label htmlFor="edit-birthdate">Date of Birth {missingBadge}</Label>
-              <BirthDatePicker value={form.birthdate} onChange={(value) => {
-                setForm((prev) => ({ ...prev, birthdate: value }));
-                setErrors((prev) => ({ ...prev, birthdate: undefined }));
-              }} />
-            </div>
-          )}
-          {missing.has("address") && (
-            <div>
-              <Label htmlFor="edit-address" required>Address {missingBadge}</Label>
-              <input id="edit-address" type="text" placeholder="e.g. 12 Example Street, Gbagada, Lagos"
-                value={form.address} onChange={set("address")} className={inputClass} />
-              <FieldError message={errors.address} />
-            </div>
-          )}
-          {missing.has("employment") && (
-            <div>
-              <Label htmlFor="edit-employment" required>Employment Status {missingBadge}</Label>
-              <select id="edit-employment" value={form.employment} onChange={set("employment")} className={selectClass}>
-                <option value="">Select</option>
-                {EMPLOYMENT_OPTIONS.map((option) => <option key={option}>{option}</option>)}
-              </select>
-              <FieldError message={errors.employment} />
-            </div>
-          )}
-          {missing.has("occupation") && (
-            <div>
-              <Label htmlFor="edit-occupation" required>Occupation {missingBadge}</Label>
-              <input id="edit-occupation" type="text" placeholder="e.g. Engineer" value={form.occupation}
-                onChange={set("occupation")} className={inputClass} />
-              <FieldError message={errors.occupation} />
-            </div>
-          )}
-          {missing.has("district_sub_team") && (
-            <div>
-              <Label htmlFor="edit-district-sub-team" required>District/Sub-team {missingBadge}</Label>
-              <select id="edit-district-sub-team" value={form.district_sub_team}
-                onChange={set("district_sub_team")} className={selectClass}>
-                <option value="">Select</option>
-                <option>Pastor Biola Cluster</option><option>Pastor Isaac Cluster</option>
-              </select>
-              <FieldError message={errors.district_sub_team} />
-            </div>
-          )}
-        </>
-      )}
-
       <div className="pt-2">
-        <button type="submit" disabled={isSubmitting}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg bg-ink px-8 py-3 text-sm font-medium text-cream transition hover:bg-ink/90 disabled:opacity-60 disabled:cursor-not-allowed">
-          {isSubmitting ? "Submitting..." : hasMissing ? "Save & Mark Present" : "Mark Present"}
+        <button
+          type="submit"
+          disabled={isSubmitting || !canMarkPresent}
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg bg-ink px-8 py-3 text-sm font-medium text-cream transition hover:bg-ink/90 disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {isSubmitting ? "Submitting..." : "Mark Present"}
         </button>
       </div>
     </form>
@@ -1002,7 +993,7 @@ export default function LeadersMeetingPresent() {
         )}
         {step === "edit" && (
           <p className="mt-2 text-sm text-ink-500">
-            Review and complete your information.
+            Review and edit your details, then mark present.
           </p>
         )}
         {step === "create" && (

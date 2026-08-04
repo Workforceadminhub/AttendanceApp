@@ -15,8 +15,9 @@ import Header from "../components/Header";
 import Layout from "../components/Layout";
 import AttendanceLeaderboard from "../components/AttendanceLeaderboard";
 import LoadingState from "../components/LoadingState";
-import { getEffectiveRouteList, getDepartmentRoute, getDepartmentNameFromRoute } from "../utils/routeObject";
+import { getEffectiveRouteList, getDepartmentRoute, getDepartmentNameFromRoute, isSameDepartment } from "../utils/routeObject";
 import { getUser } from "../utils/getUser";
+import { expandPermissions } from "../utils/expandPermissions";
 import { getNextSunday, getSundaysInYear } from "../utils/getDate";
 import { fetchAttendance } from "../services/attendance";
 import { fetchWorkers } from "../services/workers";
@@ -124,7 +125,7 @@ export default function DepartmentDetail() {
  return d && d <= cutoffDate;
  });
  const authUser = getUser();
- const permissions = authUser?.permissions ?? [];
+ const permissions = expandPermissions(authUser);
  // Throttle to 4 concurrent /api/attendance calls — firing all 50+ in
  // parallel saturates Lambda concurrency and makes most requests 503.
  // 4 in flight, retry up to 2x per Sunday on transient failure.
@@ -153,7 +154,7 @@ export default function DepartmentDetail() {
  const forDept = arr.filter((item) => {
  const name = item.department || item.department_name || "";
  const itemRoute = (item.route || item.department_route || item.departmentRoute || "").replace(/^\//, "").toLowerCase();
- return name === decodedDepartment || (normRoute && itemRoute === normRoute);
+ return isSameDepartment(name, decodedDepartment) || (normRoute && itemRoute === normRoute);
  });
  const present = forDept.reduce((s, item) => s + (item.present ?? 0), 0);
  const absent = forDept.reduce((s, item) => s + (item.absent ?? 0), 0);
@@ -181,7 +182,7 @@ export default function DepartmentDetail() {
  queryKey: ["departmentWorkers", decodedDepartment],
  queryFn: () => {
  const authUser = getUser();
- const permissions = authUser?.permissions ?? [];
+ const permissions = expandPermissions(authUser);
  return fetchWorkers(decodedDepartment, undefined, permissions);
  },
  });

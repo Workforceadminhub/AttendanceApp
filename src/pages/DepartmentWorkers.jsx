@@ -7,10 +7,11 @@ import { saveAs } from "file-saver";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
 import LoadingState from "../components/LoadingState";
-import { getDepartmentRoute, getDepartmentNameFromRoute } from "../utils/routeObject";
-import { getUserRole, canAccessDepartment, filterTeamFromPermissions } from "../utils/getUserRole";
+import { getDepartmentRoute, getDepartmentNameFromRoute, isSameDepartment } from "../utils/routeObject";
+import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
 import { fetchWorkers, removeWorker } from "../services/workers";
 import { getUser } from "../utils/getUser";
+import { expandPermissions } from "../utils/expandPermissions";
 import Modal from "../components/Modal";
 import { PencilIcon, EyeIcon, ChevronDownIcon, ChevronUpIcon, TrashIcon } from "@heroicons/react/24/outline";
 
@@ -18,14 +19,9 @@ import { PencilIcon, EyeIcon, ChevronDownIcon, ChevronUpIcon, TrashIcon } from "
 // Sub Team Head → Assistant Sub Team Head → HOD → Assistant HOD → Admin
 // → Small Group Leader → E-Group Leader → Assistant Small Group Leader → Worker → blank/other
 const ROLE_ORDER = [
- "Sub Team Head",
- "Assistant Sub Team Head",
  "HOD",
  "Assistant HOD",
- "Admin",
  "Small Group Leader",
- "E-Group Leader",
- "Assistant Small Group Leader",
  "Worker",
 ];
 
@@ -40,10 +36,7 @@ export default function DepartmentWorkers() {
 
  // Read auth once (avoid refetch loops due to new array references)
  const auth = useMemo(() => getUser(), []);
- // Filter out team name from permissions (team name shouldn't be in permissions array)
- const permissions = useMemo(() => {
- return filterTeamFromPermissions(auth?.permissions ?? [], auth?.team);
- }, [auth]);
+ const permissions = useMemo(() => expandPermissions(auth), [auth]);
  const permissionsKey = useMemo(
  () => (Array.isArray(permissions) ? permissions.join(",") : ""),
  [permissions]
@@ -58,7 +51,6 @@ export default function DepartmentWorkers() {
  isTeamAdmin,
  isSubTeamAdmin,
  } = getUserRole();
- const isAnyAdmin = isSuperAdmin || isChurchAdmin || isTeamAdmin || isSubTeamAdmin;
  const canEditWorkers = isSuperAdmin || isChurchAdmin || isHOD || isTeamAdmin || isSubTeamAdmin;
  const canRequestDeleteWorkers = isSuperAdmin || isChurchAdmin || isHOD || isTeamAdmin; // exclude sub-team-admin
  const canSelectWorkers = canEditWorkers && !isSubTeamAdmin; // sub-team-admin should not see worker selection checkboxes
@@ -69,11 +61,9 @@ export default function DepartmentWorkers() {
  isLoading: isWorkersLoading,
  } = useQuery({
  queryKey: ["departmentWorkers", decodedDepartment, permissionsKey],
- // For admins (super/church/team/sub-team), do NOT send department;
- // backend will scope by permissions instead. HOD still uses department.
  queryFn: () =>
  fetchWorkers(
- isAnyAdmin ? undefined : decodedDepartment,
+ decodedDepartment,
  undefined,
  permissions
  ),
@@ -82,7 +72,7 @@ export default function DepartmentWorkers() {
 
  // HOD view: order by role (HOD → Assistant HOD → Small Group Leader → Worker → blank), then by id within each role
  const sortedWorkers = useMemo(() => {
- const rawWorkers = workersData || [];
+ const rawWorkers = (workersData || []).filter((w) => isSameDepartment(w.department, decodedDepartment));
  const getRoleRank = (role) => {
  const r = (role || "").trim();
  const i = ROLE_ORDER.indexOf(r);
@@ -96,7 +86,7 @@ export default function DepartmentWorkers() {
  const idB = (b.id ?? b.workerId ?? 0).toString();
  return idA.localeCompare(idB, undefined, { numeric: true });
  });
- }, [workersData]);
+ }, [workersData, decodedDepartment]);
 
  const queryClient = useQueryClient();
 

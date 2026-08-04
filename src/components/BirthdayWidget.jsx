@@ -5,6 +5,8 @@ import { getUser } from "../utils/getUser";
 import { splitWorkersByBirthday, parseBirthdateMonthDay } from "../utils/birthdayUtils";
 import { format } from "date-fns";
 
+import { expandPermissions } from "../utils/expandPermissions";
+
 function formatBirthdateDisplay(value) {
  if (value == null || String(value).trim() === "") return "Date not set";
  const md = parseBirthdateMonthDay(value);
@@ -31,7 +33,7 @@ export default function BirthdayWidget({ department }) {
  queryKey: ["workersForBirthdays", department],
  queryFn: () => {
  const auth = getUser();
- const permissions = auth?.permissions ?? [];
+ const permissions = expandPermissions(auth);
  return fetchWorkers(department || "All", null, permissions);
  },
  staleTime: 10 * 60 * 1000, // 10 minutes

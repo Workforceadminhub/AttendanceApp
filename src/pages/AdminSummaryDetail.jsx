@@ -17,6 +17,7 @@ import AttendanceLeaderboard from "../components/AttendanceLeaderboard";
 import LoadingState from "../components/LoadingState";
 import { getDepartmentByUser } from "../utils/getDepartment";
 import { getUser } from "../utils/getUser";
+import { expandPermissions } from "../utils/expandPermissions";
 import { getUserRole } from "../utils/getUserRole";
 import { getDepartmentRoute, getEffectiveRouteList } from "../utils/routeObject";
 import { fetchAttendance } from "../services/attendance";
@@ -73,7 +74,7 @@ export default function AdminSummaryDetail() {
         const d = sundayToYYYYMMDD(s);
         return d && d <= cutoffDate;
       });
-      const permissions = authUser?.permissions ?? [];
+      const permissions = expandPermissions(authUser);
       const selectedDept = selectedDepartment && selectedDepartment !== "All" ? selectedDepartment : null;
       const selectedRoute = selectedDept ? getDepartmentRoute(selectedDept) || selectedDept : null;
       const selectedNormRoute = selectedRoute
@@ -164,7 +165,7 @@ export default function AdminSummaryDetail() {
   } = useQuery({
     queryKey: ["adminSummaryWorkers", departmentKey],
     queryFn: async () => {
-      const permissions = authUser?.permissions ?? [];
+      const permissions = expandPermissions(authUser);
       const activeDate = getNextSunday();
       // Admin workers endpoint already understands team-level filters.
       return fetchAdminWorkers(departmentKey, "All", activeDate, "", permissions);

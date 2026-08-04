@@ -19,8 +19,6 @@ import {
 } from "../utils/meetingConfig";
 
 const MEETING_TYPE = "workers";
-const MEETING_DATE = getMeetingDate(DEFAULT_WORKERS_MEETING_DATE);
-const DISPLAY_DATE = formatMeetingDisplayDate(MEETING_DATE);
 const STATUS_OPTIONS = ["all", "confirmed", "not attending"];
 
 const TEAM_STRENGTH = {
@@ -85,6 +83,7 @@ function formatDate(iso) {
 
 export default function WorkersMeetingReport() {
   const navigate = useNavigate();
+  const [meetingDate, setMeetingDate] = useState(() => getMeetingDate(DEFAULT_WORKERS_MEETING_DATE));
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("summary"); // summary | list
   const [status, setStatus] = useState("all");
@@ -135,7 +134,7 @@ export default function WorkersMeetingReport() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await getMeetingRegistrations(MEETING_DATE, "all", MEETING_TYPE);
+      const res = await getMeetingRegistrations(meetingDate, "all", MEETING_TYPE);
       const cleaned = (res.data || [])
         .filter((r) => r.is_confirmed === true || r.is_confirmed === false)
         .map((r) => ({
@@ -148,7 +147,7 @@ export default function WorkersMeetingReport() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [meetingDate]);
 
   useEffect(() => {
     fetchData();
@@ -320,11 +319,29 @@ export default function WorkersMeetingReport() {
               Workers Meeting Confirmation Report
             </h1>
             <p className="text-xs text-ink-500 font-mono mt-0.5">
-              {DISPLAY_DATE}
+              {formatMeetingDisplayDate(meetingDate)}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 bg-white border border-ink-200 rounded-lg px-3 py-1 shadow-sm">
+              <span className="text-xs font-medium text-ink-500">Date:</span>
+              <input
+                type="date"
+                value={meetingDate}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val) {
+                    setMeetingDate(val);
+                    const params = new URLSearchParams(window.location.search);
+                    params.set("date", val);
+                    navigate(`${window.location.pathname}?${params.toString()}`, { replace: true });
+                  }
+                }}
+                className="bg-transparent text-xs font-semibold text-ink-900 focus:outline-none cursor-pointer"
+              />
+            </div>
+
             <div className="flex rounded-lg border border-ink-200 bg-white p-1">
               <button
                 type="button"

@@ -3,8 +3,8 @@ import { toast } from "react-toastify";
 import {
   getMeetingSession,
   searchMeetingWorkers,
-  updateMeetingWorker,
   createMeetingWorker,
+  markMeetingWorkerPresent,
 } from "../services/meeting";
 import {
   MagnifyingGlassIcon,
@@ -17,7 +17,11 @@ import BirthDatePicker from "../components/BirthDatePicker";
 import { DROPDOWN_OPTIONS } from "../utils/sampleWorkersExcel";
 import { teamsAndDepartments } from "../utils/teams";
 
-// ── Shared UI helpers ────────────────────────────────────────────────────────
+const MEETING_DATE = "2026-08-15";
+
+const inputClass =
+  "w-full rounded-lg border border-ink-200 bg-white px-3 py-2.5 text-sm text-ink placeholder-ink-500 focus:outline-none focus:ring-2 focus:ring-ink focus:border-transparent transition";
+const selectClass = `${inputClass} appearance-none`;
 
 function FieldError({ message }) {
   if (!message) return null;
@@ -33,14 +37,70 @@ function Label({ htmlFor, children, required }) {
   );
 }
 
-const inputClass =
-  "w-full rounded-lg border border-ink-200 bg-white px-3 py-2.5 text-sm text-ink placeholder-ink-500 focus:outline-none focus:ring-2 focus:ring-ink focus:border-transparent transition";
+function ReadonlyField({ label, value }) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-ink-500 mb-1">{label}</p>
+      <p className="rounded-lg border border-ink-200 bg-ink-100 px-3 py-2.5 text-sm text-ink">
+        {value || <span className="text-ink-400 italic">-</span>}
+      </p>
+    </div>
+  );
+}
 
-const selectClass = `${inputClass} appearance-none`;
+function splitWorkerName(worker) {
+  if (worker?.firstname || worker?.lastname) {
+    return {
+      firstname: worker.firstname || "",
+      lastname: worker.lastname || "",
+      othername: worker.othername || "",
+    };
+  }
+  const parts = String(worker?.name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  return {
+    firstname: parts[0] || "",
+    lastname: parts.length > 1 ? parts[parts.length - 1] : "",
+    othername: parts.length > 2 ? parts.slice(1, -1).join(" ") : "",
+  };
+}
 
-const MEETING_DATE = "2026-08-15";
+function isPlaceholderRole(role) {
+  return String(role || "").trim().toLowerCase() === "worker";
+}
 
-// ── Step 1: Name Search ──────────────────────────────────────────────────────
+/** Present-form phone rules: 0XXXXXXXXXX (11), 234… / +234…, or local without leading 0. */
+function isValidPresentPhone(raw) {
+  const trimmed = String(raw ?? "").trim();
+  if (!trimmed) return false;
+
+  if (trimmed.startsWith("+234")) {
+    const rest = trimmed.slice(4).replace(/\D/g, "");
+    return rest.length >= 10;
+  }
+  if (trimmed.startsWith("234")) {
+    const rest = trimmed.slice(3).replace(/\D/g, "");
+    return rest.length >= 10;
+  }
+  if (trimmed.startsWith("0")) {
+    const digits = trimmed.replace(/\D/g, "");
+    return digits.length === 11;
+  }
+  const digits = trimmed.replace(/\D/g, "");
+  return digits.length > 0 && !digits.startsWith("0");
+}
+
+function isValidOptionalEmail(raw) {
+  const trimmed = String(raw ?? "").trim();
+  if (!trimmed) return true;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+}
+
+const PRESENT_ROLE_OPTIONS = DROPDOWN_OPTIONS["Worker Role"].filter(
+  (role) => !isPlaceholderRole(role)
+);
 
 function NameSearchStep({ onResults, token }) {
   const [name, setName] = useState("");
@@ -74,10 +134,7 @@ function NameSearchStep({ onResults, token }) {
         <Label htmlFor="search-name" required>
           Your Full Name
         </Label>
-        <p className="text-xs text-ink-500 mb-2">
-          Enter your first name and surname so we can find your record.
-        </p>
-        <div className="flex gap-2">
+        <div className="flex gap-2 mt-2">
           <input
             id="search-name"
             type="text"
@@ -103,8 +160,6 @@ function NameSearchStep({ onResults, token }) {
     </div>
   );
 }
-
-// ── Step 2: Select Yourself ──────────────────────────────────────────────────
 
 function SelectWorkerStep({
   workers,
@@ -208,7 +263,7 @@ function SelectWorkerStep({
             {workers.map((w) => {
               const displayName = w.name || "-";
               const sub = [w.department, w.team].filter(Boolean).join(" · ");
-              const alreadyConfirmed = w.isConfirmed === true || w.is_confirmed === true;
+              const alreadyPresent = w.isPresent === true || w.is_present === true;
               return (
                 <li key={w.id}>
                   <button
@@ -225,10 +280,10 @@ function SelectWorkerStep({
                         <p className="text-xs text-ink-500 truncate">{sub}</p>
                       )}
                     </div>
-                    {alreadyConfirmed && (
+                    {alreadyPresent && (
                       <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-forest-50 px-2.5 py-0.5 text-xs font-medium text-forest">
                         <CheckCircleIcon className="h-3.5 w-3.5" />
-                        Confirmed
+                        Present
                       </span>
                     )}
                   </button>
@@ -236,48 +291,39 @@ function SelectWorkerStep({
               );
             })}
           </ul>
+
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => onAddNew(searchedName)}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-ink-200 bg-white px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-cream"
+            >
+              <PlusCircleIcon className="h-4 w-4" />
+              Add yourself as a new worker
+            </button>
+          </div>
         </>
       )}
     </div>
   );
 }
 
-// ── Step 3: Edit & Submit ────────────────────────────────────────────────────
-
-function ReadonlyField({ label, value }) {
-  return (
-    <div>
-      <p className="text-xs font-medium text-ink-500 mb-1">{label}</p>
-      <p className="rounded-lg border border-ink-200 bg-ink-100 px-3 py-2.5 text-sm text-ink">
-        {value || <span className="text-ink-400 italic">-</span>}
-      </p>
-    </div>
-  );
-}
-
-const AGE_RANGES = ["18-25", "26-35", "36-45", "46-55", "56-65", "65+"];
-const EMPLOYMENT_OPTIONS = ["Employed", "Self-employed", "Unemployed", "Student", "Retired"];
-const MARITAL_OPTIONS = ["Single", "Married", "Divorced", "Widowed"];
-
-function EditWorkerStep({ worker, token, onBack, onDone }) {
-  const alreadyConfirmed = worker.isConfirmed === true || worker.is_confirmed === true;
+function EditPresentStep({ worker, token, onBack, onDone }) {
+  const alreadyPresent = worker.isPresent === true || worker.is_present === true;
+  const nameParts = splitWorkerName(worker);
   const missing = new Set(worker.isMissing || []);
-  const hasMissing = missing.size > 0;
+  const showEmail = missing.has("email");
+  const initialRole = isPlaceholderRole(worker.role) ? "" : worker.role || "";
 
-  const [attending, setAttending] = useState(""); // "" | "yes" | "no"
-  const [declineReason, setDeclineReason] = useState("");
   const [form, setForm] = useState({
+    firstname: nameParts.firstname,
+    lastname: nameParts.lastname,
+    othername: nameParts.othername,
     email: worker.email || "",
-    phone: worker.phone || "",
-    role: worker.role || "",
-    birthdate: worker.birthdate || "",
-    gender: worker.gender || "",
-    maritalstatus: worker.maritalstatus || "",
-    agerange: worker.agerange || "",
-    address: worker.address || "",
-    employment: worker.employment || "",
-    occupation: worker.occupation || "",
-    district_sub_team: worker.district_sub_team || "",
+    role: initialRole,
+    department: worker.department || "",
+    team: worker.team || "",
+    phone: worker.phone || worker.phonenumber || worker.phone_number || "",
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -287,25 +333,39 @@ function EditWorkerStep({ worker, token, onBack, onDone }) {
     setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
+  const setTeam = (e) => {
+    setForm((prev) => ({ ...prev, team: e.target.value, department: "" }));
+    setErrors((prev) => ({ ...prev, team: undefined, department: undefined }));
+  };
+
+  const selectedTeamData = teamsAndDepartments.find((t) => t.team === form.team);
+  const departmentOptions = selectedTeamData?.department || [];
+
+  const canMarkPresent =
+    Boolean(form.firstname.trim()) &&
+    Boolean(form.lastname.trim()) &&
+    isValidPresentPhone(form.phone) &&
+    Boolean(form.role.trim()) &&
+    !isPlaceholderRole(form.role) &&
+    Boolean(form.team) &&
+    Boolean(form.department) &&
+    (!showEmail || isValidOptionalEmail(form.email));
+
   const validate = () => {
     const errs = {};
-    if (!attending) errs.attending = "Please select whether you will be attending";
-    if (attending === "no" && !declineReason.trim())
-      errs.declineReason = "Please provide a reason";
-    if (hasMissing) {
-      if (missing.has("email")) {
-        if (!form.email.trim()) errs.email = "Email is required";
-        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
-          errs.email = "Invalid email address";
-      }
-      if (missing.has("phone") && !form.phone.trim()) errs.phone = "Phone is required";
-      if (missing.has("gender") && !form.gender) errs.gender = "Gender is required";
-      if (missing.has("maritalstatus") && !form.maritalstatus) errs.maritalstatus = "Marital status is required";
-      if (missing.has("agerange") && !form.agerange) errs.agerange = "Age range is required";
-      if (missing.has("address") && !form.address.trim()) errs.address = "Address is required";
-      if (missing.has("employment") && !form.employment) errs.employment = "Employment status is required";
-      if (missing.has("occupation") && !form.occupation.trim()) errs.occupation = "Occupation is required";
-      if (missing.has("district_sub_team") && !form.district_sub_team.trim()) errs.district_sub_team = "District/Sub-team is required";
+    if (!form.firstname.trim()) errs.firstname = "First name is required";
+    if (!form.lastname.trim()) errs.lastname = "Last name is required";
+    if (!form.phone.trim()) errs.phone = "Phone number is required";
+    else if (!isValidPresentPhone(form.phone)) {
+      errs.phone =
+        "Enter a valid phone: 11 digits starting with 0, or 234/+234, or local without leading 0";
+    }
+    if (!form.role.trim() || isPlaceholderRole(form.role))
+      errs.role = "Please select a role";
+    if (!form.team) errs.team = "Team is required";
+    if (!form.department) errs.department = "Department is required";
+    if (showEmail && form.email.trim() && !isValidOptionalEmail(form.email)) {
+      errs.email = "Invalid email address";
     }
     return errs;
   };
@@ -313,35 +373,36 @@ function EditWorkerStep({ worker, token, onBack, onDone }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = validate();
-    if (Object.keys(errs).length) { setErrors(errs); return; }
+    if (Object.keys(errs).length) {
+      setErrors(errs);
+      return;
+    }
+    if (!canMarkPresent) return;
     setIsSubmitting(true);
     try {
-      const isConfirmed = attending === "yes";
-      const payload = { meeting_date: MEETING_DATE, is_confirmed: isConfirmed };
-      if (!isConfirmed) payload.notes = declineReason.trim();
-      if (hasMissing) {
-        if (missing.has("email")) payload.email = form.email.trim();
-        if (missing.has("phone")) payload.phone = form.phone.trim();
-        if (missing.has("gender")) payload.gender = form.gender;
-        if (missing.has("role") && form.role.trim()) payload.role = form.role.trim();
-        if (missing.has("birthdate") && form.birthdate) payload.birthdate = form.birthdate;
-        if (missing.has("maritalstatus") && form.maritalstatus) payload.maritalstatus = form.maritalstatus;
-        if (missing.has("agerange") && form.agerange) payload.agerange = form.agerange;
-        if (missing.has("address") && form.address.trim()) payload.address = form.address.trim();
-        if (missing.has("employment") && form.employment) payload.employment = form.employment;
-        if (missing.has("occupation") && form.occupation.trim()) payload.occupation = form.occupation.trim();
-        if (missing.has("district_sub_team") && form.district_sub_team.trim()) payload.district_sub_team = form.district_sub_team.trim();
-      }
-      await updateMeetingWorker(worker.id, payload, token);
-      onDone(isConfirmed ? "confirm" : "decline");
+      const payload = {
+        meeting_date: MEETING_DATE,
+        firstname: form.firstname.trim(),
+        lastname: form.lastname.trim(),
+        othername: form.othername.trim() || undefined,
+        role: form.role.trim(),
+        department: form.department,
+        team: form.team,
+        phone: form.phone.trim(),
+      };
+      if (showEmail && form.email.trim()) payload.email = form.email.trim();
+      await markMeetingWorkerPresent(worker.id, payload, token);
+      onDone();
     } catch (err) {
-      toast.error(err.message || "Update failed. Please try again.");
+      toast.error(err.message || "Failed to mark present. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (alreadyConfirmed) {
+  if (alreadyPresent) {
+    const phone =
+      worker.phone || worker.phonenumber || worker.phone_number || "";
     return (
       <div className="space-y-5">
         <button
@@ -354,21 +415,30 @@ function EditWorkerStep({ worker, token, onBack, onDone }) {
         <div className="rounded-lg border border-forest-200 bg-forest-50 px-5 py-6 flex items-start gap-4">
           <CheckCircleIcon className="h-6 w-6 text-forest shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-semibold text-ink">Already confirmed</p>
+            <p className="text-sm font-semibold text-ink">Already marked present</p>
             <p className="mt-1 text-xs text-ink-500 leading-relaxed">
-              {worker.name ? `${worker.name}, you` : "You"} have already confirmed your attendance for this meeting. No further action is needed.
+              {worker.name ? `${worker.name}, you` : "You"} have already been marked present
+              for this meeting. No further action is needed.
             </p>
+          </div>
+        </div>
+
+        <div>
+          <p className="text-sm font-medium text-ink mb-3">Your details</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <ReadonlyField label="First Name" value={nameParts.firstname} />
+            <ReadonlyField label="Last Name" value={nameParts.lastname} />
+            <ReadonlyField label="Other Name" value={nameParts.othername} />
+            <ReadonlyField label="Phone Number" value={phone} />
+            {worker.email ? <ReadonlyField label="Email Address" value={worker.email} /> : null}
+            <ReadonlyField label="Role" value={worker.role} />
+            <ReadonlyField label="Team" value={worker.team} />
+            <ReadonlyField label="Department" value={worker.department} />
           </div>
         </div>
       </div>
     );
   }
-
-  const missingBadge = (
-    <span className="ml-1.5 inline-block rounded bg-mustard-50 px-1.5 py-0.5 text-2xs font-medium text-mustard">
-      Missing
-    </span>
-  );
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
@@ -380,269 +450,139 @@ function EditWorkerStep({ worker, token, onBack, onDone }) {
         &larr; Back
       </button>
 
-      {/* Identity banner */}
-      <div className="rounded-lg border border-ink-200 bg-ink-100 px-4 py-3 flex items-center gap-3">
-        <UserCircleIcon className="h-5 w-5 text-ink-500 shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-ink truncate">{worker.name}</p>
-          {(worker.department || worker.team) && (
-            <p className="text-xs text-ink-500 truncate">
-              {[worker.department, worker.team].filter(Boolean).join(" · ")}
-            </p>
-          )}
-        </div>
+      <div className="rounded-lg border border-ink-200 bg-ink-100 px-4 py-3">
+        <p className="text-sm font-medium text-ink">Review and update your details</p>
+        <p className="text-xs text-ink-500 mt-0.5">
+          Edit any field below, then mark yourself present.
+        </p>
       </div>
 
-      {!hasMissing ? (
-        <>
-          <div className="rounded-lg border border-forest-50 bg-forest-50 px-4 py-3">
-            <p className="text-sm text-forest font-medium">
-              Your details are complete. Nothing to update.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {worker.role && <ReadonlyField label="Role" value={worker.role} />}
-            {worker.department && <ReadonlyField label="Department" value={worker.department} />}
-            {worker.team && <ReadonlyField label="Team" value={worker.team} />}
-          </div>
-        </>
-      ) : (
-        <>
-          {/* Existing details (read-only) shown first */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {!missing.has("email") && worker.email && <ReadonlyField label="Email Address" value={worker.email} />}
-            {!missing.has("phone") && worker.phone && <ReadonlyField label="Phone Number" value={worker.phone} />}
-            {!missing.has("gender") && worker.gender && <ReadonlyField label="Gender" value={worker.gender} />}
-            {!missing.has("maritalstatus") && worker.maritalstatus && <ReadonlyField label="Marital Status" value={worker.maritalstatus} />}
-            {!missing.has("agerange") && worker.agerange && <ReadonlyField label="Age Range" value={worker.agerange} />}
-            {!missing.has("role") && worker.role && <ReadonlyField label="Role" value={worker.role} />}
-            {!missing.has("birthdate") && worker.birthdate && <ReadonlyField label="Date of Birth" value={worker.birthdate} />}
-            {!missing.has("address") && worker.address && <ReadonlyField label="Address" value={worker.address} />}
-            {!missing.has("employment") && worker.employment && <ReadonlyField label="Employment Status" value={worker.employment} />}
-            {!missing.has("occupation") && worker.occupation && <ReadonlyField label="Occupation" value={worker.occupation} />}
-            {!missing.has("district_sub_team") && worker.district_sub_team && <ReadonlyField label="District/Sub-team" value={worker.district_sub_team} />}
-          </div>
-
-          {/* Missing fields (editable) */}
-          <p className="text-xs text-ink-500">
-            Please complete the fields marked{" "}
-            <span className="rounded bg-mustard-50 px-1 py-0.5 text-2xs font-medium text-mustard">
-              Missing
-            </span>{" "}
-            below.
-          </p>
-
-          {missing.has("email") && (
-            <div>
-              <Label htmlFor="edit-email" required>
-                Email Address {missingBadge}
-              </Label>
-              <input id="edit-email" type="email" placeholder="you@example.com"
-                value={form.email} onChange={set("email")} className={inputClass} />
-              <FieldError message={errors.email} />
-            </div>
-          )}
-
-          {missing.has("phone") && (
-            <div>
-              <Label htmlFor="edit-phone" required>
-                Phone Number {missingBadge}
-              </Label>
-              <input id="edit-phone" type="tel" placeholder="08012345678"
-                value={form.phone} onChange={set("phone")} className={inputClass} />
-              <FieldError message={errors.phone} />
-            </div>
-          )}
-
-          {missing.has("gender") && (
-            <div>
-              <Label htmlFor="edit-gender" required>
-                Gender {missingBadge}
-              </Label>
-              <select id="edit-gender" value={form.gender} onChange={set("gender")} className={selectClass}>
-                <option value="">Select</option>
-                <option>Male</option>
-                <option>Female</option>
-              </select>
-              <FieldError message={errors.gender} />
-            </div>
-          )}
-
-          {missing.has("maritalstatus") && (
-            <div>
-              <Label htmlFor="edit-maritalstatus" required>
-                Marital Status {missingBadge}
-              </Label>
-              <select id="edit-maritalstatus" value={form.maritalstatus} onChange={set("maritalstatus")} className={selectClass}>
-                <option value="">Select</option>
-                {MARITAL_OPTIONS.map((o) => <option key={o}>{o}</option>)}
-              </select>
-              <FieldError message={errors.maritalstatus} />
-            </div>
-          )}
-
-          {missing.has("agerange") && (
-            <div>
-              <Label htmlFor="edit-agerange" required>
-                Age Range {missingBadge}
-              </Label>
-              <select id="edit-agerange" value={form.agerange} onChange={set("agerange")} className={selectClass}>
-                <option value="">Select</option>
-                {AGE_RANGES.map((o) => <option key={o}>{o}</option>)}
-              </select>
-              <FieldError message={errors.agerange} />
-            </div>
-          )}
-
-          {missing.has("role") && (
-            <div>
-              <Label htmlFor="edit-role">
-                Role {missingBadge}
-              </Label>
-              <input id="edit-role" type="text" placeholder="e.g. Member"
-                value={form.role} onChange={set("role")} className={inputClass} />
-            </div>
-          )}
-
-          {missing.has("birthdate") && (
-            <div>
-              <Label htmlFor="edit-birthdate">
-                Date of Birth {missingBadge}
-              </Label>
-              <BirthDatePicker
-                value={form.birthdate}
-                onChange={(val) => {
-                  setForm((prev) => ({ ...prev, birthdate: val }));
-                  setErrors((prev) => ({ ...prev, birthdate: undefined }));
-                }}
-              />
-            </div>
-          )}
-
-          {missing.has("address") && (
-            <div>
-              <Label htmlFor="edit-address" required>
-                Address {missingBadge}
-              </Label>
-              <input id="edit-address" type="text" placeholder="e.g. 12 Example Street, Gbagada, Lagos"
-                value={form.address} onChange={set("address")} className={inputClass} />
-              <FieldError message={errors.address} />
-            </div>
-          )}
-
-          {missing.has("employment") && (
-            <div>
-              <Label htmlFor="edit-employment" required>
-                Employment Status {missingBadge}
-              </Label>
-              <select id="edit-employment" value={form.employment} onChange={set("employment")} className={selectClass}>
-                <option value="">Select</option>
-                {EMPLOYMENT_OPTIONS.map((o) => <option key={o}>{o}</option>)}
-              </select>
-              <FieldError message={errors.employment} />
-            </div>
-          )}
-
-          {missing.has("occupation") && (
-            <div>
-              <Label htmlFor="edit-occupation" required>
-                Occupation {missingBadge}
-              </Label>
-              <input id="edit-occupation" type="text" placeholder="e.g. Engineer"
-                value={form.occupation} onChange={set("occupation")} className={inputClass} />
-              <FieldError message={errors.occupation} />
-            </div>
-          )}
-
-          {missing.has("district_sub_team") && (
-            <div>
-              <Label htmlFor="edit-district-sub-team" required>
-                District/Sub-team {missingBadge}
-              </Label>
-              <select id="edit-district-sub-team" value={form.district_sub_team} onChange={set("district_sub_team")} className={selectClass}>
-                <option value="">Select</option>
-                <option>Pastor Biola Cluster</option>
-                <option>Pastor Isaac Cluster</option>
-              </select>
-              <FieldError message={errors.district_sub_team} />
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Attendance question */}
-      <div className="space-y-3">
-        <Label required>Will you be attending the meeting?</Label>
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={() => { setAttending("yes"); setErrors((p) => ({ ...p, attending: undefined })); }}
-            className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium transition ${
-              attending === "yes"
-                ? "border-forest bg-forest-50 text-forest"
-                : "border-ink-200 bg-white text-ink hover:bg-cream"
-            }`}
-          >
-            Yes
-          </button>
-          <button
-            type="button"
-            onClick={() => { setAttending("no"); setErrors((p) => ({ ...p, attending: undefined })); }}
-            className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium transition ${
-              attending === "no"
-                ? "border-sienna bg-sienna-50 text-sienna"
-                : "border-ink-200 bg-white text-ink hover:bg-cream"
-            }`}
-          >
-            No
-          </button>
-        </div>
-        <FieldError message={errors.attending} />
-      </div>
-
-      {/* Decline reason */}
-      {attending === "no" && (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="edit-decline-reason" required>
-            Reason for not attending
-          </Label>
-          <textarea
-            id="edit-decline-reason"
-            rows={3}
-            placeholder="Please let us know why you won't be attending"
-            value={declineReason}
+          <Label htmlFor="edit-firstname" required>First Name</Label>
+          <input
+            id="edit-firstname"
+            type="text"
+            placeholder="Enter first name"
+            value={form.firstname}
+            onChange={set("firstname")}
+            className={inputClass}
+          />
+          <FieldError message={errors.firstname} />
+        </div>
+        <div>
+          <Label htmlFor="edit-lastname" required>Last Name</Label>
+          <input
+            id="edit-lastname"
+            type="text"
+            placeholder="Enter last name"
+            value={form.lastname}
+            onChange={set("lastname")}
+            className={inputClass}
+          />
+          <FieldError message={errors.lastname} />
+        </div>
+        <div>
+          <Label htmlFor="edit-othername">Other Name</Label>
+          <input
+            id="edit-othername"
+            type="text"
+            placeholder="Optional"
+            value={form.othername}
+            onChange={set("othername")}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <Label htmlFor="edit-phone" required>Phone Number</Label>
+          <input
+            id="edit-phone"
+            type="tel"
+            placeholder="07044208143 or +234..."
+            value={form.phone}
             onChange={(e) => {
-              setDeclineReason(e.target.value);
-              setErrors((p) => ({ ...p, declineReason: undefined }));
+              const cleaned = e.target.value.replace(/[^\d+]/g, "");
+              setForm((prev) => ({ ...prev, phone: cleaned }));
+              setErrors((prev) => ({ ...prev, phone: undefined }));
             }}
             className={inputClass}
           />
-          <FieldError message={errors.declineReason} />
+          <FieldError message={errors.phone} />
         </div>
-      )}
+        {showEmail && (
+          <div className="sm:col-span-2">
+            <Label htmlFor="edit-email">Email Address</Label>
+            <input
+              id="edit-email"
+              type="email"
+              placeholder="Optional"
+              value={form.email}
+              onChange={set("email")}
+              className={inputClass}
+            />
+            <FieldError message={errors.email} />
+          </div>
+        )}
+        <div>
+          <Label htmlFor="edit-role" required>Role</Label>
+          <select id="edit-role" value={form.role} onChange={set("role")} className={selectClass}>
+            <option value="">Select Role</option>
+            {PRESENT_ROLE_OPTIONS.map((o) => (
+              <option key={o}>{o}</option>
+            ))}
+            {form.role &&
+              !isPlaceholderRole(form.role) &&
+              !PRESENT_ROLE_OPTIONS.includes(form.role) && (
+                <option value={form.role}>{form.role}</option>
+              )}
+          </select>
+          <FieldError message={errors.role} />
+        </div>
+        <div>
+          <Label htmlFor="edit-team" required>Team</Label>
+          <select id="edit-team" value={form.team} onChange={setTeam} className={selectClass}>
+            <option value="">Select Team</option>
+            {teamsAndDepartments.map((t) => (
+              <option key={t.team} value={t.team}>{t.team}</option>
+            ))}
+          </select>
+          <FieldError message={errors.team} />
+        </div>
+        <div className="sm:col-span-2">
+          <Label htmlFor="edit-department" required>Department</Label>
+          <select
+            id="edit-department"
+            value={form.department}
+            onChange={set("department")}
+            className={selectClass}
+            disabled={!form.team}
+          >
+            <option value="">{form.team ? "Select Department" : "Select team first"}</option>
+            {departmentOptions.map((d) => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+            {form.department && !departmentOptions.includes(form.department) && (
+              <option value={form.department}>{form.department}</option>
+            )}
+          </select>
+          <FieldError message={errors.department} />
+        </div>
+      </div>
 
       <div className="pt-2">
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || !canMarkPresent}
           className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg bg-ink px-8 py-3 text-sm font-medium text-cream transition hover:bg-ink/90 disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {isSubmitting
-            ? "Submitting..."
-            : attending === "no"
-              ? "Submit"
-              : hasMissing
-                ? "Submit Details"
-                : "Confirm Attendance"}
+          {isSubmitting ? "Submitting..." : "Mark Present"}
         </button>
       </div>
     </form>
   );
 }
 
-// ── Step 3b: Create New Worker ──────────────────────────────────────────────
-
-function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
+function CreatePresentWorkerStep({ searchedName, token, onBack, onDone }) {
   const nameParts = (searchedName || "").trim().split(/\s+/);
   const [form, setForm] = useState({
     firstname: nameParts[0] || "",
@@ -700,7 +640,8 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
     if (!form.occupation.trim()) errs.occupation = "Occupation is required";
     if (!form.address.trim()) errs.address = "Address is required";
     if (!form.team) errs.team = "Team is required";
-    if (form.team === "Districts" && !form.district_sub_team) errs.district_sub_team = "District/Sub-team is required";
+    if (form.team === "Districts" && !form.district_sub_team)
+      errs.district_sub_team = "District/Sub-team is required";
     if (!form.department) errs.department = "Department is required";
     return errs;
   };
@@ -708,7 +649,10 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = validate();
-    if (Object.keys(errs).length) { setErrors(errs); return; }
+    if (Object.keys(errs).length) {
+      setErrors(errs);
+      return;
+    }
     setIsSubmitting(true);
     try {
       const payload = {
@@ -728,11 +672,11 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
         team: form.team,
         district_sub_team: form.team === "Districts" ? form.district_sub_team : undefined,
         department: form.department,
-        is_confirmed: true,
         meeting_date: MEETING_DATE,
+        present: true,
       };
       await createMeetingWorker(payload, token);
-      onDone("create");
+      onDone();
     } catch (err) {
       toast.error(err.message || "Failed to add worker. Please try again.");
     } finally {
@@ -753,35 +697,28 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
       <div className="rounded-lg border border-ink-200 bg-ink-100 px-4 py-3">
         <p className="text-sm font-medium text-ink">Add Yourself as a New Worker</p>
         <p className="text-xs text-ink-500 mt-0.5">
-          Please fill in all required fields below.
+          Please fill in all required fields below. You will be marked present after submitting.
         </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* First Name */}
         <div>
           <Label htmlFor="create-firstname" required>First Name</Label>
           <input id="create-firstname" type="text" placeholder="Enter first name"
             value={form.firstname} onChange={set("firstname")} className={inputClass} />
           <FieldError message={errors.firstname} />
         </div>
-
-        {/* Last Name */}
         <div>
           <Label htmlFor="create-lastname" required>Last Name</Label>
           <input id="create-lastname" type="text" placeholder="Enter last name"
             value={form.lastname} onChange={set("lastname")} className={inputClass} />
           <FieldError message={errors.lastname} />
         </div>
-
-        {/* Other Name */}
         <div>
           <Label htmlFor="create-othername">Other Name</Label>
           <input id="create-othername" type="text" placeholder="Optional"
             value={form.othername} onChange={set("othername")} className={inputClass} />
         </div>
-
-        {/* Gender */}
         <div>
           <Label htmlFor="create-gender" required>Gender</Label>
           <select id="create-gender" value={form.gender} onChange={set("gender")} className={selectClass}>
@@ -790,8 +727,6 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
           </select>
           <FieldError message={errors.gender} />
         </div>
-
-        {/* Phone */}
         <div>
           <Label htmlFor="create-phone" required>Phone Number</Label>
           <input id="create-phone" type="tel" placeholder="11 digits"
@@ -804,16 +739,12 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
             className={inputClass} />
           <FieldError message={errors.phone} />
         </div>
-
-        {/* Email */}
         <div>
           <Label htmlFor="create-email" required>Email Address</Label>
           <input id="create-email" type="email" placeholder="you@example.com"
             value={form.email} onChange={set("email")} className={inputClass} />
           <FieldError message={errors.email} />
         </div>
-
-        {/* Worker Role */}
         <div>
           <Label htmlFor="create-role" required>Worker Role</Label>
           <select id="create-role" value={form.role} onChange={set("role")} className={selectClass}>
@@ -822,8 +753,6 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
           </select>
           <FieldError message={errors.role} />
         </div>
-
-        {/* Birth Date */}
         <div>
           <Label required>Date of Birth (day and month)</Label>
           <BirthDatePicker
@@ -836,8 +765,6 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
           />
           <FieldError message={errors.birthdate} />
         </div>
-
-        {/* Marital Status */}
         <div>
           <Label htmlFor="create-maritalstatus" required>Marital Status</Label>
           <select id="create-maritalstatus" value={form.maritalstatus} onChange={set("maritalstatus")} className={selectClass}>
@@ -846,8 +773,6 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
           </select>
           <FieldError message={errors.maritalstatus} />
         </div>
-
-        {/* Age Range */}
         <div>
           <Label htmlFor="create-agerange" required>Age Range</Label>
           <select id="create-agerange" value={form.agerange} onChange={set("agerange")} className={selectClass}>
@@ -856,8 +781,6 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
           </select>
           <FieldError message={errors.agerange} />
         </div>
-
-        {/* Employment */}
         <div>
           <Label htmlFor="create-employment" required>Employment Status</Label>
           <select id="create-employment" value={form.employment} onChange={set("employment")} className={selectClass}>
@@ -866,16 +789,12 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
           </select>
           <FieldError message={errors.employment} />
         </div>
-
-        {/* Occupation */}
         <div>
           <Label htmlFor="create-occupation" required>Occupation</Label>
           <input id="create-occupation" type="text" placeholder="Enter occupation"
             value={form.occupation} onChange={set("occupation")} className={inputClass} />
           <FieldError message={errors.occupation} />
         </div>
-
-        {/* Team */}
         <div className="sm:col-span-2">
           <Label htmlFor="create-team" required>Team</Label>
           <select id="create-team" value={form.team} onChange={setTeam} className={selectClass}>
@@ -886,8 +805,6 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
           </select>
           <FieldError message={errors.team} />
         </div>
-
-        {/* District/Sub-team — only for Districts */}
         {form.team === "Districts" && (
           <div className="sm:col-span-2">
             <Label htmlFor="create-district-sub-team" required>District/Sub-team</Label>
@@ -899,8 +816,6 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
             <FieldError message={errors.district_sub_team} />
           </div>
         )}
-
-        {/* Department — filtered by team */}
         {form.team && (
           <div className="sm:col-span-2">
             <Label htmlFor="create-department" required>Department</Label>
@@ -913,8 +828,6 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
             <FieldError message={errors.department} />
           </div>
         )}
-
-        {/* Address */}
         <div className="sm:col-span-2">
           <Label htmlFor="create-address" required>Address</Label>
           <textarea id="create-address" rows={3}
@@ -936,52 +849,71 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
           disabled={isSubmitting}
           className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg bg-ink px-8 py-3 text-sm font-medium text-cream transition hover:bg-ink/90 disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {isSubmitting ? "Submitting..." : "Add Worker"}
+          {isSubmitting ? "Submitting..." : "Add & Mark Present"}
         </button>
       </div>
     </form>
   );
 }
 
-// ── Success Screen ───────────────────────────────────────────────────────────
-
-function SuccessScreen({ variant }) {
-  const titles = {
-    confirm: "Confirmation Status is Confirmed",
-    decline: "Response Recorded",
-    create: "Details Submitted",
-  };
-  const messages = {
-    confirm: "See you at the meeting.",
-    decline: "Thank you for letting us know. We hope to see you at a future meeting.",
-    create: "Thank you for adding your details. Your information has been submitted successfully.",
-  };
+function SuccessScreen({ onBackToSearch }) {
   return (
-    <div className="text-center py-8 space-y-3">
-      <CheckCircleIcon className="mx-auto h-14 w-14 text-forest" />
-      <h2 className="text-2xl font-semibold text-ink">
-        {titles[variant] || titles.confirm}
-      </h2>
-      <p className="text-sm text-ink-500 leading-relaxed max-w-sm mx-auto">
-        {messages[variant] || messages.confirm}
-      </p>
+    <div className="text-center py-8 space-y-5">
+      <div className="space-y-3">
+        <CheckCircleIcon className="mx-auto h-14 w-14 text-forest" />
+        <h2 className="text-2xl font-semibold text-ink">You Are Marked Present</h2>
+        <p className="text-sm text-ink-500 leading-relaxed max-w-sm mx-auto">
+          Your attendance has been recorded. Welcome to the meeting.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onBackToSearch}
+        className="inline-flex items-center justify-center rounded-lg bg-ink px-6 py-2.5 text-sm font-medium text-cream transition hover:bg-ink/90"
+      >
+        Mark another person
+      </button>
     </div>
   );
 }
 
-// ── Page Shell ───────────────────────────────────────────────────────────────
+function Shell({ children }) {
+  return (
+    <div className="min-h-screen bg-cream flex flex-col">
+      <header className="border-b border-ink-200 bg-cream">
+        <div className="max-w-6xl mx-auto px-5 sm:px-8 h-16 flex items-center gap-3">
+          <img
+            src="/logo.jpg"
+            alt="Harvesters"
+            className="h-12 w-auto select-none mix-blend-multiply"
+          />
+          <span className="hidden sm:inline-block h-4 w-px bg-ink-200" />
+          <span className="hidden sm:inline-block text-sm text-ink-500 font-mono">
+            Leaders Meeting - Saturday, 15th August 2026
+          </span>
+        </div>
+      </header>
 
-export default function LeadersMeetingConfirm() {
+      <main className="flex-1 px-5 py-10 sm:px-8">
+        <div className="max-w-xl mx-auto">{children}</div>
+      </main>
+
+      <footer className="border-t border-ink-200 py-5 px-5 sm:px-8 text-center text-xs text-ink-500">
+        Harvesters International Christian Centre, Gbagada Campus
+      </footer>
+    </div>
+  );
+}
+
+export default function LeadersMeetingPresent() {
   const [sessionToken, setSessionToken] = useState(null);
   const [sessionError, setSessionError] = useState(false);
   const initCalled = useRef(false);
 
-  // Search results state
   const [step, setStep] = useState("search"); // search | select | edit | create | done
   const [results, setResults] = useState([]);
   const [searchedName, setSearchedName] = useState("");
   const [selectedWorker, setSelectedWorker] = useState(null);
-  const [doneVariant, setDoneVariant] = useState(null);
 
   useEffect(() => {
     if (initCalled.current) return;
@@ -1003,12 +935,6 @@ export default function LeadersMeetingConfirm() {
     setStep("edit");
   };
 
-  const handleBackToSearch = () => {
-    setResults([]);
-    setSearchedName("");
-    setStep("search");
-  };
-
   const handleBackToSelect = () => {
     setSelectedWorker(null);
     setStep("select");
@@ -1019,15 +945,24 @@ export default function LeadersMeetingConfirm() {
     setStep("create");
   };
 
-  const handleDone = (variant) => {
-    setDoneVariant(variant || "confirm");
-    if (variant === "confirm" && selectedWorker) {
-      const updated = { ...selectedWorker, is_confirmed: true, isConfirmed: true };
-      setSelectedWorker(updated);
-      setResults((prev) =>
-        prev.map((w) => (w.id === selectedWorker.id ? { ...w, is_confirmed: true, isConfirmed: true } : w))
-      );
-    }
+  const handleBackToSearch = () => {
+    setResults([]);
+    setSearchedName("");
+    setSelectedWorker(null);
+    setStep("search");
+  };
+
+  const handleDone = () => {
+    setSelectedWorker((prev) =>
+      prev ? { ...prev, is_present: true, isPresent: true } : prev
+    );
+    setResults((prev) =>
+      prev.map((worker) =>
+        worker.id === selectedWorker?.id
+          ? { ...worker, is_present: true, isPresent: true }
+          : worker
+      )
+    );
     setStep("done");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -1039,15 +974,12 @@ export default function LeadersMeetingConfirm() {
       .catch(() => setSessionError(true));
   };
 
-  // ── Loading / error states ──
   if (sessionError) {
     return (
       <Shell>
         <div className="rounded-lg border border-sienna-50 bg-sienna-50 p-6 text-center space-y-3">
           <ExclamationTriangleIcon className="mx-auto h-10 w-10 text-sienna" />
-          <p className="text-sm font-medium text-ink">
-            Unable to start session
-          </p>
+          <p className="text-sm font-medium text-ink">Unable to start session</p>
           <p className="text-xs text-ink-500">
             Please check your connection and try again.
           </p>
@@ -1080,14 +1012,19 @@ export default function LeadersMeetingConfirm() {
         <p className="text-xs font-mono uppercase tracking-widest text-ink-500 mb-1">
           Leaders Meeting - Saturday, 15th August 2026
         </p>
-        <h1 className="text-2xl sm:text-3xl font-semibold text-ink leading-snug">
-          Confirm Your Attendance
-        </h1>
-        {step !== "search" && step !== "done" && (
+        {step === "select" && (
           <p className="mt-2 text-sm text-ink-500">
-            {step === "select" && "Select your name from the results below."}
-            {step === "edit" && "Review and complete your information."}
-            {step === "create" && "Fill in your details to add yourself as a new worker."}
+            Select your name from the list below.
+          </p>
+        )}
+        {step === "edit" && (
+          <p className="mt-2 text-sm text-ink-500">
+            Review and edit your details, then mark present.
+          </p>
+        )}
+        {step === "create" && (
+          <p className="mt-2 text-sm text-ink-500">
+            Fill in your details to add yourself as a new worker.
           </p>
         )}
       </div>
@@ -1107,7 +1044,7 @@ export default function LeadersMeetingConfirm() {
         />
       )}
       {step === "edit" && selectedWorker && (
-        <EditWorkerStep
+        <EditPresentStep
           worker={selectedWorker}
           token={sessionToken}
           onBack={handleBackToSelect}
@@ -1115,42 +1052,14 @@ export default function LeadersMeetingConfirm() {
         />
       )}
       {step === "create" && (
-        <CreateWorkerStep
+        <CreatePresentWorkerStep
           searchedName={searchedName}
           token={sessionToken}
           onBack={handleBackToSelect}
           onDone={handleDone}
         />
       )}
-      {step === "done" && <SuccessScreen variant={doneVariant} />}
+      {step === "done" && <SuccessScreen onBackToSearch={handleBackToSearch} />}
     </Shell>
-  );
-}
-
-function Shell({ children }) {
-  return (
-    <div className="min-h-screen bg-cream flex flex-col">
-      <header className="border-b border-ink-200 bg-cream">
-        <div className="max-w-6xl mx-auto px-5 sm:px-8 h-16 flex items-center gap-3">
-          <img
-            src="/logo.jpg"
-            alt="Harvesters"
-            className="h-12 w-auto select-none mix-blend-multiply"
-          />
-          <span className="hidden sm:inline-block h-4 w-px bg-ink-200" />
-          <span className="hidden sm:inline-block text-sm text-ink-500 font-mono">
-            Leaders Meeting - Saturday, 15th August 2026
-          </span>
-        </div>
-      </header>
-
-      <main className="flex-1 px-5 py-10 sm:px-8">
-        <div className="max-w-xl mx-auto">{children}</div>
-      </main>
-
-      <footer className="border-t border-ink-200 py-5 px-5 sm:px-8 text-center text-xs text-ink-500">
-        Harvesters International Christian Centre, Gbagada Campus
-      </footer>
-    </div>
   );
 }

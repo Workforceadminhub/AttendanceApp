@@ -291,12 +291,20 @@ export default function Dashboard() {
             </p>
           </div>
           {isAdminMember && (isChurchAdmin || isTeamAdmin || authUser?.department === "Super Admin" || authUser?.permissionLevel === "SUPER_ADMIN") && (
-            <Link
-              to="/report/confirmation-leaders-meeting"
-              className="inline-flex items-center gap-2 rounded-lg border border-ink-200 bg-white px-4 py-2 text-sm font-medium text-ink transition hover:bg-ink-100 shrink-0"
-            >
-              Leaders Meeting Confirmation Report
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+              <Link
+                to="/report/confirmation-leaders-meeting"
+                className="inline-flex items-center gap-2 rounded-lg border border-ink-200 bg-white px-4 py-2 text-sm font-medium text-ink transition hover:bg-ink-100"
+              >
+                Leaders Meeting Confirmation Report
+              </Link>
+              <Link
+                to="/report/leaders-meeting"
+                className="inline-flex items-center gap-2 rounded-lg border border-ink-200 bg-white px-4 py-2 text-sm font-medium text-ink transition hover:bg-ink-100"
+              >
+                Leaders Meeting Report
+              </Link>
+            </div>
           )}
         </div>
 

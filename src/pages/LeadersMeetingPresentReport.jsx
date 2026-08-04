@@ -15,7 +15,7 @@ import { getUser } from "../utils/getUser";
 import { teamsAndDepartments } from "../utils/teams";
 
 const MEETING_DATE = "2026-08-15";
-const STATUS_OPTIONS = ["all", "confirmed", "not attending"];
+const STATUS_OPTIONS = ["all", "present", "absent", "confirmed", "not attending"];
 
 
 const TEAM_STRENGTH = {
@@ -58,6 +58,10 @@ const th =
   "px-3 py-2 text-left text-xs font-semibold text-ink-600 uppercase tracking-wide whitespace-nowrap";
 const td = "px-3 py-2 text-sm text-ink-800 whitespace-nowrap";
 
+function isMarkedPresent(r) {
+  return r?.is_present === true;
+}
+
 function formatDate(iso) {
   if (!iso) return "-";
   try {
@@ -79,7 +83,7 @@ function formatDate(iso) {
   }
 }
 
-export default function LeadersMeetingReport() {
+export default function LeadersMeetingPresentReport() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("summary"); // summary | list
@@ -137,12 +141,10 @@ export default function LeadersMeetingReport() {
     try {
       // Always fetch all registrations to perform status filtering on client side
       const res = await getMeetingRegistrations(MEETING_DATE, "all");
-      const cleaned = (res.data || [])
-        .filter((r) => r.is_confirmed === true || r.is_confirmed === false)
-        .map((r) => ({
-          ...r,
-          name: r.name ? r.name.replace(/\s+null$/i, "").trim() : "",
-        }));
+      const cleaned = (res.data || []).map((r) => ({
+        ...r,
+        name: r.name ? r.name.replace(/\s+null$/i, "").trim() : "",
+      }));
       setRegistrations(cleaned);
       setCount(cleaned.length);
     } catch (err) {
@@ -190,14 +192,16 @@ export default function LeadersMeetingReport() {
   }, [registrations]);
 
   // Compute metrics dynamically from scoped registrations
-  const { stats, confirmedByTeam, notAttendingByTeam } = React.useMemo(() => {
+  const { stats, confirmedByTeam, notAttendingByTeam, presentByTeam } = React.useMemo(() => {
     let total = scopedRegistrations.length;
     let confirmed = 0;
+    let present = 0;
     let declined = 0;
     let noResponse = 0;
 
     const cByTeam = {};
     const nByTeam = {};
+    const pByTeam = {};
 
     scopedRegistrations.forEach((r) => {
       // Calculate overall counts
@@ -208,6 +212,7 @@ export default function LeadersMeetingReport() {
       } else {
         noResponse++;
       }
+      if (isMarkedPresent(r)) present++;
 
       // Map registrations to TEAM_STRUCTURE team names
       const rTeam = (r.team || "").toLowerCase().trim();
@@ -233,13 +238,17 @@ export default function LeadersMeetingReport() {
         } else if (r.is_confirmed === false) {
           nByTeam[matched] = (nByTeam[matched] || 0) + 1;
         }
+        if (isMarkedPresent(r)) {
+          pByTeam[matched] = (pByTeam[matched] || 0) + 1;
+        }
       }
     });
 
     return {
-      stats: { total, confirmed, declined, noResponse },
+      stats: { total, confirmed, present, declined, noResponse },
       confirmedByTeam: cByTeam,
-      notAttendingByTeam: nByTeam
+      notAttendingByTeam: nByTeam,
+      presentByTeam: pByTeam,
     };
   }, [scopedRegistrations, teamNameLookup]);
 
@@ -298,6 +307,8 @@ export default function LeadersMeetingReport() {
     if (filterDept && r.department !== filterDept) return false;
 
     // Status filter
+    if (status === "present" && r.is_present !== true) return false;
+    if (status === "absent" && r.is_present === true) return false;
     if (status === "confirmed" && r.is_confirmed !== true) return false;
     if (status === "not attending" && r.is_confirmed !== false) return false;
     if (status === "no response" && (r.is_confirmed === true || r.is_confirmed === false)) return false;
@@ -320,6 +331,7 @@ export default function LeadersMeetingReport() {
   const filteredStats = React.useMemo(() => {
     let total = filtered.length;
     let confirmed = 0;
+    let present = 0;
     let declined = 0;
     let noResponse = 0;
 
@@ -331,18 +343,20 @@ export default function LeadersMeetingReport() {
       } else {
         noResponse++;
       }
+      if (isMarkedPresent(r)) present++;
     });
 
-    const pct = total ? `${Math.round((confirmed / total) * 100)}%` : "-";
+    const pctPresent = total ? `${((present / total) * 100).toFixed(1)}%` : "-";
+    const absent = Math.max(total - present, 0);
 
-    return { total, confirmed, declined, noResponse, pct };
+    return { total, confirmed, present, declined, noResponse, pctPresent, absent };
   }, [filtered]);
 
   const filteredTotal = filteredStats.total;
   const filteredConfirmed = filteredStats.confirmed;
-  const filteredNotAttending = filteredStats.declined;
-  const filteredUnconfirmed = filteredStats.noResponse + filteredStats.declined;
-  const filteredPct = filteredStats.pct;
+  const filteredPresent = filteredStats.present;
+  const filteredAbsent = filteredStats.absent;
+  const filteredPctPresent = filteredStats.pctPresent;
 
   const exportSummarySheet = async () => {
     try {
@@ -355,9 +369,9 @@ export default function LeadersMeetingReport() {
         { header: "TEAM", key: "team", width: 25 },
         { header: "TOTAL", key: "total", width: 12 },
         { header: "CONFIRMED", key: "confirmed", width: 15 },
-        { header: "% CONFIRMED", key: "pctConfirmed", width: 18 },
-        { header: "NOT ATTENDING", key: "notAttending", width: 18 },
-        { header: "UNCONFIRMED", key: "unconfirmed", width: 15 },
+        { header: "PRESENT", key: "present", width: 15 },
+        { header: "% OF PRESENT", key: "pctPresent", width: 18 },
+        { header: "ABSENT", key: "absent", width: 15 },
       ];
 
       // Format headers
@@ -403,9 +417,9 @@ export default function LeadersMeetingReport() {
             team: r.team,
             total: r.total,
             confirmed: r.confirmed,
-            pctConfirmed: parseFloat(r.pct) / 100,
-            notAttending: r.notAttending,
-            unconfirmed: r.absent,
+            present: r.present,
+            pctPresent: parseFloat(r.pct) / 100,
+            absent: r.absent,
           });
 
           // Set cell alignments and formats
@@ -413,20 +427,20 @@ export default function LeadersMeetingReport() {
           row.getCell("team").alignment = { vertical: "middle", horizontal: "left" };
           row.getCell("total").alignment = { vertical: "middle", horizontal: "right" };
           row.getCell("confirmed").alignment = { vertical: "middle", horizontal: "right" };
-          row.getCell("pctConfirmed").alignment = { vertical: "middle", horizontal: "right" };
-          row.getCell("pctConfirmed").numFmt = "0.00%";
-          row.getCell("notAttending").alignment = { vertical: "middle", horizontal: "right" };
-          row.getCell("unconfirmed").alignment = { vertical: "middle", horizontal: "right" };
+          row.getCell("present").alignment = { vertical: "middle", horizontal: "right" };
+          row.getCell("pctPresent").alignment = { vertical: "middle", horizontal: "right" };
+          row.getCell("pctPresent").numFmt = "0.00%";
+          row.getCell("absent").alignment = { vertical: "middle", horizontal: "right" };
 
           // Styling based on values
           if (r.confirmed > 0) {
             row.getCell("confirmed").font = { color: { argb: "FF059669" }, bold: true };
           }
-          if (r.notAttending > 0) {
-            row.getCell("notAttending").font = { color: { argb: "FFD97706" }, bold: true };
+          if (r.present > 0) {
+            row.getCell("present").font = { color: { argb: "FF059669" }, bold: true };
           }
           if (r.absent > 0) {
-            row.getCell("unconfirmed").font = { color: { argb: "FFDC2626" }, bold: true };
+            row.getCell("absent").font = { color: { argb: "FFDC2626" }, bold: true };
           }
 
           row.eachCell((cell, colNumber) => {
@@ -464,13 +478,13 @@ export default function LeadersMeetingReport() {
         team: "",
         total: grouped.reduce((a, g) => a + g.total, 0),
         confirmed: grouped.reduce((a, g) => a + g.confirmed, 0),
-        pctConfirmed: (() => {
+        present: grouped.reduce((a, g) => a + g.present, 0),
+        pctPresent: (() => {
           const t = grouped.reduce((a, g) => a + g.total, 0);
-          const c = grouped.reduce((a, g) => a + g.confirmed, 0);
-          return t ? c / t : 0;
+          const p = grouped.reduce((a, g) => a + g.present, 0);
+          return t ? p / t : 0;
         })(),
-        notAttending: grouped.reduce((a, g) => a + g.notAttending, 0),
-        unconfirmed: grouped.reduce((a, g) => a + g.absent, 0),
+        absent: grouped.reduce((a, g) => a + g.absent, 0),
       };
 
       const totalRow = worksheet.addRow(totalRowData);
@@ -493,10 +507,10 @@ export default function LeadersMeetingReport() {
       totalRow.getCell("directorate").alignment = { vertical: "middle", horizontal: "left" };
       totalRow.getCell("total").alignment = { vertical: "middle", horizontal: "right" };
       totalRow.getCell("confirmed").alignment = { vertical: "middle", horizontal: "right" };
-      totalRow.getCell("pctConfirmed").alignment = { vertical: "middle", horizontal: "right" };
-      totalRow.getCell("pctConfirmed").numFmt = "0.00%";
-      totalRow.getCell("notAttending").alignment = { vertical: "middle", horizontal: "right" };
-      totalRow.getCell("unconfirmed").alignment = { vertical: "middle", horizontal: "right" };
+      totalRow.getCell("present").alignment = { vertical: "middle", horizontal: "right" };
+      totalRow.getCell("pctPresent").alignment = { vertical: "middle", horizontal: "right" };
+      totalRow.getCell("pctPresent").numFmt = "0.00%";
+      totalRow.getCell("absent").alignment = { vertical: "middle", horizontal: "right" };
 
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
@@ -564,7 +578,8 @@ export default function LeadersMeetingReport() {
           { header: "Team", key: "team", width: 25 },
           { header: "Department", key: "department", width: 30 },
           { header: "Role", key: "role", width: 20 },
-          { header: "Status", key: "status", width: 15 },
+          { header: "Present", key: "presentStatus", width: 12 },
+          { header: "Confirmed", key: "confirmedStatus", width: 15 },
           { header: "Confirmed At", key: "confirmedAt", width: 22 },
           { header: "Notes", key: "notes", width: 40 },
         ];
@@ -588,9 +603,9 @@ export default function LeadersMeetingReport() {
           if (deptA !== deptB) {
             return deptA.localeCompare(deptB);
           }
-          const confA = a.is_confirmed ? 1 : 0;
-          const confB = b.is_confirmed ? 1 : 0;
-          return confB - confA;
+          const presentA = a.is_present === true ? 1 : 0;
+          const presentB = b.is_present === true ? 1 : 0;
+          return presentB - presentA;
         });
 
         sortedLeaders.forEach((leader, idx) => {
@@ -607,7 +622,8 @@ export default function LeadersMeetingReport() {
             team: teamName,
             department: leader.department || "",
             role: leader.role || "",
-            status: leader.is_confirmed === true ? "Confirmed" : leader.is_confirmed === false ? "Not Attending" : "No Response",
+            presentStatus: leader.is_present === true ? "Present" : "Absent",
+            confirmedStatus: leader.is_confirmed === true ? "Confirmed" : leader.is_confirmed === false ? "Not Attending" : "No Response",
             confirmedAt: leader.confirmed_at ? formatDate(leader.confirmed_at) : "",
             notes: leader.notes || leader.decline_reason || "",
           });
@@ -627,18 +643,18 @@ export default function LeadersMeetingReport() {
 
           row.getCell("index").alignment = { vertical: "middle", horizontal: "center" };
 
-          const statusCell = row.getCell("status");
-          if (leader.is_confirmed === true) {
-            statusCell.font = { bold: true, color: { argb: "FF059669" }, size: 10 };
-          } else if (leader.is_confirmed === false) {
-            statusCell.font = { bold: true, color: { argb: "FFD97706" }, size: 10 };
+          const presentCell = row.getCell("presentStatus");
+          if (leader.is_present === true) {
+            presentCell.font = { bold: true, color: { argb: "FF059669" }, size: 10 };
+          } else {
+            presentCell.font = { bold: true, color: { argb: "FFD97706" }, size: 10 };
           }
         });
       }
 
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-      saveAs(blob, `leaders_meeting_list_${MEETING_DATE}.xlsx`);
+      saveAs(blob, `leaders_meeting_present_list_${MEETING_DATE}.xlsx`);
     } catch (err) {
       toast.error("Failed to export Excel list: " + err.message);
     }
@@ -658,13 +674,34 @@ export default function LeadersMeetingReport() {
       const rows = deptTeams.map((t) => {
         const confirmed = confirmedByTeam[t] || 0;
         const notAttending = notAttendingByTeam[t] || 0;
-        const strength = Math.max(TEAM_STRENGTH[t] ?? 0, confirmed + notAttending);
-        return { team: t, total: strength, confirmed, notAttending, absent: strength - confirmed - notAttending, pct: strength ? ((confirmed / strength) * 100).toFixed(2) : "0.00" };
+        const present = presentByTeam[t] || 0;
+        const strength = Math.max(TEAM_STRENGTH[t] ?? 0, confirmed + notAttending, present);
+        const absent = Math.max(strength - present, 0);
+        return {
+          team: t,
+          total: strength,
+          confirmed,
+          present,
+          absent,
+          pct: strength ? ((present / strength) * 100).toFixed(2) : "0.00",
+        };
       });
       const dirTotal = rows.reduce((a, r) => a + r.total, 0);
       const dirConfirmed = rows.reduce((a, r) => a + r.confirmed, 0);
-      const dirNotAttending = rows.reduce((a, r) => a + r.notAttending, 0);
-      return { directorate, bg, light, rows, apiTeams, total: dirTotal, confirmed: dirConfirmed, notAttending: dirNotAttending, absent: dirTotal - dirConfirmed, pct: dirTotal ? ((dirConfirmed / dirTotal) * 100).toFixed(2) : "0.00" };
+      const dirPresent = rows.reduce((a, r) => a + r.present, 0);
+      const dirAbsent = rows.reduce((a, r) => a + r.absent, 0);
+      return {
+        directorate,
+        bg,
+        light,
+        rows,
+        apiTeams,
+        total: dirTotal,
+        confirmed: dirConfirmed,
+        present: dirPresent,
+        absent: dirAbsent,
+        pct: dirTotal ? ((dirPresent / dirTotal) * 100).toFixed(2) : "0.00",
+      };
     });
 
     const merged = [];
@@ -675,16 +712,16 @@ export default function LeadersMeetingReport() {
         existing.apiTeams = [...existing.apiTeams, ...g.apiTeams];
         existing.total += g.total;
         existing.confirmed += g.confirmed;
-        existing.notAttending += g.notAttending;
+        existing.present += g.present;
         existing.absent += g.absent;
-        existing.pct = existing.total ? ((existing.confirmed / existing.total) * 100).toFixed(2) : "0.00";
+        existing.pct = existing.total ? ((existing.present / existing.total) * 100).toFixed(2) : "0.00";
       } else {
         merged.push({ ...g });
       }
     });
 
     return merged.filter((g) => !myTeam || g.apiTeams.includes(myTeam));
-  }, [confirmedByTeam, notAttendingByTeam, myTeam]);
+  }, [confirmedByTeam, notAttendingByTeam, presentByTeam, myTeam]);
 
   // Department-level breakdown for Team Admin view
   const groupedByDept = myTeam ? (() => {
@@ -693,23 +730,29 @@ export default function LeadersMeetingReport() {
     const map = {};
     // Seed all known departments with zero counts
     allDepts.forEach((dept) => {
-      map[dept] = { department: dept, total: 0, confirmed: 0, notAttending: 0 };
+      map[dept] = { department: dept, total: 0, confirmed: 0, present: 0 };
     });
     scopedRegistrations.forEach((r) => {
       const dept = r.department || "Unknown";
-      if (!map[dept]) map[dept] = { department: dept, total: 0, confirmed: 0, notAttending: 0 };
+      if (!map[dept]) map[dept] = { department: dept, total: 0, confirmed: 0, present: 0 };
       map[dept].total += 1;
       if (r.is_confirmed === true) map[dept].confirmed += 1;
-      else if (r.is_confirmed === false) map[dept].notAttending += 1;
+      if (isMarkedPresent(r)) map[dept].present += 1;
     });
-    return Object.values(map).sort((a, b) => a.department.localeCompare(b.department));
+    return Object.values(map)
+      .map((d) => ({
+        ...d,
+        absent: Math.max(d.total - d.present, 0),
+        pct: d.total ? ((d.present / d.total) * 100).toFixed(2) : "0.00",
+      }))
+      .sort((a, b) => a.department.localeCompare(b.department));
   })() : null;
 
   const colSpanCount = 3 + 
     ((!filterTeam && !myTeam) ? 1 : 0) + 
     (!filterDept ? 1 : 0) + 
     ((filterTeam === "Districts" || myTeam === "Districts") ? 1 : 0) + 
-    (status === "all" ? 1 : 0) + 
+    (status === "all" ? 2 : 0) + 
     ((status === "all" || status === "not attending") ? 1 : 0);
 
   return (
@@ -732,7 +775,7 @@ export default function LeadersMeetingReport() {
         {/* Page header */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
           <div>
-            <div className="qc-eyebrow">Leaders Meeting Attendance Confirmation Report</div>
+            <div className="qc-eyebrow">Leaders Meeting Report</div>
             <h1 className="mt-1 text-2xl sm:text-3xl font-medium text-ink-900 tracking-tight">
               Saturday, 15th August 2026
             </h1>
@@ -755,34 +798,29 @@ export default function LeadersMeetingReport() {
             loading={loading}
           />
           <Stat
-            eyebrow="% of Confirmed"
+            eyebrow="Present"
+            value={hasFilter ? filteredPresent : stats.present}
+            loading={loading}
+          />
+          <Stat
+            eyebrow="% of Present"
             value={
               hasFilter
-                ? filteredPct
+                ? filteredPctPresent
                 : effectiveStrength
-                  ? `${Math.round((stats.confirmed / effectiveStrength) * 100)}%`
+                  ? `${((stats.present / effectiveStrength) * 100).toFixed(1)}%`
                   : "-"
             }
             loading={loading}
           />
           <Stat
-            eyebrow="Not Attending"
-            value={hasFilter ? filteredNotAttending : stats.declined}
-            loading={loading}
-          />
-          <Stat
-            eyebrow="Unconfirmed"
+            eyebrow="Absent"
             value={
               hasFilter
-                ? filteredUnconfirmed
-                : effectiveStrength - stats.confirmed
+                ? filteredAbsent
+                : Math.max(effectiveStrength - stats.present, 0)
             }
             loading={loading}
-            footnote={
-              hasFilter
-                ? (filteredTotal ? `${Math.round((filteredUnconfirmed / filteredTotal) * 100)}%` : undefined)
-                : (effectiveStrength ? `${Math.round(((effectiveStrength - stats.confirmed) / effectiveStrength) * 100)}%` : undefined)
-            }
           />
         </div>
 
@@ -835,9 +873,9 @@ export default function LeadersMeetingReport() {
                   )}
                   {!myTeam && <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">Total</th>}
                   <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">Confirmed</th>
-                  {!myTeam && <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">% Confirmed</th>}
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">Not Attending</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">Unconfirmed</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">Present</th>
+                  {!myTeam && <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">% of Present</th>}
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-ink-700 uppercase tracking-wide">Absent</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-ink-50">
@@ -852,24 +890,21 @@ export default function LeadersMeetingReport() {
                   <>
                     {(groupedByDept ?? []).length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-4 py-8 text-center text-sm text-ink-400">No data available.</td>
+                        <td colSpan={5} className="px-4 py-8 text-center text-sm text-ink-400">No data available.</td>
                       </tr>
-                    ) : (groupedByDept ?? []).map((d) => {
-                      const absent = d.total - d.confirmed - d.notAttending;
-                      return (
-                        <tr key={d.department} className="hover:bg-cream-100">
-                          <td className="px-4 py-2 text-sm text-ink-800 font-medium">{d.department}</td>
-                          <td className="px-4 py-2 text-sm text-forest text-center font-mono font-medium">{d.confirmed.toLocaleString()}</td>
-                          <td className="px-4 py-2 text-sm text-sienna text-center font-mono font-medium">{d.notAttending.toLocaleString()}</td>
-                          <td className="px-4 py-2 text-sm text-brick text-center font-mono font-medium">{absent.toLocaleString()}</td>
-                        </tr>
-                      );
-                    })}
+                    ) : (groupedByDept ?? []).map((d) => (
+                      <tr key={d.department} className="hover:bg-cream-100">
+                        <td className="px-4 py-2 text-sm text-ink-800 font-medium">{d.department}</td>
+                        <td className="px-4 py-2 text-sm text-forest text-center font-mono font-medium">{d.confirmed.toLocaleString()}</td>
+                        <td className="px-4 py-2 text-sm text-forest text-center font-mono font-medium">{d.present.toLocaleString()}</td>
+                        <td className="px-4 py-2 text-sm text-brick text-center font-mono font-medium">{d.absent.toLocaleString()}</td>
+                      </tr>
+                    ))}
                     <tr className="bg-cream-200 border-t-2 border-ink-200">
                       <td className="px-4 py-3 text-sm font-bold text-ink-900 uppercase">Total</td>
                       <td className="px-4 py-3 text-sm font-bold text-ink-900 text-center font-mono">{(groupedByDept ?? []).reduce((a, d) => a + d.confirmed, 0).toLocaleString()}</td>
-                      <td className="px-4 py-3 text-sm font-bold text-ink-900 text-center font-mono">{(groupedByDept ?? []).reduce((a, d) => a + d.notAttending, 0).toLocaleString()}</td>
-                      <td className="px-4 py-3 text-sm font-bold text-ink-900 text-center font-mono">{(groupedByDept ?? []).reduce((a, d) => a + d.total - d.confirmed - d.notAttending, 0).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-sm font-bold text-ink-900 text-center font-mono">{(groupedByDept ?? []).reduce((a, d) => a + d.present, 0).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-sm font-bold text-ink-900 text-center font-mono">{(groupedByDept ?? []).reduce((a, d) => a + d.absent, 0).toLocaleString()}</td>
                     </tr>
                   </>
                 ) : grouped.length === 0 ? (
@@ -910,8 +945,8 @@ export default function LeadersMeetingReport() {
                             </td>
                             <td className="px-4 py-2 text-sm text-ink-800 text-center font-mono">{r.total.toLocaleString()}</td>
                             <td className="px-4 py-2 text-sm text-forest text-center font-mono font-medium">{r.confirmed.toLocaleString()}</td>
+                            <td className="px-4 py-2 text-sm text-forest text-center font-mono font-medium">{r.present.toLocaleString()}</td>
                             <td className="px-4 py-2 text-sm text-ink-800 text-center font-mono">{r.pct}%</td>
-                            <td className="px-4 py-2 text-sm text-sienna text-center font-mono font-medium">{r.notAttending.toLocaleString()}</td>
                             <td className="px-4 py-2 text-sm text-brick text-center font-mono font-medium">{r.absent.toLocaleString()}</td>
                           </tr>
                         ))}
@@ -927,14 +962,14 @@ export default function LeadersMeetingReport() {
                         {grouped.reduce((a, g) => a + g.confirmed, 0).toLocaleString()}
                       </td>
                       <td className="px-4 py-3 text-sm font-bold text-ink-900 text-center font-mono">
-                        {(() => {
-                          const t = grouped.reduce((a, g) => a + g.total, 0);
-                          const c = grouped.reduce((a, g) => a + g.confirmed, 0);
-                          return t ? ((c / t) * 100).toFixed(2) : "0.00";
-                        })()}%
+                        {grouped.reduce((a, g) => a + g.present, 0).toLocaleString()}
                       </td>
                       <td className="px-4 py-3 text-sm font-bold text-ink-900 text-center font-mono">
-                        {grouped.reduce((a, g) => a + g.notAttending, 0).toLocaleString()}
+                        {(() => {
+                          const t = grouped.reduce((a, g) => a + g.total, 0);
+                          const p = grouped.reduce((a, g) => a + g.present, 0);
+                          return t ? ((p / t) * 100).toFixed(2) : "0.00";
+                        })()}%
                       </td>
                       <td className="px-4 py-3 text-sm font-bold text-ink-900 text-center font-mono">
                         {grouped.reduce((a, g) => a + g.absent, 0).toLocaleString()}
@@ -966,7 +1001,11 @@ export default function LeadersMeetingReport() {
                       ? "Not Attending"
                       : s === "no response"
                         ? "No Response"
-                        : s.charAt(0).toUpperCase() + s.slice(1)}
+                        : s === "present"
+                          ? "Present"
+                          : s === "absent"
+                            ? "Absent"
+                            : s.charAt(0).toUpperCase() + s.slice(1)}
                   </button>
                 ))}
               </div>
@@ -1035,7 +1074,8 @@ export default function LeadersMeetingReport() {
                     {!filterTeam && !myTeam && <th className={th}>Team</th>}
                     {!filterDept && <th className={th}>Department</th>}
                     {(filterTeam === "Districts" || myTeam === "Districts") && <th className={th}>Cluster</th>}
-                    {status === "all" && <th className={th}>Status</th>}
+                    {status === "all" && <th className={th}>Present</th>}
+                    {status === "all" && <th className={th}>Confirmed</th>}
                     {(status === "all" || status === "not attending") && <th className={th}>Reason</th>}
                     <th className={th}>Confirmed At</th>
                   </tr>
@@ -1062,6 +1102,15 @@ export default function LeadersMeetingReport() {
                         {!filterDept && <td className={td}>{r.department || "-"}</td>}
                         {(filterTeam === "Districts" || myTeam === "Districts") && (
                           <td className={td}>{r.district_sub_team || <span className="text-ink-400 italic">Unassigned</span>}</td>
+                        )}
+                        {status === "all" && (
+                          <td className={td}>
+                            {r.is_present === true ? (
+                              <Tag tone="success">Present</Tag>
+                            ) : (
+                              <Tag tone="warning">Absent</Tag>
+                            )}
+                          </td>
                         )}
                         {status === "all" && (
                           <td className={td}>

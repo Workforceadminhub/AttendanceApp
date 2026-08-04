@@ -92,3 +92,17 @@ export async function updateMeetingWorker(workerId, data, apiKey) {
   }
   return response;
 }
+
+export async function markMeetingWorkerPresent(workerId, data, apiKey) {
+  const response = await apiRequest(
+    "POST",
+    `/api/meeting/leaders/workers/${workerId}/present`,
+    data,
+    { headers: { "x-api-key": apiKey } },
+    false
+  );
+  if (!response || response.error) {
+    throw new Error(response?.error || "Failed to mark present.");
+  }
+  return response;
+}

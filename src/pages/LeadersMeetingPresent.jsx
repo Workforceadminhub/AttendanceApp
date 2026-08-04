@@ -9,6 +9,7 @@ import {
 import {
   MagnifyingGlassIcon,
   CheckCircleIcon,
+  XCircleIcon,
   UserCircleIcon,
   ExclamationTriangleIcon,
   PlusCircleIcon,
@@ -264,6 +265,7 @@ function SelectWorkerStep({
               const displayName = w.name || "-";
               const sub = [w.department, w.team].filter(Boolean).join(" · ");
               const alreadyPresent = w.isPresent === true || w.is_present === true;
+              const alreadyDeclined = w.isConfirmed === false || w.is_confirmed === false;
               return (
                 <li key={w.id}>
                   <button
@@ -280,12 +282,17 @@ function SelectWorkerStep({
                         <p className="text-xs text-ink-500 truncate">{sub}</p>
                       )}
                     </div>
-                    {alreadyPresent && (
+                    {alreadyPresent ? (
                       <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-forest-50 px-2.5 py-0.5 text-xs font-medium text-forest">
                         <CheckCircleIcon className="h-3.5 w-3.5" />
                         Present
                       </span>
-                    )}
+                    ) : alreadyDeclined ? (
+                      <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-sienna-50 px-2.5 py-0.5 text-xs font-medium text-sienna">
+                        <XCircleIcon className="h-3.5 w-3.5" />
+                        Not Attending
+                      </span>
+                    ) : null}
                   </button>
                 </li>
               );
@@ -310,6 +317,7 @@ function SelectWorkerStep({
 
 function EditPresentStep({ worker, token, onBack, onDone }) {
   const alreadyPresent = worker.isPresent === true || worker.is_present === true;
+  const alreadyDeclined = worker.isConfirmed === false || worker.is_confirmed === false;
   const nameParts = splitWorkerName(worker);
   const missing = new Set(worker.isMissing || []);
   const showEmail = missing.has("email");
@@ -434,6 +442,29 @@ function EditPresentStep({ worker, token, onBack, onDone }) {
             <ReadonlyField label="Role" value={worker.role} />
             <ReadonlyField label="Team" value={worker.team} />
             <ReadonlyField label="Department" value={worker.department} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (alreadyDeclined && !alreadyPresent) {
+    return (
+      <div className="space-y-5">
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center gap-1.5 text-sm text-ink-500 hover:text-ink transition"
+        >
+          &larr; Back
+        </button>
+        <div className="rounded-lg border border-sienna-200 bg-sienna-50 px-5 py-6 flex items-start gap-4">
+          <XCircleIcon className="h-6 w-6 text-sienna shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-ink">Not attending</p>
+            <p className="mt-1 text-xs text-ink-500 leading-relaxed">
+              {worker.name ? `${worker.name}, you` : "You"} indicated that you will not be attending this meeting. No further action is needed.
+            </p>
           </div>
         </div>
       </div>

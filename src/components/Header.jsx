@@ -185,6 +185,7 @@ export default function Header() {
   })();
 
   const settingsDropdown = [
+    ...(isSuperAdmin ? [{ name: "Meeting Settings", href: "/settings/meetings" }] : []),
     ...(isSuperAdmin ? [{ name: "Dashboard", href: "/dashboard/super-admin" }] : []),
     ...(isSuperAdmin ? [{ name: "All Workers", href: "/all-workers" }] : []),
     ...(isSuperAdmin ? [{ name: "Team Mismatch", href: "/team-mismatch" }] : []),

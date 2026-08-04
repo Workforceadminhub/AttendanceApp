@@ -55,6 +55,7 @@ const WorkersMeetingConfirm = lazy(() => import("./pages/WorkersMeetingConfirm")
 const WorkersMeetingPresent = lazy(() => import("./pages/WorkersMeetingPresent"));
 const WorkersMeetingReport = lazy(() => import("./pages/WorkersMeetingReport"));
 const WorkersMeetingPresentReport = lazy(() => import("./pages/WorkersMeetingPresentReport"));
+const MeetingSettings = lazy(() => import("./pages/MeetingSettings"));
 const AdminDepartmentRedirect = lazy(() => import("./pages/AdminDepartmentRedirect"));
 const AdminWorkersRedirect = lazy(() => import("./pages/AdminWorkersRedirect"));
 const AdminSummaryDetail = lazy(() => import("./pages/AdminSummaryDetail"));
@@ -158,6 +159,14 @@ const AppRoutes = () => {
               element={
                 <PrivateRoute>
                   <WorkersMeetingPresentReport />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/settings/meetings"
+              element={
+                <PrivateRoute>
+                  <MeetingSettings />
                 </PrivateRoute>
               }
             />

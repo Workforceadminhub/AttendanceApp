@@ -13,8 +13,12 @@ import { getMeetingRegistrations } from "../services/meeting";
 import { getUserRole } from "../utils/getUserRole";
 import { getUser } from "../utils/getUser";
 import { teamsAndDepartments } from "../utils/teams";
+import {
+  DEFAULT_LEADERS_MEETING_DATE,
+  getMeetingDate,
+  formatMeetingDisplayDate,
+} from "../utils/meetingConfig";
 
-const MEETING_DATE = "2026-08-15";
 const STATUS_OPTIONS = ["all", "present", "absent", "confirmed", "not attending"];
 
 
@@ -85,6 +89,7 @@ function formatDate(iso) {
 
 export default function LeadersMeetingPresentReport() {
   const navigate = useNavigate();
+  const [meetingDate, setMeetingDate] = useState(() => getMeetingDate(DEFAULT_LEADERS_MEETING_DATE));
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("summary"); // summary | list
   const [status, setStatus] = useState("all");
@@ -140,7 +145,7 @@ export default function LeadersMeetingPresentReport() {
     setLoading(true);
     try {
       // Always fetch all registrations to perform status filtering on client side
-      const res = await getMeetingRegistrations(MEETING_DATE, "all");
+      const res = await getMeetingRegistrations(meetingDate, "all", "leaders");
       const cleaned = (res.data || []).map((r) => ({
         ...r,
         name: r.name ? r.name.replace(/\s+null$/i, "").trim() : "",
@@ -152,7 +157,7 @@ export default function LeadersMeetingPresentReport() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [meetingDate]);
 
   useEffect(() => {
     fetchData();
@@ -514,7 +519,7 @@ export default function LeadersMeetingPresentReport() {
 
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-      saveAs(blob, `leaders_meeting_summary_${MEETING_DATE}.xlsx`);
+      saveAs(blob, `leaders_meeting_summary_${meetingDate}.xlsx`);
     } catch (err) {
       toast.error("Failed to export summary sheet: " + err.message);
     }
@@ -654,7 +659,7 @@ export default function LeadersMeetingPresentReport() {
 
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-      saveAs(blob, `leaders_meeting_present_list_${MEETING_DATE}.xlsx`);
+      saveAs(blob, `leaders_meeting_present_list_${meetingDate}.xlsx`);
     } catch (err) {
       toast.error("Failed to export Excel list: " + err.message);
     }
@@ -777,12 +782,31 @@ export default function LeadersMeetingPresentReport() {
           <div>
             <div className="qc-eyebrow">Leaders Meeting Report</div>
             <h1 className="mt-1 text-2xl sm:text-3xl font-medium text-ink-900 tracking-tight">
-              Saturday, 15th August 2026
+              {formatMeetingDisplayDate(meetingDate)}
             </h1>
           </div>
-          <Button variant="secondary" onClick={fetchData} disabled={loading}>
-            {loading ? "Loading..." : "Refresh"}
-          </Button>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-white border border-ink-200 rounded-lg px-3 py-1.5 shadow-sm">
+              <span className="text-xs font-medium text-ink-500">Meeting Date:</span>
+              <input
+                type="date"
+                value={meetingDate}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val) {
+                    setMeetingDate(val);
+                    const params = new URLSearchParams(window.location.search);
+                    params.set("date", val);
+                    navigate(`${window.location.pathname}?${params.toString()}`, { replace: true });
+                  }
+                }}
+                className="bg-transparent text-xs font-semibold text-ink-900 focus:outline-none cursor-pointer"
+              />
+            </div>
+            <Button variant="secondary" onClick={fetchData} disabled={loading}>
+              {loading ? "Loading..." : "Refresh"}
+            </Button>
+          </div>
         </div>
 
         {/* Summary cards */}

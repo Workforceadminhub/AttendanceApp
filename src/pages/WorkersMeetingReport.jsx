@@ -15,6 +15,7 @@ import { getUser } from "../utils/getUser";
 import {
   DEFAULT_WORKERS_MEETING_DATE,
   getMeetingDate,
+  getAllMeetings,
   formatMeetingDisplayDate,
 } from "../utils/meetingConfig";
 
@@ -298,7 +299,7 @@ export default function WorkersMeetingReport() {
     });
 
     const buffer = await workbook.xlsx.writeBuffer();
-    saveAs(new Blob([buffer]), `workers_meeting_confirmation_${MEETING_DATE}.xlsx`);
+    saveAs(new Blob([buffer]), `workers_meeting_confirmation_${meetingDate}.xlsx`);
   };
 
   const colSpanCount =
@@ -325,21 +326,18 @@ export default function WorkersMeetingReport() {
 
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-2 bg-white border border-ink-200 rounded-lg px-3 py-1 shadow-sm">
-              <span className="text-xs font-medium text-ink-500">Date:</span>
-              <input
-                type="date"
+              <span className="text-xs font-medium text-ink-500">Select Meeting:</span>
+              <select
                 value={meetingDate}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val) {
-                    setMeetingDate(val);
-                    const params = new URLSearchParams(window.location.search);
-                    params.set("date", val);
-                    navigate(`${window.location.pathname}?${params.toString()}`, { replace: true });
-                  }
-                }}
+                onChange={(e) => setMeetingDate(e.target.value)}
                 className="bg-transparent text-xs font-semibold text-ink-900 focus:outline-none cursor-pointer"
-              />
+              >
+                {getAllMeetings("workers").map((m) => (
+                  <option key={m.id} value={m.date}>
+                    {m.title} ({m.date}){m.isActive ? " ★ Active" : ""}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="flex rounded-lg border border-ink-200 bg-white p-1">

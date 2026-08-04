@@ -16,6 +16,7 @@ import { teamsAndDepartments } from "../utils/teams";
 import {
   DEFAULT_LEADERS_MEETING_DATE,
   getMeetingDate,
+  getAllMeetings,
   formatMeetingDisplayDate,
 } from "../utils/meetingConfig";
 
@@ -744,21 +745,18 @@ export default function LeadersMeetingReport() {
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 bg-white border border-ink-200 rounded-lg px-3 py-1.5 shadow-sm">
-              <span className="text-xs font-medium text-ink-500">Meeting Date:</span>
-              <input
-                type="date"
+              <span className="text-xs font-medium text-ink-500">Select Meeting:</span>
+              <select
                 value={meetingDate}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val) {
-                    setMeetingDate(val);
-                    const params = new URLSearchParams(window.location.search);
-                    params.set("date", val);
-                    navigate(`${window.location.pathname}?${params.toString()}`, { replace: true });
-                  }
-                }}
+                onChange={(e) => setMeetingDate(e.target.value)}
                 className="bg-transparent text-xs font-semibold text-ink-900 focus:outline-none cursor-pointer"
-              />
+              >
+                {getAllMeetings("leaders").map((m) => (
+                  <option key={m.id} value={m.date}>
+                    {m.title} ({m.date}){m.isActive ? " ★ Active" : ""}
+                  </option>
+                ))}
+              </select>
             </div>
             <Button variant="secondary" onClick={fetchData} disabled={loading}>
               {loading ? "Loading..." : "Refresh"}

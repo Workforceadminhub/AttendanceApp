@@ -417,10 +417,37 @@ export const getAdminSelectOptions = (isChurchAdmin, team, authUser) => {
 };
 
 /**
+ * Compare two department names for equivalence, ignoring case, whitespace,
+ * ampersands vs "and", and common aliases.
+ * @param {string} d1
+ * @param {string} d2
+ * @returns {boolean}
+ */
+export const isSameDepartment = (d1, d2) => {
+  if (!d1 || !d2) return d1 === d2;
+  if (d1 === d2) return true;
+
+  const clean1 = String(d1).trim().toLowerCase();
+  const clean2 = String(d2).trim().toLowerCase();
+  if (clean1 === clean2) return true;
+
+  const norm1 = clean1.replace(/&/g, "and").replace(/[^a-z0-9]/g, "");
+  const norm2 = clean2.replace(/&/g, "and").replace(/[^a-z0-9]/g, "");
+  if (norm1 === norm2) return true;
+
+  if (clean1.includes("directional") && clean1.includes("leader") &&
+      clean2.includes("directional") && clean2.includes("leader")) return true;
+
+  if (clean1.includes("pastoral") && clean1.includes("leader") &&
+      clean2.includes("pastoral") && clean2.includes("leader")) return true;
+
+  return false;
+};
+
+/**
  * Phase 7: Get department route (without leading slash) from department name.
- * Uses exact match, then case-insensitive, then Senior Leadership aliases
- * so backend variants (e.g. "Directional leader", "Pastoral leader") resolve
- * like other HOD departments and get the correct Summary/Workers/Attendance links.
+ * Uses exact match, then case-insensitive and alias matching so variants
+ * resolve to their corresponding route.
  * @param {string} departmentName - Department name (e.g. "Call Centre" or "Directional leader")
  * @returns {string|null} Route (e.g. "mincc") or null if not found
  */
@@ -429,34 +456,36 @@ export const getDepartmentRoute = (departmentName) => {
   const list = getEffectiveRouteList();
   const entry = list.find((r) => r.department === departmentName);
   if (entry) return entry.route.replace(/^\//, "");
-  const lower = departmentName.trim().toLowerCase();
-  const caseInsensitive = list.find(
-    (r) => r.department && r.department.trim().toLowerCase() === lower
-  );
+  const caseInsensitive = list.find((r) => r.department && isSameDepartment(r.department, departmentName));
   if (caseInsensitive) return caseInsensitive.route.replace(/^\//, "");
-  if (lower.includes("directional") && lower.includes("leader")) {
-    const e = list.find((r) => r.department === "Directional Leaders");
-    return e ? e.route.replace(/^\//, "") : null;
-  }
-  if (lower.includes("pastoral") && lower.includes("leader")) {
-    const e = list.find((r) => r.department === "Pastoral Leaders");
-    return e ? e.route.replace(/^\//, "") : null;
-  }
   return null;
 };
 
 /**
- * Phase 7: Get department name from route.
- * @param {string} route - Route with or without leading slash (e.g. "mincc" or "/mincc")
+ * Phase 7: Get department name from route or department name parameter.
+ * @param {string} route - Route or department name string (e.g. "mincc", "/mincc", or "Admin & Facility")
  * @returns {string|null} Department name or null if not found
  */
 export const getDepartmentNameFromRoute = (route) => {
   if (!route) return null;
-  const normalized = route.startsWith("/") ? route : `/${route}`;
-  const entry = getEffectiveRouteList().find(
-    (r) => r.route === normalized || r.route.replace(/^\//, "") === route
+  const list = getEffectiveRouteList();
+  const rawRoute = decodeURIComponent(route).trim();
+  const normalized = rawRoute.startsWith("/") ? rawRoute : `/${rawRoute}`;
+
+  // 1. Direct route match (e.g. "/mincc" or "mincc")
+  const entryByRoute = list.find(
+    (r) =>
+      r.route === normalized ||
+      r.route.replace(/^\//, "").toLowerCase() === rawRoute.toLowerCase() ||
+      r.route.split("/").pop().toLowerCase() === rawRoute.toLowerCase()
   );
-  return entry?.department ?? null;
+  if (entryByRoute) return entryByRoute.department;
+
+  // 2. If route parameter is a department name (e.g. "Admin & Facility" or "Call Centre")
+  const entryByName = list.find((r) => r.department && isSameDepartment(r.department, rawRoute));
+  if (entryByName) return entryByName.department;
+
+  return null;
 };
 
 /**

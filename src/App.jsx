@@ -51,6 +51,10 @@ const LeadersMeetingConfirm = lazy(() => import("./pages/LeadersMeetingConfirm")
 const LeadersMeetingPresent = lazy(() => import("./pages/LeadersMeetingPresent"));
 const LeadersMeetingReport = lazy(() => import("./pages/LeadersMeetingReport"));
 const LeadersMeetingPresentReport = lazy(() => import("./pages/LeadersMeetingPresentReport"));
+const WorkersMeetingConfirm = lazy(() => import("./pages/WorkersMeetingConfirm"));
+const WorkersMeetingPresent = lazy(() => import("./pages/WorkersMeetingPresent"));
+const WorkersMeetingReport = lazy(() => import("./pages/WorkersMeetingReport"));
+const WorkersMeetingPresentReport = lazy(() => import("./pages/WorkersMeetingPresentReport"));
 const AdminDepartmentRedirect = lazy(() => import("./pages/AdminDepartmentRedirect"));
 const AdminWorkersRedirect = lazy(() => import("./pages/AdminWorkersRedirect"));
 const AdminSummaryDetail = lazy(() => import("./pages/AdminSummaryDetail"));
@@ -114,6 +118,9 @@ const AppRoutes = () => {
             <Route path="/leadership-registration" element={<LeadershipRegistration />} />
             <Route path="/leadersmeeting/confirm" element={<LeadersMeetingConfirm />} />
             <Route path="/leaders-meeting" element={<LeadersMeetingPresent />} />
+            <Route path="/workersmeeting/confirm" element={<WorkersMeetingConfirm />} />
+            <Route path="/workers-meeting/confirm" element={<WorkersMeetingConfirm />} />
+            <Route path="/workers-meeting" element={<WorkersMeetingPresent />} />
             <Route
               path="/admin/leadership-registrations"
               element={
@@ -135,6 +142,22 @@ const AppRoutes = () => {
               element={
                 <PrivateRoute>
                   <LeadersMeetingPresentReport />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/report/confirmation-workers-meeting"
+              element={
+                <PrivateRoute>
+                  <WorkersMeetingReport />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/report/workers-meeting"
+              element={
+                <PrivateRoute>
+                  <WorkersMeetingPresentReport />
                 </PrivateRoute>
               }
             />

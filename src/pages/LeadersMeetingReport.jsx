@@ -14,7 +14,7 @@ import { getUserRole } from "../utils/getUserRole";
 import { getUser } from "../utils/getUser";
 import { teamsAndDepartments } from "../utils/teams";
 
-const MEETING_DATE = "2026-07-18";
+const MEETING_DATE = "2026-08-15";
 const STATUS_OPTIONS = ["all", "confirmed", "not attending"];
 
 
@@ -734,7 +734,7 @@ export default function LeadersMeetingReport() {
           <div>
             <div className="qc-eyebrow">Leaders Meeting Attendance Confirmation Report</div>
             <h1 className="mt-1 text-2xl sm:text-3xl font-medium text-ink-900 tracking-tight">
-              Saturday, 18th July 2026
+              Saturday, 15th August 2026
             </h1>
           </div>
           <Button variant="secondary" onClick={fetchData} disabled={loading}>

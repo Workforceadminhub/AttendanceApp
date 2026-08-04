@@ -38,7 +38,7 @@ const inputClass =
 
 const selectClass = `${inputClass} appearance-none`;
 
-const MEETING_DATE = "2026-07-18";
+const MEETING_DATE = "2026-08-15";
 
 // ── Step 1: Name Search ──────────────────────────────────────────────────────
 
@@ -1078,7 +1078,7 @@ export default function LeadersMeetingConfirm() {
     <Shell>
       <div className="mb-8">
         <p className="text-xs font-mono uppercase tracking-widest text-ink-500 mb-1">
-          Leaders Meeting - Saturday, 18th July 2026
+          Leaders Meeting - Saturday, 15th August 2026
         </p>
         <h1 className="text-2xl sm:text-3xl font-semibold text-ink leading-snug">
           Confirm Your Attendance
@@ -1139,7 +1139,7 @@ function Shell({ children }) {
           />
           <span className="hidden sm:inline-block h-4 w-px bg-ink-200" />
           <span className="hidden sm:inline-block text-sm text-ink-500 font-mono">
-            Leaders Meeting - Saturday, 18th July 2026
+            Leaders Meeting - Saturday, 15th August 2026
           </span>
         </div>
       </header>

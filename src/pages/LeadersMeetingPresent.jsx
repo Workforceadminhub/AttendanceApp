@@ -17,7 +17,7 @@ import BirthDatePicker from "../components/BirthDatePicker";
 import { DROPDOWN_OPTIONS } from "../utils/sampleWorkersExcel";
 import { teamsAndDepartments } from "../utils/teams";
 
-const MEETING_DATE = "2026-07-18";
+const MEETING_DATE = "2026-08-15";
 
 const inputClass =
   "w-full rounded-lg border border-ink-200 bg-white px-3 py-2.5 text-sm text-ink placeholder-ink-500 focus:outline-none focus:ring-2 focus:ring-ink focus:border-transparent transition";
@@ -889,7 +889,7 @@ function Shell({ children }) {
           />
           <span className="hidden sm:inline-block h-4 w-px bg-ink-200" />
           <span className="hidden sm:inline-block text-sm text-ink-500 font-mono">
-            Leaders Meeting - Saturday, 18th July 2026
+            Leaders Meeting - Saturday, 15th August 2026
           </span>
         </div>
       </header>
@@ -1010,7 +1010,7 @@ export default function LeadersMeetingPresent() {
     <Shell>
       <div className="mb-8">
         <p className="text-xs font-mono uppercase tracking-widest text-ink-500 mb-1">
-          Leaders Meeting - Saturday, 18th July 2026
+          Leaders Meeting - Saturday, 15th August 2026
         </p>
         {step === "select" && (
           <p className="mt-2 text-sm text-ink-500">

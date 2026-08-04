@@ -10,12 +10,12 @@ function getOrCreateDeviceId() {
   return id;
 }
 
-export async function getMeetingSession() {
+export async function getMeetingSession(meetingType = "leaders") {
   const clientId = getOrCreateDeviceId();
   const response = await apiRequest(
     "POST",
     "/api/meeting/auth/session",
-    { client_id: clientId, meeting_type: "leaders" },
+    { client_id: clientId, meeting_type: meetingType },
     undefined,
     false
   );
@@ -27,10 +27,11 @@ export async function getMeetingSession() {
   return apiKey;
 }
 
-export async function searchMeetingWorkers(name, apiKey, date) {
+export async function searchMeetingWorkers(name, apiKey, date, meetingType = "leaders") {
+  const endpoint = `/api/meeting/${meetingType}/workers/search`;
   const response = await apiRequest(
     "GET",
-    "/api/meeting/leaders/workers/search",
+    endpoint,
     { name, date },
     { headers: { "x-api-key": apiKey } },
     false
@@ -41,10 +42,11 @@ export async function searchMeetingWorkers(name, apiKey, date) {
   return response.data ?? response;
 }
 
-export async function createMeetingWorker(data, apiKey) {
+export async function createMeetingWorker(data, apiKey, meetingType = "leaders") {
+  const endpoint = `/api/meeting/${meetingType}/workers`;
   const response = await apiRequest(
     "POST",
-    "/api/meeting/leaders/workers",
+    endpoint,
     data,
     { headers: { "x-api-key": apiKey } },
     false
@@ -55,10 +57,11 @@ export async function createMeetingWorker(data, apiKey) {
   return response;
 }
 
-export async function getMeetingRegistrations(meetingDate, status = "all") {
+export async function getMeetingRegistrations(meetingDate, status = "all", meetingType = "leaders") {
+  const endpoint = `/api/super/admin/meeting/${meetingType}/registrations`;
   const response = await apiRequest(
     "GET",
-    "/api/super/admin/meeting/leaders/registrations",
+    endpoint,
     { meeting_date: meetingDate, status }
   );
   if (!response || response.error) {
@@ -67,10 +70,11 @@ export async function getMeetingRegistrations(meetingDate, status = "all") {
   return response;
 }
 
-export async function getMeetingRegistrationsSummary(meetingDate) {
+export async function getMeetingRegistrationsSummary(meetingDate, meetingType = "leaders") {
+  const endpoint = `/api/super/admin/meeting/${meetingType}/registrations/summary`;
   const response = await apiRequest(
     "GET",
-    "/api/super/admin/meeting/leaders/registrations/summary",
+    endpoint,
     { meeting_date: meetingDate }
   );
   if (!response || response.error) {
@@ -79,10 +83,11 @@ export async function getMeetingRegistrationsSummary(meetingDate) {
   return response;
 }
 
-export async function updateMeetingWorker(workerId, data, apiKey) {
+export async function updateMeetingWorker(workerId, data, apiKey, meetingType = "leaders") {
+  const endpoint = `/api/meeting/${meetingType}/workers/${workerId}`;
   const response = await apiRequest(
     "PUT",
-    `/api/meeting/leaders/workers/${workerId}`,
+    endpoint,
     data,
     { headers: { "x-api-key": apiKey } },
     false
@@ -93,10 +98,11 @@ export async function updateMeetingWorker(workerId, data, apiKey) {
   return response;
 }
 
-export async function markMeetingWorkerPresent(workerId, data, apiKey) {
+export async function markMeetingWorkerPresent(workerId, data, apiKey, meetingType = "leaders") {
+  const endpoint = `/api/meeting/${meetingType}/workers/${workerId}/present`;
   const response = await apiRequest(
     "POST",
-    `/api/meeting/leaders/workers/${workerId}/present`,
+    endpoint,
     data,
     { headers: { "x-api-key": apiKey } },
     false

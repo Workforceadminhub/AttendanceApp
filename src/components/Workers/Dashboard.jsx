@@ -291,18 +291,30 @@ export default function Dashboard() {
             </p>
           </div>
           {isAdminMember && (isChurchAdmin || isTeamAdmin || authUser?.department === "Super Admin" || authUser?.permissionLevel === "SUPER_ADMIN") && (
-            <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+            <div className="flex flex-wrap gap-2 shrink-0">
               <Link
                 to="/report/confirmation-leaders-meeting"
-                className="inline-flex items-center gap-2 rounded-lg border border-ink-200 bg-white px-4 py-2 text-sm font-medium text-ink transition hover:bg-ink-100"
+                className="inline-flex items-center gap-2 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs sm:text-sm font-medium text-ink transition hover:bg-ink-100"
               >
-                Leaders Meeting Confirmation Report
+                Leaders Meeting Confirmation
               </Link>
               <Link
                 to="/report/leaders-meeting"
-                className="inline-flex items-center gap-2 rounded-lg border border-ink-200 bg-white px-4 py-2 text-sm font-medium text-ink transition hover:bg-ink-100"
+                className="inline-flex items-center gap-2 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs sm:text-sm font-medium text-ink transition hover:bg-ink-100"
               >
                 Leaders Meeting Report
+              </Link>
+              <Link
+                to="/report/confirmation-workers-meeting"
+                className="inline-flex items-center gap-2 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs sm:text-sm font-medium text-ink transition hover:bg-ink-100"
+              >
+                Workers Meeting Confirmation
+              </Link>
+              <Link
+                to="/report/workers-meeting"
+                className="inline-flex items-center gap-2 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs sm:text-sm font-medium text-ink transition hover:bg-ink-100"
+              >
+                Workers Meeting Report
               </Link>
             </div>
           )}

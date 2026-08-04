@@ -9,6 +9,7 @@ import {
 import {
   MagnifyingGlassIcon,
   CheckCircleIcon,
+  XCircleIcon,
   UserCircleIcon,
   ExclamationTriangleIcon,
   PlusCircleIcon,
@@ -209,6 +210,7 @@ function SelectWorkerStep({
               const displayName = w.name || "-";
               const sub = [w.department, w.team].filter(Boolean).join(" · ");
               const alreadyConfirmed = w.isConfirmed === true || w.is_confirmed === true;
+              const alreadyDeclined = w.isConfirmed === false || w.is_confirmed === false;
               return (
                 <li key={w.id}>
                   <button
@@ -229,6 +231,12 @@ function SelectWorkerStep({
                       <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-forest-50 px-2.5 py-0.5 text-xs font-medium text-forest">
                         <CheckCircleIcon className="h-3.5 w-3.5" />
                         Confirmed
+                      </span>
+                    )}
+                    {alreadyDeclined && (
+                      <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-sienna-50 px-2.5 py-0.5 text-xs font-medium text-sienna">
+                        <XCircleIcon className="h-3.5 w-3.5" />
+                        Not Attending
                       </span>
                     )}
                   </button>
@@ -261,6 +269,7 @@ const MARITAL_OPTIONS = ["Single", "Married", "Divorced", "Widowed"];
 
 function EditWorkerStep({ worker, token, onBack, onDone }) {
   const alreadyConfirmed = worker.isConfirmed === true || worker.is_confirmed === true;
+  const alreadyDeclined = worker.isConfirmed === false || worker.is_confirmed === false;
   const missing = new Set(worker.isMissing || []);
   const hasMissing = missing.size > 0;
 
@@ -357,6 +366,29 @@ function EditWorkerStep({ worker, token, onBack, onDone }) {
             <p className="text-sm font-semibold text-ink">Already confirmed</p>
             <p className="mt-1 text-xs text-ink-500 leading-relaxed">
               {worker.name ? `${worker.name}, you` : "You"} have already confirmed your attendance for this meeting. No further action is needed.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (alreadyDeclined) {
+    return (
+      <div className="space-y-5">
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center gap-1.5 text-sm text-ink-500 hover:text-ink transition"
+        >
+          &larr; Back
+        </button>
+        <div className="rounded-lg border border-sienna-200 bg-sienna-50 px-5 py-6 flex items-start gap-4">
+          <XCircleIcon className="h-6 w-6 text-sienna shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-ink">Not attending</p>
+            <p className="mt-1 text-xs text-ink-500 leading-relaxed">
+              {worker.name ? `${worker.name}, you` : "You"} have indicated that you will not be attending this meeting. No further action is needed.
             </p>
           </div>
         </div>
@@ -1026,6 +1058,12 @@ export default function LeadersMeetingConfirm() {
       setSelectedWorker(updated);
       setResults((prev) =>
         prev.map((w) => (w.id === selectedWorker.id ? { ...w, is_confirmed: true, isConfirmed: true } : w))
+      );
+    } else if (variant === "decline" && selectedWorker) {
+      const updated = { ...selectedWorker, is_confirmed: false, isConfirmed: false };
+      setSelectedWorker(updated);
+      setResults((prev) =>
+        prev.map((w) => (w.id === selectedWorker.id ? { ...w, is_confirmed: false, isConfirmed: false } : w))
       );
     }
     setStep("done");

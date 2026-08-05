@@ -18,8 +18,7 @@ import BirthDatePicker from "../components/BirthDatePicker";
 import { DROPDOWN_OPTIONS } from "../utils/sampleWorkersExcel";
 import {
   teamsAndDepartments,
-  isPastorIsaacCommunity,
-  isPastorBiolaCommunity,
+  filterDepartmentsForDistrictSubTeam,
 } from "../utils/teams";
 import { getEffectiveRouteList } from "../utils/routeObject";
 import { fetchTeamsAndDepartmentsForFilter } from "../services/departments";
@@ -28,7 +27,7 @@ const MEETING_DATE = "2026-08-15";
 
 const isDistrictsTeam = (team) => team === "Districts" || team === "District";
 
-function useLiveTeamDepartments(selectedTeam) {
+function useLiveTeamDepartments(selectedTeam, districtSubTeam = "") {
   const [filterData, setFilterData] = useState({
     departmentsByTeam: {},
     teams: [],
@@ -63,18 +62,23 @@ function useLiveTeamDepartments(selectedTeam) {
         selectedTeam === "Districts" ? "District" : selectedTeam
       ] ||
       [];
-    if (fromApi.length) return [...fromApi].sort();
-    return getEffectiveRouteList()
-      .filter(
-        (r) =>
-          r.team === selectedTeam ||
-          (selectedTeam === "Districts" && r.team === "District") ||
-          (selectedTeam === "District" && r.team === "Districts")
-      )
-      .map((r) => r.department)
-      .filter(Boolean)
-      .sort();
-  }, [selectedTeam, filterData]);
+    const source = fromApi.length
+      ? fromApi
+      : getEffectiveRouteList()
+          .filter(
+            (r) =>
+              r.team === selectedTeam ||
+              (selectedTeam === "Districts" && r.team === "District") ||
+              (selectedTeam === "District" && r.team === "Districts")
+          )
+          .map((r) => r.department)
+          .filter(Boolean);
+    return filterDepartmentsForDistrictSubTeam(
+      source,
+      selectedTeam,
+      districtSubTeam
+    );
+  }, [selectedTeam, districtSubTeam, filterData]);
 
   return { teamOptions, departmentOptions };
 }
@@ -380,11 +384,23 @@ function EditPresentStep({ worker, token, onBack, onDone }) {
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { teamOptions, departmentOptions } = useLiveTeamDepartments(form.team);
+  const { teamOptions, departmentOptions } = useLiveTeamDepartments(
+    form.team,
+    form.district_sub_team
+  );
 
   const set = (field) => (e) => {
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
-    setErrors((prev) => ({ ...prev, [field]: undefined }));
+    const value = e.target.value;
+    setForm((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === "district_sub_team") next.department = "";
+      return next;
+    });
+    setErrors((prev) => ({
+      ...prev,
+      [field]: undefined,
+      ...(field === "district_sub_team" ? { department: undefined } : {}),
+    }));
   };
 
   const setTeam = (e) => {
@@ -405,21 +421,10 @@ function EditPresentStep({ worker, token, onBack, onDone }) {
 
   const setDepartment = (e) => {
     const department = e.target.value;
-    setForm((prev) => {
-      const next = { ...prev, department };
-      if (isDistrictsTeam(prev.team)) {
-        if (isPastorIsaacCommunity(department)) {
-          next.district_sub_team = "Pastor Isaac Cluster";
-        } else if (isPastorBiolaCommunity(department)) {
-          next.district_sub_team = "Pastor Biola Cluster";
-        }
-      }
-      return next;
-    });
+    setForm((prev) => ({ ...prev, department }));
     setErrors((prev) => ({
       ...prev,
       department: undefined,
-      district_sub_team: undefined,
     }));
   };
 
@@ -743,25 +748,30 @@ function CreatePresentWorkerStep({ searchedName, token, onBack, onDone }) {
     setErrors((prev) => ({ ...prev, team: undefined, district_sub_team: undefined, department: undefined }));
   };
 
-  const { teamOptions, departmentOptions } = useLiveTeamDepartments(form.team);
+  const { teamOptions, departmentOptions } = useLiveTeamDepartments(
+    form.team,
+    form.district_sub_team
+  );
+
+  const setDistrictSubTeam = (e) => {
+    setForm((prev) => ({
+      ...prev,
+      district_sub_team: e.target.value,
+      department: "",
+    }));
+    setErrors((prev) => ({
+      ...prev,
+      district_sub_team: undefined,
+      department: undefined,
+    }));
+  };
 
   const setDepartment = (e) => {
     const department = e.target.value;
-    setForm((prev) => {
-      const next = { ...prev, department };
-      if (isDistrictsTeam(prev.team)) {
-        if (isPastorIsaacCommunity(department)) {
-          next.district_sub_team = "Pastor Isaac Cluster";
-        } else if (isPastorBiolaCommunity(department)) {
-          next.district_sub_team = "Pastor Biola Cluster";
-        }
-      }
-      return next;
-    });
+    setForm((prev) => ({ ...prev, department }));
     setErrors((prev) => ({
       ...prev,
       department: undefined,
-      district_sub_team: undefined,
     }));
   };
 
@@ -955,7 +965,7 @@ function CreatePresentWorkerStep({ searchedName, token, onBack, onDone }) {
         {isDistrictsTeam(form.team) && (
           <div className="sm:col-span-2">
             <Label htmlFor="create-district-sub-team" required>District/Sub-team</Label>
-            <select id="create-district-sub-team" value={form.district_sub_team} onChange={set("district_sub_team")} className={selectClass}>
+            <select id="create-district-sub-team" value={form.district_sub_team} onChange={setDistrictSubTeam} className={selectClass}>
               <option value="">Select District/Sub-team</option>
               <option value="Pastor Biola Cluster">Pastor Biola Cluster</option>
               <option value="Pastor Isaac Cluster">Pastor Isaac Cluster</option>

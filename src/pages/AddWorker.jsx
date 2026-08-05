@@ -5,7 +5,11 @@ import Layout from "../components/Layout";
 // import ReactSelectDropdown from "../components/ReactSelect";
 import { toast } from "react-toastify";
 import ExcelJS from "exceljs";
-import { teamsAndDepartments, normalizeWorkerRole, isPastorIsaacCommunity, isPastorBiolaCommunity } from "../utils/teams";
+import {
+ teamsAndDepartments,
+ normalizeWorkerRole,
+ filterDepartmentsForDistrictSubTeam,
+} from "../utils/teams";
 import BirthDatePicker from "../components/BirthDatePicker";
 import apiRequest from "../utils/apiClient";
 import { downloadSampleWorkersExcel } from "../utils/sampleWorkersExcel";
@@ -90,51 +94,43 @@ export default function AddWorker() {
  }
  }, [navigate]);
 
-  // Update departments when team changes
+  // Update departments when team / district sub-team changes
   useEffect(() => {
     if (newWorker.team) {
       const depts =
         filterData.departmentsByTeam[newWorker.team] ||
-        filterData.departmentsByTeam[newWorker.team === "Districts" ? "District" : newWorker.team];
+        filterData.departmentsByTeam[newWorker.team === "Districts" ? "District" : newWorker.team] ||
+        [];
 
-      const hideTeamNamed = (dept) => {
-        const d = String(dept || "").trim();
-        const team = String(newWorker.team || "").trim();
-        if (!d) return false;
-        if (d.toLowerCase() === team.toLowerCase()) return false;
-        const lower = d.toLowerCase();
-        if (lower === "pastor biola" || lower === "pastor isaac") return false;
-        if (lower === "pastor biola cluster" || lower === "pastor isaac cluster") return false;
-        return true;
-      };
-
-      if (depts && depts.length > 0) {
-        setFilterOptions((prev) => ({
-          ...prev,
-          departments: depts
-            .filter(hideTeamNamed)
-            .map((dept) => ({ value: dept, label: dept })),
-        }));
-      } else {
-        const routeList = getEffectiveRouteList();
-        const effectiveDepts = Array.from(
-          new Set(
-            routeList
-              .filter(
-                (r) =>
-                  r.team === newWorker.team ||
-                  (newWorker.team === "Districts" && r.team === "District") ||
-                  (newWorker.team === "District" && r.team === "Districts")
-              )
-              .map((r) => r.department)
-              .filter(hideTeamNamed)
+      let source = depts;
+      if (!source.length) {
+        source = getEffectiveRouteList()
+          .filter(
+            (r) =>
+              r.team === newWorker.team ||
+              (newWorker.team === "Districts" && r.team === "District") ||
+              (newWorker.team === "District" && r.team === "Districts")
           )
-        ).sort();
+          .map((r) => r.department)
+          .filter(Boolean);
+      }
 
-        setFilterOptions((prev) => ({
-          ...prev,
-          departments: effectiveDepts.map((dept) => ({ value: dept, label: dept })),
-        }));
+      const filtered = filterDepartmentsForDistrictSubTeam(
+        source,
+        newWorker.team,
+        newWorker.district_sub_team
+      );
+
+      setFilterOptions((prev) => ({
+        ...prev,
+        departments: filtered.map((dept) => ({ value: dept, label: dept })),
+      }));
+
+      if (
+        newWorker.department &&
+        !filtered.some((d) => d === newWorker.department)
+      ) {
+        setNewWorker((prev) => ({ ...prev, department: "" }));
       }
     } else {
       const depts = (filterData.departments || []).filter((d) => d.value !== "All");
@@ -143,7 +139,7 @@ export default function AddWorker() {
         departments: depts,
       }));
     }
-  }, [newWorker.team, filterData]);
+  }, [newWorker.team, newWorker.district_sub_team, newWorker.department, filterData]);
 
  // Single worker functions
  const addNewWorker = async () => {
@@ -634,7 +630,13 @@ export default function AddWorker() {
  </label>
  <select
  value={newWorker.district_sub_team}
- onChange={(e) => setNewWorker({ ...newWorker, district_sub_team: e.target.value })}
+ onChange={(e) =>
+ setNewWorker({
+ ...newWorker,
+ district_sub_team: e.target.value,
+ department: "",
+ })
+ }
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
  >
  <option value="">Select District/Sub-team</option>
@@ -652,16 +654,9 @@ export default function AddWorker() {
  <select
  value={newWorker.department}
  onChange={(e) => {
-   const selectedDept = e.target.value;
-   let autoCluster = newWorker.district_sub_team;
-   if (newWorker.team === "Districts" || newWorker.team === "District" || !newWorker.team) {
-     if (isPastorIsaacCommunity(selectedDept)) autoCluster = "Pastor Isaac Cluster";
-     else if (isPastorBiolaCommunity(selectedDept)) autoCluster = "Pastor Biola Cluster";
-   }
    setNewWorker({
      ...newWorker,
-     department: selectedDept,
-     district_sub_team: autoCluster,
+     department: e.target.value,
    });
  }}
  disabled={

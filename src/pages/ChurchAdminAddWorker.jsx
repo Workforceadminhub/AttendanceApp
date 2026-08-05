@@ -4,7 +4,13 @@ import Header from "../components/Header";
 import Layout from "../components/Layout";
 import { toast } from "react-toastify";
 import ExcelJS from "exceljs";
-import { teamsAndDepartments, normalizeWorkerRole, isPastorIsaacCommunity, isPastorBiolaCommunity } from "../utils/teams";
+import {
+ teamsAndDepartments,
+ normalizeWorkerRole,
+ isPastorIsaacCommunity,
+ isPastorBiolaCommunity,
+ filterDepartmentsForDistrictSubTeam,
+} from "../utils/teams";
 import { downloadSampleWorkersExcel } from "../utils/sampleWorkersExcel";
 import BirthDatePicker from "../components/BirthDatePicker";
 import apiRequest from "../utils/apiClient";
@@ -75,38 +81,40 @@ export default function ChurchAdminAddWorker() {
     };
   }, []);
 
-  // Update departments when team changes
+  // Update departments when team / district sub-team changes
   useEffect(() => {
     if (newWorker.team) {
       const depts =
         filterData.departmentsByTeam[newWorker.team] ||
-        filterData.departmentsByTeam[newWorker.team === "Districts" ? "District" : newWorker.team];
+        filterData.departmentsByTeam[newWorker.team === "Districts" ? "District" : newWorker.team] ||
+        [];
 
-      if (depts && depts.length > 0) {
-        setFilterOptions((prev) => ({
-          ...prev,
-          departments: depts.map((dept) => ({ value: dept, label: dept })),
-        }));
-      } else {
-        const routeList = getEffectiveRouteList();
-        const effectiveDepts = Array.from(
-          new Set(
-            routeList
-              .filter(
-                (r) =>
-                  r.team === newWorker.team ||
-                  (newWorker.team === "Districts" && r.team === "District") ||
-                  (newWorker.team === "District" && r.team === "Districts")
-              )
-              .map((r) => r.department)
-              .filter(Boolean)
+      let source = depts;
+      if (!source.length) {
+        source = getEffectiveRouteList()
+          .filter(
+            (r) =>
+              r.team === newWorker.team ||
+              (newWorker.team === "Districts" && r.team === "District") ||
+              (newWorker.team === "District" && r.team === "Districts")
           )
-        ).sort();
+          .map((r) => r.department)
+          .filter(Boolean);
+      }
 
-        setFilterOptions((prev) => ({
-          ...prev,
-          departments: effectiveDepts.map((dept) => ({ value: dept, label: dept })),
-        }));
+      const filtered = filterDepartmentsForDistrictSubTeam(
+        source,
+        newWorker.team,
+        newWorker.district_sub_team
+      );
+
+      setFilterOptions((prev) => ({
+        ...prev,
+        departments: filtered.map((dept) => ({ value: dept, label: dept })),
+      }));
+
+      if (newWorker.department && !filtered.includes(newWorker.department)) {
+        setNewWorker((prev) => ({ ...prev, department: "" }));
       }
     } else {
       const departments = filterData.departments.filter((d) => d.value !== "All");
@@ -115,7 +123,7 @@ export default function ChurchAdminAddWorker() {
         departments,
       }));
     }
-  }, [newWorker.team, filterData]);
+  }, [newWorker.team, newWorker.district_sub_team, newWorker.department, filterData]);
 
  // Handle single worker form submission
  const handleSingleSubmit = async (e) => {

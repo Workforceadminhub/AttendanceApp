@@ -31,7 +31,7 @@ export default function ManageDepartments() {
  const [isSubmitting, setIsSubmitting] = useState(false);
  const hasFetched = useRef(false);
  const [sortConfig, setSortConfig] = useState({
- key: null,
+ key: "id",
  direction: "asc",
  });
 
@@ -284,6 +284,13 @@ export default function ManageDepartments() {
 
  if (aValue === null || aValue === undefined || aValue === "") return 1;
  if (bValue === null || bValue === undefined || bValue === "") return -1;
+
+ // Handle numeric sorting for IDs and numbers
+ const numA = Number(aValue);
+ const numB = Number(bValue);
+ if (!isNaN(numA) && !isNaN(numB) && (sortConfig.key === "id" || typeof aValue === "number" || typeof bValue === "number")) {
+ return sortConfig.direction === "asc" ? numA - numB : numB - numA;
+ }
 
  const aStr = String(aValue).toLowerCase();
  const bStr = String(bValue).toLowerCase();

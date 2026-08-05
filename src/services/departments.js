@@ -12,7 +12,13 @@ export const fetchDepartments = async () => {
       throw new Error(response?.error || "Failed to fetch departments");
     }
     const raw = response.data || response;
-    return Array.isArray(raw) ? raw : [];
+    const items = Array.isArray(raw) ? raw : [];
+    return items.sort((a, b) => {
+      const numA = Number(a?.id);
+      const numB = Number(b?.id);
+      if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+      return String(a?.id || "").localeCompare(String(b?.id || ""));
+    });
   } catch (error) {
     throw error;
   }

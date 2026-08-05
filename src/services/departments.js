@@ -1,5 +1,6 @@
 import apiRequest from "../utils/apiClient";
 import { setDynamicDepartments, getEffectiveRouteList } from "../utils/routeObject";
+import { DISTRICT_CLUSTER_LABELS } from "../utils/teams";
 import { fetchHubTeams } from "./hub/teams";
 
 /**
@@ -110,25 +111,31 @@ export const fetchTeamsAndDepartmentsForFilter = async () => {
   });
 
   const teamNames = [...teamNamesSet].sort();
-  const teamNameLookup = new Set(
-    teamNames.flatMap((t) => [t, t.toLowerCase()])
+  const blockedDeptNames = new Set(
+    [
+      ...teamNames,
+      ...DISTRICT_CLUSTER_LABELS,
+    ].flatMap((t) => {
+      const s = String(t).trim();
+      return s ? [s, s.toLowerCase()] : [];
+    })
   );
 
-  // Drop any department entries that are actually team names (e.g. "Districts"
-  // appearing in the Districts department list).
+  // Drop team names and district-cluster labels from department lists
+  // (e.g. "Districts", "Pastor Biola" appearing as departments).
   Object.keys(departmentsByTeam).forEach((teamKey) => {
     departmentsByTeam[teamKey] = departmentsByTeam[teamKey].filter((dept) => {
       const d = String(dept).trim();
       return (
         d &&
-        !teamNameLookup.has(d) &&
-        !teamNameLookup.has(d.toLowerCase()) &&
+        !blockedDeptNames.has(d) &&
+        !blockedDeptNames.has(d.toLowerCase()) &&
         d.toLowerCase() !== String(teamKey).trim().toLowerCase()
       );
     });
   });
   for (const name of [...allDepartmentNames]) {
-    if (teamNameLookup.has(name) || teamNameLookup.has(name.toLowerCase())) {
+    if (blockedDeptNames.has(name) || blockedDeptNames.has(name.toLowerCase())) {
       allDepartmentNames.delete(name);
     }
   }

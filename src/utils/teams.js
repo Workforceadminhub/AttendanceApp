@@ -251,6 +251,20 @@ export const PASTOR_BIOLA_COMMUNITIES = [
   "Bethel Community",
   "Hephzibah Community",
   "Rehoboth Community",
+  "Zion Life Community",
+  "Living Spring Community",
+  "Judah Community",
+  "Christ Chosen Generation Community",
+  "Ephphata Community",
+  "Koinonia Community",
+];
+
+/** Labels that are district clusters, not departments — hide from dept dropdowns */
+export const DISTRICT_CLUSTER_LABELS = [
+  "Pastor Biola",
+  "Pastor Isaac",
+  "Pastor Biola Cluster",
+  "Pastor Isaac Cluster",
 ];
 
 const isaacCommunitySet = new Set([
@@ -265,6 +279,13 @@ const biolaCommunitySet = new Set([
   "royal priesthood community",
   "ogudu alapere community",
   "praise couple community",
+  "zion life community",
+  "living spring community",
+  "judah community",
+  "christ chosen generation community",
+  "ephphata community",
+  "ephphatha community",
+  "koinonia community",
   "pastor biola cluster",
   "pastor biola",
 ]);

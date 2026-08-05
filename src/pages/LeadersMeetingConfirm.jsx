@@ -17,6 +17,9 @@ import {
 import BirthDatePicker from "../components/BirthDatePicker";
 import { DROPDOWN_OPTIONS } from "../utils/sampleWorkersExcel";
 import { getEffectiveRouteList } from "../utils/routeObject";
+import { fetchDepartments } from "../services/departments";
+
+const isDistrictsTeam = (team) => team === "Districts" || team === "District";
 
 // ── Shared UI helpers ────────────────────────────────────────────────────────
 
@@ -272,6 +275,7 @@ function EditWorkerStep({ worker, token, onBack, onDone }) {
   const alreadyDeclined = worker.isConfirmed === false || worker.is_confirmed === false;
   const missing = new Set(worker.isMissing || []);
   const hasMissing = missing.size > 0;
+  const showDistrictSubTeam = isDistrictsTeam(worker.team);
 
   const [attending, setAttending] = useState(""); // "" | "yes" | "no"
   const [declineReason, setDeclineReason] = useState("");
@@ -301,6 +305,9 @@ function EditWorkerStep({ worker, token, onBack, onDone }) {
     if (!attending) errs.attending = "Please select whether you will be attending";
     if (attending === "no" && !declineReason.trim())
       errs.declineReason = "Please provide a reason";
+    if (showDistrictSubTeam && !form.district_sub_team.trim()) {
+      errs.district_sub_team = "District/Sub-team is required";
+    }
     if (hasMissing) {
       if (missing.has("email")) {
         if (!form.email.trim()) errs.email = "Email is required";
@@ -314,7 +321,6 @@ function EditWorkerStep({ worker, token, onBack, onDone }) {
       if (missing.has("address") && !form.address.trim()) errs.address = "Address is required";
       if (missing.has("employment") && !form.employment) errs.employment = "Employment status is required";
       if (missing.has("occupation") && !form.occupation.trim()) errs.occupation = "Occupation is required";
-      if (missing.has("district_sub_team") && !form.district_sub_team.trim()) errs.district_sub_team = "District/Sub-team is required";
     }
     return errs;
   };
@@ -328,6 +334,9 @@ function EditWorkerStep({ worker, token, onBack, onDone }) {
       const isConfirmed = attending === "yes";
       const payload = { meeting_date: MEETING_DATE, is_confirmed: isConfirmed };
       if (!isConfirmed) payload.notes = declineReason.trim();
+      if (showDistrictSubTeam && form.district_sub_team.trim()) {
+        payload.district_sub_team = form.district_sub_team.trim();
+      }
       if (hasMissing) {
         if (missing.has("email")) payload.email = form.email.trim();
         if (missing.has("phone")) payload.phone = form.phone.trim();
@@ -339,7 +348,6 @@ function EditWorkerStep({ worker, token, onBack, onDone }) {
         if (missing.has("address") && form.address.trim()) payload.address = form.address.trim();
         if (missing.has("employment") && form.employment) payload.employment = form.employment;
         if (missing.has("occupation") && form.occupation.trim()) payload.occupation = form.occupation.trim();
-        if (missing.has("district_sub_team") && form.district_sub_team.trim()) payload.district_sub_team = form.district_sub_team.trim();
       }
       await updateMeetingWorker(worker.id, payload, token);
       onDone(isConfirmed ? "confirm" : "decline");
@@ -425,17 +433,39 @@ function EditWorkerStep({ worker, token, onBack, onDone }) {
         </div>
       </div>
 
+      {/* District/Sub-team always before Department when Team is Districts */}
+      {showDistrictSubTeam && (
+        <div>
+          <Label htmlFor="edit-district-sub-team" required>
+            District/Sub-team
+          </Label>
+          <select
+            id="edit-district-sub-team"
+            value={form.district_sub_team}
+            onChange={set("district_sub_team")}
+            className={selectClass}
+          >
+            <option value="">Select District/Sub-team</option>
+            <option value="Pastor Biola Cluster">Pastor Biola Cluster</option>
+            <option value="Pastor Isaac Cluster">Pastor Isaac Cluster</option>
+          </select>
+          <FieldError message={errors.district_sub_team} />
+        </div>
+      )}
+
       {!hasMissing ? (
         <>
           <div className="rounded-lg border border-forest-50 bg-forest-50 px-4 py-3">
             <p className="text-sm text-forest font-medium">
-              Your details are complete. Nothing to update.
+              {showDistrictSubTeam
+                ? "Confirm District/Sub-team above, then answer the attendance question."
+                : "Your details are complete. Nothing to update."}
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {worker.role && <ReadonlyField label="Role" value={worker.role} />}
-            {worker.department && <ReadonlyField label="Department" value={worker.department} />}
             {worker.team && <ReadonlyField label="Team" value={worker.team} />}
+            {worker.department && <ReadonlyField label="Department" value={worker.department} />}
           </div>
         </>
       ) : (
@@ -452,7 +482,8 @@ function EditWorkerStep({ worker, token, onBack, onDone }) {
             {!missing.has("address") && worker.address && <ReadonlyField label="Address" value={worker.address} />}
             {!missing.has("employment") && worker.employment && <ReadonlyField label="Employment Status" value={worker.employment} />}
             {!missing.has("occupation") && worker.occupation && <ReadonlyField label="Occupation" value={worker.occupation} />}
-            {!missing.has("district_sub_team") && worker.district_sub_team && <ReadonlyField label="District/Sub-team" value={worker.district_sub_team} />}
+            {worker.team && <ReadonlyField label="Team" value={worker.team} />}
+            {worker.department && <ReadonlyField label="Department" value={worker.department} />}
           </div>
 
           {/* Missing fields (editable) */}
@@ -586,19 +617,6 @@ function EditWorkerStep({ worker, token, onBack, onDone }) {
             </div>
           )}
 
-          {missing.has("district_sub_team") && (
-            <div>
-              <Label htmlFor="edit-district-sub-team" required>
-                District/Sub-team {missingBadge}
-              </Label>
-              <select id="edit-district-sub-team" value={form.district_sub_team} onChange={set("district_sub_team")} className={selectClass}>
-                <option value="">Select</option>
-                <option>Pastor Biola Cluster</option>
-                <option>Pastor Isaac Cluster</option>
-              </select>
-              <FieldError message={errors.district_sub_team} />
-            </div>
-          )}
         </>
       )}
 
@@ -675,6 +693,14 @@ function EditWorkerStep({ worker, token, onBack, onDone }) {
 // ── Step 3b: Create New Worker ──────────────────────────────────────────────
 
 function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
+  const [routeList, setRouteList] = useState(() => getEffectiveRouteList());
+
+  useEffect(() => {
+    fetchDepartments()
+      .then(() => setRouteList(getEffectiveRouteList()))
+      .catch(() => {});
+  }, []);
+
   const nameParts = (searchedName || "").trim().split(/\s+/);
   const [form, setForm] = useState({
     firstname: nameParts[0] || "",
@@ -707,7 +733,6 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
     setErrors((prev) => ({ ...prev, team: undefined, district_sub_team: undefined, department: undefined }));
   };
 
-  const routeList = getEffectiveRouteList();
   const teamList = Array.from(new Set(routeList.map((r) => r.team).filter(Boolean))).sort();
   const departmentOptions = form.team
     ? Array.from(
@@ -746,7 +771,7 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
     if (!form.occupation.trim()) errs.occupation = "Occupation is required";
     if (!form.address.trim()) errs.address = "Address is required";
     if (!form.team) errs.team = "Team is required";
-    if (form.team === "Districts" && !form.district_sub_team) errs.district_sub_team = "District/Sub-team is required";
+    if (isDistrictsTeam(form.team) && !form.district_sub_team) errs.district_sub_team = "District/Sub-team is required";
     if (!form.department) errs.department = "Department is required";
     return errs;
   };
@@ -772,7 +797,7 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
         employment: form.employment,
         occupation: form.occupation.trim(),
         team: form.team,
-        district_sub_team: form.team === "Districts" ? form.district_sub_team : undefined,
+        district_sub_team: isDistrictsTeam(form.team) ? form.district_sub_team : undefined,
         department: form.department,
         is_confirmed: true,
         meeting_date: MEETING_DATE,
@@ -934,8 +959,8 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
           <FieldError message={errors.team} />
         </div>
 
-        {/* District/Sub-team — only for Districts */}
-        {form.team === "Districts" && (
+        {/* District/Sub-team — always before Department when Districts */}
+        {isDistrictsTeam(form.team) && (
           <div className="sm:col-span-2">
             <Label htmlFor="create-district-sub-team" required>District/Sub-team</Label>
             <select id="create-district-sub-team" value={form.district_sub_team} onChange={set("district_sub_team")} className={selectClass}>
@@ -947,12 +972,22 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
           </div>
         )}
 
-        {/* Department — filtered by team */}
+        {/* Department — filtered by team; after District/Sub-team for Districts */}
         {form.team && (
           <div className="sm:col-span-2">
             <Label htmlFor="create-department" required>Department</Label>
-            <select id="create-department" value={form.department} onChange={set("department")} className={selectClass}>
-              <option value="">Select Department</option>
+            <select
+              id="create-department"
+              value={form.department}
+              onChange={set("department")}
+              className={selectClass}
+              disabled={isDistrictsTeam(form.team) && !form.district_sub_team}
+            >
+              <option value="">
+                {isDistrictsTeam(form.team) && !form.district_sub_team
+                  ? "Select District/Sub-team first"
+                  : "Select Department"}
+              </option>
               {departmentOptions.map((d) => (
                 <option key={d} value={d}>{d}</option>
               ))}

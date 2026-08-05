@@ -612,8 +612,8 @@ export default function AddWorker() {
  </select>
  </div>
 
- {/* District/Sub-team — before Department for Districts */}
- {newWorker.team === "Districts" && (
+ {/* District/Sub-team — always before Department when Districts */}
+ {(newWorker.team === "Districts" || newWorker.team === "District") && (
  <div>
  <label className="block text-sm font-medium text-ink-700 mb-2">
  District/Sub-team <span className="text-brick">*</span>
@@ -640,7 +640,7 @@ export default function AddWorker() {
  onChange={(e) => {
    const selectedDept = e.target.value;
    let autoCluster = newWorker.district_sub_team;
-   if (newWorker.team === "Districts" || !newWorker.team) {
+   if (newWorker.team === "Districts" || newWorker.team === "District" || !newWorker.team) {
      if (isPastorIsaacCommunity(selectedDept)) autoCluster = "Pastor Isaac Cluster";
      else if (isPastorBiolaCommunity(selectedDept)) autoCluster = "Pastor Biola Cluster";
    }
@@ -650,9 +650,18 @@ export default function AddWorker() {
      district_sub_team: autoCluster,
    });
  }}
- className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
+ disabled={
+   (newWorker.team === "Districts" || newWorker.team === "District") &&
+   !newWorker.district_sub_team
+ }
+ className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10 disabled:cursor-not-allowed disabled:bg-ink-100"
  >
- <option value="">Select Department</option>
+ <option value="">
+ {(newWorker.team === "Districts" || newWorker.team === "District") &&
+ !newWorker.district_sub_team
+ ? "Select District/Sub-team first"
+ : "Select Department"}
+ </option>
  {filterOptions.departments.map((dept) => (
  <option key={dept.value} value={dept.value}>
  {dept.label}

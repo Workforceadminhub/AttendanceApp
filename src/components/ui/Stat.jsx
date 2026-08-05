@@ -13,6 +13,7 @@ import clsx from "clsx";
  */
 export default function Stat({
   eyebrow,
+  label,
   value,
   unit,
   delta,
@@ -20,6 +21,8 @@ export default function Stat({
   loading = false,
   className,
 }) {
+  const caption = eyebrow ?? label;
+
   return (
     <div
       className={clsx(
@@ -27,7 +30,7 @@ export default function Stat({
         className
       )}
     >
-      <div className="qc-eyebrow">{eyebrow}</div>
+      <div className="qc-eyebrow">{caption}</div>
 
       <div className="mt-3 flex items-baseline gap-2">
         {loading ? (

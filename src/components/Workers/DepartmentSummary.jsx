@@ -1,5 +1,3 @@
-// import { useNavigate } from "react-router-dom";
-
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Header from "../Header";
 import {
@@ -9,7 +7,7 @@ import {
 import { getAdminSelectOptions, getEffectiveRouteList } from "../../utils/routeObject";
 import getDefaultSummary from "../../utils/getDefaultSummary";
 import { getDepartmentByUser } from "../../utils/getDepartment";
-import { useLocation } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import TableLoadingState from "../TableLoadingState";
 import Layout from "../Layout";
 import { ADMIN_ENUMS } from "../../utils/enums";
@@ -38,7 +36,7 @@ export default function DepartmentSummary() {
   const pathname = location.pathname;
   const team = getDepartmentByUser(pathname);
   const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
-  const { isAdmin } = getUserRole();
+  const { isAdmin, isSuperAdmin } = getUserRole();
   const isAdminMember = isAdmin || checkAdminStatus(pathname);
   const authUser = useMemo(() => getUser(), []);
   const options = getAdminSelectOptions(isChurchAdmin, team, authUser);
@@ -110,6 +108,10 @@ export default function DepartmentSummary() {
   };
 
   // Log attendance summary silently
+
+  if (isSuperAdmin) {
+    return <Navigate to="/summary/super-admin" replace />;
+  }
 
   return (
     <div className="min-h-screen bg-cream">

@@ -26,3 +26,11 @@ export function hubForgotPassword(email) {
 export function hubResetPassword(token, password) {
   return hubPost("/auth/reset-password", { token, password }, undefined, false);
 }
+
+export function hubSetPassword(password, token) {
+  return hubPost(
+    "/auth/set-password",
+    { password },
+    token ? { headers: { Authorization: `Bearer ${token}` } } : undefined
+  );
+}

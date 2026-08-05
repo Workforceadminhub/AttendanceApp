@@ -1607,4 +1607,9 @@ export default function ManageAdmins() {
  })}
  </div>
  </div>
-}
+ );
+ })()}
+ </GenericModal>
+ </div>
+ );
+};

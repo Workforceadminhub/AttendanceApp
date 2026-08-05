@@ -92,11 +92,10 @@ export default function Dashboard() {
   const location = useLocation();
   const pathname = location.pathname;
   const team = getDepartmentByUser(pathname);
-  const { isSubTeamAdmin, isTeamAdmin, isSuperAdmin } = getUserRole();
+  const { isSubTeamAdmin, isTeamAdmin, isSuperAdmin, isChurchAdmin: isChurchAdminRole } = getUserRole();
   // Super Admin gets the campus-wide (Church Admin) dashboard: same data, same layout.
-  const isChurchAdmin =
-    team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT || isSuperAdmin;
-  const isAdminMember = checkAdminStatus(pathname);
+  const isChurchAdmin = isChurchAdminRole || isSuperAdmin;
+  const isAdminMember = isChurchAdmin || checkAdminStatus(pathname);
   const authUser = useMemo(() => getUser(), []);
   const options = getAdminSelectOptions(isChurchAdmin, team, authUser);
 

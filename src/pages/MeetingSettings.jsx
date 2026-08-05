@@ -113,11 +113,11 @@ export default function MeetingSettings() {
         {/* Active Meeting Overview */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-6">
           <Stat
-            label="Active Leaders Meeting Date"
+            eyebrow="Active Leaders Meeting Date"
             value={formatMeetingDisplayDate(getActiveMeeting("leaders")?.date) || "Not Set"}
           />
           <Stat
-            label="Active Workers Meeting Date"
+            eyebrow="Active Workers Meeting Date"
             value={formatMeetingDisplayDate(getActiveMeeting("workers")?.date) || "Not Set"}
           />
         </div>

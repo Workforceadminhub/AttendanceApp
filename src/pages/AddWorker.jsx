@@ -10,6 +10,7 @@ import BirthDatePicker from "../components/BirthDatePicker";
 import apiRequest from "../utils/apiClient";
 import { downloadSampleWorkersExcel } from "../utils/sampleWorkersExcel";
 import { fetchTeamsAndDepartmentsForFilter } from "../services/departments";
+import { getEffectiveRouteList } from "../utils/routeObject";
 
 export default function AddWorker() {
  const navigate = useNavigate();
@@ -87,69 +88,46 @@ export default function AddWorker() {
  }
  }, [navigate]);
 
- // Update departments when team changes
- useEffect(() => {
+  // Update departments when team changes
+  useEffect(() => {
     if (newWorker.team) {
-      const depts = filterData.departmentsByTeam[newWorker.team];
+      const depts =
+        filterData.departmentsByTeam[newWorker.team] ||
+        filterData.departmentsByTeam[newWorker.team === "Districts" ? "District" : newWorker.team];
+
       if (depts && depts.length > 0) {
         setFilterOptions((prev) => ({
           ...prev,
           departments: depts.map((dept) => ({ value: dept, label: dept })),
         }));
       } else {
-        const selectedTeam = teamsAndDepartments.find((team) => team.team === newWorker.team);
-        if (selectedTeam) {
-          setFilterOptions((prev) => ({
-            ...prev,
-            departments: selectedTeam.department.map((dept) => ({ value: dept, label: dept })),
-          }));
-        } else {
-          setFilterOptions((prev) => ({
-            ...prev,
-            departments: [{ value: "All", label: "All Departments" }],
-          }));
-        }
+        const routeList = getEffectiveRouteList();
+        const effectiveDepts = Array.from(
+          new Set(
+            routeList
+              .filter(
+                (r) =>
+                  r.team === newWorker.team ||
+                  (newWorker.team === "Districts" && r.team === "District") ||
+                  (newWorker.team === "District" && r.team === "Districts")
+              )
+              .map((r) => r.department)
+              .filter(Boolean)
+          )
+        ).sort();
+
+        setFilterOptions((prev) => ({
+          ...prev,
+          departments: effectiveDepts.map((dept) => ({ value: dept, label: dept })),
+        }));
       }
     } else {
       setFilterOptions((prev) => ({
         ...prev,
-        departments: [{ value: "All", label: "All Departments" }],
+        departments: filterData.departments || [],
       }));
     }
   }, [newWorker.team, filterData]);
-
- // Load filter options from cache
- useEffect(() => {
- const loadFilterOptions = () => {
- try {
- // Clear old cache to ensure fresh data
- localStorage.removeItem("filterCache");
- 
- const cachedData = localStorage.getItem("filterCache");
- if (cachedData) {
- const { data, timestamp } = JSON.parse(cachedData);
- const now = new Date().getTime();
- const cacheAge = now - timestamp;
- const maxAge = 24 * 60 * 60 * 1000; // 24 hours
-
- if (cacheAge < maxAge && data) {
- setFilterOptions(data);
- return;
- }
- }
-
- // Fallback to proper teams data
- setFilterOptions({
- departments: [{ value: "All", label: "All Departments" }],
- teams: teamsAndDepartments.map(team => ({ value: team.team, label: team.team })),
- });
- } catch (error) {
- // Silent error handling
- }
- };
-
- loadFilterOptions();
- }, []);
 
  // Single worker functions
  const addNewWorker = async () => {

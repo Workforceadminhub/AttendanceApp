@@ -16,7 +16,7 @@ import {
 } from "@heroicons/react/24/outline";
 import BirthDatePicker from "../components/BirthDatePicker";
 import { DROPDOWN_OPTIONS } from "../utils/sampleWorkersExcel";
-import { teamsAndDepartments } from "../utils/teams";
+import { getEffectiveRouteList } from "../utils/routeObject";
 
 // ── Shared UI helpers ────────────────────────────────────────────────────────
 
@@ -707,8 +707,23 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
     setErrors((prev) => ({ ...prev, team: undefined, district_sub_team: undefined, department: undefined }));
   };
 
-  const selectedTeamData = teamsAndDepartments.find((t) => t.team === form.team);
-  const departmentOptions = selectedTeamData?.department || [];
+  const routeList = getEffectiveRouteList();
+  const teamList = Array.from(new Set(routeList.map((r) => r.team).filter(Boolean))).sort();
+  const departmentOptions = form.team
+    ? Array.from(
+        new Set(
+          routeList
+            .filter(
+              (r) =>
+                r.team === form.team ||
+                (form.team === "Districts" && r.team === "District") ||
+                (form.team === "District" && r.team === "Districts")
+            )
+            .map((r) => r.department)
+            .filter(Boolean)
+        )
+      ).sort()
+    : [];
 
   const validate = () => {
     const errs = {};
@@ -912,8 +927,8 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
           <Label htmlFor="create-team" required>Team</Label>
           <select id="create-team" value={form.team} onChange={setTeam} className={selectClass}>
             <option value="">Select Team</option>
-            {teamsAndDepartments.map((t) => (
-              <option key={t.team} value={t.team}>{t.team}</option>
+            {teamList.map((t) => (
+              <option key={t} value={t}>{t}</option>
             ))}
           </select>
           <FieldError message={errors.team} />

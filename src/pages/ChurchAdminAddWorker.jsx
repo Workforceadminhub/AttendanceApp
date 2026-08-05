@@ -9,6 +9,7 @@ import { downloadSampleWorkersExcel } from "../utils/sampleWorkersExcel";
 import BirthDatePicker from "../components/BirthDatePicker";
 import apiRequest from "../utils/apiClient";
 import { fetchTeamsAndDepartmentsForFilter } from "../services/departments";
+import { getEffectiveRouteList } from "../utils/routeObject";
 
 export default function ChurchAdminAddWorker() {
  const navigate = useNavigate();
@@ -77,25 +78,35 @@ export default function ChurchAdminAddWorker() {
   // Update departments when team changes
   useEffect(() => {
     if (newWorker.team) {
-      const depts = filterData.departmentsByTeam[newWorker.team];
+      const depts =
+        filterData.departmentsByTeam[newWorker.team] ||
+        filterData.departmentsByTeam[newWorker.team === "Districts" ? "District" : newWorker.team];
+
       if (depts && depts.length > 0) {
         setFilterOptions((prev) => ({
           ...prev,
           departments: depts.map((dept) => ({ value: dept, label: dept })),
         }));
       } else {
-        const selectedTeam = teamsAndDepartments.find((team) => team.team === newWorker.team);
-        if (selectedTeam) {
-          setFilterOptions((prev) => ({
-            ...prev,
-            departments: selectedTeam.department.map((dept) => ({ value: dept, label: dept })),
-          }));
-        } else {
-          setFilterOptions((prev) => ({
-            ...prev,
-            departments: filterData.departments.filter((d) => d.value !== "All"),
-          }));
-        }
+        const routeList = getEffectiveRouteList();
+        const effectiveDepts = Array.from(
+          new Set(
+            routeList
+              .filter(
+                (r) =>
+                  r.team === newWorker.team ||
+                  (newWorker.team === "Districts" && r.team === "District") ||
+                  (newWorker.team === "District" && r.team === "Districts")
+              )
+              .map((r) => r.department)
+              .filter(Boolean)
+          )
+        ).sort();
+
+        setFilterOptions((prev) => ({
+          ...prev,
+          departments: effectiveDepts.map((dept) => ({ value: dept, label: dept })),
+        }));
       }
     } else {
       const departments = filterData.departments.filter((d) => d.value !== "All");

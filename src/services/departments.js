@@ -65,6 +65,9 @@ export const fetchTeamsAndDepartmentsForFilter = async () => {
     const normDept = String(deptName).trim();
     if (!normTeam || !normDept) return;
 
+    // Never treat a team name as a department under that (or any) team
+    if (normDept.toLowerCase() === normTeam.toLowerCase()) return;
+
     teamNamesSet.add(normTeam);
     allDepartmentNames.add(normDept);
 
@@ -107,6 +110,28 @@ export const fetchTeamsAndDepartmentsForFilter = async () => {
   });
 
   const teamNames = [...teamNamesSet].sort();
+  const teamNameLookup = new Set(
+    teamNames.flatMap((t) => [t, t.toLowerCase()])
+  );
+
+  // Drop any department entries that are actually team names (e.g. "Districts"
+  // appearing in the Districts department list).
+  Object.keys(departmentsByTeam).forEach((teamKey) => {
+    departmentsByTeam[teamKey] = departmentsByTeam[teamKey].filter((dept) => {
+      const d = String(dept).trim();
+      return (
+        d &&
+        !teamNameLookup.has(d) &&
+        !teamNameLookup.has(d.toLowerCase()) &&
+        d.toLowerCase() !== String(teamKey).trim().toLowerCase()
+      );
+    });
+  });
+  for (const name of [...allDepartmentNames]) {
+    if (teamNameLookup.has(name) || teamNameLookup.has(name.toLowerCase())) {
+      allDepartmentNames.delete(name);
+    }
+  }
 
   const teams = [
     { value: "All", label: "All Teams" },

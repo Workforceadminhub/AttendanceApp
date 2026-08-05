@@ -97,10 +97,18 @@ export default function AddWorker() {
         filterData.departmentsByTeam[newWorker.team] ||
         filterData.departmentsByTeam[newWorker.team === "Districts" ? "District" : newWorker.team];
 
+      const hideTeamNamed = (dept) => {
+        const d = String(dept || "").trim();
+        const team = String(newWorker.team || "").trim();
+        return d && d.toLowerCase() !== team.toLowerCase();
+      };
+
       if (depts && depts.length > 0) {
         setFilterOptions((prev) => ({
           ...prev,
-          departments: depts.map((dept) => ({ value: dept, label: dept })),
+          departments: depts
+            .filter(hideTeamNamed)
+            .map((dept) => ({ value: dept, label: dept })),
         }));
       } else {
         const routeList = getEffectiveRouteList();
@@ -114,7 +122,7 @@ export default function AddWorker() {
                   (newWorker.team === "District" && r.team === "Districts")
               )
               .map((r) => r.department)
-              .filter(Boolean)
+              .filter(hideTeamNamed)
           )
         ).sort();
 

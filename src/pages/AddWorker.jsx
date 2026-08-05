@@ -100,7 +100,12 @@ export default function AddWorker() {
       const hideTeamNamed = (dept) => {
         const d = String(dept || "").trim();
         const team = String(newWorker.team || "").trim();
-        return d && d.toLowerCase() !== team.toLowerCase();
+        if (!d) return false;
+        if (d.toLowerCase() === team.toLowerCase()) return false;
+        const lower = d.toLowerCase();
+        if (lower === "pastor biola" || lower === "pastor isaac") return false;
+        if (lower === "pastor biola cluster" || lower === "pastor isaac cluster") return false;
+        return true;
       };
 
       if (depts && depts.length > 0) {

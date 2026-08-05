@@ -1,5 +1,6 @@
 import apiRequest from "../utils/apiClient";
 import { setDynamicDepartments, getEffectiveRouteList } from "../utils/routeObject";
+import { fetchHubTeams } from "./hub/teams";
 
 /**
  * Fetch all departments (including empty or unmapped).
@@ -26,17 +27,12 @@ export const fetchDepartments = async () => {
 };
 
 /**
- * Fetch all teams by deriving unique team names from departments.
+ * Fetch all teams from GET /api/hub/teams.
  * @returns {Promise<Array<string>>} List of team names
  */
 export const fetchTeams = async () => {
-  const departments = await fetchDepartments();
-  const teamSet = new Set();
-  departments.forEach((d) => {
-    const t = d?.team ?? d?.teamName;
-    if (t != null && String(t).trim() !== "") teamSet.add(String(t).trim());
-  });
-  return [...teamSet].sort();
+  const options = await fetchHubTeams();
+  return options.map((t) => t.value);
 };
 
 /**
@@ -45,7 +41,10 @@ export const fetchTeams = async () => {
  * @returns {Promise<{ teams: Array<{ value: string, label: string }>, departments: Array<{ value: string, label: string }>, departmentsByTeam: Record<string, string[]> }>}
  */
 export const fetchTeamsAndDepartmentsForFilter = async () => {
-  const departmentsList = await fetchDepartments();
+  const [departmentsList, hubTeams] = await Promise.all([
+    fetchDepartments(),
+    fetchHubTeams().catch(() => []),
+  ]);
 
   const departmentsByTeam = {};
   const allDepartmentNames = new Set();
@@ -84,7 +83,15 @@ export const fetchTeamsAndDepartmentsForFilter = async () => {
     }
   };
 
-  // 1. Process live API data
+  // Seed teams from dedicated hub teams API
+  if (Array.isArray(hubTeams)) {
+    hubTeams.forEach((t) => {
+      const name = t?.value ?? t?.label;
+      if (name) teamNamesSet.add(canonicalTeamName(name));
+    });
+  }
+
+  // Process live departments API data
   if (Array.isArray(departmentsList) && departmentsList.length > 0) {
     departmentsList.forEach((d) => {
       const name = d?.name ?? d?.department ?? String(d);
@@ -93,7 +100,7 @@ export const fetchTeamsAndDepartmentsForFilter = async () => {
     });
   }
 
-  // 2. Process effective route list to ensure all dynamic + static fallbacks are included
+  // Include any remaining effective-route departments (API-backed once loaded)
   const effectiveList = getEffectiveRouteList();
   effectiveList.forEach((item) => {
     addDeptToTeam(item.team, item.department);
@@ -103,7 +110,12 @@ export const fetchTeamsAndDepartmentsForFilter = async () => {
 
   const teams = [
     { value: "All", label: "All Teams" },
-    ...teamNames.map((t) => ({ value: t, label: t })),
+    ...teamNames.map((t) => {
+      const hub = Array.isArray(hubTeams)
+        ? hubTeams.find((h) => h.value === t || canonicalTeamName(h.value) === t)
+        : null;
+      return { value: t, label: hub?.label || t };
+    }),
   ];
 
   const departments = [

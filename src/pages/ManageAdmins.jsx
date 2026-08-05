@@ -15,6 +15,7 @@ import {
  assignAccessByEmail,
 } from "../services/admins";
 import { fetchDepartments } from "../services/departments";
+import { fetchHubTeams } from "../services/hub/teams";
 import {
  getEffectiveRouteList,
  getTeamForDepartment,
@@ -76,6 +77,7 @@ export default function ManageAdmins() {
  const invalidateDepartments = useInvalidateDepartments();
  const [admins, setAdmins] = useState([]);
  const [departments, setDepartments] = useState([]);
+ const [hubTeamOptions, setHubTeamOptions] = useState([]);
  const [isLoading, setIsLoading] = useState(false);
  const [isSubmitting, setIsSubmitting] = useState(false);
  const hasFetched = useRef(false);
@@ -127,13 +129,16 @@ export default function ManageAdmins() {
  });
  const [updateRole, setUpdateRole] = useState(false);
 
- // Get unique team names from departments data
+ // Teams from GET /api/hub/teams (fallback: unique teams on departments)
  const teamOptions = useMemo(() => {
+ if (hubTeamOptions.length > 0) {
+ return hubTeamOptions.map((t) => t.value);
+ }
  const teams = departments
  .map((d) => d.team)
  .filter((team) => team && team.trim() !== "");
  return [...new Set(teams)].sort();
- }, [departments]);
+ }, [hubTeamOptions, departments]);
 
  const departmentOptions = useMemo(() => {
  const names = [
@@ -263,10 +268,14 @@ export default function ManageAdmins() {
 
  const loadDepartments = useCallback(async () => {
  try {
- const data = await fetchDepartments();
+ const [data, teams] = await Promise.all([
+ fetchDepartments(),
+ fetchHubTeams().catch(() => []),
+ ]);
  setDepartments(Array.isArray(data) ? data : []);
+ setHubTeamOptions(Array.isArray(teams) ? teams : []);
  } catch (error) {
- // Silent fail - departments are for dropdown options
+ // Silent fail - departments/teams are for dropdown options
  }
  }, []);
 

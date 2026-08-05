@@ -156,18 +156,60 @@ export default function ManageAdmins() {
  [formData.department, formData.team, formData.role, includeRole]
  );
 
- // Group departments by team for permissions UI
- const permissionsByTeam = useMemo(() => {
- const groups = {};
- getEffectiveRouteList().forEach((item) => {
- if (!groups[item.team]) groups[item.team] = [];
- groups[item.team].push(item.department);
- });
- // Sort teams alphabetically, sort departments within each team
- return Object.keys(groups)
- .sort()
- .map((team) => ({ team, departments: groups[team].sort() }));
- }, [departments]);
+  // Group departments by team for permissions UI
+  const permissionsByTeam = useMemo(() => {
+    const groups = {};
+    getEffectiveRouteList().forEach((item) => {
+      if (!groups[item.team]) groups[item.team] = [];
+      if (!groups[item.team].includes(item.department)) {
+        groups[item.team].push(item.department);
+      }
+    });
+    // Sort teams alphabetically, sort departments within each team
+    return Object.keys(groups)
+      .sort()
+      .map((team) => ({ team, departments: Array.from(new Set(groups[team])).sort() }));
+  }, [departments]);
+
+  // Set of currently active department and meta team names for filtering out stale permission tokens
+  const activeDeptAndTeamNames = useMemo(() => {
+    const names = new Set([
+      "Super Admin",
+      "Church Admin",
+      "Districts",
+      "General Service",
+      "Interactive Groups",
+      "Maturity",
+      "Membership",
+      "Ministry",
+      "Mission",
+      "NLP",
+      "Next Gen",
+      "Programs",
+      "Senior Leadership",
+    ]);
+    if (Array.isArray(departments)) {
+      departments.forEach((d) => {
+        const name = d.name || d.department;
+        if (name && d.isactive !== false) names.add(name);
+      });
+    }
+    return names;
+  }, [departments]);
+
+  // Clean and deduplicate permissions, filtering out obsolete renamed department names
+  const getCleanPermissions = useCallback(
+    (adminPerms) => {
+      if (!Array.isArray(adminPerms)) return [];
+      const unique = Array.from(new Set(adminPerms.filter(Boolean)));
+      if (activeDeptAndTeamNames.size > 13) {
+        const valid = unique.filter((p) => activeDeptAndTeamNames.has(p));
+        return valid.length > 0 ? valid : unique;
+      }
+      return unique;
+    },
+    [activeDeptAndTeamNames]
+  );
 
  // All department names from routeObject for "Check All" across all teams
  const allPermissionDepts = useMemo(
@@ -340,7 +382,7 @@ export default function ManageAdmins() {
  route: admin.route || "",
  department: admin.department || "",
  team: teamArr,
- permissions: Array.isArray(admin.permissions) ? [...admin.permissions] : [],
+ permissions: getCleanPermissions(admin.permissions),
  });
  setUpdateRole(false);
  setIsEditModalOpen(true);
@@ -741,10 +783,11 @@ export default function ManageAdmins() {
  </td>
  <td className="px-6 py-4 text-sm text-ink-900">
  <div className="flex flex-wrap gap-1 max-w-xs">
- {Array.isArray(admin.permissions) &&
- admin.permissions.length > 0 ? (
+ {(() => {
+ const cleanPerms = getCleanPermissions(admin.permissions);
+ return cleanPerms.length > 0 ? (
  <>
- {admin.permissions.slice(0, 5).map((perm) => (
+ {cleanPerms.slice(0, 5).map((perm) => (
  <span
  key={perm}
  className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-cream-200 text-ink-700"
@@ -752,21 +795,20 @@ export default function ManageAdmins() {
  {perm}
  </span>
  ))}
- {admin.permissions.length > 5 && (
+ {cleanPerms.length > 5 && (
  <button
  type="button"
  onClick={() => setViewPermissionsAdmin(admin)}
  className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-ink-100 text-ink-900 hover:bg-blue-200 cursor-pointer"
  >
- +{admin.permissions.length - 5} more
+ +{cleanPerms.length - 5} more
  </button>
  )}
  </>
  ) : (
- <span className="text-ink-400 text-xs">
- None
- </span>
- )}
+ <span className="text-ink-400">-</span>
+ );
+ })()}
  </div>
  </td>
  <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-900">
@@ -1537,16 +1579,16 @@ export default function ManageAdmins() {
  title={`Permissions - ${viewPermissionsAdmin?.code || ""}`}
  size="medium"
  >
- {viewPermissionsAdmin && (
+ {viewPermissionsAdmin && (() => {
+ const cleanPerms = getCleanPermissions(viewPermissionsAdmin.permissions);
+ return (
  <div>
  <p className="text-sm text-ink-500 mb-3">
- {viewPermissionsAdmin.permissions?.length || 0} permission{viewPermissionsAdmin.permissions?.length !== 1 ? "s" : ""}
+ {cleanPerms.length} permission{cleanPerms.length !== 1 ? "s" : ""}
  </p>
  <div className="max-h-80 overflow-y-auto space-y-1">
  {permissionsByTeam.map((group) => {
- const matched = group.departments.filter(
- (d) => viewPermissionsAdmin.permissions?.includes(d)
- );
+ const matched = group.departments.filter((d) => cleanPerms.includes(d));
  if (matched.length === 0) return null;
  return (
  <div key={group.team} className="mb-2">
@@ -1555,10 +1597,7 @@ export default function ManageAdmins() {
  </div>
  <div className="mt-1 space-y-0.5">
  {matched.map((perm) => (
- <div
- key={perm}
- className="px-3 py-1.5 text-sm text-ink-700"
- >
+ <div key={perm} className="px-3 py-1.5 text-sm text-ink-700">
  {perm}
  </div>
  ))}
@@ -1568,8 +1607,4 @@ export default function ManageAdmins() {
  })}
  </div>
  </div>
- )}
- </GenericModal>
- </div>
- );
 }

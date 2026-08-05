@@ -143,16 +143,22 @@ export default function ManageDepartments() {
  toast.error("Team is required");
  return;
  }
- if (!formData.code.trim()) {
- toast.error("Code is required");
- return;
- }
 
  // Auto-derive route from name if not supplied (kebab-case + leading slash)
  const derivedRoute =
  formData.route.trim() ||
  `/${formData.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`;
- const submission = { ...formData, route: derivedRoute };
+
+ const submission = {
+ name: formData.name.trim(),
+ team: formData.team.trim(),
+ route: derivedRoute,
+ isactive: formData.isactive,
+ };
+
+ if (formData.code && formData.code.trim()) {
+ submission.code = formData.code.trim();
+ }
 
  setIsSubmitting(true);
  try {
@@ -582,7 +588,7 @@ export default function ManageDepartments() {
  htmlFor="code"
  className="block text-sm font-medium text-ink-700"
  >
- Code *
+ Code (Optional)
  </label>
  <input
  type="text"

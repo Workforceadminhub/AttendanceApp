@@ -101,13 +101,16 @@ export const fetchTeamsAndDepartmentsForFilter = async () => {
  */
 export const addDepartment = async (data) => {
   try {
-    const response = await apiRequest("POST", "/api/departments", {
+    const payload = {
       name: data.name,
       team: data.team,
       route: data.route,
-      code: data.code,
       isactive: data.isactive,
-    });
+    };
+    if (data.code !== undefined && data.code !== null && String(data.code).trim() !== "") {
+      payload.code = String(data.code).trim();
+    }
+    const response = await apiRequest("POST", "/api/departments", payload);
     if (!response || response.error) {
       throw new Error(response?.error || "Failed to add department");
     }
@@ -124,20 +127,23 @@ export const addDepartment = async (data) => {
  * @param {string} data.name - Department name
  * @param {string} data.team - Team name
  * @param {string} data.route - Route path
- * @param {string} data.code - Department code
+ * @param {string} [data.code] - Department code
  * @param {boolean} data.isactive - Active status
  * @returns {Promise<Object>} Updated department
  */
 export const updateDepartment = async (data) => {
   try {
-    const response = await apiRequest("PUT", "/api/departments", {
+    const payload = {
       id: data.id,
       name: data.name,
       team: data.team,
       route: data.route,
-      code: data.code,
       isactive: data.isactive,
-    });
+    };
+    if (data.code !== undefined && data.code !== null && String(data.code).trim() !== "") {
+      payload.code = String(data.code).trim();
+    }
+    const response = await apiRequest("PUT", "/api/departments", payload);
     if (!response || response.error) {
       throw new Error(response?.error || "Failed to update department");
     }

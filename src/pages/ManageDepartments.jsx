@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
@@ -18,6 +18,8 @@ import {
  TrashIcon,
  ArrowUpIcon,
  ArrowDownIcon,
+ ChevronDownIcon,
+ ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 
 export default function ManageDepartments() {
@@ -31,9 +33,11 @@ export default function ManageDepartments() {
  const [isSubmitting, setIsSubmitting] = useState(false);
  const hasFetched = useRef(false);
  const [sortConfig, setSortConfig] = useState({
- key: "id",
+ key: "name",
  direction: "asc",
  });
+ // Missing/false = expanded; true = collapsed
+ const [collapsedTeams, setCollapsedTeams] = useState({});
 
  // Form state
  const [formData, setFormData] = useState({
@@ -269,7 +273,7 @@ export default function ManageDepartments() {
  );
  };
 
- // Sorted departments
+ // Sorted departments (within each team group)
  const sortedDepartments = useMemo(() => {
  const items = Array.isArray(departments) ? [...departments] : [];
 
@@ -307,6 +311,29 @@ export default function ManageDepartments() {
  });
  }, [departments, sortConfig]);
 
+ // Group departments by team (alphabetical team order; Unassigned last)
+ const groupedByTeam = useMemo(() => {
+ const groups = {};
+ sortedDepartments.forEach((department) => {
+ const team =
+ department.team && String(department.team).trim()
+ ? String(department.team).trim()
+ : "Unassigned";
+ if (!groups[team]) groups[team] = [];
+ groups[team].push(department);
+ });
+ const teamNames = Object.keys(groups).sort((a, b) => {
+ if (a === "Unassigned") return 1;
+ if (b === "Unassigned") return -1;
+ return a.localeCompare(b);
+ });
+ return teamNames.map((team) => ({ team, departments: groups[team] }));
+ }, [sortedDepartments]);
+
+ const toggleTeamCollapse = (team) => {
+ setCollapsedTeams((prev) => ({ ...prev, [team]: !prev[team] }));
+ };
+
  return (
  <div className="min-h-screen bg-cream">
  <Header />
@@ -319,7 +346,7 @@ export default function ManageDepartments() {
  Departments
  </h1>
  <p className="mt-1 text-sm text-ink-500">
- Manage all departments in the system.
+ Manage all departments in the system, grouped by team.
  </p>
  </div>
  <div className="flex flex-wrap gap-2">
@@ -374,15 +401,6 @@ export default function ManageDepartments() {
  </th>
  <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
  <button
- onClick={() => handleSort("team")}
- className="flex items-center hover:text-ink-700"
- >
- <span>Team</span>
- {getSortIcon("team")}
- </button>
- </th>
- <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
- <button
  onClick={() => handleSort("route")}
  className="flex items-center hover:text-ink-700"
  >
@@ -414,16 +432,38 @@ export default function ManageDepartments() {
  </tr>
  </thead>
  <tbody className="bg-white divide-y divide-ink-200">
- {sortedDepartments.map((department) => (
+ {groupedByTeam.map((group) => (
+ <Fragment key={group.team}>
+ <tr
+ className="bg-cream-200 cursor-pointer select-none hover:bg-ink-200 transition-colors"
+ onClick={() => toggleTeamCollapse(group.team)}
+ >
+ <td
+ colSpan="6"
+ className="px-6 py-2 text-sm font-semibold text-ink-700"
+ >
+ <div className="flex items-center">
+ {collapsedTeams[group.team] ? (
+ <ChevronRightIcon className="h-4 w-4 mr-2 text-ink-500" />
+ ) : (
+ <ChevronDownIcon className="h-4 w-4 mr-2 text-ink-500" />
+ )}
+ {group.team}
+ <span className="ml-2 text-xs font-normal text-ink-500">
+ ({group.departments.length} department
+ {group.departments.length !== 1 ? "s" : ""})
+ </span>
+ </div>
+ </td>
+ </tr>
+ {!collapsedTeams[group.team] &&
+ group.departments.map((department) => (
  <tr key={department.id} className="hover:bg-cream">
  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-ink-900">
  {department.id}
  </td>
  <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-900">
  {department.name}
- </td>
- <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-900">
- {department.team}
  </td>
  <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-900">
  {department.route}
@@ -474,12 +514,13 @@ export default function ManageDepartments() {
  </td>
  </tr>
  ))}
+ </Fragment>
+ ))}
 
- {/* Show message when no data */}
- {sortedDepartments.length === 0 && (
+ {groupedByTeam.length === 0 && (
  <tr>
  <td
- colSpan="7"
+ colSpan="6"
  className="px-6 py-8 text-center text-ink-500"
  >
  <div className="flex flex-col items-center">

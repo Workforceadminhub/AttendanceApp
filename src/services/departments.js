@@ -49,30 +49,32 @@ export const fetchTeamsAndDepartmentsForFilter = async () => {
   const departmentsByTeam = {};
   const allDepartmentNames = new Set();
 
-  // Seed with the static team → departments map so teams whose departments
-  // aren't yet mapped in the departments table still appear in the filters.
-  teamsAndDepartments.forEach(({ team, department }) => {
-    departmentsByTeam[team] = [...department];
-    department.forEach((d) => allDepartmentNames.add(d));
-  });
-
-  departmentsList.forEach((d) => {
-    const name = d?.name ?? d?.department ?? String(d);
-    const team = d?.team ?? d?.teamName;
-    const teamKey = team != null && String(team).trim() !== "" ? String(team).trim() : "(No team)";
-    if (name != null && String(name).trim() !== "") {
-      allDepartmentNames.add(String(name).trim());
-      if (!departmentsByTeam[teamKey]) departmentsByTeam[teamKey] = [];
-      if (!departmentsByTeam[teamKey].includes(name)) departmentsByTeam[teamKey].push(name);
-    }
-  });
+  if (Array.isArray(departmentsList) && departmentsList.length > 0) {
+    // Rely directly on live API data
+    departmentsList.forEach((d) => {
+      const name = d?.name ?? d?.department ?? String(d);
+      const team = d?.team ?? d?.teamName;
+      const teamKey = team != null && String(team).trim() !== "" ? String(team).trim() : "(No team)";
+      if (name != null && String(name).trim() !== "") {
+        allDepartmentNames.add(String(name).trim());
+        if (!departmentsByTeam[teamKey]) departmentsByTeam[teamKey] = [];
+        if (!departmentsByTeam[teamKey].includes(name)) departmentsByTeam[teamKey].push(name);
+      }
+    });
+  } else {
+    // Seed with static fallback map if API returned empty
+    teamsAndDepartments.forEach(({ team, department }) => {
+      departmentsByTeam[team] = [...department];
+      department.forEach((d) => allDepartmentNames.add(d));
+    });
+  }
 
   const teamNamesSet = new Set([
-    ...teamsAndDepartments.map((t) => t.team),
     ...teamsList,
+    ...(departmentsByTeam["(No team)"]?.length ? ["(No team)"] : []),
   ]);
-  if (departmentsByTeam["(No team)"]?.length) {
-    teamNamesSet.add("(No team)");
+  if (teamNamesSet.size === 0) {
+    teamsAndDepartments.forEach((t) => teamNamesSet.add(t.team));
   }
   const teamNames = [...teamNamesSet].sort();
 

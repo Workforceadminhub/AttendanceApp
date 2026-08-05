@@ -68,9 +68,9 @@ function PhoneLookupStep({ onFound, onManual }) {
   const [notFound, setNotFound] = useState(false);
 
   const handleLookup = async () => {
-    const cleaned = phone.replace(/\D/g, "");
-    if (cleaned.length < 10) {
-      toast.error("Enter a valid phone number (at least 10 digits).");
+    const cleaned = phone.replace(/\D/g, "").slice(0, 11);
+    if (cleaned.length !== 11) {
+      toast.error("Enter a valid 11-digit phone number.");
       return;
     }
     setIsLooking(true);
@@ -102,7 +102,11 @@ function PhoneLookupStep({ onFound, onManual }) {
             type="tel"
             placeholder="08012345678"
             value={phone}
-            onChange={(e) => { setPhone(e.target.value); setNotFound(false); }}
+            onChange={(e) => {
+              setPhone(e.target.value.replace(/\D/g, "").slice(0, 11));
+              setNotFound(false);
+            }}
+            maxLength={11}
             onKeyDown={handleKey}
             className="flex-1 rounded-lg border border-ink-200 bg-white px-3 py-2.5 text-sm text-ink placeholder-ink-500 focus:outline-none focus:ring-2 focus:ring-ink focus:border-transparent transition"
             disabled={isLooking}
@@ -248,8 +252,18 @@ function RegistrationForm({ prefilled, rawPhone, onReset }) {
           </div>
           <div>
             <Label htmlFor="phoneNumber" required>Phone Number</Label>
-            <input id="phoneNumber" type="tel" placeholder="08012345678"
-              className={inputClass} {...register("phoneNumber")} />
+            <input
+              id="phoneNumber"
+              type="tel"
+              placeholder="08012345678"
+              maxLength={11}
+              className={inputClass}
+              {...register("phoneNumber", {
+                onChange: (e) => {
+                  e.target.value = e.target.value.replace(/\D/g, "").slice(0, 11);
+                },
+              })}
+            />
             <FieldError message={errors.phoneNumber?.message} />
           </div>
         </>

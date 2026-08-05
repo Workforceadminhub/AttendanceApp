@@ -76,12 +76,8 @@ export default function HODAddWorker() {
  }
 
  const phoneDigits = (worker.phonenumber || "").replace(/\D/g, "");
- if (phoneDigits.length < 11) {
- toast.error("Phone number must be at least 11 digits.");
- return;
- }
- if (phoneDigits.length > 11) {
- toast.error("Phone number must be at most 11 digits.");
+ if (phoneDigits.length !== 11) {
+ toast.error("Phone number must be exactly 11 digits.");
  return;
  }
 
@@ -206,6 +202,7 @@ export default function HODAddWorker() {
  const digits = e.target.value.replace(/\D/g, "").slice(0, 11);
  setWorker({ ...worker, phonenumber: digits });
  }}
+ maxLength={11}
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
  placeholder="11 digits"
  />

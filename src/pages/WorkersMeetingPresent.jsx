@@ -41,24 +41,8 @@ function isPlaceholderRole(role) {
 }
 
 function isValidPresentPhone(phone) {
-  const p = (phone || "").trim();
-  if (!p) return false;
-
-  if (p.startsWith("+234")) {
-    const digits = p.replace(/\D/g, "");
-    return digits.length === 13;
-  }
-  if (p.startsWith("234")) {
-    const digits = p.replace(/\D/g, "");
-    return digits.length === 13;
-  }
-  if (p.startsWith("0")) {
-    const digits = p.replace(/\D/g, "");
-    return digits.length === 11;
-  }
-
-  const digits = p.replace(/\D/g, "");
-  return digits.length === 10;
+  const digits = (phone || "").replace(/\D/g, "");
+  return digits.length === 11;
 }
 
 function isValidOptionalEmail(email) {

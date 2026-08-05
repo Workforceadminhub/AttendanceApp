@@ -145,6 +145,10 @@ export default function AddWorker() {
  );
  return;
  }
+  if (!/^\d{11}$/.test((newWorker.phonenumber || "").trim())) {
+    toast.error("Phone number must be exactly 11 digits.");
+    return;
+  }
  if (newWorker.team === "Districts" && !newWorker.district_sub_team) {
  toast.error("Please select a District/Sub-team");
  return;
@@ -555,11 +559,12 @@ export default function AddWorker() {
  onChange={(e) =>
  setNewWorker({
  ...newWorker,
- phonenumber: e.target.value,
+ phonenumber: e.target.value.replace(/\D/g, "").slice(0, 11),
  })
  }
+ maxLength={11}
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
- placeholder="Enter phone number"
+ placeholder="Enter 11-digit phone number"
  />
  </div>
 

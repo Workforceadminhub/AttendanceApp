@@ -171,11 +171,8 @@ export default function HODBulkAddWorker() {
  }
 
  const phoneDigits = (worker.phonenumber || "").replace(/\D/g, "");
- if (phoneDigits.length < 11) {
- return { ...worker, _error: "Phone number must be at least 11 digits", _row: index + 2 };
- }
- if (phoneDigits.length > 11) {
- return { ...worker, _error: "Phone number must be at most 11 digits", _row: index + 2 };
+ if (phoneDigits.length !== 11) {
+ return { ...worker, _error: "Phone number must be exactly 11 digits", _row: index + 2 };
  }
 
  // Validate dropdown fields: value must match one of the allowed options (case-insensitive)

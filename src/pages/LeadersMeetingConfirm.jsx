@@ -735,8 +735,7 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
     if (!form.phone.trim()) errs.phone = "Phone number is required";
     else {
       const digits = form.phone.replace(/\D/g, "");
-      if (digits.length < 11) errs.phone = "Phone must be at least 11 digits";
-      else if (digits.length > 11) errs.phone = "Phone must be at most 11 digits";
+      if (digits.length !== 11) errs.phone = "Phone number must be exactly 11 digits";
     }
     if (!form.gender) errs.gender = "Gender is required";
     if (!form.role) errs.role = "Worker role is required";
@@ -843,6 +842,7 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
           <Label htmlFor="create-phone" required>Phone Number</Label>
           <input id="create-phone" type="tel" placeholder="11 digits"
             value={form.phone}
+            maxLength={11}
             onChange={(e) => {
               const digits = e.target.value.replace(/\D/g, "").slice(0, 11);
               setForm((prev) => ({ ...prev, phone: digits }));

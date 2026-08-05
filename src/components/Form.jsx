@@ -65,12 +65,16 @@ const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
         <label className="text-lg text-brick mt-2 mr-2">*</label>
         <input
           type="tel"
-          placeholder="Phone Number"
+          placeholder="Phone Number (11 digits)"
           className="border p-3 w-full rounded-md"
           value={formData.phonenumber}
           onChange={(e) =>
-            setFormData({ ...formData, phonenumber: e.target.value })
+            setFormData({
+              ...formData,
+              phonenumber: e.target.value.replace(/\D/g, "").slice(0, 11),
+            })
           }
+          maxLength={11}
         />
       </div>
       <div className="flex">

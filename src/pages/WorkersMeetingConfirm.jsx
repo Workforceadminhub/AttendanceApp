@@ -314,7 +314,10 @@ function EditWorkerStep({ worker, token, onBack, onDone }) {
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
           errs.email = "Invalid email address";
       }
-      if (missing.has("phone") && !form.phone.trim()) errs.phone = "Phone is required";
+      if (missing.has("phone")) {
+        if (!form.phone.trim()) errs.phone = "Phone is required";
+        else if (form.phone.replace(/\D/g, "").length !== 11) errs.phone = "Phone number must be exactly 11 digits";
+      }
       if (missing.has("gender") && !form.gender) errs.gender = "Gender is required";
       if (missing.has("maritalstatus") && !form.maritalstatus) errs.maritalstatus = "Marital status is required";
       if (missing.has("agerange") && !form.agerange) errs.agerange = "Age range is required";
@@ -496,9 +499,14 @@ function EditWorkerStep({ worker, token, onBack, onDone }) {
                 <input
                   id="edit-phone"
                   type="tel"
-                  placeholder="e.g. 08012345678"
+                  placeholder="11 digits"
                   value={form.phone}
-                  onChange={set("phone")}
+                  maxLength={11}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 11);
+                    setForm((prev) => ({ ...prev, phone: digits }));
+                    setErrors((prev) => ({ ...prev, phone: undefined }));
+                  }}
                   className={inputClass}
                 />
                 <FieldError message={errors.phone} />
@@ -779,6 +787,7 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
       errs.email = "Invalid email address";
     if (!form.phone.trim()) errs.phone = "Phone number is required";
+    else if (form.phone.replace(/\D/g, "").length !== 11) errs.phone = "Phone number must be exactly 11 digits";
     if (!form.gender) errs.gender = "Gender is required";
     if (!form.role) errs.role = "Role is required";
     if (!form.birthdate) errs.birthdate = "Birthdate is required";
@@ -876,7 +885,19 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
         {/* Phone */}
         <div>
           <Label htmlFor="create-phone" required>Phone Number</Label>
-          <input id="create-phone" type="tel" placeholder="e.g. 08012345678" value={form.phone} onChange={set("phone")} className={inputClass} />
+          <input
+            id="create-phone"
+            type="tel"
+            placeholder="11 digits"
+            value={form.phone}
+            maxLength={11}
+            onChange={(e) => {
+              const digits = e.target.value.replace(/\D/g, "").slice(0, 11);
+              setForm((prev) => ({ ...prev, phone: digits }));
+              setErrors((prev) => ({ ...prev, phone: undefined }));
+            }}
+            className={inputClass}
+          />
           <FieldError message={errors.phone} />
         </div>
 

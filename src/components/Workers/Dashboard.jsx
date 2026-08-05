@@ -284,7 +284,7 @@ export default function Dashboard() {
               {scope}
             </h1>
             <p className="mt-1 text-sm text-ink-500">
-              For Sunday{" "}
+              For{" "}
               <span className="qc-num text-ink-900">
                 {getSundayDisplayDate(selectedDate)}
               </span>

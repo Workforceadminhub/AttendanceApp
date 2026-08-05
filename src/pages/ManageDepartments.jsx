@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
+import CreatableSelect from "react-select/creatable";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
 import GenericModal from "../components/GenericModal";
@@ -12,6 +13,7 @@ import {
  toggleDepartmentStatus,
  deleteDepartment,
 } from "../services/departments";
+import { teams as canonicalTeams } from "../utils/teams";
 import { useDepartmentsContext, useInvalidateDepartments } from "../contexts/DepartmentsContext";
 import {
  PencilIcon,
@@ -21,6 +23,36 @@ import {
  ChevronDownIcon,
  ChevronRightIcon,
 } from "@heroicons/react/24/outline";
+
+const selectStyles = {
+ control: (base, state) => ({
+ ...base,
+ borderRadius: "0.375rem",
+ borderColor: state.isFocused ? "#3b82f6" : "#d1d5db",
+ boxShadow: state.isFocused ? "0 0 0 1px #3b82f6" : "none",
+ "&:hover": { borderColor: state.isFocused ? "#3b82f6" : "#9ca3af" },
+ minHeight: "38px",
+ fontSize: "0.875rem",
+ }),
+ menu: (base) => ({
+ ...base,
+ zIndex: 999999,
+ borderRadius: "0.375rem",
+ boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)",
+ }),
+ menuPortal: (base) => ({ ...base, zIndex: 999999 }),
+ menuList: (base) => ({ ...base, maxHeight: "180px", padding: "4px" }),
+ option: (base, { isFocused, isSelected }) => ({
+ ...base,
+ backgroundColor: isSelected ? "#3b82f6" : isFocused ? "#eff6ff" : "white",
+ color: isSelected ? "white" : "#111827",
+ borderRadius: "0.25rem",
+ cursor: "pointer",
+ fontSize: "0.875rem",
+ }),
+ singleValue: (base) => ({ ...base, fontSize: "0.875rem" }),
+ placeholder: (base) => ({ ...base, fontSize: "0.875rem", color: "#9ca3af" }),
+};
 
 export default function ManageDepartments() {
  const navigate = useNavigate();
@@ -33,11 +65,11 @@ export default function ManageDepartments() {
  const [isSubmitting, setIsSubmitting] = useState(false);
  const hasFetched = useRef(false);
  const [sortConfig, setSortConfig] = useState({
- key: "name",
+ key: "id",
  direction: "asc",
  });
- // Missing/false = expanded; true = collapsed
- const [collapsedTeams, setCollapsedTeams] = useState({});
+ // null until first load (then all teams start collapsed)
+ const [collapsedTeams, setCollapsedTeams] = useState(null);
 
  // Form state
  const [formData, setFormData] = useState({
@@ -48,12 +80,21 @@ export default function ManageDepartments() {
  isactive: true,
  });
 
- // Get unique team names from API data for dropdown
+ // Canonical teams plus any extra team names already used on departments
  const teamOptions = useMemo(() => {
- const teams = departments
- .map((d) => d.team)
- .filter((team) => team && team.trim() !== "");
- return [...new Set(teams)].sort();
+ const byValue = new Map();
+ canonicalTeams.forEach((t) => {
+ byValue.set(t.value, { value: t.value, label: t.label });
+ });
+ departments.forEach((d) => {
+ const team = d?.team && String(d.team).trim();
+ if (team && !byValue.has(team)) {
+ byValue.set(team, { value: team, label: team });
+ }
+ });
+ return [...byValue.values()].sort((a, b) =>
+ a.label.localeCompare(b.label)
+ );
  }, [departments]);
 
  // Check if user is super admin
@@ -330,8 +371,19 @@ export default function ManageDepartments() {
  return teamNames.map((team) => ({ team, departments: groups[team] }));
  }, [sortedDepartments]);
 
+ // Default all teams to collapsed on first load
+ useEffect(() => {
+ if (collapsedTeams === null && groupedByTeam.length > 0) {
+ const initial = {};
+ groupedByTeam.forEach((g) => {
+ initial[g.team] = true;
+ });
+ setCollapsedTeams(initial);
+ }
+ }, [groupedByTeam, collapsedTeams]);
+
  const toggleTeamCollapse = (team) => {
- setCollapsedTeams((prev) => ({ ...prev, [team]: !prev[team] }));
+ setCollapsedTeams((prev) => ({ ...prev, [team]: !prev?.[team] }));
  };
 
  return (
@@ -443,7 +495,7 @@ export default function ManageDepartments() {
  className="px-6 py-2 text-sm font-semibold text-ink-700"
  >
  <div className="flex items-center">
- {collapsedTeams[group.team] ? (
+ {!collapsedTeams || collapsedTeams[group.team] ? (
  <ChevronRightIcon className="h-4 w-4 mr-2 text-ink-500" />
  ) : (
  <ChevronDownIcon className="h-4 w-4 mr-2 text-ink-500" />
@@ -456,7 +508,8 @@ export default function ManageDepartments() {
  </div>
  </td>
  </tr>
- {!collapsedTeams[group.team] &&
+ {collapsedTeams &&
+ !collapsedTeams[group.team] &&
  group.departments.map((department) => (
  <tr key={department.id} className="hover:bg-cream">
  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-ink-900">
@@ -589,21 +642,33 @@ export default function ManageDepartments() {
  >
  Team *
  </label>
- <input
- type="text"
- id="team"
- name="team"
- list="team-options"
- value={formData.team}
- onChange={handleInputChange}
- className="mt-1 block w-full rounded-md border-ink-300 focus:border-ink-900 focus:ring-ink-900/10 sm:text-sm border px-3 py-2"
- placeholder="Enter or select a team"
+ <div className="mt-1">
+ <CreatableSelect
+ inputId="team"
+ options={teamOptions}
+ value={
+ formData.team
+ ? teamOptions.find((t) => t.value === formData.team) || {
+ value: formData.team,
+ label: formData.team,
+ }
+ : null
+ }
+ onChange={(opt) =>
+ setFormData((prev) => ({
+ ...prev,
+ team: opt?.value || "",
+ }))
+ }
+ placeholder="Select or create a team"
+ styles={selectStyles}
+ menuPlacement="auto"
+ menuPortalTarget={typeof document !== "undefined" ? document.body : null}
+ menuPosition="fixed"
+ isClearable
+ formatCreateLabel={(input) => `Create team "${input}"`}
  />
- <datalist id="team-options">
- {teamOptions.map((team) => (
- <option key={team} value={team} />
- ))}
- </datalist>
+ </div>
  </div>
 
  <div>

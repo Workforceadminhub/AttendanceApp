@@ -13,7 +13,6 @@ import {
  toggleDepartmentStatus,
  deleteDepartment,
 } from "../services/departments";
-import { teams as canonicalTeams } from "../utils/teams";
 import { useDepartmentsContext, useInvalidateDepartments } from "../contexts/DepartmentsContext";
 import {
  PencilIcon,
@@ -80,21 +79,18 @@ export default function ManageDepartments() {
  isactive: true,
  });
 
- // Canonical teams plus any extra team names already used on departments
+ // Unique team names from departments API
  const teamOptions = useMemo(() => {
- const byValue = new Map();
- canonicalTeams.forEach((t) => {
- byValue.set(t.value, { value: t.value, label: t.label });
- });
+ const teams = new Set();
  departments.forEach((d) => {
- const team = d?.team && String(d.team).trim();
- if (team && !byValue.has(team)) {
- byValue.set(team, { value: team, label: team });
+ const team = d?.team ?? d?.teamName;
+ if (team != null && String(team).trim() !== "") {
+ teams.add(String(team).trim());
  }
  });
- return [...byValue.values()].sort((a, b) =>
- a.label.localeCompare(b.label)
- );
+ return [...teams]
+ .sort((a, b) => a.localeCompare(b))
+ .map((team) => ({ value: team, label: team }));
  }, [departments]);
 
  // Check if user is super admin

@@ -70,12 +70,18 @@ export default function ViewWorker() {
  setDepartmentOptions([]);
  return;
  }
+ const hideTeamNamed = (dept) => {
+ const d = String(dept || "").trim();
+ return d && d.toLowerCase() !== String(team).trim().toLowerCase();
+ };
  const depts =
  filterData.departmentsByTeam?.[team] ||
  filterData.departmentsByTeam?.[team === "Districts" ? "District" : team] ||
  [];
  if (depts.length) {
- setDepartmentOptions(depts.map((d) => ({ value: d, label: d })));
+ setDepartmentOptions(
+ depts.filter(hideTeamNamed).map((d) => ({ value: d, label: d }))
+ );
  return;
  }
  const effective = Array.from(
@@ -88,7 +94,7 @@ export default function ViewWorker() {
  (team === "District" && r.team === "Districts")
  )
  .map((r) => r.department)
- .filter(Boolean)
+ .filter(hideTeamNamed)
  )
  ).sort();
  setDepartmentOptions(effective.map((d) => ({ value: d, label: d })));

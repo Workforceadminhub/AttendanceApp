@@ -117,6 +117,7 @@ export default function Header() {
       return `/department/${departmentRouteForUser}`;
     }
     if (isTeamAdmin && authUser?.route) return `/summary${authUser.route}`;
+    if (isSuperAdmin) return "/summary/super-admin";
     return "/summary";
   })();
 

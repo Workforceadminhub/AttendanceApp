@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useLocation, Link, Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -19,7 +19,12 @@ import { getDepartmentByUser } from "../utils/getDepartment";
 import { getUser } from "../utils/getUser";
 import { expandPermissions } from "../utils/expandPermissions";
 import { getUserRole } from "../utils/getUserRole";
-import { getDepartmentRoute, getEffectiveRouteList } from "../utils/routeObject";
+import {
+  getDepartmentRoute,
+  getEffectiveRouteList,
+  getDepartmentsForTeam,
+  filterPermissionsByTeam,
+} from "../utils/routeObject";
 import { fetchAttendance } from "../services/attendance";
 import { fetchAdminWorkers } from "../services/workers";
 import { getNextSunday, getSundaysInYear } from "../utils/getDate";
@@ -27,9 +32,6 @@ import { getNextSunday, getSundaysInYear } from "../utils/getDate";
 export default function AdminSummaryDetail() {
   const location = useLocation();
   const teamInfo = getDepartmentByUser(location.pathname) || {};
-  const teamName = teamInfo.team || "All";
-
-  // deploy again
 
   const authUser = getUser();
   const {
@@ -38,9 +40,26 @@ export default function AdminSummaryDetail() {
     isTeamAdmin,
     isAdmin,
   } = getUserRole();
+  const canPickTeam = isSuperAdmin;
 
   // All hooks must be called before any early return (Rules of Hooks)
   const [selectedDepartment, setSelectedDepartment] = useState("All");
+  const [selectedTeam, setSelectedTeam] = useState("");
+
+  useEffect(() => {
+    setSelectedDepartment("All");
+  }, [selectedTeam]);
+
+  const teamOptions = useMemo(() => {
+    if (!canPickTeam) return [];
+    return Array.from(
+      new Set(getEffectiveRouteList().map((item) => item.team).filter(Boolean))
+    ).sort();
+  }, [canPickTeam]);
+
+  const teamName = canPickTeam
+    ? selectedTeam
+    : (teamInfo.team || "All");
 
   // Use team name as the primary key for analytics (Phase 7 helpers
   // map this to teamName for the backend via resolveDepartmentParams)
@@ -53,11 +72,8 @@ export default function AdminSummaryDetail() {
       "Workforce Growth",
       "Special Ministries",
     ]);
-    return getEffectiveRouteList()
-      .filter((item) => item.team === teamName)
-      .filter((item) => !excluded.has(item.department))
-      .map((item) => item.department)
-      .sort();
+    const depts = getDepartmentsForTeam(teamName);
+    return depts.filter((dept) => !excluded.has(dept)).sort();
   }, [teamName]);
 
   // Attendance Trend: replicate HOD/sub-team-admin pattern:
@@ -80,18 +96,40 @@ export default function AdminSummaryDetail() {
       const selectedNormRoute = selectedRoute
         ? selectedRoute.toString().replace(/^\//, "").toLowerCase()
         : null;
-      const results = await Promise.all(
-        sundayStrings.map((activeDate) =>
-          fetchAttendance(activeDate, null, null, permissions)
-        )
-      );
+      const fetchWithRetry = async (activeDate, attempts = 3) => {
+        for (let i = 0; i < attempts; i++) {
+          const result = await fetchAttendance(
+            activeDate,
+            null,
+            null,
+            permissions
+          );
+          if (result !== null) return result;
+          if (i < attempts - 1) {
+            await new Promise((resolve) =>
+              setTimeout(resolve, 400 * 2 ** i)
+            );
+          }
+        }
+        return null;
+      };
+      const results = new Array(sundayStrings.length);
+      const CONCURRENCY = 4;
+      for (let i = 0; i < sundayStrings.length; i += CONCURRENCY) {
+        const slice = sundayStrings.slice(i, i + CONCURRENCY);
+        // eslint-disable-next-line no-await-in-loop
+        const sliceResults = await Promise.all(slice.map(fetchWithRetry));
+        sliceResults.forEach((result, index) => {
+          results[i + index] = result;
+        });
+      }
+      const allowedDepartments = new Set(departmentOptions);
       const points = sundayStrings.map((activeDate, i) => {
         const list = results[i];
         const arr = Array.isArray(list) ? list : [];
 
-        const filtered = !selectedDept
-          ? arr
-          : arr.filter((item) => {
+        const filtered = selectedDept
+          ? arr.filter((item) => {
               const name = item.department || item.department_name || "";
               const itemRoute = (
                 item.route ||
@@ -106,7 +144,13 @@ export default function AdminSummaryDetail() {
                 name === selectedDept ||
                 (!!selectedNormRoute && itemRoute === selectedNormRoute)
               );
-            });
+            })
+          : canPickTeam
+          ? arr.filter((item) => {
+              const name = item.department || item.department_name || "";
+              return allowedDepartments.has(name);
+            })
+          : arr;
 
         const present = filtered.reduce((s, item) => s + (item.present ?? 0), 0);
         const absent = filtered.reduce((s, item) => s + (item.absent ?? 0), 0);
@@ -115,6 +159,7 @@ export default function AdminSummaryDetail() {
       });
       return points.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
     },
+    enabled: canPickTeam ? !!selectedTeam : true,
   });
 
   const trends = useMemo(
@@ -163,13 +208,24 @@ export default function AdminSummaryDetail() {
     data: workersData,
     isLoading: isWorkersLoading,
   } = useQuery({
-    queryKey: ["adminSummaryWorkers", departmentKey],
+    queryKey: ["adminSummaryWorkers", departmentKey, selectedDepartment],
     queryFn: async () => {
       const permissions = expandPermissions(authUser);
       const activeDate = getNextSunday();
+      const activeGroup =
+        canPickTeam && selectedDepartment !== "All"
+          ? selectedDepartment
+          : "All";
       // Admin workers endpoint already understands team-level filters.
-      return fetchAdminWorkers(departmentKey, "All", activeDate, "", permissions);
+      return fetchAdminWorkers(
+        departmentKey,
+        activeGroup,
+        activeDate,
+        "",
+        permissions
+      );
     },
+    enabled: canPickTeam ? !!selectedTeam : true,
   });
 
   const workersCount = useMemo(
@@ -177,12 +233,28 @@ export default function AdminSummaryDetail() {
     [workersData]
   );
 
+  const leaderboardPermissions = useMemo(() => {
+    const base = expandPermissions(authUser);
+    if (!canPickTeam) {
+      return Array.isArray(authUser?.permissions) ? authUser.permissions : [];
+    }
+    if (!selectedTeam) return [];
+    if (selectedDepartment && selectedDepartment !== "All") {
+      return [selectedDepartment];
+    }
+    return filterPermissionsByTeam(base, selectedTeam);
+  }, [canPickTeam, authUser, selectedTeam, selectedDepartment]);
+
   // Reuse workers link logic from Header so this card routes to the
   // same workers overview page admins are used to.
   const departmentRouteForUser =
     getDepartmentRoute(authUser?.department)?.replace?.(/^\//, "") || "";
 
   const workersHref = (() => {
+    if (canPickTeam && selectedDepartment !== "All") {
+      const route = getDepartmentRoute(selectedDepartment)?.replace(/^\//, "");
+      return route ? `/department/${route}/workers` : "/workers/super-admin";
+    }
     if (isSuperAdmin) return "/workers/super-admin";
     if (isChurchAdmin) return "/church-admin/workers";
     // Team Admin: use a team-level department workers URL, e.g.
@@ -222,41 +294,58 @@ export default function AdminSummaryDetail() {
               {teamName ? `${teamName} summary` : "Summary"}
             </h1>
             <p className="mt-1 text-sm text-ink-500">
-              High-level overview for your team with attendance trend, leaderboard, and workers.
+              {canPickTeam
+                ? "Choose a team and department to view attendance, leaderboard, and workers."
+                : "High-level overview for your team with attendance trend, leaderboard, and workers."}
             </p>
           </div>
-        </div>
-
-        {/* Attendance Trend */}
-        <div className="mb-8 bg-white rounded-lg border shadow p-6">
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-            <h2 className="text-lg font-semibold text-ink-900">
-              Attendance Trend
-            </h2>
-            <div className="flex flex-wrap items-center gap-4">
-              {departmentOptions.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <label
-                    htmlFor="adminSummaryDepartmentFilter"
-                    className="text-sm text-ink-700"
-                  >
-                    Department
-                  </label>
-                  <select
-                    id="adminSummaryDepartmentFilter"
-                    value={selectedDepartment}
-                    onChange={(e) => setSelectedDepartment(e.target.value)}
-                    className="rounded-md border border-ink-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ink-900/10"
-                  >
-                    <option value="All">All</option>
-                    {departmentOptions.map((dept) => (
-                      <option key={dept} value={dept}>
-                        {dept}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+          {canPickTeam && (
+            <div className="mt-4 flex flex-wrap items-center gap-4 sm:mt-0">
+              <div className="flex items-center gap-2">
+                <label
+                  htmlFor="adminSummaryTeamFilter"
+                  className="text-sm text-ink-700"
+                >
+                  Team
+                </label>
+                <select
+                  id="adminSummaryTeamFilter"
+                  value={selectedTeam}
+                  onChange={(event) => setSelectedTeam(event.target.value)}
+                  className="rounded-md border border-ink-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ink-900/10"
+                >
+                  <option value="">Select team</option>
+                  {teamOptions.map((team) => (
+                    <option key={team} value={team}>
+                      {team}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <label
+                  htmlFor="adminSummaryDepartmentFilter"
+                  className="text-sm text-ink-700"
+                >
+                  Department
+                </label>
+                <select
+                  id="adminSummaryDepartmentFilter"
+                  value={selectedDepartment}
+                  onChange={(event) =>
+                    setSelectedDepartment(event.target.value)
+                  }
+                  disabled={!selectedTeam}
+                  className="rounded-md border border-ink-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ink-900/10 disabled:cursor-not-allowed disabled:bg-ink-100"
+                >
+                  <option value="All">All</option>
+                  {departmentOptions.map((dept) => (
+                    <option key={dept} value={dept}>
+                      {dept}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="flex items-center gap-2">
                 <label
                   htmlFor="adminSummaryMonthFilter"
@@ -267,17 +356,79 @@ export default function AdminSummaryDetail() {
                 <select
                   id="adminSummaryMonthFilter"
                   value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  onChange={(event) => setSelectedMonth(event.target.value)}
                   className="rounded-md border border-ink-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ink-900/10"
                 >
-                  {MONTHS_2026.map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
+                  {MONTHS_2026.map((month) => (
+                    <option key={month.value} value={month.value}>
+                      {month.label}
                     </option>
                   ))}
                 </select>
               </div>
             </div>
+          )}
+        </div>
+
+        {canPickTeam && !selectedTeam ? (
+          <p className="text-sm text-ink-500">
+            Select a team to view the summary.
+          </p>
+        ) : (
+          <>
+        {/* Attendance Trend */}
+        <div className="mb-8 bg-white rounded-lg border shadow p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+            <h2 className="text-lg font-semibold text-ink-900">
+              Attendance Trend
+            </h2>
+            {!canPickTeam && (
+              <div className="flex flex-wrap items-center gap-4">
+                {departmentOptions.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <label
+                      htmlFor="adminSummaryDepartmentFilter"
+                      className="text-sm text-ink-700"
+                    >
+                      Department
+                    </label>
+                    <select
+                      id="adminSummaryDepartmentFilter"
+                      value={selectedDepartment}
+                      onChange={(e) => setSelectedDepartment(e.target.value)}
+                      className="rounded-md border border-ink-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ink-900/10"
+                    >
+                      <option value="All">All</option>
+                      {departmentOptions.map((dept) => (
+                        <option key={dept} value={dept}>
+                          {dept}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <label
+                    htmlFor="adminSummaryMonthFilter"
+                    className="text-sm text-ink-700"
+                  >
+                    Month
+                  </label>
+                  <select
+                    id="adminSummaryMonthFilter"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="rounded-md border border-ink-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ink-900/10"
+                  >
+                    {MONTHS_2026.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
           </div>
           {isTrendsLoading ? (
             <div className="h-64 flex items-center justify-center">
@@ -304,7 +455,7 @@ export default function AdminSummaryDetail() {
             startDate={leaderboardStartDate}
             endDate={leaderboardEndDate}
             limit={5}
-            permissions={authUser?.permissions}
+            permissions={leaderboardPermissions}
           />
         </div>
 
@@ -327,6 +478,8 @@ export default function AdminSummaryDetail() {
             </span>
           </Link>
         </div>
+          </>
+        )}
       </Layout>
     </div>
   );
@@ -400,4 +553,3 @@ function sundayToYYYYMMDD(dateStr) {
   const m = String(month).padStart(2, "0");
   return `${year}-${m}-${d}`;
 }
-

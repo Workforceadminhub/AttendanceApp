@@ -18,6 +18,7 @@ import BirthDatePicker from "../components/BirthDatePicker";
 import { DROPDOWN_OPTIONS } from "../utils/sampleWorkersExcel";
 import { getEffectiveRouteList } from "../utils/routeObject";
 import { fetchDepartments } from "../services/departments";
+import { filterDepartmentsForDistrictSubTeam } from "../utils/teams";
 
 const isDistrictsTeam = (team) => team === "Districts" || team === "District";
 
@@ -724,8 +725,17 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const set = (field) => (e) => {
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
-    setErrors((prev) => ({ ...prev, [field]: undefined }));
+    const value = e.target.value;
+    setForm((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === "district_sub_team") next.department = "";
+      return next;
+    });
+    setErrors((prev) => ({
+      ...prev,
+      [field]: undefined,
+      ...(field === "district_sub_team" ? { department: undefined } : {}),
+    }));
   };
 
   const setTeam = (e) => {
@@ -735,19 +745,19 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
 
   const teamList = Array.from(new Set(routeList.map((r) => r.team).filter(Boolean))).sort();
   const departmentOptions = form.team
-    ? Array.from(
-        new Set(
-          routeList
-            .filter(
-              (r) =>
-                r.team === form.team ||
-                (form.team === "Districts" && r.team === "District") ||
-                (form.team === "District" && r.team === "Districts")
-            )
-            .map((r) => r.department)
-            .filter(Boolean)
-        )
-      ).sort()
+    ? filterDepartmentsForDistrictSubTeam(
+        routeList
+          .filter(
+            (r) =>
+              r.team === form.team ||
+              (form.team === "Districts" && r.team === "District") ||
+              (form.team === "District" && r.team === "Districts")
+          )
+          .map((r) => r.department)
+          .filter(Boolean),
+        form.team,
+        form.district_sub_team
+      )
     : [];
 
   const validate = () => {

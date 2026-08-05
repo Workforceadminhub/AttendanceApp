@@ -267,11 +267,24 @@ export const DISTRICT_CLUSTER_LABELS = [
   "Pastor Isaac Cluster",
 ];
 
+const districtClusterLabelSet = new Set(
+  DISTRICT_CLUSTER_LABELS.map((c) => c.toLowerCase().trim())
+);
+
+export const isDistrictClusterLabel = (name) => {
+  const norm = String(name || "").trim().toLowerCase();
+  if (!norm) return false;
+  if (districtClusterLabelSet.has(norm)) return true;
+  // e.g. "Pastor Biola" / "pastor isaac cluster"
+  return (
+    (norm.startsWith("pastor biola") || norm.startsWith("pastor isaac")) &&
+    !norm.includes("community")
+  );
+};
+
 const isaacCommunitySet = new Set([
   ...PASTOR_ISAAC_COMMUNITIES.map((c) => c.toLowerCase().trim()),
   "shomolu community",
-  "pastor isaac cluster",
-  "pastor isaac",
 ]);
 
 const biolaCommunitySet = new Set([
@@ -286,28 +299,72 @@ const biolaCommunitySet = new Set([
   "ephphata community",
   "ephphatha community",
   "koinonia community",
-  "pastor biola cluster",
-  "pastor biola",
 ]);
 
 export const isPastorIsaacCommunity = (deptOrSubTeam) => {
   const norm = String(deptOrSubTeam || "").trim().toLowerCase();
-  return isaacCommunitySet.has(norm) || norm.includes("isaac");
+  if (!norm || isDistrictClusterLabel(norm)) return false;
+  return isaacCommunitySet.has(norm);
 };
 
 export const isPastorBiolaCommunity = (deptOrSubTeam) => {
   const norm = String(deptOrSubTeam || "").trim().toLowerCase();
-  return biolaCommunitySet.has(norm) || norm.includes("biola");
+  if (!norm || isDistrictClusterLabel(norm)) return false;
+  return biolaCommunitySet.has(norm);
+};
+
+export const isIsaacDistrictSubTeam = (subTeam) => {
+  const norm = String(subTeam || "").trim().toLowerCase();
+  return norm.includes("isaac");
+};
+
+export const isBiolaDistrictSubTeam = (subTeam) => {
+  const norm = String(subTeam || "").trim().toLowerCase();
+  return norm.includes("biola");
+};
+
+/**
+ * Filter department options for Districts by selected District/Sub-team.
+ * Always excludes team-name / cluster-label pseudo-departments.
+ */
+export const filterDepartmentsForDistrictSubTeam = (
+  departments,
+  team,
+  districtSubTeam
+) => {
+  const teamName = String(team || "").trim();
+  const isDistricts =
+    teamName === "Districts" || teamName === "District";
+  const list = (Array.isArray(departments) ? departments : [])
+    .map((d) => (typeof d === "string" ? d : d?.value ?? d?.label ?? ""))
+    .map((d) => String(d || "").trim())
+    .filter(Boolean)
+    .filter(
+      (d) =>
+        !isDistrictClusterLabel(d) &&
+        d.toLowerCase() !== teamName.toLowerCase()
+    );
+
+  if (!isDistricts) return list;
+
+  if (isIsaacDistrictSubTeam(districtSubTeam)) {
+    return list.filter((d) => isPastorIsaacCommunity(d)).sort();
+  }
+  if (isBiolaDistrictSubTeam(districtSubTeam)) {
+    return list.filter((d) => isPastorBiolaCommunity(d)).sort();
+  }
+  // Sub-team not chosen yet: no department options (UI should disable select)
+  return [];
 };
 
 /**
  * Returns "District (Pastor Isaac)" or "District (Pastor Biola)" given a department and/or sub-team.
  */
 export const getDistrictClusterName = (dept, subTeam) => {
-  if (isPastorIsaacCommunity(dept) || isPastorIsaacCommunity(subTeam)) {
+  if (isIsaacDistrictSubTeam(subTeam) || isPastorIsaacCommunity(dept)) {
     return "District (Pastor Isaac)";
   }
-  if (isPastorBiolaCommunity(dept) || isPastorBiolaCommunity(subTeam)) {
+  if (isBiolaDistrictSubTeam(subTeam) || isPastorBiolaCommunity(dept)) {
     return "District (Pastor Biola)";
   }
   return "District (Pastor Biola)";

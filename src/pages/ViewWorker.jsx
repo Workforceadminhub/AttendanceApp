@@ -6,8 +6,7 @@ import { toast } from "react-toastify";
 import {
  teamsAndDepartments,
  normalizeWorkerRole,
- isPastorIsaacCommunity,
- isPastorBiolaCommunity,
+ filterDepartmentsForDistrictSubTeam,
 } from "../utils/teams";
 import BirthDatePicker from "../components/BirthDatePicker";
 import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
@@ -70,28 +69,13 @@ export default function ViewWorker() {
  setDepartmentOptions([]);
  return;
  }
- const hideTeamNamed = (dept) => {
- const d = String(dept || "").trim();
- if (!d) return false;
- if (d.toLowerCase() === String(team).trim().toLowerCase()) return false;
- const lower = d.toLowerCase();
- if (lower === "pastor biola" || lower === "pastor isaac") return false;
- if (lower === "pastor biola cluster" || lower === "pastor isaac cluster") return false;
- return true;
- };
  const depts =
  filterData.departmentsByTeam?.[team] ||
  filterData.departmentsByTeam?.[team === "Districts" ? "District" : team] ||
  [];
- if (depts.length) {
- setDepartmentOptions(
- depts.filter(hideTeamNamed).map((d) => ({ value: d, label: d }))
- );
- return;
- }
- const effective = Array.from(
- new Set(
- getEffectiveRouteList()
+ let source = depts;
+ if (!source.length) {
+ source = getEffectiveRouteList()
  .filter(
  (r) =>
  r.team === team ||
@@ -99,11 +83,21 @@ export default function ViewWorker() {
  (team === "District" && r.team === "Districts")
  )
  .map((r) => r.department)
- .filter(hideTeamNamed)
- )
- ).sort();
- setDepartmentOptions(effective.map((d) => ({ value: d, label: d })));
- }, [editedWorker.team, filterData]);
+ .filter(Boolean);
+ }
+ const filtered = filterDepartmentsForDistrictSubTeam(
+ source,
+ team,
+ editedWorker.district_sub_team
+ );
+ setDepartmentOptions(filtered.map((d) => ({ value: d, label: d })));
+ if (
+ editedWorker.department &&
+ !filtered.includes(editedWorker.department)
+ ) {
+ setEditedWorker((prev) => ({ ...prev, department: "" }));
+ }
+ }, [editedWorker.team, editedWorker.district_sub_team, editedWorker.department, filterData]);
 
  // Fetch worker details
  useEffect(() => {
@@ -272,14 +266,11 @@ export default function ViewWorker() {
  if (!isDistrictsTeam(value)) {
  newEditedWorker.district_sub_team = "";
  }
+ newEditedWorker.department = "";
  }
 
- if (field === "department" && isDistrictsTeam(editedWorker.team)) {
- if (isPastorIsaacCommunity(value)) {
- newEditedWorker.district_sub_team = "Pastor Isaac Cluster";
- } else if (isPastorBiolaCommunity(value)) {
- newEditedWorker.district_sub_team = "Pastor Biola Cluster";
- }
+ if (field === "district_sub_team") {
+ newEditedWorker.department = "";
  }
 
  setEditedWorker(newEditedWorker);

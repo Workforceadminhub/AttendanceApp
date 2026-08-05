@@ -3,11 +3,20 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
 import { toast } from "react-toastify";
-import { teamsAndDepartments, normalizeWorkerRole } from "../utils/teams";
+import {
+ teamsAndDepartments,
+ normalizeWorkerRole,
+ isPastorIsaacCommunity,
+ isPastorBiolaCommunity,
+} from "../utils/teams";
 import BirthDatePicker from "../components/BirthDatePicker";
 import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
-import { getDepartmentRoute } from "../utils/routeObject";
+import { getDepartmentRoute, getEffectiveRouteList } from "../utils/routeObject";
+import { fetchTeamsAndDepartmentsForFilter } from "../services/departments";
 import apiRequest from "../utils/apiClient";
+
+const isDistrictsTeam = (team) =>
+ team === "Districts" || team === "District";
 
 export default function ViewWorker() {
  const navigate = useNavigate();
@@ -18,6 +27,15 @@ export default function ViewWorker() {
  const [isSaving, setIsSaving] = useState(false);
  const [editedWorker, setEditedWorker] = useState({});
  const [hasChanges, setHasChanges] = useState(false);
+ const [filterData, setFilterData] = useState({
+ teams: [],
+ departments: [],
+ departmentsByTeam: {},
+ });
+ const [teamOptions, setTeamOptions] = useState(
+ teamsAndDepartments.map((t) => ({ value: t.team, label: t.team }))
+ );
+ const [departmentOptions, setDepartmentOptions] = useState([]);
 
  const { isSuperAdmin, isChurchAdmin, isHOD, isTeamAdmin, isSubTeamAdmin } = getUserRole();
 
@@ -32,6 +50,49 @@ export default function ViewWorker() {
  return;
  }
  }, [canEditWorkers, navigate]);
+
+ useEffect(() => {
+ let mounted = true;
+ fetchTeamsAndDepartmentsForFilter().then((data) => {
+ if (!mounted) return;
+ setFilterData(data);
+ const teams = (data.teams || []).filter((t) => t.value !== "All");
+ if (teams.length) setTeamOptions(teams);
+ }).catch(() => {});
+ return () => {
+ mounted = false;
+ };
+ }, []);
+
+ useEffect(() => {
+ const team = editedWorker.team;
+ if (!team) {
+ setDepartmentOptions([]);
+ return;
+ }
+ const depts =
+ filterData.departmentsByTeam?.[team] ||
+ filterData.departmentsByTeam?.[team === "Districts" ? "District" : team] ||
+ [];
+ if (depts.length) {
+ setDepartmentOptions(depts.map((d) => ({ value: d, label: d })));
+ return;
+ }
+ const effective = Array.from(
+ new Set(
+ getEffectiveRouteList()
+ .filter(
+ (r) =>
+ r.team === team ||
+ (team === "Districts" && r.team === "District") ||
+ (team === "District" && r.team === "Districts")
+ )
+ .map((r) => r.department)
+ .filter(Boolean)
+ )
+ ).sort();
+ setDepartmentOptions(effective.map((d) => ({ value: d, label: d })));
+ }, [editedWorker.team, filterData]);
 
  // Fetch worker details
  useEffect(() => {
@@ -138,7 +199,7 @@ export default function ViewWorker() {
  const changedFields = {};
  const fieldsToCheck = [
  'firstname', 'lastname', 'othername', 'fullname', 'fullnamereverse', 'email', 'phonenumber',
- 'maritalstatus', 'department', 'team', 'workerrole', 'birthdate',
+ 'maritalstatus', 'department', 'team', 'district_sub_team', 'workerrole', 'birthdate',
  'agerange', 'gender', 'address', 'occupation', 'employment'
  ];
 
@@ -181,7 +242,7 @@ export default function ViewWorker() {
  
  const fieldsToCheck = [
  'firstname', 'lastname', 'othername', 'fullname', 'fullnamereverse', 'email', 'phonenumber',
- 'maritalstatus', 'department', 'team', 'workerrole', 'birthdate',
+ 'maritalstatus', 'department', 'team', 'district_sub_team', 'workerrole', 'birthdate',
  'agerange', 'gender', 'address', 'occupation', 'employment'
  ];
 
@@ -195,7 +256,21 @@ export default function ViewWorker() {
  ...editedWorker,
  [field]: value,
  };
- 
+
+ if (field === "team") {
+ if (!isDistrictsTeam(value)) {
+ newEditedWorker.district_sub_team = "";
+ }
+ }
+
+ if (field === "department" && isDistrictsTeam(editedWorker.team)) {
+ if (isPastorIsaacCommunity(value)) {
+ newEditedWorker.district_sub_team = "Pastor Isaac Cluster";
+ } else if (isPastorBiolaCommunity(value)) {
+ newEditedWorker.district_sub_team = "Pastor Biola Cluster";
+ }
+ }
+
  setEditedWorker(newEditedWorker);
  setHasChanges(checkForChanges(newEditedWorker));
  };
@@ -394,9 +469,9 @@ export default function ViewWorker() {
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
  >
  <option value="">Select Team</option>
- {teamsAndDepartments.map((team) => (
- <option key={team.team} value={team.team}>
- {team.team}
+ {teamOptions.map((team) => (
+ <option key={team.value} value={team.value}>
+ {team.label}
  </option>
  ))}
  </select>
@@ -413,15 +488,35 @@ export default function ViewWorker() {
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
  >
  <option value="">Select Department</option>
- {teamsAndDepartments
- .find((team) => team.team === editedWorker.team)
- ?.department?.map((dept) => (
- <option key={dept} value={dept}>
- {dept}
+ {departmentOptions.map((dept) => (
+ <option key={dept.value} value={dept.value}>
+ {dept.label}
  </option>
  ))}
+ {editedWorker.department &&
+ !departmentOptions.some((d) => d.value === editedWorker.department) && (
+ <option value={editedWorker.department}>{editedWorker.department}</option>
+ )}
  </select>
  </div>
+
+ {/* District/Sub-team */}
+ {isDistrictsTeam(editedWorker.team) && (
+ <div>
+ <label className="block text-sm font-medium text-ink-700 mb-2">
+ District/Sub-team
+ </label>
+ <select
+ value={editedWorker.district_sub_team || ""}
+ onChange={(e) => handleInputChange("district_sub_team", e.target.value)}
+ className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
+ >
+ <option value="">Select District/Sub-team</option>
+ <option value="Pastor Biola Cluster">Pastor Biola Cluster</option>
+ <option value="Pastor Isaac Cluster">Pastor Isaac Cluster</option>
+ </select>
+ </div>
+ )}
 
  {/* Worker Role */}
  <div>
@@ -537,24 +632,6 @@ export default function ViewWorker() {
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
  />
  </div>
-
- {/* District/Sub-team */}
- {editedWorker.team === "Districts" && (
- <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
- District/Sub-team
- </label>
- <select
- value={editedWorker.district_sub_team || ""}
- onChange={(e) => handleInputChange("district_sub_team", e.target.value)}
- className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
- >
- <option value="">Select District/Sub-team</option>
- <option value="Pastor Biola Cluster">Pastor Biola Cluster</option>
- <option value="Pastor Isaac Cluster">Pastor Isaac Cluster</option>
- </select>
- </div>
- )}
 
  {/* Address */}
  <div className="md:col-span-2">

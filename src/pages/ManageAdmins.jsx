@@ -169,7 +169,7 @@ export default function ManageAdmins() {
     return Object.keys(groups)
       .sort()
       .map((team) => ({ team, departments: Array.from(new Set(groups[team])).sort() }));
-  }, [departments]);
+  }, []);
 
   // Set of currently active department and meta team names for filtering out stale permission tokens
   const activeDeptAndTeamNames = useMemo(() => {

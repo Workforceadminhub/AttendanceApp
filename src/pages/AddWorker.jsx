@@ -9,6 +9,7 @@ import { teamsAndDepartments, normalizeWorkerRole } from "../utils/teams";
 import BirthDatePicker from "../components/BirthDatePicker";
 import apiRequest from "../utils/apiClient";
 import { downloadSampleWorkersExcel } from "../utils/sampleWorkersExcel";
+import { fetchTeamsAndDepartmentsForFilter } from "../services/departments";
 
 export default function AddWorker() {
  const navigate = useNavigate();
@@ -44,11 +45,37 @@ export default function AddWorker() {
  errors: [],
  });
 
+ const [filterData, setFilterData] = useState({
+    teams: [],
+    departments: [],
+    departmentsByTeam: {},
+  });
+
  // Filter options for dropdowns
  const [filterOptions, setFilterOptions] = useState({
  departments: [{ value: "All", label: "All Departments" }],
  teams: teamsAndDepartments.map(team => ({ value: team.team, label: team.team })),
  });
+
+ // Fetch live teams and departments from API
+  useEffect(() => {
+    let isMounted = true;
+    fetchTeamsAndDepartmentsForFilter().then((data) => {
+      if (isMounted) {
+        setFilterData(data);
+        if (data.teams && data.teams.length > 0) {
+          const teamOpts = data.teams.filter((t) => t.value !== "All");
+          setFilterOptions((prev) => ({
+            ...prev,
+            teams: teamOpts,
+          }));
+        }
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
  // Check if user is super admin
  useEffect(() => {
@@ -62,21 +89,34 @@ export default function AddWorker() {
 
  // Update departments when team changes
  useEffect(() => {
- if (newWorker.team) {
- const selectedTeam = teamsAndDepartments.find(team => team.team === newWorker.team);
- if (selectedTeam) {
- setFilterOptions(prev => ({
- ...prev,
- departments: selectedTeam.department.map(dept => ({ value: dept, label: dept }))
- }));
- }
- } else {
- setFilterOptions(prev => ({
- ...prev,
- departments: [{ value: "All", label: "All Departments" }]
- }));
- }
- }, [newWorker.team]);
+    if (newWorker.team) {
+      const depts = filterData.departmentsByTeam[newWorker.team];
+      if (depts && depts.length > 0) {
+        setFilterOptions((prev) => ({
+          ...prev,
+          departments: depts.map((dept) => ({ value: dept, label: dept })),
+        }));
+      } else {
+        const selectedTeam = teamsAndDepartments.find((team) => team.team === newWorker.team);
+        if (selectedTeam) {
+          setFilterOptions((prev) => ({
+            ...prev,
+            departments: selectedTeam.department.map((dept) => ({ value: dept, label: dept })),
+          }));
+        } else {
+          setFilterOptions((prev) => ({
+            ...prev,
+            departments: [{ value: "All", label: "All Departments" }],
+          }));
+        }
+      }
+    } else {
+      setFilterOptions((prev) => ({
+        ...prev,
+        departments: [{ value: "All", label: "All Departments" }],
+      }));
+    }
+  }, [newWorker.team, filterData]);
 
  // Load filter options from cache
  useEffect(() => {

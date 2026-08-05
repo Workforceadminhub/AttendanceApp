@@ -8,6 +8,7 @@ import { teamsAndDepartments, normalizeWorkerRole } from "../utils/teams";
 import { downloadSampleWorkersExcel } from "../utils/sampleWorkersExcel";
 import BirthDatePicker from "../components/BirthDatePicker";
 import apiRequest from "../utils/apiClient";
+import { fetchTeamsAndDepartmentsForFilter } from "../services/departments";
 
 export default function ChurchAdminAddWorker() {
  const navigate = useNavigate();
@@ -43,35 +44,67 @@ export default function ChurchAdminAddWorker() {
  errors: [],
  });
 
+ const [filterData, setFilterData] = useState({
+ teams: [],
+ departments: [],
+ departmentsByTeam: {},
+ });
+
  // Filter options for dropdowns
  const [filterOptions, setFilterOptions] = useState({
  departments: [{ value: "All", label: "All Departments" }],
  teams: teamsAndDepartments.map(team => ({ value: team.team, label: team.team })),
  });
 
- // Load filter options
- const loadFilterOptions = () => {
- const teams = teamsAndDepartments.map(team => ({ 
- value: team.team, 
- label: team.team 
- }));
- 
- const departments = teamsAndDepartments.flatMap(team => 
- team.department.map(dept => ({ 
- value: dept, 
- label: dept 
- }))
- );
-
- setFilterOptions({
- teams,
- departments: [{ value: "All", label: "All Departments" }, ...departments]
- });
- };
-
  useEffect(() => {
- loadFilterOptions();
- }, []);
+    let isMounted = true;
+    fetchTeamsAndDepartmentsForFilter().then((data) => {
+      if (isMounted) {
+        setFilterData(data);
+        const teams = data.teams.filter((t) => t.value !== "All");
+        const departments = data.departments.filter((d) => d.value !== "All");
+        setFilterOptions({
+          teams,
+          departments: [{ value: "All", label: "All Departments" }, ...departments],
+        });
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Update departments when team changes
+  useEffect(() => {
+    if (newWorker.team) {
+      const depts = filterData.departmentsByTeam[newWorker.team];
+      if (depts && depts.length > 0) {
+        setFilterOptions((prev) => ({
+          ...prev,
+          departments: depts.map((dept) => ({ value: dept, label: dept })),
+        }));
+      } else {
+        const selectedTeam = teamsAndDepartments.find((team) => team.team === newWorker.team);
+        if (selectedTeam) {
+          setFilterOptions((prev) => ({
+            ...prev,
+            departments: selectedTeam.department.map((dept) => ({ value: dept, label: dept })),
+          }));
+        } else {
+          setFilterOptions((prev) => ({
+            ...prev,
+            departments: filterData.departments.filter((d) => d.value !== "All"),
+          }));
+        }
+      }
+    } else {
+      const departments = filterData.departments.filter((d) => d.value !== "All");
+      setFilterOptions((prev) => ({
+        ...prev,
+        departments: [{ value: "All", label: "All Departments" }, ...departments],
+      }));
+    }
+  }, [newWorker.team, filterData]);
 
  // Handle single worker form submission
  const handleSingleSubmit = async (e) => {

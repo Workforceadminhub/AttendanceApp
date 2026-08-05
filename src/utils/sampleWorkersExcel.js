@@ -52,9 +52,9 @@ const SAMPLE_ROWS = [
     "Self-Employed",
     "Call Centre",
     "Ministry",
-    "Engineer",
-    "456 Oak Avenue Abuja",
   ],
+];
+
 /** Unique team names from effective route list; used for sample Excel Team dropdown */
 export const getTeamOptions = () =>
   [...new Set(getEffectiveRouteList().map((r) => r.team).filter(Boolean))].sort();

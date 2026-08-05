@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
-import CreatableSelect from "react-select/creatable";
+import Select from "react-select";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
 import GenericModal from "../components/GenericModal";
@@ -643,7 +643,7 @@ export default function ManageDepartments() {
  Team *
  </label>
  <div className="mt-1">
- <CreatableSelect
+ <Select
  inputId="team"
  options={teamOptions}
  value={
@@ -660,13 +660,12 @@ export default function ManageDepartments() {
  team: opt?.value || "",
  }))
  }
- placeholder="Select or create a team"
+ placeholder="Select a team"
  styles={selectStyles}
  menuPlacement="auto"
  menuPortalTarget={typeof document !== "undefined" ? document.body : null}
  menuPosition="fixed"
  isClearable
- formatCreateLabel={(input) => `Create team "${input}"`}
  />
  </div>
  </div>

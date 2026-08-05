@@ -1,6 +1,6 @@
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
-import { routeObject } from "./routeObject";
+import { getEffectiveRouteList } from "./routeObject";
 
 const HEADERS = [
   "First Name",
@@ -55,10 +55,6 @@ const SAMPLE_ROWS = [
     "Engineer",
     "456 Oak Avenue Abuja",
   ],
-];
-
-import { routeObject, getEffectiveRouteList } from "./routeObject";
-
 /** Unique team names from effective route list; used for sample Excel Team dropdown */
 export const getTeamOptions = () =>
   [...new Set(getEffectiveRouteList().map((r) => r.team).filter(Boolean))].sort();

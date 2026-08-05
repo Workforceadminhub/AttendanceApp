@@ -120,14 +120,26 @@ export function useEffectiveRouteList() {
   }, [departments, authSessionKey]);
 }
 
+// Explicit App.jsx routes for campus-wide admins (e.g. /summary/super-admin).
+// Session ensureSessionRoute() also registers these, so dynamic maps must skip
+// them or they collide and win over the dedicated pages (redirect loop / blank).
+const RESERVED_ADMIN_ROUTES = new Set(["/super-admin"]);
+
 export function useDepartmentRoutes() {
   const list = useEffectiveRouteList();
   return useMemo(() => {
-    const attendanceRoutes = list.map((i) => `/attendance${i.route}`);
-    const summaryRoutes = list.map((i) => `/summary${i.route}`);
-    const dashboardRoutes = list.map((i) => `/dashboard${i.route}`);
+    const deptRoutes = list.filter(
+      (i) => i.route && !RESERVED_ADMIN_ROUTES.has(i.route)
+    );
+    const attendanceRoutes = deptRoutes.map((i) => `/attendance${i.route}`);
+    const summaryRoutes = deptRoutes.map((i) => `/summary${i.route}`);
+    const dashboardRoutes = deptRoutes.map((i) => `/dashboard${i.route}`);
     const teamSlugs = Array.from(
-      new Set(list.map((i) => `admin/${(i.team || "").toLowerCase().trim().replaceAll(" ", "")}`))
+      new Set(
+        deptRoutes.map(
+          (i) => `admin/${(i.team || "").toLowerCase().trim().replaceAll(" ", "")}`
+        )
+      )
     ).filter((s) => s !== "admin/");
     const adminRoutes = teamSlugs;
     const historyRoutes = teamSlugs.map((s) => `history/${s}`);

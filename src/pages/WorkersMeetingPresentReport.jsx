@@ -10,6 +10,7 @@ import Card from "../components/ui/Card";
 import Tag from "../components/ui/Tag";
 import Button from "../components/ui/Button";
 import { getMeetingRegistrations } from "../services/meeting";
+import { getDistrictClusterName } from "../utils/teams";
 import { getUserRole } from "../utils/getUserRole";
 import { getUser } from "../utils/getUser";
 import {
@@ -179,12 +180,8 @@ export default function WorkersMeetingPresentReport() {
     const rawDept = (worker.department || "").trim().toLowerCase();
     const rawCluster = (worker.district_sub_team || "").trim().toLowerCase();
 
-    if (rawTeam === "districts") {
-      if (rawCluster.includes("biola")) return "District (Pastor Biola)";
-      if (rawCluster.includes("isaac")) return "District (Pastor Isaac)";
-      if (rawDept.includes("biola")) return "District (Pastor Biola)";
-      if (rawDept.includes("isaac")) return "District (Pastor Isaac)";
-      return "District (Pastor Biola)";
+    if (rawTeam === "districts" || rawTeam === "district" || rawCluster.includes("cluster") || rawDept.includes("community")) {
+      return getDistrictClusterName(worker.department, worker.district_sub_team);
     }
     if (rawDept && teamNameLookup[rawDept]) return teamNameLookup[rawDept];
     if (rawTeam && teamNameLookup[rawTeam]) return teamNameLookup[rawTeam];

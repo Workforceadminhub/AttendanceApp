@@ -12,7 +12,7 @@ import Button from "../components/ui/Button";
 import { getMeetingRegistrations } from "../services/meeting";
 import { getUserRole } from "../utils/getUserRole";
 import { getUser } from "../utils/getUser";
-import { teamsAndDepartments } from "../utils/teams";
+import { teamsAndDepartments, getDistrictClusterName } from "../utils/teams";
 import {
   DEFAULT_LEADERS_MEETING_DATE,
   getMeetingDate,
@@ -226,12 +226,8 @@ export default function LeadersMeetingPresentReport() {
       const rSubTeam = (r.district_sub_team || "").toLowerCase().trim();
 
       let matched;
-      if (rTeam === "districts") {
-        if (rSubTeam === "pastor biola cluster") {
-          matched = "District (Pastor Biola)";
-        } else if (rSubTeam === "pastor isaac cluster") {
-          matched = "District (Pastor Isaac)";
-        }
+      if (rTeam === "districts" || rTeam === "district" || rSubTeam.includes("cluster") || rDept.includes("community")) {
+        matched = getDistrictClusterName(r.department, r.district_sub_team);
       }
       if (!matched) {
         const rDeptSuffix = rDept.includes(" - ") ? rDept.split(" - ").pop().trim() : null;
@@ -544,12 +540,8 @@ export default function LeadersMeetingPresentReport() {
         const rSubTeam = (r.district_sub_team || "").toLowerCase().trim();
 
         let matched;
-        if (rTeam === "districts") {
-          if (rSubTeam === "pastor biola cluster") {
-            matched = "District (Pastor Biola)";
-          } else if (rSubTeam === "pastor isaac cluster") {
-            matched = "District (Pastor Isaac)";
-          }
+        if (rTeam === "districts" || rTeam === "district" || rSubTeam.includes("cluster") || rDept.includes("community")) {
+          matched = getDistrictClusterName(r.department, r.district_sub_team);
         }
         if (!matched) {
           const rDeptSuffix = rDept.includes(" - ") ? rDept.split(" - ").pop().trim() : null;

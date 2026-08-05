@@ -231,3 +231,63 @@ export const workerRoles = [
   "Team Head/Pastoral Leader",
   "Directional Leader",
 ];
+
+export const PASTOR_ISAAC_COMMUNITIES = [
+  "Trailblazer Community",
+  "Gbagada Estate Community",
+  "Shomolu 2 Community",
+  "Sunrise Community",
+  "Dominion Kingdom Community",
+  "Shekinah Community",
+  "Anagkazo Community",
+];
+
+export const PASTOR_BIOLA_COMMUNITIES = [
+  "Royal Priesthoods Community",
+  "Ogudu/Alapere Community",
+  "Lightbearers Community",
+  "Praise (Couple) Community",
+  "Harmony Community",
+  "Bethel Community",
+  "Hephzibah Community",
+  "Rehoboth Community",
+];
+
+const isaacCommunitySet = new Set([
+  ...PASTOR_ISAAC_COMMUNITIES.map((c) => c.toLowerCase().trim()),
+  "shomolu community",
+  "pastor isaac cluster",
+  "pastor isaac",
+]);
+
+const biolaCommunitySet = new Set([
+  ...PASTOR_BIOLA_COMMUNITIES.map((c) => c.toLowerCase().trim()),
+  "royal priesthood community",
+  "ogudu alapere community",
+  "praise couple community",
+  "pastor biola cluster",
+  "pastor biola",
+]);
+
+export const isPastorIsaacCommunity = (deptOrSubTeam) => {
+  const norm = String(deptOrSubTeam || "").trim().toLowerCase();
+  return isaacCommunitySet.has(norm) || norm.includes("isaac");
+};
+
+export const isPastorBiolaCommunity = (deptOrSubTeam) => {
+  const norm = String(deptOrSubTeam || "").trim().toLowerCase();
+  return biolaCommunitySet.has(norm) || norm.includes("biola");
+};
+
+/**
+ * Returns "District (Pastor Isaac)" or "District (Pastor Biola)" given a department and/or sub-team.
+ */
+export const getDistrictClusterName = (dept, subTeam) => {
+  if (isPastorIsaacCommunity(dept) || isPastorIsaacCommunity(subTeam)) {
+    return "District (Pastor Isaac)";
+  }
+  if (isPastorBiolaCommunity(dept) || isPastorBiolaCommunity(subTeam)) {
+    return "District (Pastor Biola)";
+  }
+  return "District (Pastor Biola)";
+};

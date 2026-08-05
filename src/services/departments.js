@@ -51,9 +51,18 @@ export const fetchTeamsAndDepartmentsForFilter = async () => {
   const allDepartmentNames = new Set();
   const teamNamesSet = new Set();
 
+  // Normalize team names to canonical forms to avoid duplicates
+  const canonicalTeamName = (name) => {
+    const n = String(name).trim();
+    if (n === "District") return "Districts";
+    if (n === "Program") return "Programs";
+    if (n === "Directional leader") return "Directional Leader";
+    return n;
+  };
+
   const addDeptToTeam = (teamKey, deptName) => {
     if (!teamKey || !deptName) return;
-    const normTeam = String(teamKey).trim();
+    const normTeam = canonicalTeamName(teamKey);
     const normDept = String(deptName).trim();
     if (!normTeam || !normDept) return;
 
@@ -65,19 +74,14 @@ export const fetchTeamsAndDepartmentsForFilter = async () => {
       departmentsByTeam[normTeam].push(normDept);
     }
 
-    const aliases = [];
-    if (normTeam === "District") aliases.push("Districts");
-    if (normTeam === "Districts") aliases.push("District");
-    if (normTeam === "Program") aliases.push("Programs");
-    if (normTeam === "Programs") aliases.push("Program");
-
-    aliases.forEach((alias) => {
-      teamNamesSet.add(alias);
-      if (!departmentsByTeam[alias]) departmentsByTeam[alias] = [];
-      if (!departmentsByTeam[alias].includes(normDept)) {
-        departmentsByTeam[alias].push(normDept);
+    // Also register under original key so lookups by either name work
+    const origTeam = String(teamKey).trim();
+    if (origTeam !== normTeam) {
+      if (!departmentsByTeam[origTeam]) departmentsByTeam[origTeam] = [];
+      if (!departmentsByTeam[origTeam].includes(normDept)) {
+        departmentsByTeam[origTeam].push(normDept);
       }
-    });
+    }
   };
 
   // 1. Process live API data

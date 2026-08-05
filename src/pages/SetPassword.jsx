@@ -1,9 +1,42 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { hubSetPassword } from "../services/hub/auth";
 import { persistSession } from "../utils/authSession";
 import { getPostLoginPath, resolveAdminRoute, ensureSessionRoute } from "../utils/routeObject";
+
+/* ── SVG icons ─────────────────────────────────────────────── */
+const EyeIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"
+    className="w-5 h-5">
+    <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+    <circle cx={12} cy={12} r={3} />
+  </svg>
+);
+
+const EyeOffIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"
+    className="w-5 h-5">
+    <path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" />
+    <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
+    <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" />
+    <path d="m2 2 20 20" />
+  </svg>
+);
+
+const CheckCircle = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+  </svg>
+);
+
+const XCircle = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
+  </svg>
+);
 
 export default function SetPassword() {
   const navigate = useNavigate();
@@ -14,6 +47,7 @@ export default function SetPassword() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     const stateToken = location.state?.token;
@@ -41,6 +75,18 @@ export default function SetPassword() {
     }
   }, [location.state]);
 
+  /* ── Password strength checks ────────────────────────────── */
+  const checks = useMemo(() => ({
+    length: password.length >= 12,
+    uppercase: /[A-Z]/.test(password),
+    number: /[0-9]/.test(password),
+    special: /[^A-Za-z0-9]/.test(password),
+  }), [password]);
+
+  const allChecksPassed = checks.length && checks.uppercase && checks.number && checks.special;
+  const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
+  const canSubmit = allChecksPassed && passwordsMatch && !isLoading;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!token) {
@@ -48,15 +94,11 @@ export default function SetPassword() {
       navigate("/login");
       return;
     }
-    if (!password || !confirmPassword) {
-      toast.error("Please fill in both password fields.");
+    if (!allChecksPassed) {
+      toast.error("Password does not meet all requirements.");
       return;
     }
-    if (password.length < 6) {
-      toast.error("Password must be at least 6 characters.");
-      return;
-    }
-    if (password !== confirmPassword) {
+    if (!passwordsMatch) {
       toast.error("Passwords do not match.");
       return;
     }
@@ -92,6 +134,8 @@ export default function SetPassword() {
       setIsLoading(false);
     }
   };
+
+  const inputType = showPassword ? "text" : "password";
 
   return (
     <div className="min-h-screen bg-cream flex flex-col">
@@ -132,42 +176,104 @@ export default function SetPassword() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+              {/* New Password */}
               <div>
                 <label htmlFor="password" className="qc-label">
                   New Password
                 </label>
-                <input
-                  type="password"
-                  id="password"
-                  autoComplete="new-password"
-                  autoFocus
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={isLoading}
-                  className="qc-input"
-                  placeholder="Enter new password"
-                />
+                <div className="relative">
+                  <input
+                    type={inputType}
+                    id="password"
+                    autoComplete="new-password"
+                    autoFocus
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={isLoading}
+                    className="qc-input pr-11"
+                    placeholder="Enter new password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-700 transition-colors"
+                    tabIndex={-1}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                  </button>
+                </div>
+
+                {/* Password requirements guide */}
+                {password.length > 0 && (
+                  <ul className="mt-3 space-y-1.5">
+                    {[
+                      { key: "length", label: "At least 12 characters" },
+                      { key: "uppercase", label: "At least 1 uppercase letter" },
+                      { key: "number", label: "At least 1 number" },
+                      { key: "special", label: "At least 1 special character" },
+                    ].map(({ key, label }) => (
+                      <li
+                        key={key}
+                        className={`flex items-center gap-2 text-xs font-medium transition-colors ${
+                          checks[key] ? "text-green-600" : "text-ink-400"
+                        }`}
+                      >
+                        {checks[key] ? <CheckCircle /> : <XCircle />}
+                        {label}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
+              {/* Confirm Password */}
               <div>
                 <label htmlFor="confirmPassword" className="qc-label">
                   Confirm Password
                 </label>
-                <input
-                  type="password"
-                  id="confirmPassword"
-                  autoComplete="new-password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  disabled={isLoading}
-                  className="qc-input"
-                  placeholder="Confirm new password"
-                />
+                <div className="relative">
+                  <input
+                    type={inputType}
+                    id="confirmPassword"
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    disabled={isLoading}
+                    className={`qc-input pr-11 ${
+                      confirmPassword.length > 0
+                        ? passwordsMatch
+                          ? "border-green-500 focus:ring-green-500/20"
+                          : "border-red-400 focus:ring-red-400/20"
+                        : ""
+                    }`}
+                    placeholder="Confirm new password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-700 transition-colors"
+                    tabIndex={-1}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                  </button>
+                </div>
+                {confirmPassword.length > 0 && (
+                  <p
+                    className={`mt-2 flex items-center gap-1.5 text-xs font-medium ${
+                      passwordsMatch ? "text-green-600" : "text-red-500"
+                    }`}
+                  >
+                    {passwordsMatch ? <CheckCircle /> : <XCircle />}
+                    {passwordsMatch ? "Passwords match" : "Passwords do not match"}
+                  </p>
+                )}
               </div>
 
               <button
                 type="submit"
-                disabled={isLoading || !password || !confirmPassword}
+                disabled={!canSubmit}
                 className="qc-btn-primary w-full"
               >
                 {isLoading ? "Updating Password..." : "Set Password & Continue"}

@@ -57,13 +57,18 @@ const SAMPLE_ROWS = [
   ],
 ];
 
-/** Unique team names from routeObject; used for sample Excel Team dropdown */
-const TEAM_OPTIONS = [...new Set(routeObject.map((r) => r.team).filter(Boolean))].sort();
+import { routeObject, getEffectiveRouteList } from "./routeObject";
+
+/** Unique team names from effective route list; used for sample Excel Team dropdown */
+export const getTeamOptions = () =>
+  [...new Set(getEffectiveRouteList().map((r) => r.team).filter(Boolean))].sort();
 
 /** Allowed values for dropdown columns; used in sample Excel and for bulk-upload validation */
 export const DROPDOWN_OPTIONS = {
   Gender: ["Female", "Male"],
-  Team: TEAM_OPTIONS,
+  get Team() {
+    return getTeamOptions();
+  },
   "Worker Role": [
     "Worker",
     "Assistant Small Group Leader",

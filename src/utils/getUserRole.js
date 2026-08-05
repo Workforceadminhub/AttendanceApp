@@ -116,6 +116,15 @@ export function getUserRole() {
     isHOD = (!isSuperAdmin && !isChurchAdmin && !isTeamAdmin && !isSubTeamAdmin) || isHodRole;
   }
 
+  // Department / role can still mark campus-wide admins when permissionLevel is
+  // missing, stale, or only set on one of the fields (e.g. Add Worker guards).
+  if (user.department === "Super Admin" || isSuperAdminRole) {
+    isSuperAdmin = true;
+  }
+  if (user.department === ADMIN_ENUMS.ADMIN_DEPARTMENT || isChurchAdminRole) {
+    isChurchAdmin = true;
+  }
+
   const isAdmin = isSuperAdmin || isChurchAdmin || isTeamAdmin || isSubTeamAdmin;
 
   // Determine a readable role name

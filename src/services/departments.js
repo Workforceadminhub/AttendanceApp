@@ -1,5 +1,5 @@
 import apiRequest from "../utils/apiClient";
-import { teamsAndDepartments } from "../utils/teams";
+import { setDynamicDepartments, getEffectiveRouteList } from "../utils/routeObject";
 
 /**
  * Fetch all departments (including empty or unmapped).
@@ -13,6 +13,7 @@ export const fetchDepartments = async () => {
     }
     const raw = response.data || response;
     const items = Array.isArray(raw) ? raw : [];
+    setDynamicDepartments(items);
     return items.sort((a, b) => {
       const numA = Number(a?.id);
       const numB = Number(b?.id);
@@ -44,38 +45,56 @@ export const fetchTeams = async () => {
  * @returns {Promise<{ teams: Array<{ value: string, label: string }>, departments: Array<{ value: string, label: string }>, departmentsByTeam: Record<string, string[]> }>}
  */
 export const fetchTeamsAndDepartmentsForFilter = async () => {
-  const [teamsList, departmentsList] = await Promise.all([fetchTeams(), fetchDepartments()]);
+  const departmentsList = await fetchDepartments();
 
   const departmentsByTeam = {};
   const allDepartmentNames = new Set();
+  const teamNamesSet = new Set();
 
+  const addDeptToTeam = (teamKey, deptName) => {
+    if (!teamKey || !deptName) return;
+    const normTeam = String(teamKey).trim();
+    const normDept = String(deptName).trim();
+    if (!normTeam || !normDept) return;
+
+    teamNamesSet.add(normTeam);
+    allDepartmentNames.add(normDept);
+
+    if (!departmentsByTeam[normTeam]) departmentsByTeam[normTeam] = [];
+    if (!departmentsByTeam[normTeam].includes(normDept)) {
+      departmentsByTeam[normTeam].push(normDept);
+    }
+
+    const aliases = [];
+    if (normTeam === "District") aliases.push("Districts");
+    if (normTeam === "Districts") aliases.push("District");
+    if (normTeam === "Program") aliases.push("Programs");
+    if (normTeam === "Programs") aliases.push("Program");
+
+    aliases.forEach((alias) => {
+      teamNamesSet.add(alias);
+      if (!departmentsByTeam[alias]) departmentsByTeam[alias] = [];
+      if (!departmentsByTeam[alias].includes(normDept)) {
+        departmentsByTeam[alias].push(normDept);
+      }
+    });
+  };
+
+  // 1. Process live API data
   if (Array.isArray(departmentsList) && departmentsList.length > 0) {
-    // Rely directly on live API data
     departmentsList.forEach((d) => {
       const name = d?.name ?? d?.department ?? String(d);
       const team = d?.team ?? d?.teamName;
-      const teamKey = team != null && String(team).trim() !== "" ? String(team).trim() : "(No team)";
-      if (name != null && String(name).trim() !== "") {
-        allDepartmentNames.add(String(name).trim());
-        if (!departmentsByTeam[teamKey]) departmentsByTeam[teamKey] = [];
-        if (!departmentsByTeam[teamKey].includes(name)) departmentsByTeam[teamKey].push(name);
-      }
-    });
-  } else {
-    // Seed with static fallback map if API returned empty
-    teamsAndDepartments.forEach(({ team, department }) => {
-      departmentsByTeam[team] = [...department];
-      department.forEach((d) => allDepartmentNames.add(d));
+      addDeptToTeam(team || "(No team)", name);
     });
   }
 
-  const teamNamesSet = new Set([
-    ...teamsList,
-    ...(departmentsByTeam["(No team)"]?.length ? ["(No team)"] : []),
-  ]);
-  if (teamNamesSet.size === 0) {
-    teamsAndDepartments.forEach((t) => teamNamesSet.add(t.team));
-  }
+  // 2. Process effective route list to ensure all dynamic + static fallbacks are included
+  const effectiveList = getEffectiveRouteList();
+  effectiveList.forEach((item) => {
+    addDeptToTeam(item.team, item.department);
+  });
+
   const teamNames = [...teamNamesSet].sort();
 
   const teams = [
@@ -88,7 +107,11 @@ export const fetchTeamsAndDepartmentsForFilter = async () => {
     ...[...allDepartmentNames].sort().map((d) => ({ value: d, label: d })),
   ];
 
-  return { teams, departments, departmentsByTeam };
+  return {
+    teams,
+    departments,
+    departmentsByTeam,
+  };
 };
 
 /**

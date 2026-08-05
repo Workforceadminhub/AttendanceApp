@@ -6,7 +6,7 @@ import { toast } from "react-toastify";
 import { teamsAndDepartments, normalizeWorkerRole } from "../utils/teams";
 import BirthDatePicker from "../components/BirthDatePicker";
 import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
-import { getDepartmentRoute } from "../utils/routeObject";
+import { getDepartmentRoute, getEffectiveRouteList } from "../utils/routeObject";
 import apiRequest from "../utils/apiClient";
 
 export default function ViewWorker() {

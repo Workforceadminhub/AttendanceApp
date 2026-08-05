@@ -54,8 +54,8 @@ export default function AddWorker() {
 
  // Filter options for dropdowns
  const [filterOptions, setFilterOptions] = useState({
- departments: [{ value: "All", label: "All Departments" }],
- teams: teamsAndDepartments.map(team => ({ value: team.team, label: team.team })),
+   departments: [],
+   teams: teamsAndDepartments.map((team) => ({ value: team.team, label: team.team })),
  });
 
  // Fetch live teams and departments from API
@@ -66,10 +66,11 @@ export default function AddWorker() {
         setFilterData(data);
         if (data.teams && data.teams.length > 0) {
           const teamOpts = data.teams.filter((t) => t.value !== "All");
-          setFilterOptions((prev) => ({
-            ...prev,
+          const deptOpts = (data.departments || []).filter((d) => d.value !== "All");
+          setFilterOptions({
             teams: teamOpts,
-          }));
+            departments: deptOpts,
+          });
         }
       }
     });
@@ -122,9 +123,10 @@ export default function AddWorker() {
         }));
       }
     } else {
+      const depts = (filterData.departments || []).filter((d) => d.value !== "All");
       setFilterOptions((prev) => ({
         ...prev,
-        departments: filterData.departments || [],
+        departments: depts,
       }));
     }
   }, [newWorker.team, filterData]);

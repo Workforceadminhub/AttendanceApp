@@ -109,7 +109,7 @@ export default function DepartmentSummary() {
 
   // Log attendance summary silently
 
-  if (isSuperAdmin) {
+  if (isSuperAdmin && pathname !== "/summary/super-admin") {
     return <Navigate to="/summary/super-admin" replace />;
   }
 

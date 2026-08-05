@@ -167,7 +167,7 @@ export default function ManageAdmins() {
  return Object.keys(groups)
  .sort()
  .map((team) => ({ team, departments: groups[team].sort() }));
- }, []);
+ }, [departments]);
 
  // All department names from routeObject for "Check All" across all teams
  const allPermissionDepts = useMemo(

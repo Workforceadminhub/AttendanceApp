@@ -183,9 +183,15 @@ export function setDynamicDepartments(departments) {
 export function getEffectiveRouteList() {
   let base;
   if (Array.isArray(_dynamicList) && _dynamicList.length > 0) {
-    const seen = new Set(_dynamicList.map((d) => `${d.department}|${d.route}`));
+    const dynamicRoutes = new Set(_dynamicList.map((d) => d.route));
+    const dynamicNames = new Set(
+      _dynamicList.map((d) => (d.department || "").toLowerCase().trim())
+    );
+
     const fallback = routeObject.filter(
-      (s) => !seen.has(`${s.department}|${s.route}`)
+      (s) =>
+        !dynamicRoutes.has(s.route) &&
+        !dynamicNames.has((s.department || "").toLowerCase().trim())
     );
     base = [..._dynamicList, ...fallback];
   } else {

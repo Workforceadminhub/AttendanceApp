@@ -39,7 +39,9 @@ const Login = () => {
         const data = await hubSignIn(email.trim(), password);
         if (data?.mustResetPassword) {
           toast.info("You must set a new password before continuing.");
-          navigate("/forgot-password", { state: { email: email.trim(), forced: true } });
+          navigate("/set-password", {
+            state: { token: data.accessToken, loginData: data },
+          });
           setIsLoading(false);
           return;
         }

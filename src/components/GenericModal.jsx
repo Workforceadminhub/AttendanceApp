@@ -16,21 +16,22 @@ const GenericModal = ({
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-      <div className={`bg-white p-6 rounded-lg shadow-xl ${sizeClasses[size]} max-h-[90vh] overflow-visible`}>
-        <div className="flex justify-between items-center mb-6">
+    <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 p-4 sm:p-6">
+      <div className={`bg-white p-6 rounded-lg shadow-xl ${sizeClasses[size]} max-h-[90vh] flex flex-col my-auto`}>
+        <div className="flex justify-between items-center pb-3 border-b border-ink-100 mb-4 shrink-0">
           <h2 className="text-xl font-bold text-ink-900">{title}</h2>
           <button
             onClick={onClose}
-            className="text-ink-400 hover:text-ink-600 transition-colors"
+            type="button"
+            className="text-ink-400 hover:text-ink-600 transition-colors p-1 rounded-md hover:bg-cream-200"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
         
-        <div className="space-y-4 overflow-visible">
+        <div className="flex-1 overflow-y-auto pr-1 space-y-4">
           {children}
         </div>
       </div>

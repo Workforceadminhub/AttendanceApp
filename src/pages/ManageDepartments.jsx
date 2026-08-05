@@ -13,6 +13,7 @@ import {
  toggleDepartmentStatus,
  deleteDepartment,
 } from "../services/departments";
+import { fetchHubTeams } from "../services/hub/teams";
 import { useDepartmentsContext, useInvalidateDepartments } from "../contexts/DepartmentsContext";
 import {
  PencilIcon,
@@ -58,6 +59,7 @@ export default function ManageDepartments() {
  const { refetch: refetchDepartmentsContext } = useDepartmentsContext();
  const invalidateDepartments = useInvalidateDepartments();
  const [departments, setDepartments] = useState([]);
+ const [teamOptions, setTeamOptions] = useState([]);
  const [isLoading, setIsLoading] = useState(false);
  const [isModalOpen, setIsModalOpen] = useState(false);
  const [editingDepartment, setEditingDepartment] = useState(null);
@@ -79,20 +81,6 @@ export default function ManageDepartments() {
  isactive: true,
  });
 
- // Unique team names from departments API
- const teamOptions = useMemo(() => {
- const teams = new Set();
- departments.forEach((d) => {
- const team = d?.team ?? d?.teamName;
- if (team != null && String(team).trim() !== "") {
- teams.add(String(team).trim());
- }
- });
- return [...teams]
- .sort((a, b) => a.localeCompare(b))
- .map((team) => ({ value: team, label: team }));
- }, [departments]);
-
  // Check if user is super admin
  useEffect(() => {
  const authUser = JSON.parse(sessionStorage.getItem("authUser"));
@@ -103,15 +91,28 @@ export default function ManageDepartments() {
  }
  }, [navigate]);
 
- // Fetch departments
+ // Fetch departments + hub teams
  const loadDepartments = useCallback(async () => {
  if (isLoading) return;
  setIsLoading(true);
  try {
- const data = await fetchDepartments();
- setDepartments(Array.isArray(data) ? data : []);
- } catch (error) {
+ const [deptResult, teamsResult] = await Promise.allSettled([
+ fetchDepartments(),
+ fetchHubTeams(),
+ ]);
+
+ if (deptResult.status === "fulfilled") {
+ setDepartments(Array.isArray(deptResult.value) ? deptResult.value : []);
+ } else {
  toast.error("Failed to fetch departments");
+ }
+
+ if (teamsResult.status === "fulfilled") {
+ setTeamOptions(Array.isArray(teamsResult.value) ? teamsResult.value : []);
+ } else {
+ setTeamOptions([]);
+ toast.error("Failed to fetch teams");
+ }
  } finally {
  setIsLoading(false);
  }

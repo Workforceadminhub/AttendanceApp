@@ -11,6 +11,7 @@ import apiRequest from "../utils/apiClient";
 import { downloadSampleWorkersExcel } from "../utils/sampleWorkersExcel";
 import { fetchTeamsAndDepartmentsForFilter } from "../services/departments";
 import { getEffectiveRouteList } from "../utils/routeObject";
+import { getUserRole } from "../utils/getUserRole";
 
 export default function AddWorker() {
  const navigate = useNavigate();
@@ -79,12 +80,12 @@ export default function AddWorker() {
     };
   }, []);
 
- // Check if user is super admin
+ // Check if user is super admin (role / permissionLevel / department)
  useEffect(() => {
- const authUser = JSON.parse(sessionStorage.getItem("authUser"));
- if (!authUser || authUser.department !== "Super Admin") {
+ const { isSuperAdmin, user } = getUserRole();
+ if (!user || !isSuperAdmin) {
  toast.error("Access denied. Super Admin access required.");
- navigate("/workers");
+ navigate("/workers/super-admin");
  return;
  }
  }, [navigate]);

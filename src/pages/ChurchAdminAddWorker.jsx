@@ -4,7 +4,7 @@ import Header from "../components/Header";
 import Layout from "../components/Layout";
 import { toast } from "react-toastify";
 import ExcelJS from "exceljs";
-import { teamsAndDepartments, normalizeWorkerRole } from "../utils/teams";
+import { teamsAndDepartments, normalizeWorkerRole, isPastorIsaacCommunity, isPastorBiolaCommunity } from "../utils/teams";
 import { downloadSampleWorkersExcel } from "../utils/sampleWorkersExcel";
 import BirthDatePicker from "../components/BirthDatePicker";
 import apiRequest from "../utils/apiClient";
@@ -532,12 +532,19 @@ export default function ChurchAdminAddWorker() {
  </label>
  <select
  value={newWorker.department}
- onChange={(e) =>
- setNewWorker({
- ...newWorker,
- department: e.target.value,
- })
- }
+        onChange={(e) => {
+          const selectedDept = e.target.value;
+          let autoCluster = newWorker.district_sub_team;
+          if (newWorker.team === "Districts" || !newWorker.team) {
+            if (isPastorIsaacCommunity(selectedDept)) autoCluster = "Pastor Isaac Cluster";
+            else if (isPastorBiolaCommunity(selectedDept)) autoCluster = "Pastor Biola Cluster";
+          }
+          setNewWorker({
+            ...newWorker,
+            department: selectedDept,
+            district_sub_team: autoCluster,
+          });
+        }}
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
  >
  <option value="">Select Department</option>

@@ -53,8 +53,8 @@ export default function ChurchAdminAddWorker() {
 
  // Filter options for dropdowns
  const [filterOptions, setFilterOptions] = useState({
- departments: [{ value: "All", label: "All Departments" }],
- teams: teamsAndDepartments.map(team => ({ value: team.team, label: team.team })),
+   departments: [],
+   teams: teamsAndDepartments.map((team) => ({ value: team.team, label: team.team })),
  });
 
  useEffect(() => {
@@ -66,7 +66,7 @@ export default function ChurchAdminAddWorker() {
         const departments = data.departments.filter((d) => d.value !== "All");
         setFilterOptions({
           teams,
-          departments: [{ value: "All", label: "All Departments" }, ...departments],
+          departments,
         });
       }
     });
@@ -112,7 +112,7 @@ export default function ChurchAdminAddWorker() {
       const departments = filterData.departments.filter((d) => d.value !== "All");
       setFilterOptions((prev) => ({
         ...prev,
-        departments: [{ value: "All", label: "All Departments" }, ...departments],
+        departments,
       }));
     }
   }, [newWorker.team, filterData]);

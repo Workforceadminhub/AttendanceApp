@@ -6,7 +6,7 @@ import { toast } from "react-toastify";
 import { teamsAndDepartments, normalizeWorkerRole } from "../utils/teams";
 import BirthDatePicker from "../components/BirthDatePicker";
 import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
-import { getDepartmentRoute, getEffectiveRouteList } from "../utils/routeObject";
+import { getDepartmentRoute } from "../utils/routeObject";
 import apiRequest from "../utils/apiClient";
 
 export default function ViewWorker() {
@@ -118,17 +118,21 @@ export default function ViewWorker() {
 
  const handleSave = async () => {
  // Validate required fields (relaxed for Super Admin: only basic identity and placement)
- if (
- !editedWorker.firstname ||
- !editedWorker.lastname ||
- !editedWorker.department ||
- !editedWorker.team
- ) {
- toast.error(
- "Please fill in all required fields (First Name, Last Name, Department, Team)"
- );
- return;
- }
+  if (
+    !editedWorker.firstname ||
+    !editedWorker.lastname ||
+    !editedWorker.department ||
+    !editedWorker.team
+  ) {
+    toast.error(
+      "Please fill in all required fields (First Name, Last Name, Department, Team)"
+    );
+    return;
+  }
+  if (editedWorker.phonenumber && !/^\d{11}$/.test(String(editedWorker.phonenumber).trim())) {
+    toast.error("Phone number must be exactly 11 digits.");
+    return;
+  }
 
  // Find only the fields that have changed
  const changedFields = {};
@@ -359,8 +363,10 @@ export default function ViewWorker() {
  <input
  type="tel"
  value={editedWorker.phonenumber || editedWorker.phone_number || editedWorker.phone || ""}
- onChange={(e) => handleInputChange("phonenumber", e.target.value)}
+ onChange={(e) => handleInputChange("phonenumber", e.target.value.replace(/\D/g, "").slice(0, 11))}
+ maxLength={11}
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
+ placeholder="11 digits"
  />
  </div>
 

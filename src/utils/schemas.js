@@ -18,7 +18,7 @@ const phone = z
   .string()
   .min(1, "Phone is required")
   .transform((v) => v.replace(/\D/g, ""))
-  .refine((v) => v.length >= 10 && v.length <= 13, "Phone must be 10–13 digits");
+  .refine((v) => v.length === 11, "Phone must be exactly 11 digits");
 
 const email = z
   .string()

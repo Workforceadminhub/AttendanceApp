@@ -74,23 +74,8 @@ function isPlaceholderRole(role) {
 
 /** Present-form phone rules: 0XXXXXXXXXX (11), 234… / +234…, or local without leading 0. */
 function isValidPresentPhone(raw) {
-  const trimmed = String(raw ?? "").trim();
-  if (!trimmed) return false;
-
-  if (trimmed.startsWith("+234")) {
-    const rest = trimmed.slice(4).replace(/\D/g, "");
-    return rest.length >= 10;
-  }
-  if (trimmed.startsWith("234")) {
-    const rest = trimmed.slice(3).replace(/\D/g, "");
-    return rest.length >= 10;
-  }
-  if (trimmed.startsWith("0")) {
-    const digits = trimmed.replace(/\D/g, "");
-    return digits.length === 11;
-  }
-  const digits = trimmed.replace(/\D/g, "");
-  return digits.length > 0 && !digits.startsWith("0");
+  const digits = String(raw ?? "").replace(/\D/g, "");
+  return digits.length === 11;
 }
 
 function isValidOptionalEmail(raw) {

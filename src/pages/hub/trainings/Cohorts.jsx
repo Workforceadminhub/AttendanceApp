@@ -31,7 +31,18 @@ export default function Cohorts() {
     queryFn: () => fetchCohorts(),
   });
 
-  const cohorts = data?.data ?? (Array.isArray(data) ? data : []);
+  const rawCohorts = data?.data ?? (Array.isArray(data) ? data : []);
+  const cohorts = [...rawCohorts].sort((a, b) => {
+    const idA = a?.id ?? a?._id;
+    const idB = b?.id ?? b?._id;
+    const numA = Number(idA);
+    const numB = Number(idB);
+    if (!isNaN(numA) && !isNaN(numB) && idA !== null && idB !== null && idA !== "" && idB !== "") {
+      return numA - numB;
+    }
+    return String(idA ?? "").localeCompare(String(idB ?? ""));
+  });
+
 
   const createMut = useMutation({
     mutationFn: (payload) => createCohort(payload),

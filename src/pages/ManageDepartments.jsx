@@ -316,7 +316,14 @@ export default function ManageDepartments() {
  const items = Array.isArray(departments) ? [...departments] : [];
 
  if (!sortConfig.key) {
- return items;
+   return items.sort((a, b) => {
+     const numA = Number(a?.id ?? a?._id);
+     const numB = Number(b?.id ?? b?._id);
+     if (!isNaN(numA) && !isNaN(numB) && a?.id !== null && b?.id !== null && a?.id !== "" && b?.id !== "") {
+       return numA - numB;
+     }
+     return String(a?.id ?? a?._id ?? "").localeCompare(String(b?.id ?? b?._id ?? ""));
+   });
  }
 
  return items.sort((a, b) => {

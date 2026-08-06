@@ -125,10 +125,26 @@ export async function apiRequest(
     // Login 401s (wrong password) still need to throw so the login page can show the error.
     if (status === 401 && !url.includes("/auth/signin")) return;
 
-    const err = new Error(authErrorMessage(status));
+    const responseData = error.response?.data;
+    let message =
+      typeof responseData === "string"
+        ? responseData
+        : responseData?.message || responseData?.error || responseData?.details;
+
+    if (message && typeof message === "string") {
+      if (/worker\s+already\s+exist/i.test(message)) {
+        message = "Worker already belongs to another department";
+      }
+    } else {
+      message = authErrorMessage(status);
+    }
+
+    const err = new Error(message);
     err.status = status;
+    err.responseData = responseData;
     throw err;
   }
+
 }
 
 export default apiRequest;

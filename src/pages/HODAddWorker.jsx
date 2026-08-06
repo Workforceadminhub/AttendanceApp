@@ -98,9 +98,13 @@ export default function HODAddWorker() {
  );
  setWorker(initialWorker);
  navigate(`/department/${getDepartmentRoute(decodedDepartment) || encodeURIComponent(decodedDepartment)}/workers`);
- } catch (err) {
- toast.error(err?.message || "Failed to add worker.");
- } finally {
+  } catch (err) {
+    const rawMsg = err?.message || "";
+    const msg = /worker\s+already\s+exist/i.test(rawMsg)
+      ? "Worker already belongs to another department"
+      : err?.message || "Failed to add worker.";
+    toast.error(msg);
+  } finally {
  setIsLoading(false);
  }
  };

@@ -1,10 +1,15 @@
 import { ADMIN_ENUMS } from "./enums";
 import { getDepartmentByUser } from "./getDepartment";
+import { getUserRole } from "./getUserRole";
 
 export const checkAdminStatus = (pathname) => {
+  const { isSuperAdmin, isChurchAdmin } = getUserRole();
+  if (isSuperAdmin || isChurchAdmin) return true;
+
   const team = getDepartmentByUser(pathname);
-  const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
-  const isSuperAdmin = team.department === "Super Admin";
+  const isChurchDept = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
+  const isSuperDept = team.department === "Super Admin";
   const isAdmin = pathname.includes("/admin/") ? true : false;
-  return isChurchAdmin || isSuperAdmin || isAdmin;
+  return isChurchDept || isSuperDept || isAdmin;
 };
+

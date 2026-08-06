@@ -2,6 +2,31 @@ import { useState } from "react";
 import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { hubResetPassword } from "../services/hub/auth";
+import {
+  usePasswordRequirements,
+  PasswordRequirementsList,
+  PasswordMatchIndicator,
+} from "../components/PasswordHelper";
+
+const EyeIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"
+    className="w-5 h-5">
+    <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+    <circle cx={12} cy={12} r={3} />
+  </svg>
+);
+
+const EyeOffIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"
+    className="w-5 h-5">
+    <path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" />
+    <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
+    <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" />
+    <path d="m2 2 20 20" />
+  </svg>
+);
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -16,6 +41,12 @@ export default function ResetPassword() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const { allPassed } = usePasswordRequirements(newPassword);
+  const passwordsMatch = confirmPassword.length > 0 && newPassword === confirmPassword;
+  const canSubmit = email.trim() && otp.trim() && allPassed && passwordsMatch && !isLoading;
+  const inputType = showPassword ? "text" : "password";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -30,12 +61,12 @@ export default function ResetPassword() {
       toast.error("OTP code is required");
       return;
     }
-    if (newPassword.length < 8) {
-      toast.error("Password must be at least 8 characters");
+    if (!allPassed) {
+      toast.error("Password does not meet all requirements.");
       return;
     }
-    if (newPassword !== confirmPassword) {
-      toast.error("Passwords do not match");
+    if (!passwordsMatch) {
+      toast.error("Passwords do not match.");
       return;
     }
 
@@ -97,7 +128,6 @@ export default function ResetPassword() {
               onChange={(e) => setOtp(e.target.value)}
               disabled={isLoading}
               className="qc-input font-mono tracking-wider"
-              placeholder="e.g. 482913"
               maxLength={10}
             />
           </div>
@@ -106,39 +136,71 @@ export default function ResetPassword() {
             <label htmlFor="newPassword" className="qc-label">
               New Password
             </label>
-            <input
-              type="password"
-              id="newPassword"
-              autoComplete="new-password"
-              autoFocus={!!initialOtp}
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              disabled={isLoading}
-              className="qc-input"
-            />
-            <p className="mt-1 text-xs text-ink-400">At least 8 characters.</p>
+            <div className="relative">
+              <input
+                type={inputType}
+                id="newPassword"
+                autoComplete="new-password"
+                autoFocus={!!initialOtp}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                disabled={isLoading}
+                className="qc-input pr-11"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-700 transition-colors"
+                tabIndex={-1}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+              </button>
+            </div>
+            <PasswordRequirementsList password={newPassword} />
           </div>
 
           <div>
             <label htmlFor="confirmPassword" className="qc-label">
               Confirm Password
             </label>
-            <input
-              type="password"
-              id="confirmPassword"
-              autoComplete="new-password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              disabled={isLoading}
-              className="qc-input"
-            />
+            <div className="relative">
+              <input
+                type={inputType}
+                id="confirmPassword"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                disabled={isLoading}
+                className={`qc-input pr-11 ${
+                  confirmPassword.length > 0
+                    ? passwordsMatch
+                      ? "border-green-500 focus:ring-green-500/20"
+                      : "border-red-400 focus:ring-red-400/20"
+                    : ""
+                }`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-700 transition-colors"
+                tabIndex={-1}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+              </button>
+            </div>
+            <PasswordMatchIndicator password={newPassword} confirmPassword={confirmPassword} />
           </div>
 
           <button
             type="submit"
-            disabled={isLoading || !email.trim() || !otp.trim() || !newPassword || !confirmPassword}
+            disabled={!canSubmit}
             className="qc-btn-primary w-full"
           >
+            {isLoading ? "Resetting..." : "Reset password"}
+          </button>
+
             {isLoading ? "Resetting..." : "Reset password"}
           </button>
 

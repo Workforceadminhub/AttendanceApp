@@ -125,3 +125,8 @@ export function fetchWorkerTrainings(workerId) {
 export function fetchWorkerTrainingMetrics(workerId) {
   return hubGet(`/users/${workerId}/training-metrics`);
 }
+
+export function fetchTrainingCategories() {
+  return hubGet("/trainings/categories");
+}
+

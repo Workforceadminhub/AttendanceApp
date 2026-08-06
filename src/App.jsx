@@ -75,6 +75,9 @@ const CourseDetail = lazy(() => import("./pages/hub/courses/CourseDetail"));
 const CreateCourse = lazy(() => import("./pages/hub/courses/CreateCourse"));
 const WorkerCertificates = lazy(() => import("./pages/hub/certificates/WorkerCertificates"));
 const CertificateTemplates = lazy(() => import("./pages/hub/certificates/CertificateTemplates"));
+const TrainingPrograms = lazy(() => import("./pages/hub/trainings/TrainingPrograms"));
+const Cohorts = lazy(() => import("./pages/hub/trainings/Cohorts"));
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -562,6 +565,23 @@ const AppRoutes = () => {
                 </HubRoute>
               }
             />
+            <Route
+              path="/hub/trainings/programs"
+              element={
+                <HubRoute requiredNav="trainings">
+                  <TrainingPrograms />
+                </HubRoute>
+              }
+            />
+            <Route
+              path="/hub/trainings/cohorts"
+              element={
+                <HubRoute requiredNav="trainings">
+                  <Cohorts />
+                </HubRoute>
+              }
+            />
+
             <Route
               path="/hub/trainings/:id"
               element={

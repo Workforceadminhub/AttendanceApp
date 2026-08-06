@@ -172,7 +172,11 @@ export default function ChurchAdminAddWorker() {
  });
 
  } catch (error) {
- toast.error(error.message || "Failed to add worker");
+    const rawMsg = error?.message || "";
+    const msg = /worker\s+already\s+exist/i.test(rawMsg)
+      ? "Worker already belongs to another department"
+      : error?.message || "Failed to add worker";
+    toast.error(msg);
  } finally {
  setIsLoading(false);
  }

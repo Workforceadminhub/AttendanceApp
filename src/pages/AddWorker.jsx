@@ -193,9 +193,13 @@ export default function AddWorker() {
  occupation: "",
  district_sub_team: "",
  });
- } catch (error) {
- toast.error("Failed to add worker");
- } finally {
+  } catch (error) {
+    const rawMsg = error?.message || "";
+    const msg = /worker\s+already\s+exist/i.test(rawMsg)
+      ? "Worker already belongs to another department"
+      : error?.message || "Failed to add worker";
+    toast.error(msg);
+  } finally {
  setIsLoading(false);
  }
  };

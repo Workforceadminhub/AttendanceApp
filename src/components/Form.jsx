@@ -1,16 +1,66 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { workerRoles } from "../utils/teams";
+import { workerRoles, filterDepartmentsForDistrictSubTeam } from "../utils/teams";
 import { getEffectiveRouteList } from "../utils/routeObject";
+import { fetchTeamsAndDepartmentsForFilter } from "../services/departments";
 import BirthDatePicker from "./BirthDatePicker";
 
 const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
   const navigate = useNavigate();
+  const [filterData, setFilterData] = useState({
+    teams: [],
+    departments: [],
+    departmentsByTeam: {},
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchTeamsAndDepartmentsForFilter()
+      .then((data) => {
+        if (isMounted) {
+          setFilterData(data);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const routeList = getEffectiveRouteList();
-  const teamList = Array.from(new Set(routeList.map((item) => item.team).filter(Boolean))).sort();
-  const departmentList = formData.team
-    ? Array.from(new Set(routeList.filter((item) => item.team === formData.team).map((item) => item.department))).sort()
-    : [];
+  const apiTeamList = (filterData.teams || [])
+    .filter((t) => t.value !== "All")
+    .map((t) => t.value);
+  const teamList =
+    apiTeamList.length > 0
+      ? apiTeamList
+      : Array.from(new Set(routeList.map((item) => item.team).filter(Boolean))).sort();
+
+  let departmentList = [];
+  if (formData.team) {
+    const depts =
+      filterData.departmentsByTeam?.[formData.team] ||
+      filterData.departmentsByTeam?.[formData.team === "Districts" ? "District" : formData.team] ||
+      [];
+    let source = depts;
+    if (!source.length) {
+      source = routeList
+        .filter(
+          (r) =>
+            r.team === formData.team ||
+            (formData.team === "Districts" && r.team === "District") ||
+            (formData.team === "District" && r.team === "Districts")
+        )
+        .map((r) => r.department)
+        .filter(Boolean);
+    }
+    departmentList = filterDepartmentsForDistrictSubTeam(
+      source,
+      formData.team,
+      formData.district_sub_team
+    );
+  }
+
 
   return (
     <div className="flex flex-col space-y-4 pb-8">

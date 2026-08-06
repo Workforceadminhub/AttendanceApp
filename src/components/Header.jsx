@@ -299,6 +299,10 @@ export default function Header() {
               label="Hub"
               items={[
                 ...(showTrainings ? [{ name: "Trainings", href: "/hub/trainings" }] : []),
+                ...(showTrainings && (isSuperAdmin || isChurchAdminRole || isAdmin) ? [
+                  { name: "Training Programs", href: "/hub/trainings/programs" },
+                  { name: "Cohorts & Batches", href: "/hub/trainings/cohorts" },
+                ] : []),
                 ...(showCourses ? [{ name: "Courses", href: "/hub/courses" }] : []),
                 ...(showTrainings ? [
                   { name: "My Certificates", href: "/hub/certificates" },
@@ -307,6 +311,7 @@ export default function Header() {
               ]}
             />
           )}
+
 
           {/* Settings dropdown — shown in both nav modes when it has items
               (e.g. an allowlisted HOD whose only entry is Bulk Email). */}
@@ -464,6 +469,16 @@ export default function Header() {
                 Trainings
               </SheetLink>
             )}
+            {showTrainings && (isSuperAdmin || isChurchAdminRole || isAdmin) && (
+              <>
+                <SheetLink href="/hub/trainings/programs" onClick={() => setMobileOpen(false)}>
+                  Training Programs
+                </SheetLink>
+                <SheetLink href="/hub/trainings/cohorts" onClick={() => setMobileOpen(false)}>
+                  Cohorts & Batches
+                </SheetLink>
+              </>
+            )}
             {showCourses && (
               <SheetLink href="/hub/courses" onClick={() => setMobileOpen(false)}>
                 Courses
@@ -481,6 +496,7 @@ export default function Header() {
             )}
           </NavGroup>
         )}
+
 
         {settingsDropdown.length > 0 && (
           <NavGroup label="Manage">

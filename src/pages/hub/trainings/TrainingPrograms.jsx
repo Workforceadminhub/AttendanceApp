@@ -37,7 +37,18 @@ export default function TrainingPrograms() {
     queryFn: () => fetchTrainingPrograms(),
   });
 
-  const programs = data?.data ?? (Array.isArray(data) ? data : []);
+  const rawPrograms = data?.data ?? (Array.isArray(data) ? data : []);
+  const programs = [...rawPrograms].sort((a, b) => {
+    const idA = a?.id ?? a?._id;
+    const idB = b?.id ?? b?._id;
+    const numA = Number(idA);
+    const numB = Number(idB);
+    if (!isNaN(numA) && !isNaN(numB) && idA !== null && idB !== null && idA !== "" && idB !== "") {
+      return numA - numB;
+    }
+    return String(idA ?? "").localeCompare(String(idB ?? ""));
+  });
+
 
   const createMut = useMutation({
     mutationFn: (payload) => createTrainingProgram(payload),

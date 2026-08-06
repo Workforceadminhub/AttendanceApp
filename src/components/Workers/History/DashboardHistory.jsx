@@ -6,7 +6,9 @@ import { getNextSunday, getSundayDisplayDate } from "../../../utils/getDate";
 import { getDepartmentByUser } from "../../../utils/getDepartment";
 import { ADMIN_ENUMS } from "../../../utils/enums";
 import { checkAdminStatus } from "../../../utils/checkAdminStatus";
+import { getUserRole } from "../../../utils/getUserRole";
 import { getAdminSelectOptions } from "../../../utils/routeObject";
+
 import {
   calculateTotals,
   fetchAdminAttendance,
@@ -29,8 +31,10 @@ export default function DashboardHistory() {
   const dateForAttendance = getNextSunday();
   const location = useLocation();
   const team = getDepartmentByUser(location.pathname);
-  const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
+  const { isChurchAdmin: isChurchAdminRole, isSuperAdmin } = getUserRole();
+  const isChurchAdmin = isChurchAdminRole || isSuperAdmin || team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
   const isAdminMember = checkAdminStatus(location.pathname);
+
   const authUser = useMemo(() => getUser(), []);
   const options = getAdminSelectOptions(isChurchAdmin, team, authUser);
   const [activeHistory, setActiveHistory] = useState(dateForAttendance);

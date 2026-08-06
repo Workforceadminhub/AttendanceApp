@@ -35,9 +35,10 @@ export default function DepartmentSummary() {
   const location = useLocation();
   const pathname = location.pathname;
   const team = getDepartmentByUser(pathname);
-  const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
-  const { isAdmin, isSuperAdmin } = getUserRole();
+  const { isChurchAdmin: isChurchAdminRole, isSuperAdmin, isAdmin } = getUserRole();
+  const isChurchAdmin = isChurchAdminRole || isSuperAdmin || team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
   const isAdminMember = isAdmin || checkAdminStatus(pathname);
+
   const authUser = useMemo(() => getUser(), []);
   const options = getAdminSelectOptions(isChurchAdmin, team, authUser);
 

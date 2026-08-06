@@ -48,9 +48,17 @@ export default function ForgotPassword() {
               a password reset link has been sent. Check your inbox and follow the link
               to set a new password.
             </div>
-            <Link to="/login" className="qc-btn-ghost inline-block">
-              Back to sign in
+            <Link
+              to={`/reset-password?email=${encodeURIComponent(email.trim())}`}
+              className="qc-btn-primary w-full text-center block"
+            >
+              Enter OTP & Reset Password
             </Link>
+            <div className="text-center">
+              <Link to="/login" className="qc-btn-ghost inline-block">
+                Back to sign in
+              </Link>
+            </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">

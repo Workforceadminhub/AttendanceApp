@@ -201,8 +201,6 @@ export default function ResetPassword() {
             {isLoading ? "Resetting..." : "Reset password"}
           </button>
 
-            {isLoading ? "Resetting..." : "Reset password"}
-          </button>
 
           <p className="text-xs text-ink-500 text-center">
             Need a new OTP code?{" "}

@@ -2,6 +2,11 @@ import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { hubForgotPassword, hubResetPassword } from "../services/hub/auth";
+import {
+  usePasswordRequirements,
+  PasswordRequirementsList,
+  PasswordMatchIndicator,
+} from "../components/PasswordHelper";
 
 const EyeIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -34,6 +39,10 @@ export default function ForgotPassword() {
   const [sent, setSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const forced = !!location.state?.forced;
+
+  const { allPassed } = usePasswordRequirements(newPassword);
+  const passwordsMatch = confirmPassword.length > 0 && newPassword === confirmPassword;
+  const canSubmitReset = otp.trim() && allPassed && passwordsMatch && !isLoading;
 
   const inputType = showPassword ? "text" : "password";
 
@@ -69,12 +78,12 @@ export default function ForgotPassword() {
       toast.error("OTP code is required");
       return;
     }
-    if (newPassword.length < 8) {
-      toast.error("Password must be at least 8 characters");
+    if (!allPassed) {
+      toast.error("Password does not meet all requirements.");
       return;
     }
-    if (newPassword !== confirmPassword) {
-      toast.error("Passwords do not match");
+    if (!passwordsMatch) {
+      toast.error("Passwords do not match.");
       return;
     }
 
@@ -153,6 +162,7 @@ export default function ForgotPassword() {
                   {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                 </button>
               </div>
+              <PasswordRequirementsList password={newPassword} />
             </div>
 
             <div>
@@ -167,7 +177,13 @@ export default function ForgotPassword() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   disabled={isLoading}
-                  className="qc-input pr-11"
+                  className={`qc-input pr-11 ${
+                    confirmPassword.length > 0
+                      ? passwordsMatch
+                        ? "border-green-500 focus:ring-green-500/20"
+                        : "border-red-400 focus:ring-red-400/20"
+                      : ""
+                  }`}
                 />
                 <button
                   type="button"
@@ -179,15 +195,17 @@ export default function ForgotPassword() {
                   {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                 </button>
               </div>
+              <PasswordMatchIndicator password={newPassword} confirmPassword={confirmPassword} />
             </div>
 
             <button
               type="submit"
-              disabled={isLoading || !otp.trim() || !newPassword || !confirmPassword}
+              disabled={!canSubmitReset}
               className="qc-btn-primary w-full"
             >
               {isLoading ? "Updating..." : "Reset password"}
             </button>
+
 
             <div className="flex items-center justify-between text-xs text-ink-500 pt-2">
               <button

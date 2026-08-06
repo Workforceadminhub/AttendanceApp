@@ -406,7 +406,8 @@ export const filterPermissionsByTeam = (permissions, teamName) => {
 export const getAdminSelectOptions = (isChurchAdmin, team, authUser) => {
   const isSuperAdmin = team.department === "Super Admin";
   const permissions = authUser?.permissions;
-  const filterByPermissions = Array.isArray(permissions) && permissions.length > 0 && !isSuperAdmin;
+  const filterByPermissions = Array.isArray(permissions) && permissions.length > 0 && !isSuperAdmin && !isChurchAdmin;
+
 
   const list = getEffectiveRouteList();
   let options = (isChurchAdmin || isSuperAdmin)

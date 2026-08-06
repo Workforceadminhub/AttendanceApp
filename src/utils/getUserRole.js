@@ -62,7 +62,13 @@ export function getUserRole() {
     roleRaw === "team-head" ||
     roleRaw === "teamhead" ||
     roleRaw === "admin";
-  const isChurchAdminRole = roleRaw === "church-admin" || roleRaw === "churchadmin";
+  const isChurchAdminRole =
+    roleRaw === "church-admin" ||
+    roleRaw === "churchadmin" ||
+    roleRaw === "church-administrator" ||
+    roleRaw === "churchadministrator" ||
+    (user.department ?? "").toString().trim() === ADMIN_ENUMS.ADMIN_DEPARTMENT ||
+    (user.permissionLevel ?? "").toString().trim() === PERMISSION_LEVELS.CHURCH_ADMIN;
   const isSuperAdminRole = roleRaw === "super-admin" || roleRaw === "superadmin";
   const isHodRole = roleRaw === "hod" || roleRaw === "head-of-department";
 
@@ -125,7 +131,25 @@ export function getUserRole() {
     isChurchAdmin = true;
   }
 
+  // Enforce strict role hierarchy scoping so higher roles clear lower flags
+  if (isSuperAdmin) {
+    isChurchAdmin = false;
+    isTeamAdmin = false;
+    isSubTeamAdmin = false;
+    isHOD = false;
+  } else if (isChurchAdmin) {
+    isTeamAdmin = false;
+    isSubTeamAdmin = false;
+    isHOD = false;
+  } else if (isTeamAdmin) {
+    isSubTeamAdmin = false;
+    isHOD = false;
+  } else if (isSubTeamAdmin) {
+    isHOD = false;
+  }
+
   const isAdmin = isSuperAdmin || isChurchAdmin || isTeamAdmin || isSubTeamAdmin;
+
 
   // Determine a readable role name
   let role = "HOD";

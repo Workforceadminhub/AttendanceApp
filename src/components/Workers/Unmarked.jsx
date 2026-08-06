@@ -13,6 +13,8 @@ import { getNextSunday } from "../../utils/getDate";
 import ReactSelectDropdown from "../ReactSelect";
 import TableLoadingState from "../TableLoadingState";
 import Layout from "../Layout";
+import { getUserRole } from "../../utils/getUserRole";
+
 import { switchOffAttendance } from "../../utils/switchOffAttendance";
 import { getAdminSelectOptions } from "../../utils/routeObject";
 import { ADMIN_ENUMS } from "../../utils/enums";
@@ -65,7 +67,8 @@ export default function UnmarkedAttendance() {
  const [refresh, setRefresh] = useState(0);
  const [activeGroup, setActiveGroup] = useState("All");
  const team = getDepartmentByUser(location.pathname);
- const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
+ const { isChurchAdmin: isChurchAdminRole, isSuperAdmin } = getUserRole();
+ const isChurchAdmin = isChurchAdminRole || isSuperAdmin || team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
  const isAdminMember = checkAdminStatus(location.pathname);
  const optionsAdmin = getAdminSelectOptions(true, team);
  const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);

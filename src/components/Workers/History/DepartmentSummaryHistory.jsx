@@ -34,9 +34,10 @@ export default function DepartmentSummaryHistory() {
   const location = useLocation();
   const dateForAttendance = getNextSunday();
   const team = getDepartmentByUser(location.pathname);
-  const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
-  const { isAdmin } = getUserRole();
+  const { isChurchAdmin: isChurchAdminRole, isSuperAdmin, isAdmin } = getUserRole();
+  const isChurchAdmin = isChurchAdminRole || isSuperAdmin || team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
   const isAdminMember = isAdmin || checkAdminStatus(location.pathname);
+
   const authUser = useMemo(() => getUser(), []);
   const options = getAdminSelectOptions(isChurchAdmin, team, authUser);
   const [activeHistory, setActiveHistory] = useState(dateForAttendance);

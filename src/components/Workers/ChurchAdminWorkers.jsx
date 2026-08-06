@@ -23,6 +23,8 @@ import {
 import GenericModal from "../GenericModal";
 import LoadingState from "../LoadingState";
 import { getUser } from "../../utils/getUser";
+import { getUserRole } from "../../utils/getUserRole";
+
 
 export default function ChurchAdminWorkers() {
  const navigate = useNavigate();
@@ -36,8 +38,9 @@ export default function ChurchAdminWorkers() {
  team: "All",
  });
  const team = getDepartmentByUser(location.pathname);
- const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
- const isSuperAdmin = team.department === "Super Admin";
+ const { isChurchAdmin: isChurchAdminRole, isSuperAdmin: isSuperAdminRole } = getUserRole();
+ const isChurchAdmin = isChurchAdminRole || team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
+ const isSuperAdmin = isSuperAdminRole || team.department === "Super Admin";
  const isAdminMember = checkAdminStatus(location.pathname);
  const [filterModalOpen, setFilterModalOpen] = useState(false);
  const [filterOptions, setFilterOptions] = useState({

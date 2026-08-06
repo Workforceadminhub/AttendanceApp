@@ -58,11 +58,16 @@ export const teamsAndDepartments = [
     department: [
       "Anagkazo Community",
       "Bethel Community",
+      "Christ Chosen Generation Community",
       "Dominion Kingdom Community",
+      "Ephphata Community",
       "Gbagada Estate Community",
       "Harmony Community",
       "Hephzibah Community",
+      "Judah Community",
+      "Koinonia Community",
       "Lightbearers Community",
+      "Living Spring Community",
       "Ogudu/Alapere Community",
       "Praise (Couple) Community",
       "Rehoboth Community",
@@ -71,7 +76,9 @@ export const teamsAndDepartments = [
       "Shomolu 2 Community",
       "Sunrise Community",
       "Trailblazer Community",
+      "Zion Life Community",
     ],
+
   },
   {
     team: "General Service",
@@ -348,14 +355,27 @@ export const filterDepartmentsForDistrictSubTeam = (
   if (!isDistricts) return list;
 
   if (isIsaacDistrictSubTeam(districtSubTeam)) {
-    return list.filter((d) => isPastorIsaacCommunity(d)).sort();
+    const combined = new Set([
+      ...PASTOR_ISAAC_COMMUNITIES,
+      ...list,
+    ]);
+    return Array.from(combined)
+      .filter((d) => isPastorIsaacCommunity(d))
+      .sort();
   }
   if (isBiolaDistrictSubTeam(districtSubTeam)) {
-    return list.filter((d) => isPastorBiolaCommunity(d)).sort();
+    const combined = new Set([
+      ...PASTOR_BIOLA_COMMUNITIES,
+      ...list,
+    ]);
+    return Array.from(combined)
+      .filter((d) => isPastorBiolaCommunity(d))
+      .sort();
   }
   // Sub-team not chosen yet: no department options (UI should disable select)
   return [];
 };
+
 
 /**
  * Returns "District (Pastor Isaac)" or "District (Pastor Biola)" given a department and/or sub-team.

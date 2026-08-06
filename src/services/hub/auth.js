@@ -23,9 +23,38 @@ export function hubForgotPassword(email) {
   return hubPost("/auth/forgot-password", { email }, undefined, false);
 }
 
-export function hubResetPassword(token, password) {
-  return hubPost("/auth/reset-password", { token, password }, undefined, false);
+export function hubResetPassword(payloadOrEmail, otpOrPassword, newPassword, confirmPassword) {
+  if (typeof payloadOrEmail === "object" && payloadOrEmail !== null) {
+    return hubPost("/auth/reset-password", payloadOrEmail, undefined, false);
+  }
+  if (newPassword !== undefined) {
+    return hubPost(
+      "/auth/reset-password",
+      {
+        email: payloadOrEmail,
+        otp: otpOrPassword,
+        newPassword,
+        confirmPassword: confirmPassword || newPassword,
+      },
+      undefined,
+      false
+    );
+  }
+  return hubPost(
+    "/auth/reset-password",
+    {
+      email: payloadOrEmail,
+      otp: otpOrPassword,
+      token: otpOrPassword,
+      password: otpOrPassword,
+      newPassword: otpOrPassword,
+      confirmPassword: otpOrPassword,
+    },
+    undefined,
+    false
+  );
 }
+
 
 export function hubSetPassword(password, token) {
   return hubPost(

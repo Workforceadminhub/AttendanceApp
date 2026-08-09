@@ -145,6 +145,16 @@ export const routeObject = [
 
 let _dynamicList = null; // null = not loaded yet → fall back to static
 let _sessionRoutes = []; // routes from the logged-in admin (before dept cache catches up)
+let _inactiveNames = new Set();
+
+export function isDepartmentActive(dept) {
+  if (!dept) return false;
+  if (dept.isactive === false || dept.isactive === 0 || dept.isactive === "false") return false;
+  if (dept.isActive === false || dept.isActive === 0 || dept.isActive === "false") return false;
+  if (dept.is_active === false || dept.is_active === 0 || dept.is_active === "false") return false;
+  if (typeof dept.status === "string" && dept.status.toLowerCase() === "inactive") return false;
+  return true;
+}
 
 function slugify(s) {
   return String(s || "")
@@ -168,10 +178,21 @@ function normalizeRoute(r) {
 export function setDynamicDepartments(departments) {
   if (!Array.isArray(departments)) {
     _dynamicList = null;
+    _inactiveNames = new Set();
     return;
   }
+  const inactive = new Set();
   const mapped = departments
-    .filter((d) => d && d.isactive !== false)
+    .filter((d) => {
+      if (!d) return false;
+      const active = isDepartmentActive(d);
+      if (!active) {
+        const name = d.name || d.department;
+        if (name) inactive.add(String(name).toLowerCase().trim());
+        return false;
+      }
+      return true;
+    })
     .map((d) => {
       const name = d.name || d.department;
       if (!name) return null;
@@ -180,6 +201,7 @@ export function setDynamicDepartments(departments) {
     })
     .filter(Boolean);
   _dynamicList = mapped;
+  _inactiveNames = inactive;
 }
 
 /**
@@ -199,12 +221,15 @@ export function getEffectiveRouteList() {
 
     const fallback = routeObject.filter(
       (s) =>
+        !_inactiveNames.has((s.department || "").toLowerCase().trim()) &&
         !dynamicRoutes.has(s.route) &&
         !dynamicNames.has((s.department || "").toLowerCase().trim())
     );
     base = [..._dynamicList, ...fallback];
   } else {
-    base = routeObject;
+    base = routeObject.filter(
+      (s) => !_inactiveNames.has((s.department || "").toLowerCase().trim())
+    );
   }
 
   if (_sessionRoutes.length === 0) return base;

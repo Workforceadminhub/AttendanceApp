@@ -90,13 +90,11 @@ export default function ViewWorker() {
  team,
  editedWorker.district_sub_team
  );
- setDepartmentOptions(filtered.map((d) => ({ value: d, label: d })));
- if (
- editedWorker.department &&
- !filtered.includes(editedWorker.department)
- ) {
- setEditedWorker((prev) => ({ ...prev, department: "" }));
+ let options = filtered;
+ if (editedWorker.department && !filtered.includes(editedWorker.department)) {
+   options = [editedWorker.department, ...filtered];
  }
+ setDepartmentOptions(options.map((d) => ({ value: d, label: d })));
  }, [editedWorker.team, editedWorker.district_sub_team, editedWorker.department, filterData]);
 
  // Fetch worker details

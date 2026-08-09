@@ -1,5 +1,5 @@
 import apiRequest from "../utils/apiClient";
-import { setDynamicDepartments, getEffectiveRouteList } from "../utils/routeObject";
+import { setDynamicDepartments, getEffectiveRouteList, isDepartmentActive } from "../utils/routeObject";
 import { DISTRICT_CLUSTER_LABELS } from "../utils/teams";
 import { fetchHubTeams } from "./hub/teams";
 
@@ -96,9 +96,15 @@ export const fetchTeamsAndDepartmentsForFilter = async () => {
   }
 
   // Process live departments API data
+  const inactiveDepartmentNames = new Set();
   if (Array.isArray(departmentsList) && departmentsList.length > 0) {
     departmentsList.forEach((d) => {
       const name = d?.name ?? d?.department ?? String(d);
+      const active = isDepartmentActive(d);
+      if (!active) {
+        if (name) inactiveDepartmentNames.add(String(name).trim().toLowerCase());
+        return;
+      }
       const team = d?.team ?? d?.teamName;
       addDeptToTeam(team || "(No team)", name);
     });
@@ -107,7 +113,12 @@ export const fetchTeamsAndDepartmentsForFilter = async () => {
   // Include any remaining effective-route departments (API-backed once loaded)
   const effectiveList = getEffectiveRouteList();
   effectiveList.forEach((item) => {
-    addDeptToTeam(item.team, item.department);
+    if (
+      item.department &&
+      !inactiveDepartmentNames.has(String(item.department).trim().toLowerCase())
+    ) {
+      addDeptToTeam(item.team, item.department);
+    }
   });
 
   const teamNames = [...teamNamesSet].sort();

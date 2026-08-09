@@ -59,6 +59,9 @@ const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
       formData.team,
       formData.district_sub_team
     );
+    if (formData.department && !departmentList.includes(formData.department)) {
+      departmentList = [formData.department, ...departmentList];
+    }
   }
 
 

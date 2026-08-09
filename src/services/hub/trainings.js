@@ -1,4 +1,4 @@
-import { hubGet, hubPost, hubPatch } from "./client";
+import { hubGet, hubPost, hubPatch, hubDelete } from "./client";
 
 function sortById(items) {
   if (!Array.isArray(items)) return items;
@@ -149,4 +149,39 @@ export function fetchWorkerTrainingMetrics(workerId) {
 export function fetchTrainingCategories() {
   return hubGet("/trainings/categories");
 }
+
+// Training Program Endpoints (Postman Collection)
+export function fetchTrainingPrograms() {
+  return hubGet("/training-programs");
+}
+
+export function createTrainingProgram(data) {
+  return hubPost("/training-programs", data);
+}
+
+export function updateTrainingProgram(id, data) {
+  return hubPatch(`/training-programs/${id}`, data);
+}
+
+export function deleteTrainingProgram(id) {
+  return hubDelete(`/training-programs/${id}`);
+}
+
+// Cohort Endpoints (Postman Collection)
+export function fetchCohorts() {
+  return hubGet("/cohorts");
+}
+
+export function createCohort(data) {
+  return hubPost("/cohorts", data);
+}
+
+export function updateCohort(id, data) {
+  return hubPatch(`/cohorts/${id}`, data);
+}
+
+export function deleteCohort(id) {
+  return hubDelete(`/cohorts/${id}`);
+}
+
 

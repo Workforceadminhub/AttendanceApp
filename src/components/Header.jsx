@@ -108,6 +108,26 @@ export default function Header() {
   // If legacy JWT is rejected by /rbac/me, these stay false → no change to existing nav.
   const showTrainings = useHubNav("trainings");
   const showCourses = useHubNav("courses");
+  const showAdminPanel = useHubNav("admin_panel");
+
+  const trainingDropdownItems = [
+    ...(showTrainings ? [{ name: "Trainings", href: "/hub/trainings" }] : []),
+    ...(showTrainings && (isSuperAdmin || isChurchAdminRole || isAdmin)
+      ? [
+          { name: "Training Programs", href: "/hub/trainings/programs" },
+          { name: "Cohorts & Batches", href: "/hub/trainings/cohorts" },
+        ]
+      : []),
+    ...(showTrainings ? [{ name: "My Nominations", href: "/hub/trainings/nominations" }] : []),
+  ];
+
+  const courseDropdownItems = [
+    ...(showCourses ? [{ name: "Courses", href: "/hub/courses" }] : []),
+    ...(showTrainings || showCourses ? [{ name: "My Certificates", href: "/hub/certificates" }] : []),
+    ...(showAdminPanel || (isSuperAdmin || isChurchAdminRole || isAdmin)
+      ? [{ name: "Certificate Templates", href: "/hub/certificates/templates" }]
+      : []),
+  ];
 
   const departmentRouteForUser =
     getDepartmentRoute(authUser?.department)?.replace?.(/^\//, "") || "";
@@ -293,23 +313,14 @@ export default function Header() {
             </>
           )}
 
-          {/* Hub nav — single dropdown, gated by RBAC context */}
-          {(showTrainings || showCourses) && (
-            <NavDropdown
-              label="Hub"
-              items={[
-                ...(showTrainings ? [{ name: "Trainings", href: "/hub/trainings" }] : []),
-                ...(showTrainings && (isSuperAdmin || isChurchAdminRole || isAdmin) ? [
-                  { name: "Training Programs", href: "/hub/trainings/programs" },
-                  { name: "Cohorts & Batches", href: "/hub/trainings/cohorts" },
-                ] : []),
-                ...(showCourses ? [{ name: "Courses", href: "/hub/courses" }] : []),
-                ...(showTrainings ? [
-                  { name: "My Certificates", href: "/hub/certificates" },
-                  { name: "My Nominations", href: "/hub/trainings/nominations" },
-                ] : []),
-              ]}
-            />
+          {/* Training dropdown */}
+          {trainingDropdownItems.length > 0 && (
+            <NavDropdown label="Training" items={trainingDropdownItems} />
+          )}
+
+          {/* Course dropdown */}
+          {courseDropdownItems.length > 0 && (
+            <NavDropdown label="Course" items={courseDropdownItems} />
           )}
 
 
@@ -461,39 +472,33 @@ export default function Header() {
           )}
         </NavGroup>
 
-        {/* Hub nav — additive, gated by RBAC context */}
-        {(showTrainings || showCourses) && (
-          <NavGroup label="Hub">
-            {showTrainings && (
-              <SheetLink href="/hub/trainings" onClick={() => setMobileOpen(false)}>
-                Trainings
+        {/* Training nav */}
+        {trainingDropdownItems.length > 0 && (
+          <NavGroup label="Training">
+            {trainingDropdownItems.map((item) => (
+              <SheetLink
+                key={item.name}
+                href={item.href}
+                onClick={() => setMobileOpen(false)}
+              >
+                {item.name}
               </SheetLink>
-            )}
-            {showTrainings && (isSuperAdmin || isChurchAdminRole || isAdmin) && (
-              <>
-                <SheetLink href="/hub/trainings/programs" onClick={() => setMobileOpen(false)}>
-                  Training Programs
-                </SheetLink>
-                <SheetLink href="/hub/trainings/cohorts" onClick={() => setMobileOpen(false)}>
-                  Cohorts & Batches
-                </SheetLink>
-              </>
-            )}
-            {showCourses && (
-              <SheetLink href="/hub/courses" onClick={() => setMobileOpen(false)}>
-                Courses
+            ))}
+          </NavGroup>
+        )}
+
+        {/* Course nav */}
+        {courseDropdownItems.length > 0 && (
+          <NavGroup label="Course">
+            {courseDropdownItems.map((item) => (
+              <SheetLink
+                key={item.name}
+                href={item.href}
+                onClick={() => setMobileOpen(false)}
+              >
+                {item.name}
               </SheetLink>
-            )}
-            {showTrainings && (
-              <SheetLink href="/hub/certificates" onClick={() => setMobileOpen(false)}>
-                My Certificates
-              </SheetLink>
-            )}
-            {showTrainings && (
-              <SheetLink href="/hub/trainings/nominations" onClick={() => setMobileOpen(false)}>
-                My Nominations
-              </SheetLink>
-            )}
+            ))}
           </NavGroup>
         )}
 

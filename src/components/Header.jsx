@@ -54,17 +54,26 @@ function NavDropdown({ label, items }) {
           <div className="px-3 py-2 border-b border-ink-100">
             <span className="qc-section-title">{label}</span>
           </div>
-          <div className="py-1">
-            {items.map((item) => (
-              <a
-                key={item.name}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className="block px-3 py-2 text-sm text-ink-700 hover:bg-cream-200 hover:text-ink-900 transition-colors"
-              >
-                {item.name}
-              </a>
-            ))}
+          <div className="py-1 max-h-96 overflow-y-auto">
+            {items.map((item, idx) =>
+              item.header ? (
+                <div
+                  key={`header-${idx}`}
+                  className="px-3 pt-2.5 pb-1 text-2xs font-semibold uppercase tracking-wider text-sienna-dark bg-cream-100/50 border-t border-ink-100 first:border-t-0"
+                >
+                  {item.header}
+                </div>
+              ) : (
+                <a
+                  key={item.name}
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className="block px-3 py-2 text-sm text-ink-700 hover:bg-cream-200 hover:text-ink-900 transition-colors"
+                >
+                  {item.name}
+                </a>
+              )
+            )}
           </div>
         </div>
       )}
@@ -110,7 +119,7 @@ export default function Header() {
   const showCourses = useHubNav("courses");
   const showAdminPanel = useHubNav("admin_panel");
 
-  const hubDropdownItems = [
+  const trainingItems = [
     ...(showTrainings ? [{ name: "Trainings", href: "/hub/trainings" }] : []),
     ...(showTrainings && (isSuperAdmin || isChurchAdminRole || isAdmin)
       ? [
@@ -118,15 +127,23 @@ export default function Header() {
           { name: "Cohorts & Batches", href: "/hub/trainings/cohorts" },
         ]
       : []),
+    ...(showTrainings ? [{ name: "My Nominations", href: "/hub/trainings/nominations" }] : []),
+  ];
+
+  const courseItems = [
     ...(showCourses ? [{ name: "Courses", href: "/hub/courses" }] : []),
     ...(showTrainings || showCourses ? [{ name: "My Certificates", href: "/hub/certificates" }] : []),
     ...(showAdminPanel || (isSuperAdmin || isChurchAdminRole || isAdmin)
       ? [{ name: "Certificate Templates", href: "/hub/certificates/templates" }]
       : []),
-    ...(showTrainings ? [{ name: "My Nominations", href: "/hub/trainings/nominations" }] : []),
   ];
 
-  const hubDropdownLabel = showTrainings && showCourses ? "Training & Courses" : showCourses ? "Courses" : "Training";
+  const hubDropdownItems = [
+    ...(trainingItems.length > 0 ? [{ header: "Training" }, ...trainingItems] : []),
+    ...(courseItems.length > 0 ? [{ header: "Courses" }, ...courseItems] : []),
+  ];
+
+  const hubDropdownLabel = "Hub";
 
   const departmentRouteForUser =
     getDepartmentRoute(authUser?.department)?.replace?.(/^\//, "") || "";

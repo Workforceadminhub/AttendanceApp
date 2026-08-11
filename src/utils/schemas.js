@@ -35,7 +35,7 @@ export const workerSchema = z.object({
   othername: z.string().trim().optional().default(""),
   email,
   phonenumber: phone,
-  gender: z.enum(["Male", "Female"], { errorMap: () => ({ message: "Gender is required" }) }),
+  gender: z.enum(["Male", "Female"], { error: "Gender is required" }),
   workerrole: z.string().trim().min(1, "Role is required"),
   birthdate: z.string().trim().min(1, "Birthdate is required"),
   maritalstatus: z.enum(["Single", "Married"]).optional(),
@@ -66,16 +66,16 @@ export const leadershipRegistrationSchema = z.object({
   fullName: z.string().trim().min(2, "Full name is required"),
   email,
   phoneNumber: phone,
-  sex: z.enum(["Male", "Female"], { errorMap: () => ({ message: "Sex is required" }) }),
+  sex: z.enum(["Male", "Female"], { error: "Sex is required" }),
   leadershipStatus: z.enum(["New Leader", "Existing Leader"], {
-    errorMap: () => ({ message: "Leadership status is required" }),
+    error: "Leadership status is required",
   }),
   leadershipRole: z.string().optional(),
   campus: z.enum(
     ["Gbagada", "Magodo", "Ikorodu", "Jericho", "Yaba", "Ilupeju", "Akobo", "Port Harcourt", "Oluyole", "Surulere", "Ogba", "Toronto"],
-    { errorMap: () => ({ message: "Campus is required" }) }
+    { error: "Campus is required" }
   ),
-  course: z.enum(["BLC", "ALC"], { errorMap: () => ({ message: "Course is required" }) }),
+  course: z.enum(["BLC", "ALC"], { error: "Course is required" }),
 });
 
 const schemas = { workerSchema, departmentSchema, loginSchema, leadershipRegistrationSchema };

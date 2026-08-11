@@ -22,6 +22,7 @@ import { getUser } from "../../utils/getUser";
 import { getUserRole } from "../../utils/getUserRole";
 import { debounce } from "lodash";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
+import { getActiveMeeting } from "../../utils/meetingConfig";
 import BirthdayWidget from "../BirthdayWidget";
 import SundayWorkersAttendanceTable from "./SundayWorkersAttendanceTable";
 import Stat from "../ui/Stat";
@@ -288,34 +289,43 @@ export default function Dashboard() {
               </span>
             </p>
           </div>
-          {isAdminMember && (isChurchAdmin || isTeamAdmin || authUser?.department === "Super Admin" || authUser?.permissionLevel === "SUPER_ADMIN") && (
-            <div className="flex flex-wrap gap-2 shrink-0">
+          {isAdminMember && (isChurchAdmin || isTeamAdmin || authUser?.department === "Super Admin" || authUser?.permissionLevel === "SUPER_ADMIN") && (() => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // Determine which meeting type to show — pick the one whose date is closest to today
+            const leadersMeeting = getActiveMeeting("leaders");
+            const workersMeeting = getActiveMeeting("workers");
+
+            const toDate = (d) => { const [y, m, day] = d.split("-").map(Number); return new Date(y, m - 1, day); };
+            const lDate = toDate(leadersMeeting.date);
+            const wDate = toDate(workersMeeting.date);
+
+            // Pick the meeting whose date is nearest to today (upcoming preferred, else most recent)
+            const lDiff = Math.abs(lDate - today);
+            const wDiff = Math.abs(wDate - today);
+            const activeMeeting = lDiff <= wDiff ? leadersMeeting : workersMeeting;
+            const activeDate = lDiff <= wDiff ? lDate : wDate;
+            const isLeaders = activeMeeting.meetingType === "leaders";
+
+            // Pre-meeting: show Confirmation. On/post meeting day: show Report
+            const isPreMeeting = today < activeDate;
+            const label = isPreMeeting
+              ? `${isLeaders ? "Leaders" : "Workers"} Meeting Confirmation`
+              : `${isLeaders ? "Leaders" : "Workers"} Meeting Report`;
+            const href = isPreMeeting
+              ? (isLeaders ? "/report/confirmation-leaders-meeting" : "/report/confirmation-workers-meeting")
+              : (isLeaders ? "/report/leaders-meeting" : "/report/workers-meeting");
+
+            return (
               <Link
-                to="/report/confirmation-leaders-meeting"
-                className="inline-flex items-center gap-2 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs sm:text-sm font-medium text-ink transition hover:bg-ink-100"
+                to={href}
+                className="inline-flex items-center gap-2 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs sm:text-sm font-medium text-ink transition hover:bg-ink-100 shrink-0"
               >
-                Leaders Meeting Confirmation
+                {label}
               </Link>
-              <Link
-                to="/report/leaders-meeting"
-                className="inline-flex items-center gap-2 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs sm:text-sm font-medium text-ink transition hover:bg-ink-100"
-              >
-                Leaders Meeting Report
-              </Link>
-              <Link
-                to="/report/confirmation-workers-meeting"
-                className="inline-flex items-center gap-2 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs sm:text-sm font-medium text-ink transition hover:bg-ink-100"
-              >
-                Workers Meeting Confirmation
-              </Link>
-              <Link
-                to="/report/workers-meeting"
-                className="inline-flex items-center gap-2 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs sm:text-sm font-medium text-ink transition hover:bg-ink-100"
-              >
-                Workers Meeting Report
-              </Link>
-            </div>
-          )}
+            );
+          })()}
         </div>
 
         {/* Attendance window: Super Admin controls it, everyone else sees status */}

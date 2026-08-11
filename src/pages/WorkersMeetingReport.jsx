@@ -24,8 +24,6 @@ import { getStoredTeamStrengths } from "../utils/teamStrengthConfig";
 const MEETING_TYPE = "workers";
 const STATUS_OPTIONS = ["all", "confirmed", "not attending"];
 
-const TEAM_STRENGTH = getStoredTeamStrengths();
-
 const TEAM_STRUCTURE = [
   { directorate: "Attraction", teams: ["Programs"], apiTeams: ["Programs"], bg: "#f59e0b", light: "rgba(245,158,11,0.10)" },
   { directorate: "Attraction", teams: ["Mission"], apiTeams: ["Mission"], bg: "#f59e0b", light: "rgba(245,158,11,0.10)" },
@@ -66,6 +64,7 @@ function formatDate(iso) {
 }
 
 export default function WorkersMeetingReport() {
+  const TEAM_STRENGTH = getStoredTeamStrengths();
   const navigate = useNavigate();
   const [meetingDate, setMeetingDate] = useState(() => getMeetingDate(DEFAULT_WORKERS_MEETING_DATE));
   const [loading, setLoading] = useState(true);

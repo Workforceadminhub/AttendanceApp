@@ -23,7 +23,6 @@ import { getUserRole } from "../../utils/getUserRole";
 import { debounce } from "lodash";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
 import BirthdayWidget from "../BirthdayWidget";
-import AdminDepartmentSummaryTable from "./AdminDepartmentSummaryTable";
 import SundayWorkersAttendanceTable from "./SundayWorkersAttendanceTable";
 import Stat from "../ui/Stat";
 import Tag from "../ui/Tag";

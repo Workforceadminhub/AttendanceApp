@@ -165,6 +165,9 @@ export default function Dashboard() {
   const permissions = useMemo(() => expandPermissions(authUser), [authUser]);
   const permissionsKey = useMemo(() => permissions.join(","), [permissions]);
 
+  const [loadAll, setLoadAll] = useState(false);
+  const shouldFetchAttendance = !isSuperAdmin || activeGroup !== "All" || loadAll;
+
   const {
     data: rawAttendance,
     isLoading,
@@ -184,6 +187,7 @@ export default function Dashboard() {
       }
       return fetchAttendance(selectedDate, null, null, permissions);
     },
+    enabled: shouldFetchAttendance,
     placeholderData: (prev) => prev,
   });
 
@@ -434,8 +438,29 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Church Admin tables */}
-        {isAdminMember && isChurchAdmin && departmentSummaryRows.length > 0 && (
+        {/* Prompt to load overall team summary for Super Admin if not fetched */}
+        {isSuperAdmin && activeGroup === "All" && !loadAll && (
+          <div className="qc-card mb-8 p-5 bg-cream-100/60 border border-ink-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-ink-900">
+                Team Attendance Breakdown
+              </p>
+              <p className="text-xs text-ink-500 mt-0.5">
+                Team listings are hidden by default on overview to speed up loading. Select a team filter above or click to load overall attendance.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setLoadAll(true)}
+              className="px-4 py-2 bg-ink-900 hover:bg-ink-800 text-white rounded-lg text-xs font-semibold shrink-0 transition-colors"
+            >
+              Load Overall Team Attendance
+            </button>
+          </div>
+        )}
+
+        {/* Church Admin tables — only shown when fetched */}
+        {isAdminMember && isChurchAdmin && shouldFetchAttendance && departmentSummaryRows.length > 0 && (
           <div className="flow-root mb-8">
             <SundayWorkersAttendanceTable
               rows={departmentSummaryRows}
@@ -444,7 +469,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {isAdminMember && isChurchAdmin && departmentSummaryRows.length > 0 && (
+        {isAdminMember && isChurchAdmin && shouldFetchAttendance && departmentSummaryRows.length > 0 && (
           <div className="flow-root mb-8">
             <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
               <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">

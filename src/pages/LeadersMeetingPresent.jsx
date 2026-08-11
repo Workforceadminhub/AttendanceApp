@@ -47,12 +47,17 @@ function useLiveTeamDepartments(selectedTeam, districtSubTeam = "") {
   }, []);
 
   const teamOptions = useMemo(() => {
-    const teams = (filterData.teams || []).filter(
-      (t) => t.value && t.value !== "All"
-    );
-    return teams.length
-      ? teams.map((t) => t.value)
-      : teamsAndDepartments.map((t) => t.team);
+    const teams = (filterData.teams || []).filter((t) => {
+      const val = String(t?.value ?? t?.label ?? t || "").trim().toLowerCase();
+      return val && val !== "all" && val !== "gbagada campus" && val !== "gbagada";
+    });
+    const fallbackTeams = teamsAndDepartments
+      .map((t) => t.team)
+      .filter((val) => {
+        const norm = String(val || "").trim().toLowerCase();
+        return norm !== "gbagada campus" && norm !== "gbagada";
+      });
+    return teams.length ? teams.map((t) => t.value) : fallbackTeams;
   }, [filterData]);
 
   const departmentOptions = useMemo(() => {

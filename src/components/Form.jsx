@@ -29,12 +29,19 @@ const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
 
   const routeList = getEffectiveRouteList();
   const apiTeamList = (filterData.teams || [])
-    .filter((t) => t.value !== "All")
+    .filter((t) => {
+      const val = String(t?.value ?? t?.label ?? t || "").trim().toLowerCase();
+      return val !== "all" && val !== "gbagada campus" && val !== "gbagada";
+    })
     .map((t) => t.value);
-  const teamList =
+  const teamList = (
     apiTeamList.length > 0
       ? apiTeamList
-      : Array.from(new Set(routeList.map((item) => item.team).filter(Boolean))).sort();
+      : Array.from(new Set(routeList.map((item) => item.team).filter(Boolean))).sort()
+  ).filter((t) => {
+    const norm = String(t || "").trim().toLowerCase();
+    return norm !== "gbagada campus" && norm !== "gbagada";
+  });
 
   let departmentList = [];
   if (formData.team) {

@@ -33,7 +33,12 @@ export const fetchDepartments = async () => {
  */
 export const fetchTeams = async () => {
   const options = await fetchHubTeams();
-  return options.map((t) => t.value);
+  return options
+    .map((t) => t.value)
+    .filter((val) => {
+      const norm = String(val || "").trim().toLowerCase();
+      return norm !== "gbagada campus" && norm !== "gbagada";
+    });
 };
 
 /**
@@ -60,8 +65,14 @@ export const fetchTeamsAndDepartmentsForFilter = async () => {
     return n;
   };
 
+  const isHiddenTeam = (name) => {
+    const norm = String(name || "").trim().toLowerCase();
+    return norm === "gbagada campus" || norm === "gbagada";
+  };
+
   const addDeptToTeam = (teamKey, deptName) => {
     if (!teamKey || !deptName) return;
+    if (isHiddenTeam(teamKey)) return;
     const normTeam = canonicalTeamName(teamKey);
     const normDept = String(deptName).trim();
     if (!normTeam || !normDept) return;
@@ -69,7 +80,9 @@ export const fetchTeamsAndDepartmentsForFilter = async () => {
     // Never treat a team name as a department under that (or any) team
     if (normDept.toLowerCase() === normTeam.toLowerCase()) return;
 
-    teamNamesSet.add(normTeam);
+    if (!isHiddenTeam(normTeam)) {
+      teamNamesSet.add(normTeam);
+    }
     allDepartmentNames.add(normDept);
 
     if (!departmentsByTeam[normTeam]) departmentsByTeam[normTeam] = [];
@@ -79,7 +92,7 @@ export const fetchTeamsAndDepartmentsForFilter = async () => {
 
     // Also register under original key so lookups by either name work
     const origTeam = String(teamKey).trim();
-    if (origTeam !== normTeam) {
+    if (origTeam !== normTeam && !isHiddenTeam(origTeam)) {
       if (!departmentsByTeam[origTeam]) departmentsByTeam[origTeam] = [];
       if (!departmentsByTeam[origTeam].includes(normDept)) {
         departmentsByTeam[origTeam].push(normDept);
@@ -91,7 +104,7 @@ export const fetchTeamsAndDepartmentsForFilter = async () => {
   if (Array.isArray(hubTeams)) {
     hubTeams.forEach((t) => {
       const name = t?.value ?? t?.label;
-      if (name) teamNamesSet.add(canonicalTeamName(name));
+      if (name && !isHiddenTeam(name)) teamNamesSet.add(canonicalTeamName(name));
     });
   }
 
@@ -130,7 +143,9 @@ export const fetchTeamsAndDepartmentsForFilter = async () => {
     }
   });
 
-  const teamNames = [...teamNamesSet].sort();
+  const teamNames = [...teamNamesSet]
+    .filter((t) => !isHiddenTeam(t))
+    .sort();
   const blockedDeptNames = new Set(
     [
       ...teamNames,

@@ -20,8 +20,6 @@ import {
   PlusCircleIcon,
 } from "@heroicons/react/24/outline";
 import BirthDatePicker from "../components/BirthDatePicker";
-import { getEffectiveRouteList } from "../utils/routeObject";
-import { fetchDepartments } from "../services/departments";
 import Spinner from "../components/ui/Spinner";
 import { DROPDOWN_OPTIONS } from "../utils/sampleWorkersExcel";
 import { teamsAndDepartments } from "../utils/teams";

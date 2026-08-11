@@ -20,7 +20,6 @@ import {
   PlusCircleIcon,
 } from "@heroicons/react/24/outline";
 import { DROPDOWN_OPTIONS } from "../utils/sampleWorkersExcel";
-import { fetchTeamsAndDepartmentsForFilter } from "../services/departments";
 import Spinner from "../components/ui/Spinner";
 import { teamsAndDepartments } from "../utils/teams";
 

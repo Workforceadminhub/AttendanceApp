@@ -18,6 +18,7 @@ import BirthDatePicker from "../components/BirthDatePicker";
 import { DROPDOWN_OPTIONS } from "../utils/sampleWorkersExcel";
 import { getEffectiveRouteList } from "../utils/routeObject";
 import { fetchDepartments } from "../services/departments";
+import Spinner from "../components/ui/Spinner";
 import { filterDepartmentsForDistrictSubTeam } from "../utils/teams";
 
 const isDistrictsTeam = (team) => team === "Districts" || team === "District";
@@ -1164,9 +1165,9 @@ export default function LeadersMeetingConfirm() {
   if (!sessionToken) {
     return (
       <Shell>
-        <div className="flex items-center justify-center py-12">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-ink-300 border-t-ink" />
-          <span className="ml-3 text-sm text-ink-500">Starting session...</span>
+        <div className="flex flex-col items-center justify-center py-12 space-y-3">
+          <Spinner size="lg" className="text-ink-900" />
+          <span className="text-sm text-ink-500 font-medium">Starting session...</span>
         </div>
       </Shell>
     );

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
+import LoadingState from "../components/LoadingState";
 import { toast } from "react-toastify";
 import {
  teamsAndDepartments,
@@ -281,20 +282,18 @@ export default function ViewWorker() {
  }
  }, [worker, editedWorker]);
 
- if (isLoading) {
- return (
- <div className="min-h-screen bg-cream">
- <Header />
- <Layout>
- <div className="max-w-4xl mx-auto">
- <div className="flex items-center justify-center h-64">
- <div className="animate-spin rounded-full h-10 w-10 border-2 border-ink-200 border-t-ink-900"></div>
- </div>
- </div>
- </Layout>
- </div>
- );
- }
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-cream">
+        <Header />
+        <Layout>
+          <div className="max-w-4xl mx-auto py-6">
+            <LoadingState />
+          </div>
+        </Layout>
+      </div>
+    );
+  }
 
  if (!worker) {
  return (

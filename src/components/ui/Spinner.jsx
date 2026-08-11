@@ -1,6 +1,11 @@
 import clsx from "clsx";
 
-const SIZES = { xs: "w-3 h-3", sm: "w-4 h-4", md: "w-6 h-6", lg: "w-10 h-10" };
+const SIZES = {
+  xs: "w-3 h-3",
+  sm: "w-4 h-4",
+  md: "w-5 h-5",
+  lg: "w-8 h-8",
+};
 
 export default function Spinner({ size = "md", className = "" }) {
   return (
@@ -8,10 +13,11 @@ export default function Spinner({ size = "md", className = "" }) {
       role="status"
       aria-label="Loading"
       className={clsx(
-        "inline-block border-2 border-current border-t-transparent rounded-full animate-spin",
-        SIZES[size],
+        "inline-flex items-center justify-center space-x-1 animate-pulse",
         className
       )}
-    />
+    >
+      <span className={clsx("bg-current rounded-full animate-ping opacity-75 shrink-0", SIZES[size])} />
+    </span>
   );
 }

@@ -278,7 +278,7 @@ export default function AttendanceHistorySection({ permissions }) {
 
  {/* Results — only rendered when data is available */}
  {loading ? (
- <LoadingState />
+ <LoadingState type="table" rows={4} />
  ) : records.length > 0 ? (
  <>
  {isSummaryShape

@@ -48,16 +48,16 @@ export default function AttendanceLeaderboard({
  const topPerformers = data?.topPerformers ?? data?.top ?? [];
  const bottomPerformers = data?.bottomPerformers ?? data?.bottom ?? [];
 
- if (isLoading) {
- return (
- <div className="bg-white rounded-lg border shadow p-6">
- <h2 className="text-lg font-semibold text-ink-900 mb-4">
- Attendance Leaderboard
- </h2>
- <LoadingState />
- </div>
- );
- }
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-lg border border-ink-200 p-6 space-y-4">
+        <h2 className="text-lg font-semibold text-ink-900 mb-4">
+          Attendance Leaderboard
+        </h2>
+        <LoadingState type="table" rows={4} />
+      </div>
+    );
+  }
 
  const renderTable = (title, performers, isTop) => (
  <div className="mb-6">

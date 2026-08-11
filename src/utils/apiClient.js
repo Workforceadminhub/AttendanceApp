@@ -20,9 +20,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Skip redirect for login requests (invalid credentials should stay on the login page)
+      // Skip redirect for login requests and public/session-key meeting endpoints
       const url = error.config?.url || "";
-      if (!url.includes("/auth/signin")) {
+      if (!url.includes("/auth/signin") && !url.includes("/api/meeting/")) {
         clearAuthTokens();
         // Redirect to login only if not already there
         if (window.location.pathname !== "/login") {
@@ -120,10 +120,10 @@ export async function apiRequest(
     const status = error.response?.status;
     const url = error.config?.url || "";
 
-    // Non-login 401s are handled by the interceptor (session timeout → redirect).
+    // Non-login and non-meeting 401s are handled by the interceptor (session timeout → redirect).
     // Silently return so no toast/error flashes before the redirect.
-    // Login 401s (wrong password) still need to throw so the login page can show the error.
-    if (status === 401 && !url.includes("/auth/signin")) return;
+    // Login and meeting 401s still need to throw so caller can handle/retry.
+    if (status === 401 && !url.includes("/auth/signin") && !url.includes("/api/meeting/")) return;
 
     const responseData = error.response?.data;
     let message =

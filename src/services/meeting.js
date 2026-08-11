@@ -1,5 +1,7 @@
 import apiRequest from "../utils/apiClient";
 
+const activeSessionTokens = {};
+
 function getOrCreateDeviceId() {
   const KEY = "meeting_device_id";
   let id = localStorage.getItem(KEY);
@@ -10,7 +12,13 @@ function getOrCreateDeviceId() {
   return id;
 }
 
-export async function getMeetingSession(meetingType = "leaders") {
+/**
+ * Fetches (or returns cached) meeting session API key
+ */
+export async function getMeetingSession(meetingType = "leaders", forceRefresh = false) {
+  if (!forceRefresh && activeSessionTokens[meetingType]) {
+    return activeSessionTokens[meetingType];
+  }
   const clientId = getOrCreateDeviceId();
   const response = await apiRequest(
     "POST",
@@ -24,37 +32,61 @@ export async function getMeetingSession(meetingType = "leaders") {
   }
   const apiKey = response.data?.api_key;
   if (!apiKey) throw new Error("No API key in session response.");
+  activeSessionTokens[meetingType] = apiKey;
   return apiKey;
+}
+
+/**
+ * Helper to execute meeting API call with automatic session token refresh on 401 / session error
+ */
+async function executeMeetingCall(meetingType, apiKey, requestFn) {
+  let keyToUse = apiKey || (await getMeetingSession(meetingType));
+  try {
+    return await requestFn(keyToUse);
+  } catch (err) {
+    const isSessionErr =
+      err?.status === 401 ||
+      /session|expired|unauthorized|api key|token/i.test(err?.message || "");
+    if (isSessionErr) {
+      keyToUse = await getMeetingSession(meetingType, true);
+      return await requestFn(keyToUse);
+    }
+    throw err;
+  }
 }
 
 export async function searchMeetingWorkers(name, apiKey, date, meetingType = "leaders") {
   const endpoint = `/api/meeting/${meetingType}/workers/search`;
-  const response = await apiRequest(
-    "GET",
-    endpoint,
-    { name, date },
-    { headers: { "x-api-key": apiKey } },
-    false
-  );
-  if (!response || response.error) {
-    throw new Error(response?.error || "Search failed.");
-  }
-  return response.data ?? response;
+  return executeMeetingCall(meetingType, apiKey, async (key) => {
+    const response = await apiRequest(
+      "GET",
+      endpoint,
+      { name, date },
+      { headers: { "x-api-key": key } },
+      false
+    );
+    if (!response || response.error) {
+      throw new Error(response?.error || "Search failed.");
+    }
+    return response.data ?? response;
+  });
 }
 
 export async function createMeetingWorker(data, apiKey, meetingType = "leaders") {
   const endpoint = `/api/meeting/${meetingType}/workers`;
-  const response = await apiRequest(
-    "POST",
-    endpoint,
-    data,
-    { headers: { "x-api-key": apiKey } },
-    false
-  );
-  if (!response || response.error) {
-    throw new Error(response?.error || "Failed to add worker.");
-  }
-  return response;
+  return executeMeetingCall(meetingType, apiKey, async (key) => {
+    const response = await apiRequest(
+      "POST",
+      endpoint,
+      data,
+      { headers: { "x-api-key": key } },
+      false
+    );
+    if (!response || response.error) {
+      throw new Error(response?.error || "Failed to add worker.");
+    }
+    return response;
+  });
 }
 
 export async function getMeetingRegistrations(meetingDate, status = "all", meetingType = "leaders") {
@@ -85,30 +117,34 @@ export async function getMeetingRegistrationsSummary(meetingDate, meetingType = 
 
 export async function updateMeetingWorker(workerId, data, apiKey, meetingType = "leaders") {
   const endpoint = `/api/meeting/${meetingType}/workers/${workerId}`;
-  const response = await apiRequest(
-    "PUT",
-    endpoint,
-    data,
-    { headers: { "x-api-key": apiKey } },
-    false
-  );
-  if (!response || response.error) {
-    throw new Error(response?.error || "Update failed.");
-  }
-  return response;
+  return executeMeetingCall(meetingType, apiKey, async (key) => {
+    const response = await apiRequest(
+      "PUT",
+      endpoint,
+      data,
+      { headers: { "x-api-key": key } },
+      false
+    );
+    if (!response || response.error) {
+      throw new Error(response?.error || "Update failed.");
+    }
+    return response;
+  });
 }
 
 export async function markMeetingWorkerPresent(workerId, data, apiKey, meetingType = "leaders") {
   const endpoint = `/api/meeting/${meetingType}/workers/${workerId}/present`;
-  const response = await apiRequest(
-    "POST",
-    endpoint,
-    data,
-    { headers: { "x-api-key": apiKey } },
-    false
-  );
-  if (!response || response.error) {
-    throw new Error(response?.error || "Failed to mark present.");
-  }
-  return response;
+  return executeMeetingCall(meetingType, apiKey, async (key) => {
+    const response = await apiRequest(
+      "POST",
+      endpoint,
+      data,
+      { headers: { "x-api-key": key } },
+      false
+    );
+    if (!response || response.error) {
+      throw new Error(response?.error || "Failed to mark present.");
+    }
+    return response;
+  });
 }

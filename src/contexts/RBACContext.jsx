@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { fetchMyRBAC } from "../services/hub/rbac";
+import { getUserRole } from "../utils/getUserRole";
 
 const RBACContext = createContext(null);
 
@@ -112,6 +113,16 @@ export function useHubNav(key) {
  */
 export function useCanAction(action) {
   const { rbac } = useRBAC();
+
+  // Super Admin and Church Admin are organization-wide training managers.
+  // Keep this role fallback for the legacy/partial RBAC responses that do not
+  // include create_training, while continuing to honor API permissions for
+  // every other role and action.
+  if (action === "create_training") {
+    const { isSuperAdmin, isChurchAdmin } = getUserRole();
+    if (isSuperAdmin || isChurchAdmin) return true;
+  }
+
   if (!rbac?.actions) return false;
   return rbac.actions[action] === true;
 }

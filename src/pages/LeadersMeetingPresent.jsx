@@ -48,7 +48,7 @@ function useLiveTeamDepartments(selectedTeam, districtSubTeam = "") {
 
   const teamOptions = useMemo(() => {
     const teams = (filterData.teams || []).filter((t) => {
-      const val = String(t?.value ?? t?.label ?? t || "").trim().toLowerCase();
+      const val = String(t?.value || t?.label || t || "").trim().toLowerCase();
       return val && val !== "all" && val !== "gbagada campus" && val !== "gbagada";
     });
     const fallbackTeams = teamsAndDepartments

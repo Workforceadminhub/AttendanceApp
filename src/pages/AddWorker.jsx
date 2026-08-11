@@ -71,7 +71,7 @@ export default function AddWorker() {
         setFilterData(data);
         if (data.teams && data.teams.length > 0) {
           const teamOpts = data.teams.filter((t) => {
-            const norm = String(t?.value ?? t?.label ?? t || "").trim().toLowerCase();
+            const norm = String(t?.value || t?.label || t || "").trim().toLowerCase();
             return norm !== "all" && norm !== "gbagada campus" && norm !== "gbagada";
           });
           const deptOpts = (data.departments || []).filter((d) => d.value !== "All");

@@ -102,7 +102,16 @@ export const fetchTeamsAndDepartmentsForFilter = async () => {
       const name = d?.name ?? d?.department ?? String(d);
       const active = isDepartmentActive(d);
       if (!active) {
-        if (name) inactiveDepartmentNames.add(String(name).trim().toLowerCase());
+        if (name) {
+          const norm = String(name).trim().toLowerCase();
+          inactiveDepartmentNames.add(norm);
+          inactiveDepartmentNames.add(norm.replace(/[^a-z0-9]+/g, "-"));
+        }
+        if (d?.route) {
+          const normRoute = String(d.route).trim().toLowerCase().replace(/^\//, "");
+          inactiveDepartmentNames.add(normRoute);
+          inactiveDepartmentNames.add(`/${normRoute}`);
+        }
         return;
       }
       const team = d?.team ?? d?.teamName;

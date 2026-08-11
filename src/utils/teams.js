@@ -355,20 +355,14 @@ export const filterDepartmentsForDistrictSubTeam = (
   if (!isDistricts) return list;
 
   if (isIsaacDistrictSubTeam(districtSubTeam)) {
-    const combined = new Set([
-      ...PASTOR_ISAAC_COMMUNITIES,
-      ...list,
-    ]);
-    return Array.from(combined)
+    const source = list.length > 0 ? list : PASTOR_ISAAC_COMMUNITIES;
+    return Array.from(new Set(source))
       .filter((d) => isPastorIsaacCommunity(d))
       .sort();
   }
   if (isBiolaDistrictSubTeam(districtSubTeam)) {
-    const combined = new Set([
-      ...PASTOR_BIOLA_COMMUNITIES,
-      ...list,
-    ]);
-    return Array.from(combined)
+    const source = list.length > 0 ? list : PASTOR_BIOLA_COMMUNITIES;
+    return Array.from(new Set(source))
       .filter((d) => isPastorBiolaCommunity(d))
       .sort();
   }

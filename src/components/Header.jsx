@@ -221,15 +221,36 @@ export default function Header() {
     return "/attendance/dashboard";
   })();
 
+  const summaryDropdownItems = [
+    { name: "Summary Overview", href: summaryHref },
+    ...(isSuperAdmin ? [{ name: "Departments", href: "/manage-departments" }] : []),
+    ...(isSuperAdmin ? [{ name: "Reports & Analytics", href: "/report" }] : []),
+  ];
+
+  const workersDropdownItems = [
+    { name: "Workers Directory", href: workersHref },
+    ...(isSuperAdmin ? [{ name: "All Workers", href: "/all-workers" }] : []),
+    ...(canAccessApprovals ? [{ name: "Approvals", href: "/pending-workers" }] : []),
+    ...(isSuperAdmin ? [{ name: "Team Mismatch", href: "/team-mismatch" }] : []),
+  ];
+
+  const attendanceDropdownItems = [
+    { name: "Attendance Dashboard", href: attendanceItem.href },
+    ...((isChurchAdminRole || isTeamAdmin || isSuperAdmin || isAdmin)
+      ? [
+          { header: "Meeting Reports" },
+          { name: "Leaders Meeting Confirmation", href: "/report/confirmation-leaders-meeting" },
+          { name: "Leaders Meeting Report", href: "/report/leaders-meeting" },
+          { name: "Workers Meeting Confirmation", href: "/report/confirmation-workers-meeting" },
+          { name: "Workers Meeting Report", href: "/report/workers-meeting" },
+        ]
+      : []),
+  ];
+
   const settingsDropdown = [
     ...(isSuperAdmin ? [{ name: "Leaders Strength", href: "/settings/leaders-strength" }] : []),
     ...(isSuperAdmin ? [{ name: "Meeting Settings", href: "/settings/meetings" }] : []),
-    ...(isSuperAdmin ? [{ name: "All Workers", href: "/all-workers" }] : []),
-    ...(isSuperAdmin ? [{ name: "Team Mismatch", href: "/team-mismatch" }] : []),
-    ...(isSuperAdmin ? [{ name: "Departments", href: "/manage-departments" }] : []),
     ...(isSuperAdmin ? [{ name: "Admins", href: "/manage-admins" }] : []),
-    ...(isSuperAdmin ? [{ name: "Report", href: "/report" }] : []),
-    ...(canAccessApprovals ? [{ name: "Approvals", href: "/pending-workers" }] : []),
     ...(isSuperAdmin || isChurchAdminRole
       ? [{ name: "Audit Log", href: "/admin/audit-log" }]
       : []),
@@ -318,9 +339,24 @@ export default function Header() {
           ) : (
             <>
               <NavLink href={homePage}>Home</NavLink>
-              <NavLink href={summaryHref}>Summary</NavLink>
-              <NavLink href={workersHref}>Workers</NavLink>
-              <NavLink href={attendanceItem.href}>Attendance</NavLink>
+
+              {summaryDropdownItems.length > 1 ? (
+                <NavDropdown label="Summary" items={summaryDropdownItems} />
+              ) : (
+                <NavLink href={summaryHref}>Summary</NavLink>
+              )}
+
+              {workersDropdownItems.length > 1 ? (
+                <NavDropdown label="Workers" items={workersDropdownItems} />
+              ) : (
+                <NavLink href={workersHref}>Workers</NavLink>
+              )}
+
+              {attendanceDropdownItems.length > 1 ? (
+                <NavDropdown label="Attendance" items={attendanceDropdownItems} />
+              ) : (
+                <NavLink href={attendanceItem.href}>Attendance</NavLink>
+              )}
             </>
           )}
 

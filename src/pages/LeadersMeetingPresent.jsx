@@ -22,6 +22,7 @@ import {
 } from "../utils/teams";
 import { getEffectiveRouteList } from "../utils/routeObject";
 import { fetchTeamsAndDepartmentsForFilter } from "../services/departments";
+import Spinner from "../components/ui/Spinner";
 
 const MEETING_DATE = "2026-08-15";
 
@@ -1166,9 +1167,9 @@ export default function LeadersMeetingPresent() {
   if (!sessionToken) {
     return (
       <Shell>
-        <div className="flex items-center justify-center py-12">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-ink-300 border-t-ink" />
-          <span className="ml-3 text-sm text-ink-500">Starting session...</span>
+        <div className="flex flex-col items-center justify-center py-12 space-y-3">
+          <Spinner size="lg" className="text-ink-900" />
+          <span className="text-sm text-ink-500 font-medium">Starting session...</span>
         </div>
       </Shell>
     );

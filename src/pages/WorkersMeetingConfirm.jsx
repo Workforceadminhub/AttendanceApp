@@ -20,6 +20,9 @@ import {
   PlusCircleIcon,
 } from "@heroicons/react/24/outline";
 import BirthDatePicker from "../components/BirthDatePicker";
+import { getEffectiveRouteList } from "../utils/routeObject";
+import { fetchDepartments } from "../services/departments";
+import Spinner from "../components/ui/Spinner";
 import { DROPDOWN_OPTIONS } from "../utils/sampleWorkersExcel";
 import { teamsAndDepartments } from "../utils/teams";
 
@@ -1175,9 +1178,9 @@ export default function WorkersMeetingConfirm() {
   if (!sessionToken) {
     return (
       <Shell>
-        <div className="text-center py-12 space-y-3">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-ink border-t-transparent" />
-          <p className="text-sm text-ink-500">Starting session...</p>
+        <div className="flex flex-col items-center justify-center py-12 space-y-3">
+          <Spinner size="lg" className="text-ink-900" />
+          <p className="text-sm text-ink-500 font-medium">Starting session...</p>
         </div>
       </Shell>
     );

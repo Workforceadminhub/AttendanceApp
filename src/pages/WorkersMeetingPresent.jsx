@@ -20,6 +20,8 @@ import {
   PlusCircleIcon,
 } from "@heroicons/react/24/outline";
 import { DROPDOWN_OPTIONS } from "../utils/sampleWorkersExcel";
+import { fetchTeamsAndDepartmentsForFilter } from "../services/departments";
+import Spinner from "../components/ui/Spinner";
 import { teamsAndDepartments } from "../utils/teams";
 
 const MEETING_TYPE = "workers";
@@ -910,9 +912,9 @@ export default function WorkersMeetingPresent() {
   if (!sessionToken) {
     return (
       <Shell>
-        <div className="text-center py-12 space-y-3">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-ink border-t-transparent" />
-          <p className="text-sm text-ink-500">Starting session...</p>
+        <div className="flex flex-col items-center justify-center py-12 space-y-3">
+          <Spinner size="lg" className="text-ink-900" />
+          <p className="text-sm text-ink-500 font-medium">Starting session...</p>
         </div>
       </Shell>
     );

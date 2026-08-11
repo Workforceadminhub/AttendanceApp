@@ -485,9 +485,14 @@ export default function ViewWorker() {
  <select
  value={editedWorker.department || ""}
  onChange={(e) => handleInputChange("department", e.target.value)}
- className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
+ disabled={isDistrictsTeam(editedWorker.team) && !editedWorker.district_sub_team}
+ className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10 disabled:cursor-not-allowed disabled:bg-ink-100"
  >
- <option value="">Select Department</option>
+ <option value="">
+   {isDistrictsTeam(editedWorker.team) && !editedWorker.district_sub_team
+     ? "Select District/Sub-team first"
+     : "Select Department"}
+ </option>
  {departmentOptions.map((dept) => (
  <option key={dept.value} value={dept.value}>
  {dept.label}
@@ -499,24 +504,6 @@ export default function ViewWorker() {
  )}
  </select>
  </div>
-
- {/* District/Sub-team */}
- {isDistrictsTeam(editedWorker.team) && (
- <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
- District/Sub-team
- </label>
- <select
- value={editedWorker.district_sub_team || ""}
- onChange={(e) => handleInputChange("district_sub_team", e.target.value)}
- className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
- >
- <option value="">Select District/Sub-team</option>
- <option value="Pastor Biola Cluster">Pastor Biola Cluster</option>
- <option value="Pastor Isaac Cluster">Pastor Isaac Cluster</option>
- </select>
- </div>
- )}
 
  {/* Worker Role */}
  <div>

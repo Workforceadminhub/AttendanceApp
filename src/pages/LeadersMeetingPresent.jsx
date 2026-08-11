@@ -665,25 +665,6 @@ function EditPresentStep({ worker, token, onBack, onDone }) {
           </select>
           <FieldError message={errors.team} />
         </div>
-        <div className="sm:col-span-2">
-          <Label htmlFor="edit-department" required>Department</Label>
-          <select
-            id="edit-department"
-            value={form.department}
-            onChange={setDepartment}
-            className={selectClass}
-            disabled={!form.team}
-          >
-            <option value="">{form.team ? "Select Department" : "Select team first"}</option>
-            {departmentOptions.map((d) => (
-              <option key={d} value={d}>{d}</option>
-            ))}
-            {form.department && !departmentOptions.includes(form.department) && (
-              <option value={form.department}>{form.department}</option>
-            )}
-          </select>
-          <FieldError message={errors.department} />
-        </div>
         {isDistrictsTeam(form.team) && (
           <div className="sm:col-span-2">
             <Label htmlFor="edit-district-sub-team" required>District/Sub-team</Label>
@@ -700,6 +681,31 @@ function EditPresentStep({ worker, token, onBack, onDone }) {
             <FieldError message={errors.district_sub_team} />
           </div>
         )}
+        <div className="sm:col-span-2">
+          <Label htmlFor="edit-department" required>Department</Label>
+          <select
+            id="edit-department"
+            value={form.department}
+            onChange={setDepartment}
+            className={selectClass}
+            disabled={!form.team || (isDistrictsTeam(form.team) && !form.district_sub_team)}
+          >
+            <option value="">
+              {!form.team
+                ? "Select team first"
+                : isDistrictsTeam(form.team) && !form.district_sub_team
+                ? "Select District/Sub-team first"
+                : "Select Department"}
+            </option>
+            {departmentOptions.map((d) => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+            {form.department && !departmentOptions.includes(form.department) && (
+              <option value={form.department}>{form.department}</option>
+            )}
+          </select>
+          <FieldError message={errors.department} />
+        </div>
       </div>
 
       <div className="pt-2">

@@ -68,7 +68,10 @@ export default function ChurchAdminAddWorker() {
     fetchTeamsAndDepartmentsForFilter().then((data) => {
       if (isMounted) {
         setFilterData(data);
-        const teams = data.teams.filter((t) => t.value !== "All");
+        const teams = data.teams.filter((t) => {
+          const norm = String(t?.value ?? t?.label ?? t || "").trim().toLowerCase();
+          return norm !== "all" && norm !== "gbagada campus" && norm !== "gbagada";
+        });
         const departments = data.departments.filter((d) => d.value !== "All");
         setFilterOptions({
           teams,

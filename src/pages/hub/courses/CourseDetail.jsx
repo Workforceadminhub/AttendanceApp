@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 import Header from "../../../components/Header";
 import Layout from "../../../components/Layout";
 import { Tag } from "../../../components/ui";
+import { getUserRole } from "../../../utils/getUserRole";
 import {
   fetchCourse,
   fetchCourseCurriculum,
@@ -22,6 +23,9 @@ export default function CourseDetail() {
   const { id } = useParams();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState("curriculum");
+
+  const { isSuperAdmin, isChurchAdmin: isChurchAdminRole } = getUserRole();
+  const canSelfRegister = !isSuperAdmin && !isChurchAdminRole;
 
   const { data: courseData, isLoading } = useQuery({
     queryKey: ["hub-course", id],
@@ -103,7 +107,7 @@ export default function CourseDetail() {
             </div>
 
             <div className="flex gap-2 shrink-0">
-              {!course.is_enrolled && course.status === "published" && (
+              {canSelfRegister && !course.is_enrolled && course.status === "published" && (
                 <button
                   type="button"
                   disabled={enrollMut.isPending}

@@ -1429,26 +1429,49 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  Team
  </label>
  <ReactSelectDropdown
- defaultValue={{
+ value={{
  value: filters.team,
  label:
  filterOptions.teams.find((t) => t.value === filters.team)
  ?.label || "All Teams",
  }}
  onChange={(selected) =>
- handleFilterChange("team", selected?.value)
+ handleFilterChange("team", selected?.value ?? "All")
  }
  options={filterOptions.teams}
  className="w-full"
  />
  </div>
 
+ {(filters.team === "Districts" || filters.team === "District") && (
+ <div>
+ <label className="block text-sm font-medium text-ink-700 mb-2">
+ District/Sub-team
+ </label>
+ <ReactSelectDropdown
+ value={{
+ value: filters.district_sub_team || "All",
+ label: filters.district_sub_team || "All District/Sub-teams",
+ }}
+ onChange={(selected) =>
+ handleFilterChange("district_sub_team", selected?.value ?? "All")
+ }
+ options={[
+ { value: "All", label: "All District/Sub-teams" },
+ { value: "Pastor Biola Cluster", label: "Pastor Biola Cluster" },
+ { value: "Pastor Isaac Cluster", label: "Pastor Isaac Cluster" },
+ ]}
+ className="w-full"
+ />
+ </div>
+ )}
+
  <div>
  <label className="block text-sm font-medium text-ink-700 mb-2">
  Department
  </label>
  <ReactSelectDropdown
- defaultValue={{
+ value={{
  value: filters.department,
  label:
  availableDepartments.find(
@@ -1456,7 +1479,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  )?.label || "All Departments",
  }}
  onChange={(selected) =>
- handleFilterChange("department", selected?.value)
+ handleFilterChange("department", selected?.value ?? "All")
  }
  options={availableDepartments}
  className="w-full"

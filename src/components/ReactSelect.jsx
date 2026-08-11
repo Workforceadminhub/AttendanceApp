@@ -41,15 +41,18 @@ export default function ReactSelectDropdown({
     menu: (base) => ({
       ...base,
       zIndex: 999999,
-      maxHeight: "200px",
+      maxHeight: "220px",
       overflowY: "auto",
       borderRadius: "8px",
       boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
-      position: "absolute",
+    }),
+    menuPortal: (base) => ({
+      ...base,
+      zIndex: 999999,
     }),
     menuList: (base) => ({
       ...base,
-      maxHeight: "180px",
+      maxHeight: "200px",
       overflowY: "auto",
       padding: "4px",
     }),
@@ -88,7 +91,9 @@ export default function ReactSelectDropdown({
         styles={customStyles}
         isClearable={isClearable}
         menuPlacement="auto"
-        maxMenuHeight={200}
+        menuPosition="fixed"
+        menuPortalTarget={typeof document !== "undefined" ? document.body : null}
+        maxMenuHeight={220}
       />
     </div>
   );

@@ -208,12 +208,12 @@ export default function Header() {
   const settingsDropdown = [
     ...(isSuperAdmin ? [{ name: "Leaders Strength", href: "/settings/leaders-strength" }] : []),
     ...(isSuperAdmin ? [{ name: "Meeting Settings", href: "/settings/meetings" }] : []),
-    ...(isSuperAdmin ? [{ name: "Dashboard", href: "/dashboard/super-admin" }] : []),
     ...(isSuperAdmin ? [{ name: "All Workers", href: "/all-workers" }] : []),
     ...(isSuperAdmin ? [{ name: "Team Mismatch", href: "/team-mismatch" }] : []),
     ...(isSuperAdmin ? [{ name: "Departments", href: "/manage-departments" }] : []),
     ...(isSuperAdmin ? [{ name: "Admins", href: "/manage-admins" }] : []),
     ...(isSuperAdmin ? [{ name: "Report", href: "/report" }] : []),
+    ...(canAccessApprovals ? [{ name: "Approvals", href: "/pending-workers" }] : []),
     ...(isSuperAdmin || isChurchAdminRole
       ? [{ name: "Audit Log", href: "/admin/audit-log" }]
       : []),
@@ -301,16 +301,10 @@ export default function Header() {
             ))
           ) : (
             <>
-              {adminNavPrimary.map((item) => (
-                <NavLink key={item.name} href={item.href}>
-                  {item.name}
-                </NavLink>
-              ))}
+              <NavLink href={homePage}>Home</NavLink>
+              <NavLink href={summaryHref}>Summary</NavLink>
               <NavLink href={workersHref}>Workers</NavLink>
-              {approvalsItem && (
-                <NavLink href={approvalsItem.href}>{approvalsItem.name}</NavLink>
-              )}
-              <NavLink href={attendanceItem.href}>{attendanceItem.name}</NavLink>
+              <NavLink href={attendanceItem.href}>Attendance</NavLink>
             </>
           )}
 

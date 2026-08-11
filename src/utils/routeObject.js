@@ -149,10 +149,45 @@ let _inactiveNames = new Set();
 
 export function isDepartmentActive(dept) {
   if (!dept) return false;
-  if (dept.isactive === false || dept.isactive === 0 || dept.isactive === "false") return false;
-  if (dept.isActive === false || dept.isActive === 0 || dept.isActive === "false") return false;
-  if (dept.is_active === false || dept.is_active === 0 || dept.is_active === "false") return false;
-  if (typeof dept.status === "string" && dept.status.toLowerCase() === "inactive") return false;
+
+  // Deleted flags
+  if (dept.deleted_at || dept.deletedAt || dept.is_deleted || dept.isdeleted) {
+    return false;
+  }
+
+  // Disabled flags
+  const disabledVal = dept.disabled ?? dept.is_disabled;
+  if (disabledVal === true || disabledVal === 1 || disabledVal === "true" || disabledVal === "1") {
+    return false;
+  }
+
+  // Active status fields (boolean, number, or string)
+  const activeVal = dept.isactive ?? dept.isActive ?? dept.is_active ?? dept.active ?? dept.enabled;
+  if (
+    activeVal === false ||
+    activeVal === 0 ||
+    activeVal === "false" ||
+    activeVal === "0"
+  ) {
+    return false;
+  }
+
+  // Status string field
+  if (dept.status !== undefined && dept.status !== null) {
+    const s = String(dept.status).toLowerCase().trim();
+    if (
+      s === "inactive" ||
+      s === "disabled" ||
+      s === "deactivated" ||
+      s === "archived" ||
+      s === "off" ||
+      s === "0" ||
+      s === "false"
+    ) {
+      return false;
+    }
+  }
+
   return true;
 }
 
@@ -219,12 +254,17 @@ export function getEffectiveRouteList() {
       _dynamicList.map((d) => (d.department || "").toLowerCase().trim())
     );
 
-    const fallback = routeObject.filter(
-      (s) =>
-        !_inactiveNames.has((s.department || "").toLowerCase().trim()) &&
-        !dynamicRoutes.has(s.route) &&
-        !dynamicNames.has((s.department || "").toLowerCase().trim())
-    );
+    const fallback = routeObject.filter((s) => {
+      const deptNorm = (s.department || "").toLowerCase().trim();
+      const routeNorm = (s.route || "").toLowerCase().trim().replace(/^\//, "");
+      if (_inactiveNames.has(deptNorm) || _inactiveNames.has(routeNorm) || _inactiveNames.has(`/${routeNorm}`)) {
+        return false;
+      }
+      if (dynamicRoutes.has(s.route) || dynamicNames.has(deptNorm)) {
+        return false;
+      }
+      return true;
+    });
     base = [..._dynamicList, ...fallback];
   } else {
     base = routeObject.filter(

@@ -6,6 +6,7 @@ import Header from "../../../components/Header";
 import Layout from "../../../components/Layout";
 import { Tag } from "../../../components/ui";
 import { useCanAction } from "../../../contexts/RBACContext";
+import { getUserRole } from "../../../utils/getUserRole";
 import ProgressionTracker from "../../../components/hub/trainings/ProgressionTracker";
 import {
   fetchTraining,
@@ -39,6 +40,9 @@ export default function TrainingDetail() {
   const [tab, setTab] = useState("enrollees");
   const canMarkAttendance = useCanAction("mark_training_attendance");
   const canNominate = useCanAction("nominate_workers");
+
+  const { isSuperAdmin, isChurchAdmin: isChurchAdminRole } = getUserRole();
+  const canSelfRegister = !isSuperAdmin && !isChurchAdminRole;
 
   const { data: trainingData, isLoading } = useQuery({
     queryKey: ["hub-training", id],
@@ -151,7 +155,7 @@ export default function TrainingDetail() {
             </div>
 
             <div className="flex flex-wrap gap-2 shrink-0">
-              {training.status !== "completed" && !training.is_enrolled && (
+              {canSelfRegister && training.status !== "completed" && !training.is_enrolled && (
                 <button
                   type="button"
                   disabled={registerMut.isPending}

@@ -149,7 +149,12 @@ const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
             className="border p-3 w-full rounded-md bg-cream-200"
             value={formData.team}
             onChange={(e) =>
-              setFormData({ ...formData, team: e.target.value })
+              setFormData({
+                ...formData,
+                team: e.target.value,
+                department: "",
+                district_sub_team: "",
+              })
             }
           >
             <option value="">Select team</option>
@@ -160,16 +165,45 @@ const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
             ))}
           </select>
         </div>
+        {(formData.team === "Districts" || formData.team === "District") && (
+          <div className="flex">
+            <label className="text-lg text-brick mt-2 mr-2">*</label>
+            <select
+              className="border p-3 w-full rounded-md bg-cream-200"
+              value={formData.district_sub_team || ""}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  district_sub_team: e.target.value,
+                  department: "",
+                })
+              }
+            >
+              <option value="">Select District/Sub-team</option>
+              <option value="Pastor Biola Cluster">Pastor Biola Cluster</option>
+              <option value="Pastor Isaac Cluster">Pastor Isaac Cluster</option>
+            </select>
+          </div>
+        )}
         <div className="flex">
           <label className="text-lg text-brick mt-2 mr-2">*</label>
           <select
-            className="border p-3 w-full bg-cream-200 rounded-md"
+            className="border p-3 w-full bg-cream-200 rounded-md disabled:cursor-not-allowed disabled:bg-ink-100"
             value={formData.department}
             onChange={(e) =>
               setFormData({ ...formData, department: e.target.value })
             }
+            disabled={
+              (formData.team === "Districts" || formData.team === "District") &&
+              !formData.district_sub_team
+            }
           >
-            <option value="">Select department</option>
+            <option value="">
+              {(formData.team === "Districts" || formData.team === "District") &&
+              !formData.district_sub_team
+                ? "Select District/Sub-team first"
+                : "Select department"}
+            </option>
             {departmentList.map((dept) => (
               <option key={dept} value={dept}>
                 {dept}

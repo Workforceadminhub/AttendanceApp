@@ -212,18 +212,35 @@ export default function HODAddWorker() {
  />
  </div>
 
- <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
- Email Address <span className="text-brick">*</span>
- </label>
- <input
- type="email"
- value={worker.email}
- onChange={(e) => setWorker({ ...worker, email: e.target.value })}
- className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
- placeholder="Enter email address"
- />
- </div>
+  <div>
+  <label className="block text-sm font-medium text-ink-700 mb-2">
+  Email Address <span className="text-brick">*</span>
+  </label>
+  <input
+  type="email"
+  value={worker.email}
+  onChange={(e) => setWorker({ ...worker, email: e.target.value })}
+  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
+  placeholder="Enter email address"
+  />
+  </div>
+
+  {(team === "Districts" || team === "District") && (
+  <div>
+  <label className="block text-sm font-medium text-ink-700 mb-2">
+  District/Sub-team <span className="text-brick">*</span>
+  </label>
+  <select
+  value={worker.district_sub_team}
+  onChange={(e) => setWorker({ ...worker, district_sub_team: e.target.value })}
+  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
+  >
+  <option value="">Select District/Sub-team</option>
+  <option value="Pastor Biola Cluster">Pastor Biola Cluster</option>
+  <option value="Pastor Isaac Cluster">Pastor Isaac Cluster</option>
+  </select>
+  </div>
+  )}
 
  <div>
  <label className="block text-sm font-medium text-ink-700 mb-2">
@@ -312,23 +329,6 @@ export default function HODAddWorker() {
  placeholder="Enter occupation"
  />
  </div>
-
- {team === "Districts" && (
- <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
- District/Sub-team
- </label>
- <select
- value={worker.district_sub_team}
- onChange={(e) => setWorker({ ...worker, district_sub_team: e.target.value })}
- className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
- >
- <option value="">Select District/Sub-team</option>
- <option value="Pastor Biola Cluster">Pastor Biola Cluster</option>
- <option value="Pastor Isaac Cluster">Pastor Isaac Cluster</option>
- </select>
- </div>
- )}
 
  <div className="md:col-span-2">
  <label className="block text-sm font-medium text-ink-700 mb-2">

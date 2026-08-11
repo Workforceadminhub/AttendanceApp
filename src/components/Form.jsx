@@ -30,7 +30,7 @@ const Form = ({ formData, setFormData, handleSubmit, isActive, isLoading }) => {
   const routeList = getEffectiveRouteList();
   const apiTeamList = (filterData.teams || [])
     .filter((t) => {
-      const val = String(t?.value ?? t?.label ?? t || "").trim().toLowerCase();
+      const val = String(t?.value || t?.label || t || "").trim().toLowerCase();
       return val !== "all" && val !== "gbagada campus" && val !== "gbagada";
     })
     .map((t) => t.value);

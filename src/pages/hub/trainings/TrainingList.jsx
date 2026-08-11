@@ -1,12 +1,17 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Header from "../../../components/Header";
 import Layout from "../../../components/Layout";
 import { Stat, Tag } from "../../../components/ui";
 import { useCanAction } from "../../../contexts/RBACContext";
 import { fetchTrainings } from "../../../services/hub/trainings";
 import { getUserRole } from "../../../utils/getUserRole";
+import {
+  CohortManagementDrawer,
+  TrainingDetailDrawer,
+  TrainingFormDrawer,
+} from "./TrainingManagementDrawer";
 
 const STATUS_TABS = [
   { key: "", label: "All" },
@@ -29,6 +34,7 @@ const STATUS_TONE = {
 };
 
 export default function TrainingList() {
+  const navigate = useNavigate();
   const userRoleInfo = useMemo(() => getUserRole(), []);
   const { isSuperAdmin, isChurchAdmin, isHOD, isAdmin, user } = userRoleInfo;
 
@@ -44,6 +50,9 @@ export default function TrainingList() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const canCreate = useCanAction("create_training");
+  const [selectedTraining, setSelectedTraining] = useState(null);
+  const [formDrawer, setFormDrawer] = useState(null);
+  const [cohortTraining, setCohortTraining] = useState(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["hub-trainings", { status, category, search, page }],
@@ -84,9 +93,9 @@ export default function TrainingList() {
                     Certificate Studio
                   </Link>
                   {(canCreate || isSuperAdmin || isChurchAdmin) && (
-                    <Link to="/hub/trainings/create" className="qc-btn-primary">
+                    <button type="button" onClick={() => setFormDrawer({ mode: "create" })} className="qc-btn-primary">
                       + Create Training
-                    </Link>
+                    </button>
                   )}
                 </div>
               </div>
@@ -241,7 +250,7 @@ export default function TrainingList() {
                       >
                         <td
                           className="px-4 py-3 font-medium text-ink-900 cursor-pointer"
-                          onClick={() => window.location.href = `/hub/trainings/${t.id}`}
+                          onClick={() => activeRoleView === "admin" ? setSelectedTraining(t) : navigate(`/hub/trainings/${t.id}`)}
                         >
                           <div>{t.name}</div>
                           <div className="text-xs text-ink-500">{t.description || "Interactive training module"}</div>
@@ -288,12 +297,13 @@ export default function TrainingList() {
                               Nominate
                             </Link>
                           ) : (
-                            <Link
-                              to={`/hub/trainings/${t.id}`}
+                            <button
+                              type="button"
+                              onClick={() => setSelectedTraining(t)}
                               className="text-xs font-semibold text-ink-700 hover:text-ink-900"
                             >
                               Manage &rarr;
-                            </Link>
+                            </button>
                           )}
                         </td>
                       </tr>
@@ -331,8 +341,37 @@ export default function TrainingList() {
             </div>
           )}
         </div>
+        {selectedTraining && (
+          <TrainingDetailDrawer
+            trainingId={selectedTraining.id || selectedTraining._id}
+            fallbackTraining={selectedTraining}
+            onClose={() => setSelectedTraining(null)}
+            onManageCohorts={() => {
+              setCohortTraining(selectedTraining);
+              setSelectedTraining(null);
+            }}
+            onEdit={(training) => {
+              setSelectedTraining(null);
+              setFormDrawer({ mode: "edit", training });
+            }}
+          />
+        )}
+        {formDrawer && (
+          <TrainingFormDrawer
+            mode={formDrawer.mode}
+            initialTraining={formDrawer.training}
+            onClose={() => setFormDrawer(null)}
+            onSaved={() => setFormDrawer(null)}
+          />
+        )}
+        {cohortTraining && (
+          <CohortManagementDrawer
+            trainingId={cohortTraining.id || cohortTraining._id}
+            trainingName={cohortTraining.name}
+            onClose={() => setCohortTraining(null)}
+          />
+        )}
       </Layout>
     </>
   );
 }
-

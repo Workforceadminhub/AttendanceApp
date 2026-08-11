@@ -28,6 +28,10 @@ export function createTraining(data) {
   return hubPost("/trainings", data);
 }
 
+export function updateTraining(id, data) {
+  return hubPatch(`/trainings/${id}`, data);
+}
+
 export function fetchTraining(id) {
   return hubGet(`/trainings/${id}`);
 }
@@ -183,5 +187,4 @@ export function updateCohort(id, data) {
 export function deleteCohort(id) {
   return hubDelete(`/cohorts/${id}`);
 }
-
 

@@ -691,18 +691,23 @@ export function resolveAdminRoute({ role, department, team, route } = {}) {
 export function getPostLoginPath(authUser) {
   if (!authUser) return "/login";
 
+  const pl = (authUser.permissionLevel || "").toUpperCase();
+  const dept = (authUser.department || "").toLowerCase();
+
   if (
-    authUser.department === "Super Admin" ||
-    authUser.permissionLevel === "SUPER_ADMIN"
+    dept === "super admin" ||
+    pl === "SUPER_ADMIN" ||
+    pl.includes("SUPER") ||
+    authUser.route === "/super-admin"
   ) {
     return "/overview/super-admin";
   }
 
   if (
-    authUser.department === "Church Admin" ||
-    authUser.permissionLevel === "CHURCH_ADMIN"
+    dept === "church admin" ||
+    pl === "CHURCH_ADMIN"
   ) {
-    return "/attendance/dashboard";
+    return "/attendance";
   }
 
   const storedRoute = normalizeRoute(authUser.route);

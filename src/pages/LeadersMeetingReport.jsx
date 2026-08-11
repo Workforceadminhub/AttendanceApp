@@ -23,8 +23,6 @@ import { getStoredTeamStrengths } from "../utils/teamStrengthConfig";
 
 const STATUS_OPTIONS = ["all", "confirmed", "not attending"];
 
-const TEAM_STRENGTH = getStoredTeamStrengths();
-
 
 const TEAM_STRUCTURE = [
   { directorate: "Attraction", teams: ["Programs"], apiTeams: ["Programs"], bg: "#f59e0b", light: "rgba(245,158,11,0.10)" },
@@ -66,6 +64,7 @@ function formatDate(iso) {
 }
 
 export default function LeadersMeetingReport() {
+  const TEAM_STRENGTH = getStoredTeamStrengths();
   const navigate = useNavigate();
   const [meetingDate, setMeetingDate] = useState(() => getMeetingDate(DEFAULT_LEADERS_MEETING_DATE));
   const [loading, setLoading] = useState(true);
@@ -663,7 +662,7 @@ export default function LeadersMeetingReport() {
     });
 
     return merged.filter((g) => !myTeam || g.apiTeams.includes(myTeam));
-  }, [confirmedByTeam, notAttendingByTeam, myTeam]);
+  }, [confirmedByTeam, notAttendingByTeam, myTeam, TEAM_STRENGTH]);
 
   // Department-level breakdown for Team Admin view
   const groupedByDept = myTeam ? (() => {

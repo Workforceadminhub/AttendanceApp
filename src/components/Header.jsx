@@ -110,7 +110,7 @@ export default function Header() {
   const showCourses = useHubNav("courses");
   const showAdminPanel = useHubNav("admin_panel");
 
-  const trainingDropdownItems = [
+  const hubDropdownItems = [
     ...(showTrainings ? [{ name: "Trainings", href: "/hub/trainings" }] : []),
     ...(showTrainings && (isSuperAdmin || isChurchAdminRole || isAdmin)
       ? [
@@ -118,16 +118,15 @@ export default function Header() {
           { name: "Cohorts & Batches", href: "/hub/trainings/cohorts" },
         ]
       : []),
-    ...(showTrainings ? [{ name: "My Nominations", href: "/hub/trainings/nominations" }] : []),
-  ];
-
-  const courseDropdownItems = [
     ...(showCourses ? [{ name: "Courses", href: "/hub/courses" }] : []),
     ...(showTrainings || showCourses ? [{ name: "My Certificates", href: "/hub/certificates" }] : []),
     ...(showAdminPanel || (isSuperAdmin || isChurchAdminRole || isAdmin)
       ? [{ name: "Certificate Templates", href: "/hub/certificates/templates" }]
       : []),
+    ...(showTrainings ? [{ name: "My Nominations", href: "/hub/trainings/nominations" }] : []),
   ];
+
+  const hubDropdownLabel = showTrainings && showCourses ? "Training & Courses" : showCourses ? "Courses" : "Training";
 
   const departmentRouteForUser =
     getDepartmentRoute(authUser?.department)?.replace?.(/^\//, "") || "";
@@ -308,19 +307,12 @@ export default function Header() {
             </>
           )}
 
-          {/* Training dropdown */}
-          {trainingDropdownItems.length > 0 && (
-            <NavDropdown label="Training" items={trainingDropdownItems} />
+          {/* Training & Course dropdown */}
+          {hubDropdownItems.length > 0 && (
+            <NavDropdown label={hubDropdownLabel} items={hubDropdownItems} />
           )}
 
-          {/* Course dropdown */}
-          {courseDropdownItems.length > 0 && (
-            <NavDropdown label="Course" items={courseDropdownItems} />
-          )}
-
-
-          {/* Settings dropdown — shown in both nav modes when it has items
-              (e.g. an allowlisted HOD whose only entry is Bulk Email). */}
+          {/* Settings dropdown */}
           {settingsDropdown.length > 0 && (
             <NavDropdown label="Settings" items={settingsDropdown} />
           )}
@@ -467,25 +459,10 @@ export default function Header() {
           )}
         </NavGroup>
 
-        {/* Training nav */}
-        {trainingDropdownItems.length > 0 && (
-          <NavGroup label="Training">
-            {trainingDropdownItems.map((item) => (
-              <SheetLink
-                key={item.name}
-                href={item.href}
-                onClick={() => setMobileOpen(false)}
-              >
-                {item.name}
-              </SheetLink>
-            ))}
-          </NavGroup>
-        )}
-
-        {/* Course nav */}
-        {courseDropdownItems.length > 0 && (
-          <NavGroup label="Course">
-            {courseDropdownItems.map((item) => (
+        {/* Training & Course nav */}
+        {hubDropdownItems.length > 0 && (
+          <NavGroup label={hubDropdownLabel}>
+            {hubDropdownItems.map((item) => (
               <SheetLink
                 key={item.name}
                 href={item.href}

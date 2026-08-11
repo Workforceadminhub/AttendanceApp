@@ -38,6 +38,7 @@ const PastoralFix = lazy(() => import("./pages/PastoralFix"));
 const Report = lazy(() => import("./components/Report"));
 const ManageDepartments = lazy(() => import("./pages/ManageDepartments"));
 const ManageAdmins = lazy(() => import("./pages/ManageAdmins"));
+const ManageLeadersStrength = lazy(() => import("./pages/ManageLeadersStrength"));
 const BulkEmail = lazy(() => import("./pages/BulkEmail"));
 const BulkEmailReport = lazy(() => import("./pages/BulkEmailReport"));
 const DepartmentDetail = lazy(() => import("./pages/DepartmentDetail"));
@@ -257,8 +258,22 @@ const AppRoutes = () => {
               }
             />
 
-            {/* Super Admin Routes - Based on login response route: "/super-admin" */}
-            {/* Super Admin home — same dashboard as Church Admin */}
+            <Route
+              path="/settings/leaders-strength"
+              element={
+                <PrivateRoute>
+                  <ManageLeadersStrength />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/manage-leaders-strength"
+              element={
+                <PrivateRoute>
+                  <ManageLeadersStrength />
+                </PrivateRoute>
+              }
+            />
             <Route
               path="/overview/super-admin"
               element={

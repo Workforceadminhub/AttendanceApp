@@ -19,30 +19,11 @@ import {
   getAllMeetings,
   formatMeetingDisplayDate,
 } from "../utils/meetingConfig";
+import { getStoredTeamStrengths } from "../utils/teamStrengthConfig";
 
 const STATUS_OPTIONS = ["all", "confirmed", "not attending"];
 
-
-const TEAM_STRENGTH = {
-  "Programs": 168,
-  "Mission": 25,
-  "NLP": 15,
-  "Membership": 82,
-  "Ministry": 55,
-  "Maturity": 23,
-  "Kidzone": 25,
-  "Stir House": 14,
-  "Admin & Facility": 2,
-  "Communication (DMU)": 7,
-  "Finance": 4,
-  "District (Pastor Biola)": 236,
-  "District (Pastor Isaac)": 143,
-  "Men of Harvest": 23,
-  "Singles Ministry": 58,
-  "Women of Wisdom": 71,
-  "Directional Leaders": 11,
-  "Pastoral Leaders": 23,
-};
+const TEAM_STRENGTH = getStoredTeamStrengths();
 
 
 const TEAM_STRUCTURE = [

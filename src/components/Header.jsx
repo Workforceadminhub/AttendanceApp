@@ -206,6 +206,7 @@ export default function Header() {
   })();
 
   const settingsDropdown = [
+    ...(isSuperAdmin ? [{ name: "Leaders Strength", href: "/settings/leaders-strength" }] : []),
     ...(isSuperAdmin ? [{ name: "Meeting Settings", href: "/settings/meetings" }] : []),
     ...(isSuperAdmin ? [{ name: "Dashboard", href: "/dashboard/super-admin" }] : []),
     ...(isSuperAdmin ? [{ name: "All Workers", href: "/all-workers" }] : []),

@@ -286,7 +286,7 @@ const AppRoutes = () => {
               path="/attendance/super-admin"
               element={
                 <PrivateRoute>
-                  <Dashboard />
+                  <DepartmentAttendance />
                 </PrivateRoute>
               }
             />

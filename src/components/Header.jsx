@@ -235,7 +235,7 @@ export default function Header() {
   ];
 
   const attendanceDropdownItems = [
-    { name: "Attendance Dashboard", href: attendanceItem.href },
+    { name: "Attendance", href: attendanceItem.href },
     ...((isChurchAdminRole || isTeamAdmin || isSuperAdmin || isAdmin)
       ? [
           { header: "Meeting Reports" },

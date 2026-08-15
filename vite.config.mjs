@@ -19,6 +19,9 @@ export default defineConfig(({ mode }) => {
         JSON.stringify(value),
       ])
     ),
+    build: {
+      outDir: "build",
+    },
     test: {
       environment: "jsdom",
       setupFiles: "./src/setupTests.js",

@@ -21,13 +21,24 @@ import {
 } from "../services/sms";
 import { canSendBulkSms } from "../utils/bulkSmsAccess";
 
-const DEFAULT_SENDER_NAME = "Sendchamp";
-const SENDER_SUGGESTIONS = ["Sendchamp", "HICC", "HICC Gbagada"];
-const ROUTE_OPTIONS = [
+const PROVIDERS = [
+  { id: "sendchamp", name: "Sendchamp" },
+  { id: "smartsmssolutions", name: "SmartSMS Solutions" },
+];
+
+const SENDCHAMP_ROUTES = [
   { value: "non_dnd", label: "Domestic (Non-DND)", desc: "Advisable for promotional messages · ₦6.30/sms" },
   { value: "dnd", label: "Domestic (DND)", desc: "For DND numbers & transactional alerts · ₦7.35/sms" },
   { value: "international", label: "International", desc: "For non-Nigerian phone numbers · ₦555.00/sms" },
 ];
+
+const SMARTSMS_ROUTES = [
+  { value: "non_dnd", label: "Standard (Non-DND)", desc: "Standard route for clean mobile lines · ~₦3.80/sms" },
+  { value: "dnd", label: "Direct Corporate (DND Bypass)", desc: "Priority delivery to all lines (Route 4) · ~₦4.80/sms" },
+];
+
+const DEFAULT_SENDER_NAME = "Sendchamp";
+const SENDER_SUGGESTIONS = ["Sendchamp", "HICC", "HICC Gbagada"];
 
 const TEMPLATES = [
   {
@@ -52,6 +63,7 @@ export default function BulkSms() {
 }
 
 function BulkSmsComposer() {
+  const [provider, setProvider] = useState("sendchamp");
   const [senderName, setSenderName] = useState(DEFAULT_SENDER_NAME);
   const [route, setRoute] = useState("non_dnd");
   const [recipientsRaw, setRecipientsRaw] = useState("");
@@ -74,23 +86,31 @@ function BulkSmsComposer() {
   const smsMetrics = useMemo(() => calculateSmsSegments(message), [message]);
   const totalSmsUnits = valid.length * Math.max(1, smsMetrics.segments);
 
-  // Exact Sendchamp account rates per SMS page
-  const estimatedRatePerPage =
-    route === "dnd" ? 7.35 : route === "international" ? 555.0 : 6.3;
+  // Active route options based on selected provider
+  const routeOptions = provider === "smartsmssolutions" ? SMARTSMS_ROUTES : SENDCHAMP_ROUTES;
+
+  // Rates calculation
+  const estimatedRatePerPage = useMemo(() => {
+    if (provider === "smartsmssolutions") {
+      return route === "dnd" ? 4.8 : 3.8;
+    }
+    return route === "dnd" ? 7.35 : route === "international" ? 555.0 : 6.3;
+  }, [provider, route]);
+
   const estimatedTotalCost = totalSmsUnits * estimatedRatePerPage;
 
   const loadBalance = useCallback(async () => {
     setLoadingBalance(true);
     setBalanceError(null);
     try {
-      const data = await fetchSmsBalance();
+      const data = await fetchSmsBalance(provider);
       setBalance(data);
     } catch (err) {
       setBalanceError(err?.message || "Failed to load wallet balance");
     } finally {
       setLoadingBalance(false);
     }
-  }, []);
+  }, [provider]);
 
   useEffect(() => {
     loadBalance();
@@ -132,6 +152,7 @@ function BulkSmsComposer() {
         recipients: valid,
         senderName,
         route,
+        provider,
       });
 
       const sentCount = res?.sent ?? 0;
@@ -188,7 +209,9 @@ function BulkSmsComposer() {
               <ChatBubbleLeftRightIcon className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-xs text-ink-500 font-medium">Sendchamp Balance</p>
+              <p className="text-xs text-ink-500 font-medium">
+                {provider === "smartsmssolutions" ? "SmartSMS" : "Sendchamp"} Balance
+              </p>
               <div className="flex items-center gap-2">
                 {loadingBalance ? (
                   <span className="text-sm font-semibold text-ink-400">Loading...</span>
@@ -226,6 +249,34 @@ function BulkSmsComposer() {
           {/* Left Column: SMS Composer */}
           <div className="lg:col-span-7 space-y-6">
             <Card padding="lg" className="space-y-5">
+              {/* Provider Selector */}
+              <div>
+                <label className={labelCls}>SMS Gateway Provider</label>
+                <div className="grid grid-cols-2 gap-2 bg-ink-100/60 p-1 rounded-lg">
+                  {PROVIDERS.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        setProvider(p.id);
+                        if (p.id === "smartsmssolutions") {
+                          setSenderName("HICC");
+                        } else {
+                          setSenderName("Sendchamp");
+                        }
+                      }}
+                      className={`py-2 px-3 rounded-md text-xs font-semibold transition ${
+                        provider === p.id
+                          ? "bg-white text-ink-900 shadow-sm"
+                          : "text-ink-600 hover:text-ink-900"
+                      }`}
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="border-b border-ink-100 pb-3 flex items-center justify-between">
                 <h2 className="text-base font-semibold text-ink-900">
                   Compose Broadcast
@@ -282,9 +333,14 @@ function BulkSmsComposer() {
                     </button>
                   ))}
                 </div>
-                {senderName.trim().toLowerCase() !== "sendchamp" && (
+                {provider === "sendchamp" && senderName.trim().toLowerCase() !== "sendchamp" && (
                   <p className="text-[11px] text-amber-700 mt-1.5 bg-amber-50/70 border border-amber-200 rounded px-2 py-1">
                     ℹ️ Custom Sender IDs (e.g. <em>HICC</em>) must be registered &amp; approved on your Sendchamp Dashboard (<strong>SMS &rarr; Sender ID</strong>). Use <strong>Sendchamp</strong> for immediate broadcast.
+                  </p>
+                )}
+                {provider === "smartsmssolutions" && (
+                  <p className="text-[11px] text-ink-500 mt-1.5">
+                    Using SmartSMSSolutions Gateway. Ensure your Sender ID is registered in your SmartSMS portal.
                   </p>
                 )}
               </div>
@@ -292,8 +348,8 @@ function BulkSmsComposer() {
               {/* Route */}
               <div>
                 <label className={labelCls}>Delivery Route</label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  {ROUTE_OPTIONS.map((opt) => (
+                <div className={`grid grid-cols-1 ${routeOptions.length > 2 ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-2`}>
+                  {routeOptions.map((opt) => (
                     <button
                       key={opt.value}
                       type="button"

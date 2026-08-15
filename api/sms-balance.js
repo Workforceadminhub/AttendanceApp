@@ -1,7 +1,7 @@
 /**
  * Vercel serverless function — GET /api/sms-balance
  *
- * Retrieves current Sendchamp wallet balance.
+ * Retrieves wallet balance for Sendchamp or SmartSMSSolutions.
  * Restricted strictly to Super Admins.
  */
 import { decodeJwt } from "./_lib/auth.js";
@@ -9,10 +9,14 @@ import { decodeJwt } from "./_lib/auth.js";
 const BACKEND_API_URL =
   process.env.BACKEND_API_URL || process.env.REACT_APP_BASE_URL || "";
 const ADMIN_VERIFY_PATH = process.env.AUTH_VERIFY_PATH || "/api/super/admin/admins";
+
 const SENDCHAMP_API_KEY =
   process.env.SENDCHAMP_API_KEY ||
   "sendchamp_live_$2a$10$V6/v3eAzTAUH07GCoBe.SuIaHd1IGwArDP3h52kvP1DpSzpIpHfb.";
 const SENDCHAMP_WALLET_URL = "https://api.sendchamp.com/api/v1/wallet/wallet_balance";
+
+const SMARTSMS_API_TOKEN = process.env.SMARTSMS_API_TOKEN || "";
+const SMARTSMS_BALANCE_URL = "https://app.smartsmssolutions.com/io/api/client/v1/balance/";
 
 function isSuperAdminFromClaims(claims) {
   if (!claims) return false;
@@ -71,6 +75,48 @@ export default async function handler(req, res) {
     });
   }
 
+  const provider = (req.query?.provider || "sendchamp").toLowerCase();
+
+  if (provider === "smartsmssolutions") {
+    if (!SMARTSMS_API_TOKEN) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          wallet_balance: null,
+          status: "unconfigured",
+          message: "SMARTSMS_API_TOKEN is not set yet.",
+        },
+      });
+    }
+
+    try {
+      const response = await fetch(`${SMARTSMS_BALANCE_URL}?token=${SMARTSMS_API_TOKEN}`);
+      const data = await response.json().catch(() => null);
+
+      if (response.ok && data) {
+        return res.status(200).json({
+          success: true,
+          data: {
+            wallet_balance: data?.balance ?? data?.wallet_balance ?? 0,
+            currency: data?.currency || "NGN",
+            business_name: "SmartSMSSolutions",
+          },
+        });
+      }
+
+      return res.status(response.status || 500).json({
+        error: data?.comment || data?.message || "Failed to retrieve SmartSMS balance.",
+        details: data,
+      });
+    } catch (err) {
+      console.error("SmartSMS balance fetch error:", err);
+      return res.status(500).json({
+        error: err?.message || "Failed to connect to SmartSMSSolutions balance service.",
+      });
+    }
+  }
+
+  // Default: Sendchamp balance
   try {
     const response = await fetch(SENDCHAMP_WALLET_URL, {
       method: "POST",

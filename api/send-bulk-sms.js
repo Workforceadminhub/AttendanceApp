@@ -1,10 +1,10 @@
 /**
  * Vercel serverless function — POST /api/send-bulk-sms
  *
- * Sends bulk SMS via Sendchamp API v1. Keys stay server-side.
- * Restricted strictly to Super Admins.
+ * Supports Sendchamp & SmartSMSSolutions SMS APIs.
+ * Keys stay server-side. Restricted strictly to Super Admins.
  *
- * Request body: { message, recipients[], sender_name?, route? }
+ * Request body: { message, recipients[], sender_name?, route?, provider? }
  * Response:     { success: true, campaignId, sent, failed[], totalRecipients, errors? }
  */
 import { ulid } from "ulid";
@@ -14,11 +14,18 @@ import { insertRows, supabaseConfigured } from "./_lib/supabase.js";
 const BACKEND_API_URL =
   process.env.BACKEND_API_URL || process.env.REACT_APP_BASE_URL || "";
 const ADMIN_VERIFY_PATH = process.env.AUTH_VERIFY_PATH || "/api/super/admin/admins";
+
+// Sendchamp Config
 const SENDCHAMP_API_KEY =
   process.env.SENDCHAMP_API_KEY ||
   "sendchamp_live_$2a$10$V6/v3eAzTAUH07GCoBe.SuIaHd1IGwArDP3h52kvP1DpSzpIpHfb.";
 const SENDCHAMP_SEND_URL = "https://api.sendchamp.com/api/v1/sms/send";
-const SENDCHAMP_BATCH_SIZE = 100;
+
+// SmartSMSSolutions Config
+const SMARTSMS_API_TOKEN = process.env.SMARTSMS_API_TOKEN || "";
+const SMARTSMS_SEND_URL = "https://app.smartsmssolutions.com/io/api/client/v1/sms/";
+
+const BATCH_SIZE = 100;
 
 function isSuperAdminFromClaims(claims) {
   if (!claims) return false;
@@ -95,8 +102,9 @@ export default async function handler(req, res) {
   const {
     message,
     recipients,
-    sender_name = "HICC",
+    sender_name = "Sendchamp",
     route = "non_dnd",
+    provider = "sendchamp",
   } = body || {};
 
   if (!message || !String(message).trim()) {
@@ -120,49 +128,103 @@ export default async function handler(req, res) {
   let sent = 0;
   const failed = [];
   const errors = [];
-  const sendchampResponses = [];
+  const providerResponses = [];
 
-  const batches = chunk(cleanRecipients, SENDCHAMP_BATCH_SIZE);
+  const batches = chunk(cleanRecipients, BATCH_SIZE);
 
-  for (const batch of batches) {
-    try {
-      const payload = {
-        to: batch,
-        message: String(message).trim(),
-        sender_name: String(sender_name).trim() || "HICC",
-        route: route || "non_dnd",
-      };
-
-      const response = await fetch(SENDCHAMP_SEND_URL, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${SENDCHAMP_API_KEY}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify(payload),
+  if (provider === "smartsmssolutions") {
+    if (!SMARTSMS_API_TOKEN) {
+      return res.status(400).json({
+        error: "SmartSMSSolutions API Token is not configured. Please set SMARTSMS_API_TOKEN in environment variables.",
       });
+    }
 
-      let resData = null;
+    // SmartSMSSolutions delivery routing: 3 = Standard / Non-DND, 4 = Direct Corporate / DND Bypass
+    const smartRouting = route === "dnd" ? "4" : "3";
+
+    for (const batch of batches) {
       try {
-        resData = await response.json();
-      } catch {
-        // non-JSON
-      }
+        const formData = new URLSearchParams();
+        formData.append("token", SMARTSMS_API_TOKEN);
+        formData.append("sender", String(sender_name).trim() || "HICC");
+        formData.append("to", batch.join(","));
+        formData.append("message", String(message).trim());
+        formData.append("type", "0");
+        formData.append("routing", smartRouting);
 
-      if (response.ok && (resData?.status === "success" || resData?.code === 200 || resData?.data)) {
-        sent += batch.length;
-        sendchampResponses.push(resData);
-      } else {
+        const response = await fetch(SMARTSMS_SEND_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Accept: "application/json",
+          },
+          body: formData.toString(),
+        });
+
+        let resData = null;
+        try {
+          resData = await response.json();
+        } catch {
+          // non-JSON
+        }
+
+        if (response.ok && (resData?.code === 1000 || resData?.successful || resData?.status === "OK")) {
+          sent += batch.length;
+          providerResponses.push(resData);
+        } else {
+          failed.push(...batch);
+          const errMsg = resData?.comment || resData?.error || resData?.message || `HTTP ${response.status}`;
+          errors.push(errMsg);
+          console.error("SmartSMS send batch error:", resData || response.status);
+        }
+      } catch (err) {
         failed.push(...batch);
-        const errMsg = resData?.message || resData?.error || `HTTP ${response.status}`;
-        errors.push(errMsg);
-        console.error("Sendchamp send batch error:", resData || response.status);
+        errors.push(err?.message || String(err));
+        console.error("SmartSMS send exception:", err);
       }
-    } catch (err) {
-      failed.push(...batch);
-      errors.push(err?.message || String(err));
-      console.error("Sendchamp send exception:", err);
+    }
+  } else {
+    // Sendchamp Dispatch
+    for (const batch of batches) {
+      try {
+        const payload = {
+          to: batch,
+          message: String(message).trim(),
+          sender_name: String(sender_name).trim() || "Sendchamp",
+          route: route || "non_dnd",
+        };
+
+        const response = await fetch(SENDCHAMP_SEND_URL, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${SENDCHAMP_API_KEY}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+
+        let resData = null;
+        try {
+          resData = await response.json();
+        } catch {
+          // non-JSON
+        }
+
+        if (response.ok && (resData?.status === "success" || resData?.code === 200 || resData?.data)) {
+          sent += batch.length;
+          providerResponses.push(resData);
+        } else {
+          failed.push(...batch);
+          const errMsg = resData?.message || resData?.error || `HTTP ${response.status}`;
+          errors.push(errMsg);
+          console.error("Sendchamp send batch error:", resData || response.status);
+        }
+      } catch (err) {
+        failed.push(...batch);
+        errors.push(err?.message || String(err));
+        console.error("Sendchamp send exception:", err);
+      }
     }
   }
 
@@ -172,14 +234,15 @@ export default async function handler(req, res) {
       await insertRows("bulk_sms", [
         {
           id: campaignId,
-          sender_name: sender_name || "HICC",
+          provider: provider || "sendchamp",
+          sender_name: sender_name || "Sendchamp",
           route: route || "non_dnd",
           message: String(message).trim(),
           recipient_count: cleanRecipients.length,
           sent_count: sent,
           failed_count: failed.length,
           created_at: new Date().toISOString(),
-          details: { errors, responses: sendchampResponses },
+          details: { errors, responses: providerResponses },
         },
       ]);
     } catch (dbErr) {
@@ -189,9 +252,9 @@ export default async function handler(req, res) {
 
   // Return error response if no messages could be sent
   if (sent === 0) {
-    const mainError = errors[0] || "Failed to send SMS via Sendchamp.";
+    const mainError = errors[0] || `Failed to send SMS via ${provider}.`;
     return res.status(400).json({
-      error: `Sendchamp error: ${mainError}`,
+      error: `${provider === "smartsmssolutions" ? "SmartSMSSolutions" : "Sendchamp"} error: ${mainError}`,
       errors,
       campaignId,
       totalRecipients: cleanRecipients.length,
@@ -203,10 +266,11 @@ export default async function handler(req, res) {
   return res.status(200).json({
     success: true,
     campaignId,
+    provider,
     totalRecipients: cleanRecipients.length,
     sent,
     failed,
     errors: errors.length > 0 ? errors : undefined,
-    data: sendchampResponses,
+    data: providerResponses,
   });
 }

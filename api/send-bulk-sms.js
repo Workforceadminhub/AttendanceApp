@@ -187,8 +187,21 @@ export default async function handler(req, res) {
     }
   }
 
+  // Return error response if no messages could be sent
+  if (sent === 0) {
+    const mainError = errors[0] || "Failed to send SMS via Sendchamp.";
+    return res.status(400).json({
+      error: `Sendchamp error: ${mainError}`,
+      errors,
+      campaignId,
+      totalRecipients: cleanRecipients.length,
+      sent: 0,
+      failed,
+    });
+  }
+
   return res.status(200).json({
-    success: sent > 0 || failed.length === 0,
+    success: true,
     campaignId,
     totalRecipients: cleanRecipients.length,
     sent,

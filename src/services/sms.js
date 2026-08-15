@@ -135,13 +135,15 @@ export function calculateSmsSegments(message = "") {
  * @param {string[]} params.recipients
  * @param {string} [params.senderName]
  * @param {"non_dnd"|"dnd"|"international"} [params.route]
+ * @param {"sendchamp"|"smartsmssolutions"} [params.provider]
  * @returns {Promise<Object>}
  */
 export async function sendBulkSms({
   message,
   recipients,
-  senderName = "HICC",
+  senderName = "Sendchamp",
   route = "non_dnd",
+  provider = "sendchamp",
 }) {
   if (!message || !message.trim()) {
     throw new Error("Message text is required.");
@@ -161,8 +163,9 @@ export async function sendBulkSms({
     body: JSON.stringify({
       message: message.trim(),
       recipients,
-      sender_name: senderName.trim() || "HICC",
+      sender_name: senderName.trim() || (provider === "smartsmssolutions" ? "HICC" : "Sendchamp"),
       route: route || "non_dnd",
+      provider: provider || "sendchamp",
     }),
   });
 
@@ -181,14 +184,15 @@ export async function sendBulkSms({
 }
 
 /**
- * Fetch live Sendchamp wallet balance
+ * Fetch live wallet balance for provider
  *
+ * @param {"sendchamp"|"smartsmssolutions"} [provider]
  * @returns {Promise<Object>}
  */
-export async function fetchSmsBalance() {
+export async function fetchSmsBalance(provider = "sendchamp") {
   const token = getAccessToken();
 
-  const res = await fetch("/api/sms-balance", {
+  const res = await fetch(`/api/sms-balance?provider=${encodeURIComponent(provider)}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",

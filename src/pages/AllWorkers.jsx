@@ -8,6 +8,7 @@ import { EyeIcon, ArrowUpIcon, ArrowDownIcon } from "@heroicons/react/24/outline
 import { saveAs } from "file-saver";
 import apiRequest from "../utils/apiClient";
 import { maskEmail, maskPhone } from "../utils/pii";
+import { getUserRole } from "../utils/getUserRole";
 
 export default function AllWorkers() {
  const navigate = useNavigate();
@@ -33,15 +34,15 @@ export default function AllWorkers() {
  direction: "asc", // 'asc' or 'desc'
  });
 
- // Check if user is super admin
- useEffect(() => {
- const authUser = JSON.parse(sessionStorage.getItem("authUser"));
- if (!authUser || authUser.department !== "Super Admin") {
- toast.error("Access denied. Super Admin access required.");
- navigate("/login");
- return;
- }
- }, [navigate]);
+  // Check if user is super admin
+  useEffect(() => {
+    const { isSuperAdmin, user } = getUserRole();
+    if (!user || !isSuperAdmin) {
+      toast.error("Access denied. Super Admin access required.");
+      navigate("/login");
+      return;
+    }
+  }, [navigate]);
 
  // Fetch all workers
  const fetchAllWorkers = async () => {

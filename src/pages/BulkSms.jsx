@@ -424,10 +424,7 @@ function BulkSmsComposer() {
               </div>
 
               {/* Send Button & Summary */}
-              <div className="pt-3 border-t border-ink-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div className="text-xs text-ink-500">
-                  Delivered via Sendchamp API · Secure server dispatch
-                </div>
+              <div className="pt-3 border-t border-ink-100 flex justify-end">
                 <Button
                   variant="primary"
                   size="md"

@@ -445,29 +445,6 @@ function EditPresentStep({ worker, token, onBack, onDone }) {
     );
   }
 
-  if (alreadyDeclined && !alreadyPresent) {
-    return (
-      <div className="space-y-5">
-        <button
-          type="button"
-          onClick={onBack}
-          className="inline-flex items-center gap-1.5 text-sm text-ink-500 hover:text-ink transition"
-        >
-          &larr; Back
-        </button>
-        <div className="rounded-lg border border-sienna-200 bg-sienna-50 px-5 py-6 flex items-start gap-4">
-          <XCircleIcon className="h-6 w-6 text-sienna shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-ink">Not attending</p>
-            <p className="mt-1 text-xs text-ink-500 leading-relaxed">
-              {worker.name ? `${worker.name}, you` : "You"} indicated that you will not be attending this meeting. No further action is needed.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
       <button

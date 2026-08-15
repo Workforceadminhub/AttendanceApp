@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { toast } from "react-toastify";
 import {
-  getMeetingSession,
   searchMeetingWorkers,
   updateMeetingWorker,
   createMeetingWorker,
@@ -1076,25 +1075,12 @@ function SuccessScreen({ variant }) {
 // ── Page Shell ───────────────────────────────────────────────────────────────
 
 export default function WorkersMeetingConfirm() {
-  const [sessionToken, setSessionToken] = useState(null);
-  const [sessionError, setSessionError] = useState(false);
-  const initCalled = useRef(false);
-
   // Search results state
   const [step, setStep] = useState("search"); // search | select | edit | create | done
   const [results, setResults] = useState([]);
   const [searchedName, setSearchedName] = useState("");
   const [selectedWorker, setSelectedWorker] = useState(null);
   const [doneVariant, setDoneVariant] = useState(null);
-
-  useEffect(() => {
-    if (initCalled.current) return;
-    initCalled.current = true;
-
-    getMeetingSession(MEETING_TYPE)
-      .then((apiKey) => setSessionToken(apiKey))
-      .catch(() => setSessionError(true));
-  }, []);
 
   const handleResults = (workers, name) => {
     setResults(workers);
@@ -1141,48 +1127,6 @@ export default function WorkersMeetingConfirm() {
     setStep("done");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
-
-  const handleRetrySession = () => {
-    setSessionError(false);
-    getMeetingSession(MEETING_TYPE)
-      .then((apiKey) => setSessionToken(apiKey))
-      .catch(() => setSessionError(true));
-  };
-
-  // ── Loading / error states ──
-  if (sessionError) {
-    return (
-      <Shell>
-        <div className="rounded-lg border border-sienna-50 bg-sienna-50 p-6 text-center space-y-3">
-          <ExclamationTriangleIcon className="mx-auto h-10 w-10 text-sienna" />
-          <p className="text-sm font-medium text-ink">
-            Unable to start session
-          </p>
-          <p className="text-xs text-ink-500 max-w-xs mx-auto">
-            Could not connect to the meeting service. Please check your internet connection and try again.
-          </p>
-          <button
-            type="button"
-            onClick={handleRetrySession}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-ink px-4 py-2 text-xs font-medium text-cream hover:bg-ink/90 transition"
-          >
-            Retry Connection
-          </button>
-        </div>
-      </Shell>
-    );
-  }
-
-  if (!sessionToken) {
-    return (
-      <Shell>
-        <div className="flex flex-col items-center justify-center py-12 space-y-3">
-          <Spinner size="lg" className="text-ink-900" />
-          <p className="text-sm text-ink-500 font-medium">Starting session...</p>
-        </div>
-      </Shell>
-    );
-  }
 
   return (
     <Shell>

@@ -1,17 +1,70 @@
 import apiRequest from "../utils/apiClient";
 
-/**
- * Compatibility helper for existing callers. Meeting session is no longer required for public attendance.
- */
-export async function getMeetingSession(meetingType = "leaders", forceRefresh = false) {
-  return "public";
+const activeSessionTokens = {};
+
+function getOrCreateDeviceId() {
+  const KEY = "meeting_device_id";
+  let id = null;
+  try {
+    id = localStorage.getItem(KEY);
+    if (!id) {
+      id = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `dev_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem(KEY, id);
+    }
+  } catch {
+    id = `dev_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  }
+  return id;
 }
 
 /**
- * Searches workers for a meeting without requiring an auth/session token.
- * Supports both signatures:
- *   searchMeetingWorkers(name, date, meetingType)
- *   searchMeetingWorkers(name, token, date, meetingType)
+ * Fetches (or returns cached) meeting session API key from /api/meeting/auth/session
+ */
+export async function getMeetingSession(meetingType = "leaders", forceRefresh = false) {
+  if (!forceRefresh && activeSessionTokens[meetingType]) {
+    return activeSessionTokens[meetingType];
+  }
+  const clientId = getOrCreateDeviceId();
+  const response = await apiRequest(
+    "POST",
+    "/api/meeting/auth/session",
+    { client_id: clientId, meeting_type: meetingType },
+    undefined,
+    false
+  );
+  if (!response || response.error) {
+    throw new Error(response?.error || response?.message || "Failed to start meeting session.");
+  }
+  const apiKey = response.data?.api_key || response.api_key;
+  if (!apiKey) {
+    throw new Error("No API key in session response.");
+  }
+  activeSessionTokens[meetingType] = apiKey;
+  return apiKey;
+}
+
+/**
+ * Helper to execute meeting API call with transparent session key attachment and auto-refresh
+ */
+async function executeMeetingCall(meetingType, requestFn) {
+  let keyToUse = await getMeetingSession(meetingType);
+  try {
+    return await requestFn(keyToUse);
+  } catch (err) {
+    const isSessionErr =
+      err?.status === 401 ||
+      err?.status === 403 ||
+      /session|expired|unauthorized|api key|missing|invalid/i.test(err?.message || "");
+    if (isSessionErr) {
+      keyToUse = await getMeetingSession(meetingType, true);
+      return await requestFn(keyToUse);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Searches workers for a meeting. Transparently attaches x-api-key.
  */
 export async function searchMeetingWorkers(name, ...args) {
   let date, meetingType;
@@ -32,24 +85,23 @@ export async function searchMeetingWorkers(name, ...args) {
   }
 
   const endpoint = `/api/meeting/${meetingType}/workers/search`;
-  const response = await apiRequest(
-    "GET",
-    endpoint,
-    { name, date },
-    undefined,
-    false // public request - no Bearer token
-  );
-  if (!response || response.error) {
-    throw new Error(response?.error || "Search failed.");
-  }
-  return response.data ?? response;
+  return executeMeetingCall(meetingType, async (apiKey) => {
+    const response = await apiRequest(
+      "GET",
+      endpoint,
+      { name, date },
+      { headers: { "x-api-key": apiKey } },
+      false
+    );
+    if (!response || response.error) {
+      throw new Error(response?.error || response?.message || "Search failed.");
+    }
+    return response.data ?? response;
+  });
 }
 
 /**
- * Adds a new worker and marks them for the meeting (public, no auth required).
- * Supports both:
- *   createMeetingWorker(data, meetingType)
- *   createMeetingWorker(data, token, meetingType)
+ * Adds a new worker and marks them for the meeting. Transparently attaches x-api-key.
  */
 export async function createMeetingWorker(data, ...args) {
   let meetingType = "leaders";
@@ -60,24 +112,23 @@ export async function createMeetingWorker(data, ...args) {
   }
 
   const endpoint = `/api/meeting/${meetingType}/workers`;
-  const response = await apiRequest(
-    "POST",
-    endpoint,
-    data,
-    undefined,
-    false // public request
-  );
-  if (!response || response.error) {
-    throw new Error(response?.error || "Failed to add worker.");
-  }
-  return response;
+  return executeMeetingCall(meetingType, async (apiKey) => {
+    const response = await apiRequest(
+      "POST",
+      endpoint,
+      data,
+      { headers: { "x-api-key": apiKey } },
+      false
+    );
+    if (!response || response.error) {
+      throw new Error(response?.error || response?.message || "Failed to add worker.");
+    }
+    return response;
+  });
 }
 
 /**
- * Updates worker info / confirmation status for a meeting (public, no auth required).
- * Supports both:
- *   updateMeetingWorker(workerId, data, meetingType)
- *   updateMeetingWorker(workerId, data, token, meetingType)
+ * Updates worker info / confirmation status for a meeting. Transparently attaches x-api-key.
  */
 export async function updateMeetingWorker(workerId, data, ...args) {
   let meetingType = "leaders";
@@ -88,24 +139,23 @@ export async function updateMeetingWorker(workerId, data, ...args) {
   }
 
   const endpoint = `/api/meeting/${meetingType}/workers/${workerId}`;
-  const response = await apiRequest(
-    "PUT",
-    endpoint,
-    data,
-    undefined,
-    false // public request
-  );
-  if (!response || response.error) {
-    throw new Error(response?.error || "Update failed.");
-  }
-  return response;
+  return executeMeetingCall(meetingType, async (apiKey) => {
+    const response = await apiRequest(
+      "PUT",
+      endpoint,
+      data,
+      { headers: { "x-api-key": apiKey } },
+      false
+    );
+    if (!response || response.error) {
+      throw new Error(response?.error || response?.message || "Update failed.");
+    }
+    return response;
+  });
 }
 
 /**
- * Marks worker present for a meeting (public, no auth required).
- * Supports both:
- *   markMeetingWorkerPresent(workerId, data, meetingType)
- *   markMeetingWorkerPresent(workerId, data, token, meetingType)
+ * Marks worker present for a meeting. Transparently attaches x-api-key.
  */
 export async function markMeetingWorkerPresent(workerId, data, ...args) {
   let meetingType = "leaders";
@@ -116,17 +166,19 @@ export async function markMeetingWorkerPresent(workerId, data, ...args) {
   }
 
   const endpoint = `/api/meeting/${meetingType}/workers/${workerId}/present`;
-  const response = await apiRequest(
-    "POST",
-    endpoint,
-    data,
-    undefined,
-    false // public request
-  );
-  if (!response || response.error) {
-    throw new Error(response?.error || "Failed to mark present.");
-  }
-  return response;
+  return executeMeetingCall(meetingType, async (apiKey) => {
+    const response = await apiRequest(
+      "POST",
+      endpoint,
+      data,
+      { headers: { "x-api-key": apiKey } },
+      false
+    );
+    if (!response || response.error) {
+      throw new Error(response?.error || response?.message || "Failed to mark present.");
+    }
+    return response;
+  });
 }
 
 /**

@@ -15,14 +15,35 @@ const api = axios.create({
   },
 });
 
+const PUBLIC_PATHS = [
+  "/",
+  "/login",
+  "/forgot-password",
+  "/reset-password",
+  "/set-password",
+  "/leadership-registration",
+  "/new/worker",
+  "/leadersmeeting/confirm",
+  "/leaders-meeting",
+  "/workersmeeting/confirm",
+  "/workers-meeting/confirm",
+  "/workers-meeting",
+];
+
+function isPublicPage() {
+  if (typeof window === "undefined") return false;
+  const current = window.location.pathname;
+  return PUBLIC_PATHS.some((p) => current === p || current.startsWith(p + "/"));
+}
+
 // ── 401 Interceptor: session timeout → redirect to login ──────────
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Skip redirect for login requests and public/session-key meeting endpoints
+      // Skip redirect for login requests, public pages, and public meeting endpoints
       const url = error.config?.url || "";
-      if (!url.includes("/auth/signin") && !url.includes("/api/meeting/")) {
+      if (!url.includes("/auth/signin") && !url.includes("/api/meeting/") && !isPublicPage()) {
         clearAuthTokens();
         // Redirect to login only if not already there
         if (window.location.pathname !== "/login") {

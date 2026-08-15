@@ -251,6 +251,7 @@ export default function Header() {
     ...(isSuperAdmin ? [{ name: "Leaders Strength", href: "/settings/leaders-strength" }] : []),
     ...(isSuperAdmin ? [{ name: "Meeting Settings", href: "/settings/meetings" }] : []),
     ...(isSuperAdmin ? [{ name: "Admins", href: "/manage-admins" }] : []),
+    ...(isSuperAdmin ? [{ name: "Bulk SMS", href: "/bulk-sms" }] : []),
     ...(isSuperAdmin || isChurchAdminRole
       ? [{ name: "Audit Log", href: "/admin/audit-log" }]
       : []),

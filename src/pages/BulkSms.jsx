@@ -6,11 +6,8 @@ import {
   ArrowPathIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ClipboardDocumentIcon,
-  ClipboardDocumentCheckIcon,
   ExclamationTriangleIcon,
   PaperAirplaneIcon,
-  InformationCircleIcon,
   DevicePhoneMobileIcon,
   SparklesIcon,
 } from "@heroicons/react/24/outline";
@@ -62,7 +59,6 @@ function BulkSmsComposer() {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState(null);
-  const [copiedWebhook, setCopiedWebhook] = useState(false);
 
   // Balance state
   const [balance, setBalance] = useState(null);
@@ -77,14 +73,7 @@ function BulkSmsComposer() {
 
   // Computed message segment metrics
   const smsMetrics = useMemo(() => calculateSmsSegments(message), [message]);
-
   const totalSmsUnits = valid.length * Math.max(1, smsMetrics.segments);
-
-  // Webhook URL
-  const webhookUrl =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/api/sms-webhook`
-      : "https://attendance.hiccgbagada.com/api/sms-webhook";
 
   const loadBalance = useCallback(async () => {
     setLoadingBalance(true);
@@ -102,13 +91,6 @@ function BulkSmsComposer() {
   useEffect(() => {
     loadBalance();
   }, [loadBalance]);
-
-  const handleCopyWebhook = () => {
-    navigator.clipboard.writeText(webhookUrl);
-    setCopiedWebhook(true);
-    toast.success("Webhook URL copied to clipboard");
-    setTimeout(() => setCopiedWebhook(false), 2500);
-  };
 
   const handleClearInvalid = () => {
     setRecipientsRaw(valid.join("\n"));
@@ -542,54 +524,6 @@ function BulkSmsComposer() {
                     </div>
                   </div>
                 </div>
-              </div>
-            </Card>
-
-            {/* Webhook Configuration Widget */}
-            <Card padding="md" className="space-y-3 bg-white">
-              <div className="flex items-center gap-2 border-b border-ink-100 pb-2.5">
-                <InformationCircleIcon className="w-5 h-5 text-blue-600" />
-                <h3 className="text-sm font-semibold text-ink-900">
-                  Sendchamp Webhook Configuration
-                </h3>
-              </div>
-
-              <p className="text-xs text-ink-600 leading-relaxed">
-                To receive instant SMS delivery reports and status updates from Sendchamp,
-                supply this Webhook URL in your Sendchamp Dashboard:
-              </p>
-
-              <div className="bg-cream-100 border border-ink-200 rounded-md p-2.5 flex items-center justify-between gap-2">
-                <code className="text-xs text-ink-900 font-mono break-all select-all">
-                  {webhookUrl}
-                </code>
-                <button
-                  type="button"
-                  onClick={handleCopyWebhook}
-                  className="text-xs font-semibold text-ink-700 bg-white border border-ink-200 px-2.5 py-1 rounded hover:bg-cream-200 transition shrink-0 flex items-center gap-1"
-                >
-                  {copiedWebhook ? (
-                    <>
-                      <ClipboardDocumentCheckIcon className="w-3.5 h-3.5 text-emerald-600" />
-                      Copied
-                    </>
-                  ) : (
-                    <>
-                      <ClipboardDocumentIcon className="w-3.5 h-3.5" />
-                      Copy URL
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <div className="space-y-1.5 pt-1 text-[11px] text-ink-500">
-                <p className="font-semibold text-ink-700">Setup Steps:</p>
-                <ol className="list-decimal list-inside space-y-1 pl-0.5">
-                  <li>Log in to your <strong>Sendchamp Dashboard</strong>.</li>
-                  <li>Navigate to <strong>Settings</strong> &gt; <strong>APIs &amp; Webhooks</strong>.</li>
-                  <li>Paste the URL above into the <strong>Webhook URL</strong> field.</li>
-                  <li>Check SMS delivery events and click <strong>Save</strong>.</li>
-                </ol>
               </div>
             </Card>
           </div>

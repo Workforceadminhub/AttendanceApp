@@ -74,6 +74,11 @@ function BulkSmsComposer() {
   const smsMetrics = useMemo(() => calculateSmsSegments(message), [message]);
   const totalSmsUnits = valid.length * Math.max(1, smsMetrics.segments);
 
+  // Estimated cost based on route
+  const estimatedRatePerPage =
+    route === "dnd" ? 7.5 : route === "international" ? 55 : 5.5;
+  const estimatedTotalCost = totalSmsUnits * estimatedRatePerPage;
+
   const loadBalance = useCallback(async () => {
     setLoadingBalance(true);
     setBalanceError(null);
@@ -118,7 +123,8 @@ function BulkSmsComposer() {
     }?\n\n` +
       `• Sender: ${senderName.trim()}\n` +
       `• Pages per recipient: ${smsMetrics.segments}\n` +
-      `• Total SMS pages/units: ${totalSmsUnits} (${valid.length} recipients × ${smsMetrics.segments} page${smsMetrics.segments === 1 ? "" : "s"})\n` +
+      `• Total SMS pages: ${totalSmsUnits} (${valid.length} recipients × ${smsMetrics.segments} page${smsMetrics.segments === 1 ? "" : "s"})\n` +
+      `• Est. Cost: ~₦${estimatedTotalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n` +
       `• Route: ${route}`;
 
     if (!window.confirm(confirmMsg)) return;
@@ -409,10 +415,33 @@ function BulkSmsComposer() {
                   <span>
                     {smsMetrics.charsLeftInSegment} chars left in current page
                   </span>
-                  <span className="font-semibold text-ink-800">
-                    Est. Total SMS Pages: {totalSmsUnits} ({valid.length} recipients × {smsMetrics.segments} page{smsMetrics.segments === 1 ? "" : "s"})
+                  <span>
+                    Rate: ~₦{estimatedRatePerPage.toFixed(2)} / page ({route})
                   </span>
                 </div>
+
+                {/* Live Estimated Cost Breakdown Card */}
+                {valid.length > 0 && message.trim() && (
+                  <div className="mt-3 p-3 bg-emerald-50/60 border border-emerald-200 rounded-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
+                    <div className="text-ink-700">
+                      <span className="font-bold text-ink-900">
+                        {totalSmsUnits} Total SMS Page{totalSmsUnits === 1 ? "" : "s"}
+                      </span>
+                      <span className="text-ink-500">
+                        {" "}({valid.length} recipient{valid.length === 1 ? "" : "s"} × {smsMetrics.segments || 1} page{smsMetrics.segments === 1 ? "" : "s"})
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 font-medium">
+                      <span className="text-ink-600">Estimated Cost:</span>
+                      <span className="text-sm font-bold text-emerald-800">
+                        ~₦{estimatedTotalCost.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Send Button & Summary */}

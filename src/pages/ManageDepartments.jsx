@@ -15,6 +15,7 @@ import {
 } from "../services/departments";
 import { fetchHubTeams } from "../services/hub/teams";
 import { useDepartmentsContext, useInvalidateDepartments } from "../contexts/DepartmentsContext";
+import { getUserRole } from "../utils/getUserRole";
 import {
  PencilIcon,
  TrashIcon,
@@ -81,15 +82,15 @@ export default function ManageDepartments() {
  isactive: true,
  });
 
- // Check if user is super admin
- useEffect(() => {
- const authUser = JSON.parse(sessionStorage.getItem("authUser"));
- if (!authUser || authUser.department !== "Super Admin") {
- toast.error("Access denied. Super Admin access required.");
- navigate("/login");
- return;
- }
- }, [navigate]);
+  // Check if user is super admin
+  useEffect(() => {
+    const { isSuperAdmin, user } = getUserRole();
+    if (!user || !isSuperAdmin) {
+      toast.error("Access denied. Super Admin access required.");
+      navigate("/login");
+      return;
+    }
+  }, [navigate]);
 
  // Fetch departments + hub teams
  const loadDepartments = useCallback(async () => {

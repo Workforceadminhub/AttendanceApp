@@ -13,6 +13,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { teamsAndDepartments, normalizeWorkerRole } from "../utils/teams";
 import apiRequest from "../utils/apiClient";
+import { getUserRole } from "../utils/getUserRole";
 
 /**
  * Normalize a department name so API variants like "Pastoral leader"
@@ -65,13 +66,13 @@ export default function TeamMismatch() {
 
  // Check if user is super admin
  useEffect(() => {
- const authUser = JSON.parse(sessionStorage.getItem("authUser"));
- if (!authUser || authUser.department !== "Super Admin") {
- toast.error("Access denied. Super Admin access required.");
- navigate("/login");
- return;
- }
- }, [navigate]);
+    const { isSuperAdmin, user } = getUserRole();
+    if (!user || !isSuperAdmin) {
+      toast.error("Access denied. Super Admin access required.");
+      navigate("/login");
+      return;
+    }
+  }, [navigate]);
 
  // Fetch all workers and filter mismatched ones
  const fetchAllWorkers = async () => {

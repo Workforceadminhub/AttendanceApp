@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 import LoadingState from "../components/LoadingState";
 import { WrenchScrewdriverIcon, CheckCircleIcon, EyeIcon } from "@heroicons/react/24/outline";
 import apiRequest from "../utils/apiClient";
+import { getUserRole } from "../utils/getUserRole";
 
 const CORRECT = "Pastoral Leaders";
 
@@ -20,14 +21,14 @@ export default function PastoralFix() {
  const [isLoading, setIsLoading] = useState(false);
  const [isFixing, setIsFixing] = useState(false);
 
- // Super Admin guard
- useEffect(() => {
- const authUser = JSON.parse(sessionStorage.getItem("authUser"));
- if (!authUser || authUser.department !== "Super Admin") {
- toast.error("Access denied. Super Admin access required.");
- navigate("/login");
- }
- }, [navigate]);
+  // Super Admin guard
+  useEffect(() => {
+    const { isSuperAdmin, user } = getUserRole();
+    if (!user || !isSuperAdmin) {
+      toast.error("Access denied. Super Admin access required.");
+      navigate("/login");
+    }
+  }, [navigate]);
 
  const fetchWorkers = async () => {
  setIsLoading(true);

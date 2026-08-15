@@ -24,9 +24,9 @@ import { canSendBulkSms } from "../utils/bulkSmsAccess";
 const DEFAULT_SENDER_NAME = "Sendchamp";
 const SENDER_SUGGESTIONS = ["Sendchamp", "HICC", "HICC Gbagada"];
 const ROUTE_OPTIONS = [
-  { value: "non_dnd", label: "Non-DND (Recommended)", desc: "Delivers to all active mobile numbers" },
-  { value: "dnd", label: "DND Route", desc: "For DND-registered corporate routes" },
-  { value: "international", label: "International", desc: "For non-Nigerian phone numbers" },
+  { value: "non_dnd", label: "Domestic (Non-DND)", desc: "Advisable for promotional messages · ₦6.30/sms" },
+  { value: "dnd", label: "Domestic (DND)", desc: "For DND numbers & transactional alerts · ₦7.35/sms" },
+  { value: "international", label: "International", desc: "For non-Nigerian phone numbers · ₦555.00/sms" },
 ];
 
 const TEMPLATES = [
@@ -74,9 +74,9 @@ function BulkSmsComposer() {
   const smsMetrics = useMemo(() => calculateSmsSegments(message), [message]);
   const totalSmsUnits = valid.length * Math.max(1, smsMetrics.segments);
 
-  // Estimated cost based on route
+  // Exact Sendchamp account rates per SMS page
   const estimatedRatePerPage =
-    route === "dnd" ? 7.5 : route === "international" ? 55 : 5.5;
+    route === "dnd" ? 7.35 : route === "international" ? 555.0 : 6.3;
   const estimatedTotalCost = totalSmsUnits * estimatedRatePerPage;
 
   const loadBalance = useCallback(async () => {

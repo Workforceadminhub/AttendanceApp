@@ -9,7 +9,6 @@ import {
   ExclamationTriangleIcon,
   PaperAirplaneIcon,
   DevicePhoneMobileIcon,
-  SparklesIcon,
 } from "@heroicons/react/24/outline";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
@@ -118,8 +117,8 @@ function BulkSmsComposer() {
       valid.length === 1 ? "" : "s"
     }?\n\n` +
       `• Sender: ${senderName.trim()}\n` +
-      `• Segments per recipient: ${smsMetrics.segments}\n` +
-      `• Total SMS units: ${totalSmsUnits}\n` +
+      `• Pages per recipient: ${smsMetrics.segments}\n` +
+      `• Total SMS pages/units: ${totalSmsUnits} (${valid.length} recipients × ${smsMetrics.segments} page${smsMetrics.segments === 1 ? "" : "s"})\n` +
       `• Route: ${route}`;
 
     if (!window.confirm(confirmMsg)) return;
@@ -230,8 +229,7 @@ function BulkSmsComposer() {
           <div className="lg:col-span-7 space-y-6">
             <Card padding="lg" className="space-y-5">
               <div className="border-b border-ink-100 pb-3 flex items-center justify-between">
-                <h2 className="text-base font-semibold text-ink-900 flex items-center gap-2">
-                  <SparklesIcon className="w-5 h-5 text-amber-600" />
+                <h2 className="text-base font-semibold text-ink-900">
                   Compose Broadcast
                 </h2>
                 <div className="flex items-center gap-1.5">
@@ -379,11 +377,11 @@ function BulkSmsComposer() {
                   <div className="flex items-center gap-2 text-xs">
                     {smsMetrics.isUnicode && (
                       <span className="text-amber-700 font-medium bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                        Unicode (70 chars/seg)
+                        Unicode (70 chars/page)
                       </span>
                     )}
                     <span className="font-medium text-ink-600">
-                      {smsMetrics.chars} chars · {smsMetrics.segments} segment
+                      {smsMetrics.chars} chars · {smsMetrics.segments} page
                       {smsMetrics.segments === 1 ? "" : "s"}
                     </span>
                   </div>
@@ -397,10 +395,10 @@ function BulkSmsComposer() {
                 />
                 <div className="mt-1.5 flex items-center justify-between text-xs text-ink-500">
                   <span>
-                    {smsMetrics.charsLeftInSegment} chars left in current segment
+                    {smsMetrics.charsLeftInSegment} chars left in current page
                   </span>
                   <span className="font-semibold text-ink-800">
-                    Est. Total Units: {totalSmsUnits}
+                    Est. Total SMS Pages: {totalSmsUnits} ({valid.length} recipients × {smsMetrics.segments} page{smsMetrics.segments === 1 ? "" : "s"})
                   </span>
                 </div>
               </div>

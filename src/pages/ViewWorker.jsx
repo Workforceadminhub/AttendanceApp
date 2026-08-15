@@ -118,39 +118,39 @@ export default function ViewWorker() {
  workerData = responseData.worker;
  }
 
- // For non-Super/Church Admin: verify worker is in accessible department
- const authUser = JSON.parse(sessionStorage.getItem("authUser"));
- if (authUser?.department !== "Super Admin" && authUser?.department !== "Church Admin") {
- const workerDept = workerData.department || workerData.department_name;
- if (!canAccessDepartment(workerDept)) {
- toast.error("Access denied. This worker is not in a department you manage.");
- navigate(getHODCancelPath());
- return;
- }
- }
+    // For non-Super/Church Admin: verify worker is in accessible department
+    const { isSuperAdmin, isChurchAdmin } = getUserRole();
+    if (!isSuperAdmin && !isChurchAdmin) {
+      const workerDept = workerData.department || workerData.department_name;
+      if (!canAccessDepartment(workerDept)) {
+        toast.error("Access denied. This worker is not in a department you manage.");
+        navigate(getHODCancelPath());
+        return;
+      }
+    }
 
- setWorker(workerData);
- setEditedWorker(workerData);
- } catch (error) {
- toast.error("Failed to fetch worker details");
- } finally {
- setIsLoading(false);
- }
- };
+    setWorker(workerData);
+    setEditedWorker(workerData);
+  } catch (error) {
+    toast.error("Failed to fetch worker details");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
- if (workerId) {
- fetchWorkerDetails();
- }
- }, [workerId, navigate]);
+  if (workerId) {
+    fetchWorkerDetails();
+  }
+}, [workerId, navigate]);
 
- const getHODCancelPath = () => {
- const authUser = JSON.parse(sessionStorage.getItem("authUser"));
- if (!authUser) return "/login";
- if (authUser.department === "Church Admin") return "/church-admin/workers";
- if (authUser.department === "Super Admin") return "/workers/super-admin";
- const route = getDepartmentRoute(authUser.department);
- return `/department/${route || encodeURIComponent(authUser.department)}/workers`;
- };
+const getHODCancelPath = () => {
+  const { isSuperAdmin, isChurchAdmin, user } = getUserRole();
+  if (!user) return "/login";
+  if (isChurchAdmin) return "/church-admin/workers";
+  if (isSuperAdmin) return "/workers/super-admin";
+  const route = getDepartmentRoute(user.department);
+  return `/department/${route || encodeURIComponent(user.department)}/workers`;
+};
 
  const handleCancel = () => {
  // Check if user came from a specific page

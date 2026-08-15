@@ -41,8 +41,8 @@ function isPlaceholderRole(role) {
 }
 
 function isValidPresentPhone(phone) {
-  const digits = (phone || "").replace(/\D/g, "");
-  return digits.length === 11;
+  const digits = String(phone || "").replace(/\D/g, "");
+  return digits.length >= 10 && digits.length <= 14;
 }
 
 function isValidOptionalEmail(email) {

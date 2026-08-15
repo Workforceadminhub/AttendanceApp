@@ -140,10 +140,10 @@ function isPlaceholderRole(role) {
   return String(role || "").trim().toLowerCase() === "worker";
 }
 
-/** Present-form phone rules: 0XXXXXXXXXX (11), 234… / +234…, or local without leading 0. */
+/** Present-form phone rules: 10 digits (local without 0), 11 digits (with 0), or 13-14 digits (+234/234) */
 function isValidPresentPhone(raw) {
   const digits = String(raw ?? "").replace(/\D/g, "");
-  return digits.length === 11;
+  return digits.length >= 10 && digits.length <= 14;
 }
 
 function isValidOptionalEmail(raw) {
@@ -773,8 +773,8 @@ function CreatePresentWorkerStep({ searchedName, token, onBack, onDone }) {
     if (!form.phone.trim()) errs.phone = "Phone number is required";
     else {
       const digits = form.phone.replace(/\D/g, "");
-      if (digits.length < 11) errs.phone = "Phone must be at least 11 digits";
-      else if (digits.length > 11) errs.phone = "Phone must be at most 11 digits";
+      if (digits.length < 10) errs.phone = "Phone must be at least 10 digits";
+      else if (digits.length > 14) errs.phone = "Phone must be at most 14 digits";
     }
     if (!form.gender) errs.gender = "Gender is required";
     if (!form.role) errs.role = "Worker role is required";

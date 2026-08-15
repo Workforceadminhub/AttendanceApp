@@ -101,12 +101,6 @@ function BulkSmsComposer() {
     toast.info("Cleared invalid recipient entries");
   };
 
-  const handleSampleRecipients = () => {
-    setRecipientsRaw(
-      "08031234567\n08098765432\n+2348123456789\n8109224274"
-    );
-  };
-
   const handleSend = async () => {
     if (!senderName.trim()) {
       return toast.error("Please provide a Sender Name.");
@@ -336,13 +330,6 @@ function BulkSmsComposer() {
                         Remove invalid ({invalid.length})
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={handleSampleRecipients}
-                      className="text-xs text-ink-500 hover:text-ink-800"
-                    >
-                      Fill sample
-                    </button>
                   </div>
                 </div>
                 <textarea
@@ -350,7 +337,6 @@ function BulkSmsComposer() {
                   className={`${inputCls} font-mono text-xs`}
                   value={recipientsRaw}
                   onChange={(e) => setRecipientsRaw(e.target.value)}
-                  placeholder="08031234567&#10;08098765432&#10;2348123456789&#10;+2348109224274"
                 />
 
                 {/* Recipient Statistics */}

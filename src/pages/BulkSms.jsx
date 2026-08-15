@@ -192,9 +192,6 @@ function BulkSmsComposer() {
               <span className="text-xs font-medium text-ink-400">Super Admin Only</span>
             </div>
             <h1 className="text-2xl font-bold text-ink-900 mt-1">Bulk SMS Broadcast</h1>
-            <p className="text-sm text-ink-500">
-              Send SMS messages to workers, leaders, and attendees via Sendchamp.
-            </p>
           </div>
 
           {/* Wallet Balance Widget */}

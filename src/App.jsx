@@ -41,6 +41,7 @@ const ManageAdmins = lazy(() => import("./pages/ManageAdmins"));
 const ManageLeadersStrength = lazy(() => import("./pages/ManageLeadersStrength"));
 const BulkEmail = lazy(() => import("./pages/BulkEmail"));
 const BulkEmailReport = lazy(() => import("./pages/BulkEmailReport"));
+const BulkSms = lazy(() => import("./pages/BulkSms"));
 const DepartmentDetail = lazy(() => import("./pages/DepartmentDetail"));
 const DepartmentWorkers = lazy(() => import("./pages/DepartmentWorkers"));
 const HODBulkAddWorker = lazy(() => import("./pages/HODBulkAddWorker"));
@@ -391,6 +392,14 @@ const AppRoutes = () => {
               element={
                 <PrivateRoute>
                   <BulkEmailReport />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/bulk-sms"
+              element={
+                <PrivateRoute>
+                  <BulkSms />
                 </PrivateRoute>
               }
             />

@@ -21,8 +21,8 @@ import {
 } from "../services/sms";
 import { canSendBulkSms } from "../utils/bulkSmsAccess";
 
-const DEFAULT_SENDER_NAME = "HICC";
-const SENDER_SUGGESTIONS = ["HICC", "HICC Gbagada", "Sendchamp"];
+const DEFAULT_SENDER_NAME = "Sendchamp";
+const SENDER_SUGGESTIONS = ["Sendchamp", "HICC", "HICC Gbagada"];
 const ROUTE_OPTIONS = [
   { value: "non_dnd", label: "Non-DND (Recommended)", desc: "Delivers to all active mobile numbers" },
   { value: "dnd", label: "DND Route", desc: "For DND-registered corporate routes" },
@@ -134,19 +134,26 @@ function BulkSmsComposer() {
         route,
       });
 
+      const sentCount = res?.sent ?? 0;
+      const isSuccess = sentCount > 0;
+
       setSendResult({
-        success: true,
-        sent: res?.sent || valid.length,
+        success: isSuccess,
+        sent: sentCount,
         failed: res?.failed || [],
         errors: res?.errors,
         campaignId: res?.campaignId,
       });
 
-      toast.success(
-        `SMS successfully dispatched to ${res?.sent || valid.length} recipient${
-          (res?.sent || valid.length) === 1 ? "" : "s"
-        }!`
-      );
+      if (isSuccess) {
+        toast.success(
+          `SMS successfully dispatched to ${sentCount} recipient${
+            sentCount === 1 ? "" : "s"
+          }!`
+        );
+      } else {
+        toast.error(res?.errors?.[0] || "Failed to send SMS.");
+      }
 
       // Refresh balance after send
       loadBalance();
@@ -284,6 +291,11 @@ function BulkSmsComposer() {
                     </button>
                   ))}
                 </div>
+                {senderName.trim().toLowerCase() !== "sendchamp" && (
+                  <p className="text-[11px] text-amber-700 mt-1.5 bg-amber-50/70 border border-amber-200 rounded px-2 py-1">
+                    ℹ️ Custom Sender IDs (e.g. <em>HICC</em>) must be registered &amp; approved on your Sendchamp Dashboard (<strong>SMS &rarr; Sender ID</strong>). Use <strong>Sendchamp</strong> for immediate broadcast.
+                  </p>
+                )}
               </div>
 
               {/* Route */}

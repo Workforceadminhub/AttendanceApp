@@ -51,6 +51,7 @@ const selectStyles = {
  borderRadius: "0.375rem",
  boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)",
  }),
+ menuPortal: (base) => ({ ...base, zIndex: 999999 }),
  menuList: (base) => ({ ...base, maxHeight: "180px", padding: "4px" }),
  option: (base, { isFocused, isSelected }) => ({
  ...base,
@@ -962,6 +963,8 @@ export default function ManageAdmins() {
  placeholder="Select a role"
  styles={selectStyles}
  menuPlacement="auto"
+ menuPortalTarget={typeof document !== "undefined" ? document.body : null}
+ menuPosition="fixed"
  isDisabled={!includeRole}
  />
  {!includeRole && (
@@ -990,6 +993,8 @@ export default function ManageAdmins() {
  placeholder="Select department"
  styles={selectStyles}
  menuPlacement="auto"
+ menuPortalTarget={typeof document !== "undefined" ? document.body : null}
+ menuPosition="fixed"
  isClearable
  />
  </div>
@@ -1011,6 +1016,8 @@ export default function ManageAdmins() {
  placeholder="Select team(s)"
  styles={selectStyles}
  menuPlacement="auto"
+ menuPortalTarget={typeof document !== "undefined" ? document.body : null}
+ menuPosition="fixed"
  isClearable
  />
  </div>
@@ -1220,6 +1227,8 @@ export default function ManageAdmins() {
  placeholder="Select a role"
  styles={selectStyles}
  menuPlacement="auto"
+ menuPortalTarget={typeof document !== "undefined" ? document.body : null}
+ menuPosition="fixed"
  isDisabled={!updateRole}
  />
  {!updateRole && (
@@ -1346,6 +1355,8 @@ export default function ManageAdmins() {
  placeholder="Select a role"
  styles={selectStyles}
  menuPlacement="auto"
+ menuPortalTarget={typeof document !== "undefined" ? document.body : null}
+ menuPosition="fixed"
  />
  </div>
 
@@ -1416,6 +1427,8 @@ export default function ManageAdmins() {
  placeholder="Select a role (optional)"
  styles={selectStyles}
  menuPlacement="auto"
+ menuPortalTarget={typeof document !== "undefined" ? document.body : null}
+ menuPosition="fixed"
  isClearable
  />
  </div>
@@ -1441,6 +1454,8 @@ export default function ManageAdmins() {
  placeholder="Select department (optional)"
  styles={selectStyles}
  menuPlacement="auto"
+ menuPortalTarget={typeof document !== "undefined" ? document.body : null}
+ menuPosition="fixed"
  isClearable
  />
  </div>
@@ -1462,6 +1477,8 @@ export default function ManageAdmins() {
  placeholder="Select team(s) (optional)"
  styles={selectStyles}
  menuPlacement="auto"
+ menuPortalTarget={typeof document !== "undefined" ? document.body : null}
+ menuPosition="fixed"
  isClearable
  />
  </div>

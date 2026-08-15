@@ -185,13 +185,7 @@ function BulkSmsComposer() {
         {/* Top Header */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-200">
-                Sendchamp Live
-              </span>
-              <span className="text-xs font-medium text-ink-400">Super Admin Only</span>
-            </div>
-            <h1 className="text-2xl font-bold text-ink-900 mt-1">Bulk SMS Broadcast</h1>
+            <h1 className="text-2xl font-bold text-ink-900">Bulk SMS Broadcast</h1>
           </div>
 
           {/* Wallet Balance Widget */}

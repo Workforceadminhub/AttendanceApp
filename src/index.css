@@ -1,6 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@config "../tailwind.config.js";
+@import "tailwindcss";
 
 /* ============================================================
    Quiet Cockpit — base layer
@@ -127,20 +126,20 @@
     @apply disabled:opacity-50 disabled:pointer-events-none;
   }
   .qc-btn-primary {
-    @apply qc-btn bg-ink-900 text-cream hover:bg-ink-800 active:bg-ink-700;
+    @apply inline-flex items-center justify-center gap-2 min-h-touch px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none bg-ink-900 text-cream hover:bg-ink-800 active:bg-ink-700;
   }
   .qc-btn-secondary {
-    @apply qc-btn bg-white text-ink-900 border border-ink-200 hover:border-ink-400 hover:bg-cream-200;
+    @apply inline-flex items-center justify-center gap-2 min-h-touch px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none bg-white text-ink-900 border border-ink-200 hover:border-ink-400 hover:bg-cream-200;
   }
   .qc-btn-ghost {
-    @apply qc-btn text-ink-700 hover:bg-cream-200 hover:text-ink-900;
+    @apply inline-flex items-center justify-center gap-2 min-h-touch px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none text-ink-700 hover:bg-cream-200 hover:text-ink-900;
   }
   .qc-btn-danger {
-    @apply qc-btn bg-brick text-white hover:bg-brick/90;
+    @apply inline-flex items-center justify-center gap-2 min-h-touch px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none bg-brick text-white hover:bg-brick/90;
   }
   /* Sienna is reserved for "live/now" — only one button variant uses it */
   .qc-btn-live {
-    @apply qc-btn bg-sienna text-white hover:bg-sienna-dark;
+    @apply inline-flex items-center justify-center gap-2 min-h-touch px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none bg-sienna text-white hover:bg-sienna-dark;
   }
 
   /* Inputs */

@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "react-toastify";
 import {
-  getMeetingSession,
   searchMeetingWorkers,
   createMeetingWorker,
   markMeetingWorkerPresent,
@@ -1080,23 +1079,10 @@ function Shell({ children }) {
 }
 
 export default function LeadersMeetingPresent() {
-  const [sessionToken, setSessionToken] = useState(null);
-  const [sessionError, setSessionError] = useState(false);
-  const initCalled = useRef(false);
-
   const [step, setStep] = useState("search"); // search | select | edit | create | done
   const [results, setResults] = useState([]);
   const [searchedName, setSearchedName] = useState("");
   const [selectedWorker, setSelectedWorker] = useState(null);
-
-  useEffect(() => {
-    if (initCalled.current) return;
-    initCalled.current = true;
-
-    getMeetingSession()
-      .then((apiKey) => setSessionToken(apiKey))
-      .catch(() => setSessionError(true));
-  }, []);
 
   const handleResults = (workers, name) => {
     setResults(workers);
@@ -1141,45 +1127,6 @@ export default function LeadersMeetingPresent() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleRetrySession = () => {
-    setSessionError(false);
-    getMeetingSession()
-      .then((apiKey) => setSessionToken(apiKey))
-      .catch(() => setSessionError(true));
-  };
-
-  if (sessionError) {
-    return (
-      <Shell>
-        <div className="rounded-lg border border-sienna-50 bg-sienna-50 p-6 text-center space-y-3">
-          <ExclamationTriangleIcon className="mx-auto h-10 w-10 text-sienna" />
-          <p className="text-sm font-medium text-ink">Unable to start session</p>
-          <p className="text-xs text-ink-500">
-            Please check your connection and try again.
-          </p>
-          <button
-            type="button"
-            onClick={handleRetrySession}
-            className="rounded-lg bg-ink px-5 py-2 text-sm font-medium text-cream transition hover:bg-ink/90"
-          >
-            Retry
-          </button>
-        </div>
-      </Shell>
-    );
-  }
-
-  if (!sessionToken) {
-    return (
-      <Shell>
-        <div className="flex flex-col items-center justify-center py-12 space-y-3">
-          <Spinner size="lg" className="text-ink-900" />
-          <span className="text-sm text-ink-500 font-medium">Starting session...</span>
-        </div>
-      </Shell>
-    );
-  }
-
   return (
     <Shell>
       <div className="mb-8">
@@ -1204,7 +1151,7 @@ export default function LeadersMeetingPresent() {
       </div>
 
       {step === "search" && (
-        <NameSearchStep onResults={handleResults} token={sessionToken} />
+        <NameSearchStep onResults={handleResults} />
       )}
       {step === "select" && (
         <SelectWorkerStep
@@ -1214,13 +1161,11 @@ export default function LeadersMeetingPresent() {
           onBack={handleBackToSearch}
           onRetrySearch={handleResults}
           onAddNew={handleAddNew}
-          token={sessionToken}
         />
       )}
       {step === "edit" && selectedWorker && (
         <EditPresentStep
           worker={selectedWorker}
-          token={sessionToken}
           onBack={handleBackToSelect}
           onDone={handleDone}
         />
@@ -1228,7 +1173,6 @@ export default function LeadersMeetingPresent() {
       {step === "create" && (
         <CreatePresentWorkerStep
           searchedName={searchedName}
-          token={sessionToken}
           onBack={handleBackToSelect}
           onDone={handleDone}
         />

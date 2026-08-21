@@ -40,8 +40,10 @@ export function fetchEnrollees(id, params) {
   return hubGet(`/trainings/${id}/enrollees`, params);
 }
 
-export function registerForTraining(id, workerId) {
+export function registerForTraining(id, workerId, options = {}) {
   const body = workerId ? { worker_id: workerId } : {};
+  // A refresher retake is flagged so it is not counted as a new completion.
+  if (options.refresher) body.enrollment_type = "refresher";
   return hubPost(`/trainings/${id}/register`, body);
 }
 
@@ -188,3 +190,15 @@ export function deleteCohort(id) {
   return hubDelete(`/cohorts/${id}`);
 }
 
+// Progression Path Endpoints — the ordered chain a progressive training sits in.
+export function fetchProgressionPaths() {
+  return hubGet("/progression-paths");
+}
+
+export function createProgressionPath(data) {
+  return hubPost("/progression-paths", data);
+}
+
+export function updateProgressionPath(id, data) {
+  return hubPatch(`/progression-paths/${id}`, data);
+}

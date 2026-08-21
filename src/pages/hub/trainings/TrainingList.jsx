@@ -7,6 +7,7 @@ import { Stat, Tag } from "../../../components/ui";
 import { useCanAction } from "../../../contexts/RBACContext";
 import { fetchTrainings } from "../../../services/hub/trainings";
 import { getUserRole } from "../../../utils/getUserRole";
+import { asDate, kindLabel, statusTone } from "../../../utils/training";
 import {
   CohortManagementDrawer,
   TrainingDetailDrawer,
@@ -22,16 +23,15 @@ const STATUS_TABS = [
 
 const CATEGORY_OPTIONS = [
   { value: "", label: "All categories" },
-  { value: "leadership", label: "Leadership" },
+  { value: "training", label: "Training" },
+  { value: "conference", label: "Conference" },
+  { value: "webinar", label: "Webinar" },
   { value: "orientation", label: "Orientation" },
+  { value: "leadership", label: "Leadership" },
   { value: "skills", label: "Skills" },
 ];
 
-const STATUS_TONE = {
-  ongoing: "live",
-  upcoming: "info",
-  completed: "success",
-};
+const PER_PAGE = 20;
 
 export default function TrainingList() {
   const navigate = useNavigate();
@@ -56,13 +56,13 @@ export default function TrainingList() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["hub-trainings", { status, category, search, page }],
-    queryFn: () => fetchTrainings({ status, category, search, page, per_page: 20 }),
+    queryFn: () => fetchTrainings({ status, category, search, page, per_page: PER_PAGE }),
   });
 
   const trainings = data?.data ?? [];
   const metrics = data?.metrics ?? {};
   const total = data?.total ?? 0;
-  const totalPages = Math.ceil(total / 20);
+  const totalPages = Math.ceil(total / PER_PAGE);
 
   // User Department for HOD view filtering
   const userDepartment = user?.department || "Department";
@@ -77,7 +77,7 @@ export default function TrainingList() {
             <>
               <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
                 <div>
-                  <div className="qc-eyebrow text-amber-700 font-semibold">Super Admin & Church Admin Console</div>
+                  <div className="qc-eyebrow text-ink-500 font-semibold">Super Admin &amp; Church Admin Console</div>
                   <h1 className="mt-1 text-3xl font-medium text-ink-900 tracking-tight">
                     Learning Dashboard
                   </h1>
@@ -88,6 +88,9 @@ export default function TrainingList() {
                 <div className="flex flex-wrap gap-2 shrink-0">
                   <Link to="/hub/trainings/programs" className="qc-btn-secondary">
                     Training Programs
+                  </Link>
+                  <Link to="/hub/certificates/inventory" className="qc-btn-secondary">
+                    Certificate Inventory
                   </Link>
                   <Link to="/hub/certificates/templates" className="qc-btn-secondary">
                     Certificate Studio
@@ -100,12 +103,18 @@ export default function TrainingList() {
                 </div>
               </div>
 
-              {/* Summary Stat Cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <Stat label="Total Trainings" value={metrics.total_trainings ?? 8} />
-                <Stat label="Ongoing" value={metrics.ongoing_trainings ?? 1} />
-                <Stat label="Upcoming" value={3} />
-                <Stat label="Total Enrollees" value={metrics.total_certificates_issued ?? 183} />
+              {/* Summary Stat Cards (BE-T14) */}
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+                <Stat label="Total Trainings" value={metrics.total_trainings ?? 0} loading={isLoading} />
+                <Stat label="Ongoing" value={metrics.ongoing_trainings ?? 0} loading={isLoading} />
+                <Stat label="Upcoming" value={metrics.upcoming_trainings ?? 0} loading={isLoading} />
+                <Stat label="Completed" value={metrics.completed_trainings ?? 0} loading={isLoading} />
+                <Stat label="Total Enrollees" value={metrics.total_enrollees ?? 0} loading={isLoading} />
+                <Stat
+                  label="Certificates Issued"
+                  value={metrics.total_certificates_issued ?? 0}
+                  loading={isLoading}
+                />
               </div>
             </>
           )}
@@ -115,7 +124,7 @@ export default function TrainingList() {
             <>
               <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
                 <div>
-                  <div className="qc-eyebrow text-emerald-700 font-semibold">HOD Department Hub</div>
+                  <div className="qc-eyebrow text-ink-500 font-semibold">HOD Department Hub</div>
                   <h1 className="mt-1 text-3xl font-medium text-ink-900 tracking-tight">
                     {userDepartment} Training Management
                   </h1>
@@ -124,21 +133,25 @@ export default function TrainingList() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2 shrink-0">
-                  <Link to="/hub/trainings/cohorts" className="qc-btn-secondary">
-                    Cohorts
+                  <Link to="/hub/certificates" className="qc-btn-secondary">
+                    Certificates
                   </Link>
-                  <Link to="/hub/trainings" className="qc-btn-primary">
-                    Nominate Department Worker
+                  <Link to="/hub/trainings/cohorts" className="qc-btn-primary">
+                    Cohorts
                   </Link>
                 </div>
               </div>
 
               {/* HOD Specific Summary Stat Cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <Stat label="Department Workers" value={42} />
-                <Stat label="Nominated / Enrolled" value={28} />
-                <Stat label="Completion Rate" value="84%" />
-                <Stat label="Pending RSVPs" value={4} />
+                <Stat label="Total Trainings" value={metrics.total_trainings ?? 0} loading={isLoading} />
+                <Stat label="Ongoing" value={metrics.ongoing_trainings ?? 0} loading={isLoading} />
+                <Stat label="Dept Enrollees" value={metrics.total_enrollees ?? 0} loading={isLoading} />
+                <Stat
+                  label="Certificates Issued"
+                  value={metrics.total_certificates_issued ?? 0}
+                  loading={isLoading}
+                />
               </div>
             </>
           )}
@@ -148,9 +161,9 @@ export default function TrainingList() {
             <>
               <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
                 <div>
-                  <div className="qc-eyebrow text-blue-700 font-semibold">My Trainee Portal</div>
+                  <div className="qc-eyebrow text-ink-500 font-semibold">My Trainee Portal</div>
                   <h1 className="mt-1 text-3xl font-medium text-ink-900 tracking-tight">
-                    My Learning & Development
+                    My Learning &amp; Development
                   </h1>
                   <p className="mt-1 text-sm text-ink-500">
                     View your active training modules, progress, and download earned certificates.
@@ -158,20 +171,24 @@ export default function TrainingList() {
                 </div>
                 <div className="flex flex-wrap gap-2 shrink-0">
                   <Link to="/hub/trainings/nominations" className="qc-btn-secondary">
-                    My Nominations & RSVPs
+                    My Nominations &amp; RSVPs
                   </Link>
-                  <Link to="/hub/certificates/worker" className="qc-btn-primary">
-                    🎓 My Certificates
+                  <Link to="/hub/certificates" className="qc-btn-primary">
+                    My Certificates
                   </Link>
                 </div>
               </div>
 
               {/* Worker Trainee Specific Stat Cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <Stat label="My Active Trainings" value={2} />
-                <Stat label="Completed Modules" value={5} />
-                <Stat label="Overall Attendance" value="96%" />
-                <Stat label="Earned Certificates" value={3} />
+                <Stat label="Available Trainings" value={metrics.total_trainings ?? 0} loading={isLoading} />
+                <Stat label="Ongoing" value={metrics.ongoing_trainings ?? 0} loading={isLoading} />
+                <Stat label="Completed" value={metrics.completed_trainings ?? 0} loading={isLoading} />
+                <Stat
+                  label="Certificates Issued"
+                  value={metrics.total_certificates_issued ?? 0}
+                  loading={isLoading}
+                />
               </div>
             </>
           )}
@@ -233,80 +250,24 @@ export default function TrainingList() {
                   <thead>
                     <tr className="border-b border-ink-200 bg-cream-200">
                       <th className="text-left px-4 py-3 font-medium text-ink-700">Training Module</th>
-                      <th className="text-left px-4 py-3 font-medium text-ink-700">Category</th>
-                      <th className="text-left px-4 py-3 font-medium text-ink-700">Mode</th>
+                      <th className="text-left px-4 py-3 font-medium text-ink-700">Type</th>
                       <th className="text-left px-4 py-3 font-medium text-ink-700">Status</th>
+                      <th className="text-left px-4 py-3 font-medium text-ink-700">Next Session</th>
                       <th className="text-right px-4 py-3 font-medium text-ink-700">
-                        {activeRoleView === "worker" ? "My Progress" : activeRoleView === "hod" ? "Dept Enrollees" : "Total Enrollees"}
+                        {activeRoleView === "worker" ? "My Progress" : activeRoleView === "hod" ? "Dept Enrollees" : "Enrolled"}
                       </th>
                       <th className="text-right px-4 py-3 font-medium text-ink-700">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-ink-100">
                     {trainings.map((t) => (
-                      <tr
+                      <TrainingRow
                         key={t.id}
-                        className="hover:bg-cream-200 transition-colors"
-                      >
-                        <td
-                          className="px-4 py-3 font-medium text-ink-900 cursor-pointer"
-                          onClick={() => activeRoleView === "admin" ? setSelectedTraining(t) : navigate(`/hub/trainings/${t.id}`)}
-                        >
-                          <div>{t.name}</div>
-                          <div className="text-xs text-ink-500">{t.description || "Interactive training module"}</div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <Tag tone="neutral">{t.category}</Tag>
-                        </td>
-                        <td className="px-4 py-3 text-ink-600 capitalize">{t.mode}</td>
-                        <td className="px-4 py-3">
-                          <Tag tone={STATUS_TONE[t.status] ?? "neutral"} live={t.status === "ongoing"}>
-                            {t.status}
-                          </Tag>
-                        </td>
-                        <td className="px-4 py-3 text-right qc-num">
-                          {activeRoleView === "worker" ? (
-                            <div className="flex items-center justify-end gap-2">
-                              <div className="w-16 bg-ink-100 rounded-full h-1.5 overflow-hidden">
-                                <div
-                                  className="bg-emerald-600 h-full rounded-full"
-                                  style={{ width: t.status === "completed" ? "100%" : t.status === "ongoing" ? "60%" : "0%" }}
-                                />
-                              </div>
-                              <span className="text-xs text-ink-700">
-                                {t.status === "completed" ? "100%" : t.status === "ongoing" ? "60%" : "0%"}
-                              </span>
-                            </div>
-                          ) : (
-                            t.number_of_enrollees ?? 0
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          {activeRoleView === "worker" ? (
-                            <Link
-                              to={`/hub/trainings/${t.id}`}
-                              className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200"
-                            >
-                              {t.status === "ongoing" ? "Continue" : "View Details"}
-                            </Link>
-                          ) : activeRoleView === "hod" ? (
-                            <Link
-                              to={`/hub/trainings/${t.id}/nominate`}
-                              className="text-xs font-semibold text-ink-900 hover:text-black bg-cream-300 px-2.5 py-1 rounded border border-ink-300"
-                            >
-                              Nominate
-                            </Link>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setSelectedTraining(t)}
-                              className="text-xs font-semibold text-ink-700 hover:text-ink-900"
-                            >
-                              Manage &rarr;
-                            </button>
-                          )}
-                        </td>
-                      </tr>
+                        training={t}
+                        activeRoleView={activeRoleView}
+                        onManage={() => setSelectedTraining(t)}
+                        onOpen={() => navigate(`/hub/trainings/${t.id}`)}
+                      />
                     ))}
                   </tbody>
                 </table>
@@ -373,5 +334,88 @@ export default function TrainingList() {
         )}
       </Layout>
     </>
+  );
+}
+
+/**
+ * One training row. At a glance it carries the four facts the brief asks for:
+ * classification, status, enrolled count and next session date.
+ */
+function TrainingRow({ training, activeRoleView, onManage, onOpen }) {
+  const status = String(training.status ?? "").toLowerCase();
+  const enrolled = training.number_of_enrollees ?? 0;
+  const capacity = training.capacity;
+  const nextSession = asDate(training.next_session_date) || asDate(training.start_date);
+  const progress = status === "completed" ? 100 : status === "ongoing" ? 60 : 0;
+
+  return (
+    <tr className="hover:bg-cream-200 transition-colors">
+      <td
+        className="px-4 py-3 font-medium text-ink-900 cursor-pointer"
+        onClick={activeRoleView === "admin" ? onManage : onOpen}
+      >
+        <div>{training.name}</div>
+        <div className="flex items-center gap-2 mt-0.5">
+          <span className="qc-eyebrow text-ink-400 capitalize">{training.category}</span>
+          <span className="text-ink-300">&middot;</span>
+          <span className="qc-eyebrow text-ink-400 capitalize">{training.mode}</span>
+        </div>
+      </td>
+      <td className="px-4 py-3">
+        <Tag tone="neutral">{kindLabel(training)}</Tag>
+      </td>
+      <td className="px-4 py-3">
+        <Tag tone={statusTone(status)} live={status === "ongoing"}>
+          {training.status}
+        </Tag>
+      </td>
+      <td className="px-4 py-3">
+        <div className="qc-num text-xs text-ink-700">{nextSession || "-"}</div>
+        <div className="qc-eyebrow text-ink-400">next session</div>
+      </td>
+      <td className="px-4 py-3 text-right qc-num">
+        {activeRoleView === "worker" ? (
+          <div className="flex items-center justify-end gap-2">
+            <div className="w-16 bg-ink-100 rounded-full h-1.5 overflow-hidden">
+              <div
+                className={`h-full rounded-full ${progress === 100 ? "bg-forest" : "bg-sienna"}`}
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <span className="text-xs text-ink-700">{progress}%</span>
+          </div>
+        ) : (
+          <>
+            <span className="text-ink-900">{enrolled}</span>
+            {capacity ? <span className="text-ink-400">/{capacity}</span> : null}
+          </>
+        )}
+      </td>
+      <td className="px-4 py-3 text-right">
+        {activeRoleView === "worker" ? (
+          <Link
+            to={`/hub/trainings/${training.id}`}
+            className="text-xs font-semibold text-ink-900 hover:text-ink-700 underline underline-offset-2"
+          >
+            {status === "ongoing" ? "Continue" : "View Details"}
+          </Link>
+        ) : activeRoleView === "hod" ? (
+          <Link
+            to={`/hub/trainings/${training.id}/nominate`}
+            className="text-xs font-semibold text-ink-900 hover:text-ink-700 underline underline-offset-2"
+          >
+            Nominate
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={onManage}
+            className="text-xs font-semibold text-ink-700 hover:text-ink-900"
+          >
+            Manage &rarr;
+          </button>
+        )}
+      </td>
+    </tr>
   );
 }

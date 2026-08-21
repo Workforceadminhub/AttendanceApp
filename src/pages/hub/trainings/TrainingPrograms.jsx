@@ -11,6 +11,7 @@ import {
   deleteTrainingProgram,
 } from "../../../services/hub/trainingPrograms";
 import GenericModal from "../../../components/GenericModal";
+import ProgressionPaths from "./ProgressionPaths";
 
 function slugify(text) {
   return text
@@ -221,6 +222,10 @@ export default function TrainingPrograms() {
                 </table>
               </div>
             )}
+          </div>
+
+          <div className="border-t border-ink-200 pt-6">
+            <ProgressionPaths />
           </div>
         </div>
       </Layout>

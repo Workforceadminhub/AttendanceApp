@@ -77,6 +77,7 @@ const CourseDetail = lazy(() => import("./pages/hub/courses/CourseDetail"));
 const CreateCourse = lazy(() => import("./pages/hub/courses/CreateCourse"));
 const WorkerCertificates = lazy(() => import("./pages/hub/certificates/WorkerCertificates"));
 const CertificateTemplates = lazy(() => import("./pages/hub/certificates/CertificateTemplates"));
+const CertificateInventory = lazy(() => import("./pages/hub/certificates/CertificateInventory"));
 const TrainingPrograms = lazy(() => import("./pages/hub/trainings/TrainingPrograms"));
 const Cohorts = lazy(() => import("./pages/hub/trainings/Cohorts"));
 
@@ -683,6 +684,14 @@ const AppRoutes = () => {
               element={
                 <HubRoute requiredNav="admin_panel">
                   <CertificateTemplates />
+                </HubRoute>
+              }
+            />
+            <Route
+              path="/hub/certificates/inventory"
+              element={
+                <HubRoute requiredNav="admin_panel">
+                  <CertificateInventory />
                 </HubRoute>
               }
             />

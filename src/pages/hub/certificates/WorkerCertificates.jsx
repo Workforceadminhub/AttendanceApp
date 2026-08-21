@@ -1,13 +1,16 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Header from "../../../components/Header";
 import Layout from "../../../components/Layout";
 import { Tag } from "../../../components/ui";
+import CertificatePreview from "../../../components/hub/certificates/CertificatePreview";
 import { hubGet } from "../../../services/hub/client";
 import { downloadCertificate } from "../../../services/hub/certificates";
 import { getUser } from "../../../utils/getUser";
 
 export default function WorkerCertificates() {
   const user = getUser();
+  const [preview, setPreview] = useState(null);
   const workerId = user?.workerId ?? user?.worker_id ?? user?.id;
 
   const { data, isLoading } = useQuery({
@@ -62,17 +65,20 @@ export default function WorkerCertificates() {
                   key={cert.certificate_number ?? i}
                   cert={cert}
                   onDownload={handleDownload}
+                  onPreview={() => setPreview(cert)}
                 />
               ))}
             </div>
           )}
         </div>
       </Layout>
+
+      {preview && <CertificatePreview certificate={preview} onClose={() => setPreview(null)} />}
     </>
   );
 }
 
-function CertificateCard({ cert, onDownload }) {
+function CertificateCard({ cert, onDownload, onPreview }) {
   const issuedDate = cert.issued_at
     ? new Date(cert.issued_at).toLocaleDateString("en-GB", {
         day: "2-digit",
@@ -113,14 +119,13 @@ function CertificateCard({ cert, onDownload }) {
           )}
         </div>
         <div className="flex gap-2">
-          <a
-            href={`/verify/${cert.certificate_number}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-ink-500 hover:text-ink-900 underline"
+          <button
+            type="button"
+            onClick={onPreview}
+            className="text-xs text-ink-600 hover:text-ink-900 underline"
           >
-            Verify
-          </a>
+            Preview
+          </button>
           <button
             type="button"
             onClick={() => onDownload(cert.certificate_number)}

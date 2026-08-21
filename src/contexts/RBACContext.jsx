@@ -6,6 +6,16 @@ import { getUserRole } from "../utils/getUserRole";
 const RBACContext = createContext(null);
 
 /**
+ * Training Hub actions that Super Admin and Church Admin always hold, even when
+ * the RBAC payload reports them false.
+ */
+const ADMIN_TRAINING_ACTIONS = new Set([
+  "create_training",
+  "mark_training_attendance",
+  "nominate_workers",
+]);
+
+/**
  * Provides RBAC data from GET /api/hub/rbac/me.
  *
  * - On mount (if an accessToken exists) it fetches the user's role,
@@ -115,10 +125,12 @@ export function useCanAction(action) {
   const { rbac } = useRBAC();
 
   // Super Admin and Church Admin are organization-wide training managers.
-  // Keep this role fallback for the legacy/partial RBAC responses that do not
-  // include create_training, while continuing to honor API permissions for
-  // every other role and action.
-  if (action === "create_training") {
+  // Keep this role fallback for the legacy/partial RBAC responses that return
+  // these flags as false, while continuing to honor API permissions for every
+  // other role and action. Attendance marking and nomination are Admin /
+  // Facilitator capabilities, so the console would otherwise be unreachable
+  // for the two roles that own it.
+  if (ADMIN_TRAINING_ACTIONS.has(action)) {
     const { isSuperAdmin, isChurchAdmin } = getUserRole();
     if (isSuperAdmin || isChurchAdmin) return true;
   }

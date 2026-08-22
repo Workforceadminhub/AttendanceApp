@@ -50,6 +50,8 @@ const WorkerAttendanceHistory = lazy(() => import("./pages/WorkerAttendanceHisto
 const AuditLog = lazy(() => import("./pages/AuditLog"));
 const LeadershipRegistration = lazy(() => import("./pages/LeadershipRegistration"));
 const LeadershipRegistrationAdmin = lazy(() => import("./pages/LeadershipRegistrationAdmin"));
+const AwakeningRegistration = lazy(() => import("./pages/AwakeningRegistration"));
+const AwakeningRegistrationAdmin = lazy(() => import("./pages/AwakeningRegistrationAdmin"));
 const LeadersMeetingConfirm = lazy(() => import("./pages/LeadersMeetingConfirm"));
 const LeadersMeetingPresent = lazy(() => import("./pages/LeadersMeetingPresent"));
 const LeadersMeetingReport = lazy(() => import("./pages/LeadersMeetingReport"));
@@ -106,6 +108,27 @@ const queryClient = new QueryClient({
 const AppRoutes = () => {
   const { attendanceRoutes, dashboardRoutes, summaryRoutes, adminRoutes, historyRoutes } =
     useDepartmentRoutes();
+
+  // awakening.hiccgbagada.com serves the public registration form at any path
+  // (awakening.localhost lets you test the subdomain branch locally)
+  const isAwakeningHost =
+    typeof window !== "undefined" &&
+    ["awakening.hiccgbagada.com", "awakening.localhost"].includes(
+      window.location.hostname
+    );
+
+  if (isAwakeningHost) {
+    return (
+      <RouteErrorBoundary>
+        <Suspense fallback={<LoadingState />}>
+          <Routes>
+            <Route path="*" element={<AwakeningRegistration />} />
+          </Routes>
+        </Suspense>
+      </RouteErrorBoundary>
+    );
+  }
+
   return (
     <RouteErrorBoundary>
       <Suspense fallback={<LoadingState />}>
@@ -125,6 +148,7 @@ const AppRoutes = () => {
             />
             <Route path="/new/worker" element={<NewWorker />} />
             <Route path="/leadership-registration" element={<LeadershipRegistration />} />
+            <Route path="/awakening" element={<AwakeningRegistration />} />
             <Route path="/leadersmeeting/confirm" element={<LeadersMeetingConfirm />} />
             <Route path="/leaders-meeting" element={<LeadersMeetingPresent />} />
             <Route path="/workersmeeting/confirm" element={<WorkersMeetingConfirm />} />
@@ -135,6 +159,14 @@ const AppRoutes = () => {
               element={
                 <PrivateRoute>
                   <LeadershipRegistrationAdmin />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/admin/awakening-registrations"
+              element={
+                <PrivateRoute>
+                  <AwakeningRegistrationAdmin />
                 </PrivateRoute>
               }
             />

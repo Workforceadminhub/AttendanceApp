@@ -78,5 +78,109 @@ export const leadershipRegistrationSchema = z.object({
   course: z.enum(["BLC", "ALC"], { error: "Course is required" }),
 });
 
-const schemas = { workerSchema, departmentSchema, loginSchema, leadershipRegistrationSchema };
+// ── Awakening Conference ──────────────────────────────────────────────────────
+
+export const AWAKENING_CAMPUSES = [
+  "Gbagada", "Magodo", "Jericho", "Ikorodu", "Yaba", "Ilupeju",
+  "PH", "Akobo", "New Lagos", "Abeokuta", "Apapa", "Surulere", "Oluyole", "Ogba",
+];
+
+export const AWAKENING_ATTENDANCE_DAYS = [
+  { value: "day_1_wednesday_9_september", label: "Wed 9 September" },
+  { value: "day_2_thursday_10_september", label: "Thu 10 September" },
+  { value: "day_3_friday_11_september", label: "Fri 11 September" },
+  { value: "day_4_sunday_13_september", label: "Sun 13 September" },
+  { value: "all_days", label: "All Days" },
+];
+
+export const AWAKENING_SERVING_DAYS = [
+  { value: "wednesday_9_sept", label: "Wed 9 Sept" },
+  { value: "thursday_10_sept", label: "Thu 10 Sept" },
+  { value: "friday_11_sept", label: "Fri 11 Sept" },
+  { value: "sunday_13_sept", label: "Sun 13 Sept" },
+  { value: "all_days", label: "All Days" },
+];
+
+export const AWAKENING_SERVICE_TEAMS = [
+  "Bus Mobilization", "Content Creation", "Crowd Control", "Event Experience",
+  "Event Planning", "Facility & Maintenance", "Greeters", "Guest Welcome",
+  "HIU", "Hospitality", "Medical Team", "Music", "Parking Hospitality",
+  "Parking", "Photography", "Publicity", "Quality Assurance", "Registration",
+  "Restrooms", "Shuttle Service", "Stage Management", "Streaming",
+  "Testimonies", "Traffic", "Ushering", "Venue Set up", "Videography",
+];
+
+export const AWAKENING_CELL_DESIGNATIONS = [
+  "Member", "Cell Leader", "Zonal Leader", "Community Leader", "District Pastor",
+];
+
+const yesNo = (message) => z.enum(["yes", "no"], { error: message });
+const attendanceDayValues = AWAKENING_ATTENDANCE_DAYS.map((d) => d.value);
+const servingDayValues = AWAKENING_SERVING_DAYS.map((d) => d.value);
+
+export const awakeningRegistrationSchema = z
+  .object({
+    first_name: z.string().trim().min(2, "First name is required"),
+    last_name: z.string().trim().min(2, "Last name is required"),
+    phone,
+    email,
+    campus: z.enum(AWAKENING_CAMPUSES, { error: "Campus is required" }),
+    registration_type: z.enum(["attendee", "worker"], {
+      error: "Select how you want to join the conference",
+    }),
+    belongs_to_cell: yesNo("This field is required"),
+    cell_designation: z.enum(AWAKENING_CELL_DESIGNATIONS).optional(),
+    foundation_course_status: z.enum(
+      ["yes", "no", "not_yet_but_would_love_to"],
+      { error: "This field is required" }
+    ),
+    attendance_day: z
+      .array(z.enum(attendanceDayValues))
+      .min(1, "Select at least one day"),
+    preferred_service_team: z.enum(AWAKENING_SERVICE_TEAMS).optional(),
+    serving_day: z.enum(servingDayValues).optional(),
+    join_prayer_team: yesNo("This field is required").optional(),
+    lead_prayer_team: yesNo("This field is required").optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.belongs_to_cell === "yes" && !data.cell_designation) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["cell_designation"],
+        message: "Cell designation is required",
+      });
+    }
+    if (data.registration_type === "worker") {
+      if (!data.preferred_service_team) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["preferred_service_team"],
+          message: "Preferred service team is required",
+        });
+      }
+      if (!data.serving_day) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["serving_day"],
+          message: "Serving day is required",
+        });
+      }
+      if (!data.join_prayer_team) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["join_prayer_team"],
+          message: "This field is required",
+        });
+      }
+      if (!data.lead_prayer_team) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["lead_prayer_team"],
+          message: "This field is required",
+        });
+      }
+    }
+  });
+
+const schemas = { workerSchema, departmentSchema, loginSchema, leadershipRegistrationSchema, awakeningRegistrationSchema };
 export default schemas;

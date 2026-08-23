@@ -14,20 +14,51 @@ import { z } from "zod";
  * blocks with this. Errors come back at form.formState.errors.<field>.message.
  */
 
+// ── Shared field validators ───────────────────────────────────────────────────
+
+// Exactly 11 digits after stripping formatting (+, spaces, dashes, parens).
+// Rejects +234… country-code formats (13+ digits) — users must enter local format.
 const phone = z
   .string()
-  .min(1, "Phone is required")
+  .trim()
+  .min(1, "Phone number is required")
   .transform((v) => v.replace(/\D/g, ""))
-  .refine((v) => v.length === 11, "Phone must be exactly 11 digits");
+  .refine((v) => v.length === 11, "Phone number must be exactly 11 digits (e.g. 08012345678)");
+
+const EMAIL_TLDS = [
+  "com", "org", "net", "co", "io", "edu", "gov", "info", "biz", "app",
+  "dev", "ai", "tech", "africa", "ng", "uk", "eu", "za", "gh", "ke", "us",
+];
 
 const email = z
   .string()
-  .min(1, "Email is required")
-  .email("Invalid email")
+  .trim()
+  .min(1, "Email address is required")
+  .refine((v) => v.includes("@"), "Email address must contain @")
   .refine(
-    (v) => /\.(com|org|net|co|io|edu|gov|info|biz|app|dev|ai|tech|africa|ng)$/i.test(v),
-    "Email domain looks malformed"
+    (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v),
+    "Enter a valid email address (e.g. name@example.com)"
+  )
+  .refine(
+    (v) => EMAIL_TLDS.includes(v.split(".").pop()?.toLowerCase() ?? ""),
+    () => {
+      const allowed = EMAIL_TLDS.slice(0, 6).map((t) => `.${t}`).join(", ");
+      return `Email must end with an allowed domain such as ${allowed}…`;
+    }
   );
+
+/** Reusable plain-JS checks for places outside React Hook Form (admin modals, bulk flows). */
+export const isValidPhone = (value) =>
+  /^\d{11}$/.test((value ?? "").toString().replace(/\D/g, "").slice(-13));
+
+export const isValidEmail = (value) => {
+  const v = (value ?? "").toString().trim();
+  return (
+    v.includes("@") &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) &&
+    EMAIL_TLDS.includes(v.split(".").pop()?.toLowerCase() ?? "")
+  );
+};
 
 export const workerSchema = z.object({
   firstname: z.string().trim().min(1, "First name is required"),
@@ -137,6 +168,9 @@ export const awakeningRegistrationSchema = z
     attendance_day: z
       .array(z.enum(attendanceDayValues))
       .min(1, "Select at least one day"),
+    worker_team: z.string().trim().optional(),
+    department: z.string().trim().optional(),
+    worker_designation: z.string().trim().optional(),
     preferred_service_team: z.enum(AWAKENING_SERVICE_TEAMS).optional(),
     serving_day: z.enum(servingDayValues).optional(),
     join_prayer_team: yesNo("This field is required").optional(),
@@ -151,6 +185,27 @@ export const awakeningRegistrationSchema = z
       });
     }
     if (data.registration_type === "worker") {
+      if (!data.worker_team) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["worker_team"],
+          message: "Worker team is required",
+        });
+      }
+      if (!data.department) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["department"],
+          message: "Department is required",
+        });
+      }
+      if (!data.worker_designation) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["worker_designation"],
+          message: "Worker designation is required",
+        });
+      }
       if (!data.preferred_service_team) {
         ctx.addIssue({
           code: "custom",

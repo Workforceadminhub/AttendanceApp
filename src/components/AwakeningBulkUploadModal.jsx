@@ -6,9 +6,11 @@ import Tag from "./ui/Tag";
 import { submitAwakeningRegistration } from "../services/awakeningConference";
 import { awakeningRegistrationSchema } from "../utils/schemas";
 import {
+  buildAwakeningRegistrationPayload,
+  normalizeAwakeningDays,
+} from "../utils/awakeningRegistration";
+import {
   AWAKENING_CAMPUSES,
-  AWAKENING_ATTENDANCE_DAYS,
-  AWAKENING_SERVING_DAYS,
   AWAKENING_SERVICE_TEAMS,
   AWAKENING_CELL_DESIGNATIONS,
 } from "../utils/schemas";
@@ -31,13 +33,13 @@ export function downloadSampleCsv() {
     [
       "Ada", "Okafor", "08012345678", "ada@example.com", "Gbagada", "attendee",
       "", "", "", "yes", "Member", "yes",
-      "day_1_wednesday_9_september|day_4_sunday_13_september",
+      "wednesday_9th_september|sunday_13th_september",
       "", "", "", "",
     ],
     [
-      "Emeka", "Nwosu", "07023456789", "emeka@example.com", "Magodo", "worker",
+      "Emeka", "Nwosu", "+2348023456789", "emeka@example.com", "Magodo", "worker",
       "Programs", "Protocol", "HOD", "no", "", "not_yet_but_would_love_to",
-      "all_days", "Ushering", "wednesday_9_sept", "no", "no",
+      "all_days", "Ushering", "friday_11th|sunday_13th_september", "no", "no",
     ],
   ];
   const csv = [CSV_HEADERS.join(","), ...sampleRows.map((r) => r.join(","))].join("\n");
@@ -83,10 +85,7 @@ function normaliseRow(raw) {
       ? canonical(raw.cell_designation, AWAKENING_CELL_DESIGNATIONS)
       : undefined,
     foundation_course_status: clean(raw.foundation_course_status).toLowerCase(),
-    attendance_day: clean(raw.attendance_day)
-      .split(/[|;]/)
-      .map((d) => canonical(d, AWAKENING_ATTENDANCE_DAYS.map((x) => x.value)))
-      .filter(Boolean),
+    attendance_day: normalizeAwakeningDays(raw.attendance_day),
     // Free text for the endpoint — trimmed only, no enum constraint
     worker_team: clean(raw.worker_team) || undefined,
     department: clean(raw.department) || undefined,
@@ -94,9 +93,7 @@ function normaliseRow(raw) {
     preferred_service_team: raw.preferred_service_team
       ? canonical(raw.preferred_service_team, AWAKENING_SERVICE_TEAMS)
       : undefined,
-    serving_day: raw.serving_day
-      ? canonical(raw.serving_day, AWAKENING_SERVING_DAYS.map((x) => x.value))
-      : undefined,
+    serving_day: normalizeAwakeningDays(raw.serving_day),
     join_prayer_team: raw.join_prayer_team ? yesNo(raw.join_prayer_team) : undefined,
     lead_prayer_team: raw.lead_prayer_team ? yesNo(raw.lead_prayer_team) : undefined,
   };
@@ -105,7 +102,7 @@ function normaliseRow(raw) {
   if (!row.department) delete row.department;
   if (!row.worker_designation) delete row.worker_designation;
   if (!raw.preferred_service_team) delete row.preferred_service_team;
-  if (!raw.serving_day) delete row.serving_day;
+  if (!row.serving_day.length) delete row.serving_day;
   if (!raw.join_prayer_team) delete row.join_prayer_team;
   if (!raw.lead_prayer_team) delete row.lead_prayer_team;
   if (!row.cell_designation) delete row.cell_designation;
@@ -114,38 +111,15 @@ function normaliseRow(raw) {
 
 function validateRow(normalised) {
   const result = awakeningRegistrationSchema.safeParse(normalised);
-  if (result.success) return { payload: buildPayload(result.data), errors: [] };
+  if (result.success) {
+    return { payload: buildAwakeningRegistrationPayload(result.data), errors: [] };
+  }
   return {
     payload: null,
     errors: result.error.issues.map(
       (issue) => `${issue.path.join(".") || "row"}: ${issue.message}`
     ),
   };
-}
-
-function buildPayload(data) {
-  const payload = {
-    first_name: data.first_name,
-    last_name: data.last_name,
-    phone: data.phone,
-    email: data.email,
-    campus: data.campus,
-    registration_type: data.registration_type,
-    belongs_to_cell: data.belongs_to_cell,
-    foundation_course_status: data.foundation_course_status,
-    attendance_day: data.attendance_day,
-  };
-  if (data.belongs_to_cell === "yes") payload.cell_designation = data.cell_designation;
-  if (data.registration_type === "worker") {
-    payload.worker_team = data.worker_team;
-    payload.department = data.department;
-    payload.worker_designation = data.worker_designation;
-    payload.preferred_service_team = data.preferred_service_team;
-    payload.serving_day = data.serving_day;
-    payload.join_prayer_team = data.join_prayer_team;
-    payload.lead_prayer_team = data.lead_prayer_team;
-  }
-  return payload;
 }
 
 // ── File parsing ──────────────────────────────────────────────────────────────

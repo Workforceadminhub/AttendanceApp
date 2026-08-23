@@ -2,10 +2,7 @@ import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { format } from "date-fns";
 import { fetchAwakeningRegistrations } from "../services/awakeningConference";
-import {
-  AWAKENING_ATTENDANCE_DAYS,
-  AWAKENING_SERVING_DAYS,
-} from "./schemas";
+import { formatAwakeningDays } from "./awakeningRegistration";
 
 /**
  * Export Awakening Conference registrations to a multi-sheet Excel workbook.
@@ -17,10 +14,6 @@ import {
 
 const PAGE_SIZE = 100;
 
-const dayLabel = (value) =>
-  AWAKENING_ATTENDANCE_DAYS.find((d) => d.value === value)?.label ?? value;
-const servingDayLabel = (value) =>
-  AWAKENING_SERVING_DAYS.find((d) => d.value === value)?.label ?? value;
 const foundationLabel = (value) => ({
   yes: "Completed",
   no: "Not completed",
@@ -73,7 +66,7 @@ function addSheet(workbook, campusName, rows) {
     { header: "Department", key: "department", width: 20 },
     { header: "Worker Designation", key: "designation", width: 18 },
     { header: "Service Team", key: "team", width: 22 },
-    { header: "Serving Day", key: "servingDay", width: 16 },
+    { header: "Serving Days", key: "servingDay", width: 34 },
     { header: "Attending Days", key: "attendingDays", width: 34 },
     { header: "Cell Designation", key: "cell", width: 18 },
     { header: "Foundation Course", key: "foundation", width: 18 },
@@ -102,8 +95,8 @@ function addSheet(workbook, campusName, rows) {
       department: row.department || "—",
       designation: row.worker_designation || "—",
       team: row.preferred_service_team ?? "—",
-      servingDay: row.serving_day ? servingDayLabel(row.serving_day) : "—",
-      attendingDays: (row.attendance_day ?? []).map(dayLabel).join(", ") || "—",
+      servingDay: formatAwakeningDays(row.serving_day),
+      attendingDays: formatAwakeningDays(row.attendance_day),
       cell:
         row.belongs_to_cell === "yes"
           ? row.cell_designation || "Yes"

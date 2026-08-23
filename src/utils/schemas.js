@@ -17,13 +17,27 @@ import { z } from "zod";
 // ── Shared field validators ───────────────────────────────────────────────────
 
 // Exactly 11 digits after stripping formatting (+, spaces, dashes, parens).
-// Rejects +234… country-code formats (13+ digits) — users must enter local format.
+// Shared worker and leadership APIs expect the local format.
 const phone = z
   .string()
   .trim()
   .min(1, "Phone number is required")
   .transform((v) => v.replace(/\D/g, ""))
-  .refine((v) => v.length === 11, "Phone number must be exactly 11 digits (e.g. 08012345678)");
+  .refine(
+    (v) => v.length === 11,
+    "Phone number must be exactly 11 digits (e.g. 08012345678)"
+  );
+
+// Awakening accepts local and Nigerian international formats.
+const awakeningPhone = z
+  .string()
+  .trim()
+  .min(1, "Phone number is required")
+  .transform((v) => v.replace(/[\s\-().]/g, ""))
+  .refine(
+    (v) => /^(0\d{10}|\+234\d{10})$/.test(v),
+    "Phone number must be 11 digits (e.g. 08012345678) or +234 format (e.g. +2348012345678)"
+  );
 
 const EMAIL_TLDS = [
   "com", "org", "net", "co", "io", "edu", "gov", "info", "biz", "app",
@@ -50,6 +64,11 @@ const email = z
 /** Reusable plain-JS checks for places outside React Hook Form (admin modals, bulk flows). */
 export const isValidPhone = (value) =>
   /^\d{11}$/.test((value ?? "").toString().replace(/\D/g, "").slice(-13));
+
+export const isValidAwakeningPhone = (value) => {
+  const normalized = (value ?? "").toString().trim().replace(/[\s\-().]/g, "");
+  return /^(0\d{10}|\+234\d{10})$/.test(normalized);
+};
 
 export const isValidEmail = (value) => {
   const v = (value ?? "").toString().trim();
@@ -117,20 +136,15 @@ export const AWAKENING_CAMPUSES = [
 ];
 
 export const AWAKENING_ATTENDANCE_DAYS = [
-  { value: "day_1_wednesday_9_september", label: "Wed 9 September" },
-  { value: "day_2_thursday_10_september", label: "Thu 10 September" },
-  { value: "day_3_friday_11_september", label: "Fri 11 September" },
-  { value: "day_4_sunday_13_september", label: "Sun 13 September" },
+  { value: "wednesday_9th_september", label: "Wed 9 September" },
+  { value: "thursday_10th", label: "Thu 10 September" },
+  { value: "friday_11th", label: "Fri 11 September" },
+  { value: "sunday_13th_september", label: "Sun 13 September" },
   { value: "all_days", label: "All Days" },
 ];
 
-export const AWAKENING_SERVING_DAYS = [
-  { value: "wednesday_9_sept", label: "Wed 9 Sept" },
-  { value: "thursday_10_sept", label: "Thu 10 Sept" },
-  { value: "friday_11_sept", label: "Fri 11 Sept" },
-  { value: "sunday_13_sept", label: "Sun 13 Sept" },
-  { value: "all_days", label: "All Days" },
-];
+// Serving days share the conference-day slugs; sent as an array (multi-select)
+export const AWAKENING_SERVING_DAYS = AWAKENING_ATTENDANCE_DAYS;
 
 export const AWAKENING_SERVICE_TEAMS = [
   "Bus Mobilization", "Content Creation", "Crowd Control", "Event Experience",
@@ -146,6 +160,8 @@ export const AWAKENING_CELL_DESIGNATIONS = [
 ];
 
 const yesNo = (message) => z.enum(["yes", "no"], { error: message });
+const optionalWhenBlank = (schema) =>
+  z.preprocess((value) => (value === "" ? undefined : value), schema.optional());
 const attendanceDayValues = AWAKENING_ATTENDANCE_DAYS.map((d) => d.value);
 const servingDayValues = AWAKENING_SERVING_DAYS.map((d) => d.value);
 
@@ -153,14 +169,14 @@ export const awakeningRegistrationSchema = z
   .object({
     first_name: z.string().trim().min(2, "First name is required"),
     last_name: z.string().trim().min(2, "Last name is required"),
-    phone,
+    phone: awakeningPhone,
     email,
     campus: z.enum(AWAKENING_CAMPUSES, { error: "Campus is required" }),
     registration_type: z.enum(["attendee", "worker"], {
       error: "Select how you want to join the conference",
     }),
     belongs_to_cell: yesNo("This field is required"),
-    cell_designation: z.enum(AWAKENING_CELL_DESIGNATIONS).optional(),
+    cell_designation: optionalWhenBlank(z.enum(AWAKENING_CELL_DESIGNATIONS)),
     foundation_course_status: z.enum(
       ["yes", "no", "not_yet_but_would_love_to"],
       { error: "This field is required" }
@@ -171,10 +187,13 @@ export const awakeningRegistrationSchema = z
     worker_team: z.string().trim().optional(),
     department: z.string().trim().optional(),
     worker_designation: z.string().trim().optional(),
-    preferred_service_team: z.enum(AWAKENING_SERVICE_TEAMS).optional(),
-    serving_day: z.enum(servingDayValues).optional(),
-    join_prayer_team: yesNo("This field is required").optional(),
-    lead_prayer_team: yesNo("This field is required").optional(),
+    preferred_service_team: optionalWhenBlank(z.enum(AWAKENING_SERVICE_TEAMS)),
+    serving_day: z.preprocess(
+      (value) => (value === "" ? undefined : value),
+      z.array(z.enum(servingDayValues)).optional()
+    ),
+    join_prayer_team: optionalWhenBlank(yesNo("This field is required")),
+    lead_prayer_team: optionalWhenBlank(yesNo("This field is required")),
   })
   .superRefine((data, ctx) => {
     if (data.belongs_to_cell === "yes" && !data.cell_designation) {
@@ -213,11 +232,11 @@ export const awakeningRegistrationSchema = z
           message: "Preferred service team is required",
         });
       }
-      if (!data.serving_day) {
+      if (!data.serving_day?.length) {
         ctx.addIssue({
           code: "custom",
           path: ["serving_day"],
-          message: "Serving day is required",
+          message: "Select at least one serving day",
         });
       }
       if (!data.join_prayer_team) {

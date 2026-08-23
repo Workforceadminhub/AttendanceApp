@@ -14,7 +14,6 @@ import {
 } from "../services/awakeningConference";
 import {
   AWAKENING_CAMPUSES,
-  AWAKENING_ATTENDANCE_DAYS,
   AWAKENING_SERVING_DAYS,
   AWAKENING_SERVICE_TEAMS,
   AWAKENING_CELL_DESIGNATIONS,
@@ -23,6 +22,10 @@ import { getUserRole } from "../utils/getUserRole";
 import { getEffectiveRouteList } from "../utils/routeObject";
 import { teams, workerRoles } from "../utils/teams";
 import { exportAwakeningWorkbook } from "../utils/exportAwakening";
+import {
+  formatAwakeningDays,
+  normalizeAwakeningDays,
+} from "../utils/awakeningRegistration";
 import {
   PencilSquareIcon,
   TrashIcon,
@@ -47,10 +50,7 @@ const PAGE_LIMIT = 15;
 
 // ── Display helpers ───────────────────────────────────────────────────────────
 
-const dayLabel = (value) =>
-  AWAKENING_ATTENDANCE_DAYS.find((d) => d.value === value)?.label ?? value;
-const servingDayLabel = (value) =>
-  AWAKENING_SERVING_DAYS.find((d) => d.value === value)?.label ?? value;
+const dayLabel = (value) => formatAwakeningDays(value);
 const foundationLabel = (value) => ({
   yes: "Completed",
   no: "Not completed",
@@ -59,10 +59,11 @@ const foundationLabel = (value) => ({
 const yesNoLabel = (v) => (v === "yes" ? "Yes" : v === "no" ? "No" : "—");
 
 function DaysList({ values }) {
-  if (!values?.length) return <span>—</span>;
+  const days = Array.isArray(values) ? values : values ? [values] : [];
+  if (!days.length) return <span>—</span>;
   return (
     <span className="inline-flex flex-wrap gap-1">
-      {values.map((d) => (
+      {days.map((d) => (
         <span key={d} className="rounded bg-ink-100 px-1.5 py-0.5 text-2xs text-ink-700">
           {dayLabel(d)}
         </span>
@@ -113,9 +114,8 @@ const columns = [
   },
   {
     key: "serving_day",
-    header: "Serving Day",
-    hideOnSm: true,
-    render: (r) => (r.serving_day ? servingDayLabel(r.serving_day) : "—"),
+    header: "Serving Days",
+    render: (r) => formatAwakeningDays(r.serving_day),
   },
   {
     key: "attendance_day",
@@ -167,7 +167,7 @@ function EditModal({ registration, onClose, onSaved }) {
     department: registration.department ?? "",
     worker_designation: registration.worker_designation ?? "",
     preferred_service_team: registration.preferred_service_team ?? "",
-    serving_day: registration.serving_day ?? "",
+    serving_day: normalizeAwakeningDays(registration.serving_day),
     join_prayer_team: registration.join_prayer_team ?? "no",
     lead_prayer_team: registration.lead_prayer_team ?? "no",
   });
@@ -188,6 +188,8 @@ function EditModal({ registration, onClose, onSaved }) {
         registration_type: form.registration_type,
         belongs_to_cell: form.belongs_to_cell,
         foundation_course_status: form.foundation_course_status,
+        join_prayer_team: isWorker ? form.join_prayer_team : "no",
+        lead_prayer_team: isWorker ? form.lead_prayer_team : "no",
       };
       if (form.belongs_to_cell === "yes") payload.cell_designation = form.cell_designation;
       if (isWorker) {
@@ -196,8 +198,6 @@ function EditModal({ registration, onClose, onSaved }) {
         payload.worker_designation = form.worker_designation;
         payload.preferred_service_team = form.preferred_service_team;
         payload.serving_day = form.serving_day;
-        payload.join_prayer_team = form.join_prayer_team;
-        payload.lead_prayer_team = form.lead_prayer_team;
       }
       await updateAwakeningRegistration(registration.id, payload);
       toast.success("Registration updated.");
@@ -300,13 +300,29 @@ function EditModal({ registration, onClose, onSaved }) {
               </select>
             </div>
             <div>
-              <label className={labelCls}>Serving Day</label>
-              <select className={inputClass} value={form.serving_day} onChange={set("serving_day")}>
-                <option value="">Select day</option>
+              <label className={labelCls}>Preferred Serving Days</label>
+              <div className="flex flex-wrap gap-1.5">
                 {AWAKENING_SERVING_DAYS.map((d) => (
-                  <option key={d.value} value={d.value}>{d.label}</option>
+                  <label key={d.value}
+                    className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs cursor-pointer transition ${
+                      form.serving_day.includes(d.value)
+                        ? "border-ink bg-ink text-cream"
+                        : "border-ink-200 bg-white text-ink hover:bg-ink-100"
+                    }`}>
+                    <input type="checkbox" className="sr-only"
+                      checked={form.serving_day.includes(d.value)}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          serving_day: e.target.checked
+                            ? [...f.serving_day, d.value]
+                            : f.serving_day.filter((v) => v !== d.value),
+                        }))
+                      } />
+                    {d.label}
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
             <div>
               <label className={labelCls}>Join Prayer Team</label>

@@ -11,6 +11,7 @@ import {
   AWAKENING_CELL_DESIGNATIONS,
 } from "../utils/schemas";
 import { submitAwakeningRegistration } from "../services/awakeningConference";
+import { buildAwakeningRegistrationPayload } from "../utils/awakeningRegistration";
 import { PUBLIC_SUBMIT_ERROR } from "../utils/safeMessages";
 import { getEffectiveRouteList } from "../utils/routeObject";
 import { teams, workerRoles } from "../utils/teams";
@@ -97,7 +98,7 @@ function RegistrationForm() {
       department: "",
       worker_designation: "",
       preferred_service_team: "",
-      serving_day: "",
+      serving_day: [],
       join_prayer_team: "",
       lead_prayer_team: "",
     },
@@ -111,27 +112,7 @@ function RegistrationForm() {
 
   const onSubmit = async (data) => {
     try {
-      const payload = {
-        first_name: data.first_name,
-        last_name: data.last_name,
-        phone: data.phone,
-        email: data.email,
-        campus: data.campus,
-        registration_type: data.registration_type,
-        belongs_to_cell: data.belongs_to_cell,
-        foundation_course_status: data.foundation_course_status,
-        attendance_day: data.attendance_day,
-      };
-      if (data.belongs_to_cell === "yes") payload.cell_designation = data.cell_designation;
-      if (isWorker) {
-        payload.worker_team = data.worker_team;
-        payload.department = data.department;
-        payload.worker_designation = data.worker_designation;
-        payload.preferred_service_team = data.preferred_service_team;
-        payload.serving_day = data.serving_day;
-        payload.join_prayer_team = data.join_prayer_team;
-        payload.lead_prayer_team = data.lead_prayer_team;
-      }
+      const payload = buildAwakeningRegistrationPayload(data);
       await submitAwakeningRegistration(payload);
       setSubmitted(true);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -186,12 +167,14 @@ function RegistrationForm() {
           <input
             id="phone"
             type="tel"
-            placeholder="08012345678"
-            maxLength={11}
+            placeholder="08012345678 or +2348012345678"
+            maxLength={14}
             className={inputClass}
             {...register("phone", {
               onChange: (e) => {
-                e.target.value = e.target.value.replace(/\D/g, "").slice(0, 11);
+                const cleaned = e.target.value.replace(/[^\d+]/g, "");
+                const prefix = cleaned.startsWith("+") ? "+" : "";
+                e.target.value = `${prefix}${cleaned.replace(/\+/g, "").slice(0, 13)}`;
               },
             })}
           />
@@ -340,15 +323,18 @@ function RegistrationForm() {
           </div>
 
           <div>
-            <Label htmlFor="serving_day" required>Preferred Serving Day</Label>
-            <Controller name="serving_day" control={control} render={({ field }) => (
-              <select id="serving_day" className={selectClass} {...field}>
-                <option value="">Select day</option>
-                {AWAKENING_SERVING_DAYS.map((d) => (
-                  <option key={d.value} value={d.value}>{d.label}</option>
-                ))}
-              </select>
-            )} />
+            <Label required>Preferred Serving Days</Label>
+            <p className="text-xs text-ink-500 mb-2">Select all that apply.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {AWAKENING_SERVING_DAYS.map((day) => (
+                <label key={day.value}
+                  className="flex items-center gap-2.5 rounded-lg border border-ink-200 bg-white px-3 py-2.5 text-sm text-ink cursor-pointer transition hover:bg-ink-100">
+                  <input type="checkbox" value={day.value} className="h-4 w-4 accent-current"
+                    {...register("serving_day")} />
+                  {day.label}
+                </label>
+              ))}
+            </div>
             <FieldError message={errors.serving_day?.message} />
           </div>
 

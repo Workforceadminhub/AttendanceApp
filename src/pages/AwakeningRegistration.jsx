@@ -1,6 +1,6 @@
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "react-toastify";
 import {
   awakeningRegistrationSchema,
@@ -9,8 +9,13 @@ import {
   AWAKENING_SERVING_DAYS,
   AWAKENING_SERVICE_TEAMS,
   AWAKENING_CELL_DESIGNATIONS,
+  isValidAwakeningPhone,
+  isValidEmail,
 } from "../utils/schemas";
-import { submitAwakeningRegistration } from "../services/awakeningConference";
+import {
+  checkAwakeningRegistration,
+  submitAwakeningRegistration,
+} from "../services/awakeningConference";
 import { buildAwakeningRegistrationPayload } from "../utils/awakeningRegistration";
 import { PUBLIC_SUBMIT_ERROR } from "../utils/safeMessages";
 import { getEffectiveRouteList } from "../utils/routeObject";
@@ -80,6 +85,9 @@ function RegistrationForm() {
     watch,
     control,
     reset,
+    clearErrors,
+    getFieldState,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(awakeningRegistrationSchema),
@@ -105,19 +113,92 @@ function RegistrationForm() {
   });
 
   const [submitted, setSubmitted] = useState(false);
+  const [checking, setChecking] = useState({ email: false, phone: false });
+  const checkRequest = useRef({ email: 0, phone: 0 });
 
   const registrationType = watch("registration_type");
   const belongsToCell = watch("belongs_to_cell");
   const isWorker = registrationType === "worker";
 
+  const clearContactCheck = (field) => {
+    checkRequest.current[field] += 1;
+    setChecking((current) => ({ ...current, [field]: false }));
+    const fieldError = getFieldState(field).error;
+    if (fieldError?.type === "duplicate" || fieldError?.type === "check") {
+      clearErrors(field);
+    }
+    clearErrors("root.duplicate");
+  };
+
+  const checkContactField = async (field, value) => {
+    const normalizedValue = value.trim();
+    const isValid = field === "email"
+      ? isValidEmail(normalizedValue)
+      : isValidAwakeningPhone(normalizedValue);
+
+    if (!isValid) return;
+
+    const requestId = ++checkRequest.current[field];
+    const fieldError = getFieldState(field).error;
+    if (fieldError?.type === "duplicate" || fieldError?.type === "check") {
+      clearErrors(field);
+    }
+    setChecking((current) => ({ ...current, [field]: true }));
+
+    try {
+      const result = await checkAwakeningRegistration({
+        [field]: normalizedValue,
+      });
+      if (requestId !== checkRequest.current[field]) return;
+
+      if (result.exists) {
+        const label = field === "email" ? "email address" : "phone number";
+        setError(field, {
+          type: "duplicate",
+          message: `A registration already exists for this ${label}.`,
+        });
+      }
+    } catch {
+      if (requestId !== checkRequest.current[field]) return;
+      setError(field, {
+        type: "check",
+        message: "We could not verify this detail. Please try again.",
+      });
+    } finally {
+      if (requestId === checkRequest.current[field]) {
+        setChecking((current) => ({ ...current, [field]: false }));
+      }
+    }
+  };
+
   const onSubmit = async (data) => {
+    let duplicateCheck;
+    try {
+      duplicateCheck = await checkAwakeningRegistration({
+        email: data.email,
+        phone: data.phone,
+      });
+    } catch {
+      toast.error("We could not check whether you are already registered. Please try again.");
+      return;
+    }
+
+    if (duplicateCheck.exists) {
+      setError("root.duplicate", {
+        type: "duplicate",
+        message: "A registration already exists for this email address or phone number.",
+      });
+      return;
+    }
+
     try {
       const payload = buildAwakeningRegistrationPayload(data);
       await submitAwakeningRegistration(payload);
       setSubmitted(true);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
-      toast.error(err?.message || PUBLIC_SUBMIT_ERROR);
+      const message = err?.message || PUBLIC_SUBMIT_ERROR;
+      toast.error(message);
     }
   };
 
@@ -172,21 +253,38 @@ function RegistrationForm() {
             className={inputClass}
             {...register("phone", {
               onChange: (e) => {
+                clearContactCheck("phone");
                 const cleaned = e.target.value.replace(/[^\d+]/g, "");
                 const prefix = cleaned.startsWith("+") ? "+" : "";
                 e.target.value = `${prefix}${cleaned.replace(/\+/g, "").slice(0, 13)}`;
               },
+              onBlur: (e) => checkContactField("phone", e.target.value),
             })}
           />
           <FieldError message={errors.phone?.message} />
+          {checking.phone && (
+            <p role="status" className="mt-1 text-xs text-ink-500">Checking registration…</p>
+          )}
         </div>
         <div>
           <Label htmlFor="email" required>Email Address</Label>
-          <input id="email" type="email" placeholder="you@example.com" className={inputClass}
-            {...register("email")} />
+          <input
+            id="email"
+            type="email"
+            placeholder="you@example.com"
+            className={inputClass}
+            {...register("email", {
+              onChange: () => clearContactCheck("email"),
+              onBlur: (e) => checkContactField("email", e.target.value),
+            })}
+          />
           <FieldError message={errors.email?.message} />
+          {checking.email && (
+            <p role="status" className="mt-1 text-xs text-ink-500">Checking registration…</p>
+          )}
         </div>
       </div>
+      <FieldError message={errors.root?.duplicate?.message} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>

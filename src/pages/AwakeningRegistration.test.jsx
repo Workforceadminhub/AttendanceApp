@@ -1,22 +1,91 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { submitAwakeningRegistrationMock } = vi.hoisted(() => ({
+const { checkAwakeningRegistrationMock, submitAwakeningRegistrationMock } = vi.hoisted(() => ({
+  checkAwakeningRegistrationMock: vi.fn(),
   submitAwakeningRegistrationMock: vi.fn(),
 }));
 
 vi.mock("../services/awakeningConference", () => ({
+  checkAwakeningRegistration: checkAwakeningRegistrationMock,
   submitAwakeningRegistration: submitAwakeningRegistrationMock,
 }));
 
 import AwakeningRegistration from "./AwakeningRegistration";
 
 describe("AwakeningRegistration", () => {
+  afterEach(cleanup);
+
   beforeEach(() => {
+    checkAwakeningRegistrationMock.mockReset();
+    checkAwakeningRegistrationMock.mockResolvedValue({ exists: false });
     submitAwakeningRegistrationMock.mockReset();
     submitAwakeningRegistrationMock.mockResolvedValue({ success: true });
     window.scrollTo = vi.fn();
+  });
+
+  it("checks a completed phone number and blocks a duplicate", async () => {
+    checkAwakeningRegistrationMock.mockResolvedValueOnce({ exists: true });
+    const user = userEvent.setup();
+    render(<AwakeningRegistration />);
+
+    await user.type(screen.getByLabelText(/Phone Number/i), "08012345678");
+    await user.tab();
+
+    expect(await screen.findByText(
+      "A registration already exists for this phone number."
+    )).toBeInTheDocument();
+    expect(checkAwakeningRegistrationMock).toHaveBeenCalledWith({
+      phone: "08012345678",
+    });
+    expect(submitAwakeningRegistrationMock).not.toHaveBeenCalled();
+  });
+
+  it("checks a completed email address and blocks a duplicate", async () => {
+    checkAwakeningRegistrationMock.mockResolvedValueOnce({ exists: true });
+    const user = userEvent.setup();
+    render(<AwakeningRegistration />);
+
+    await user.type(screen.getByLabelText(/Email Address/i), "ada@example.com");
+    await user.tab();
+
+    expect(await screen.findByText(
+      "A registration already exists for this email address."
+    )).toBeInTheDocument();
+    expect(checkAwakeningRegistrationMock).toHaveBeenCalledWith({
+      email: "ada@example.com",
+    });
+    expect(submitAwakeningRegistrationMock).not.toHaveBeenCalled();
+  });
+
+  it("checks email and phone together before posting the registration", async () => {
+    checkAwakeningRegistrationMock
+      .mockResolvedValueOnce({ exists: false })
+      .mockResolvedValueOnce({ exists: false })
+      .mockResolvedValueOnce({ exists: true });
+    const user = userEvent.setup();
+    render(<AwakeningRegistration />);
+
+    await user.type(screen.getByLabelText(/First Name/i), "Ada");
+    await user.type(screen.getByLabelText(/Last Name/i), "Okafor");
+    await user.type(screen.getByLabelText(/Phone Number/i), "08012345678");
+    await user.type(screen.getByLabelText(/Email Address/i), "ada@example.com");
+    await user.selectOptions(screen.getByLabelText(/Campus/i), "Gbagada");
+    await user.selectOptions(screen.getByLabelText(/I am registering as/i), "attendee");
+    await user.click(screen.getAllByRole("button", { name: "No" })[0]);
+    await user.selectOptions(screen.getByLabelText(/Foundation School Status/i), "yes");
+    await user.click(screen.getByRole("checkbox", { name: "Thu 10 September" }));
+    await user.click(screen.getByRole("button", { name: "Register for Awakening" }));
+
+    expect(await screen.findByText(
+      "A registration already exists for this email address or phone number."
+    )).toBeInTheDocument();
+    expect(checkAwakeningRegistrationMock).toHaveBeenLastCalledWith({
+      email: "ada@example.com",
+      phone: "08012345678",
+    });
+    expect(submitAwakeningRegistrationMock).not.toHaveBeenCalled();
   });
 
   it("submits an attendee with the API-required defaults and day value", async () => {
@@ -35,6 +104,10 @@ describe("AwakeningRegistration", () => {
     await user.click(screen.getByRole("button", { name: "Register for Awakening" }));
 
     await waitFor(() => expect(submitAwakeningRegistrationMock).toHaveBeenCalledTimes(1));
+    expect(checkAwakeningRegistrationMock).toHaveBeenCalledWith({
+      email: "ada@example.com",
+      phone: "+2348012345678",
+    });
     expect(submitAwakeningRegistrationMock).toHaveBeenCalledWith({
       first_name: "Ada",
       last_name: "Okafor",

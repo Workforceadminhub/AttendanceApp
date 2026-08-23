@@ -425,6 +425,7 @@ export default function AwakeningRegistrationAdmin() {
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
 
   // Debounce search input → only fire after 400ms of no typing
   useEffect(() => {
@@ -557,6 +558,14 @@ export default function AwakeningRegistrationAdmin() {
           </select>
           <button
             type="button"
+            onClick={() => setShowBulkUpload(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-ink-300 px-3 py-2 text-sm font-medium text-ink transition hover:bg-ink-100"
+          >
+            <ArrowUpTrayIcon className="h-4 w-4" />
+            Bulk Upload
+          </button>
+          <button
+            type="button"
             onClick={handleExport}
             disabled={isExporting}
             className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-3 py-2 text-sm font-medium text-white transition hover:bg-forest/90 disabled:opacity-60 disabled:cursor-not-allowed sm:ml-auto"
@@ -616,6 +625,12 @@ export default function AwakeningRegistrationAdmin() {
           registration={deleting}
           onClose={() => setDeleting(null)}
           onDeleted={load}
+        />
+      )}
+      {showBulkUpload && (
+        <AwakeningBulkUploadModal
+          onClose={() => setShowBulkUpload(false)}
+          onComplete={load}
         />
       )}
     </Layout>

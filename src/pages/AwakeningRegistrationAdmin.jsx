@@ -6,6 +6,7 @@ import Layout from "../components/Layout";
 import DataTable from "../components/ui/DataTable";
 import Tag from "../components/ui/Tag";
 import GenericModal from "../components/GenericModal";
+import AwakeningBulkUploadModal from "../components/AwakeningBulkUploadModal";
 import {
   fetchAwakeningRegistrations,
   updateAwakeningRegistration,
@@ -19,6 +20,8 @@ import {
   AWAKENING_CELL_DESIGNATIONS,
 } from "../utils/schemas";
 import { getUserRole } from "../utils/getUserRole";
+import { getEffectiveRouteList } from "../utils/routeObject";
+import { teams, workerRoles } from "../utils/teams";
 import { exportAwakeningWorkbook } from "../utils/exportAwakening";
 import {
   PencilSquareIcon,
@@ -26,12 +29,19 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   ArrowDownTrayIcon,
+  ArrowUpTrayIcon,
   ArrowLeftIcon,
 } from "@heroicons/react/24/outline";
 
 const ALL_CAMPUSES = ["All Campuses", ...AWAKENING_CAMPUSES];
 const ALL_TYPES = ["All Types", "attendee", "worker"];
 const ALL_TEAMS = ["All Teams", ...AWAKENING_SERVICE_TEAMS];
+
+export const AWAKENING_TEAM_OPTIONS = teams.map((t) => t.value);
+export const AWAKENING_DEPARTMENT_OPTIONS = Array.from(
+  new Set(getEffectiveRouteList().map((d) => d.department).filter(Boolean))
+).sort();
+export const AWAKENING_ROLE_OPTIONS = [...workerRoles];
 
 const PAGE_LIMIT = 15;
 
@@ -79,6 +89,21 @@ const columns = [
         {r.registration_type || "—"}
       </Tag>
     ),
+  },
+  {
+    key: "worker_team",
+    header: "Worker Team",
+    render: (r) => r.worker_team || "—",
+  },
+  {
+    key: "department",
+    header: "Department",
+    render: (r) => r.department || "—",
+  },
+  {
+    key: "worker_designation",
+    header: "Designation",
+    render: (r) => r.worker_designation || "—",
   },
   {
     key: "preferred_service_team",
@@ -138,6 +163,9 @@ function EditModal({ registration, onClose, onSaved }) {
     belongs_to_cell: registration.belongs_to_cell ?? "no",
     cell_designation: registration.cell_designation ?? "",
     foundation_course_status: registration.foundation_course_status ?? "",
+    worker_team: registration.worker_team ?? "",
+    department: registration.department ?? "",
+    worker_designation: registration.worker_designation ?? "",
     preferred_service_team: registration.preferred_service_team ?? "",
     serving_day: registration.serving_day ?? "",
     join_prayer_team: registration.join_prayer_team ?? "no",
@@ -163,6 +191,9 @@ function EditModal({ registration, onClose, onSaved }) {
       };
       if (form.belongs_to_cell === "yes") payload.cell_designation = form.cell_designation;
       if (isWorker) {
+        payload.worker_team = form.worker_team;
+        payload.department = form.department;
+        payload.worker_designation = form.worker_designation;
         payload.preferred_service_team = form.preferred_service_team;
         payload.serving_day = form.serving_day;
         payload.join_prayer_team = form.join_prayer_team;
@@ -240,6 +271,27 @@ function EditModal({ registration, onClose, onSaved }) {
         </div>
         {isWorker && (
           <>
+            <div>
+              <label className={labelCls}>Worker Team</label>
+              <select className={inputClass} value={form.worker_team} onChange={set("worker_team")}>
+                <option value="">Select team</option>
+                {AWAKENING_TEAM_OPTIONS.map((t) => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Department</label>
+              <select className={inputClass} value={form.department} onChange={set("department")}>
+                <option value="">Select department</option>
+                {AWAKENING_DEPARTMENT_OPTIONS.map((d) => <option key={d}>{d}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Worker Designation</label>
+              <select className={inputClass} value={form.worker_designation} onChange={set("worker_designation")}>
+                <option value="">Select designation</option>
+                {AWAKENING_ROLE_OPTIONS.map((r) => <option key={r}>{r}</option>)}
+              </select>
+            </div>
             <div>
               <label className={labelCls}>Preferred Service Team</label>
               <select className={inputClass} value={form.preferred_service_team} onChange={set("preferred_service_team")}>
@@ -373,6 +425,7 @@ export default function AwakeningRegistrationAdmin() {
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
 
   // Debounce search input → only fire after 400ms of no typing
   useEffect(() => {
@@ -505,6 +558,14 @@ export default function AwakeningRegistrationAdmin() {
           </select>
           <button
             type="button"
+            onClick={() => setShowBulkUpload(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-ink-300 px-3 py-2 text-sm font-medium text-ink transition hover:bg-ink-100"
+          >
+            <ArrowUpTrayIcon className="h-4 w-4" />
+            Bulk Upload
+          </button>
+          <button
+            type="button"
             onClick={handleExport}
             disabled={isExporting}
             className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-3 py-2 text-sm font-medium text-white transition hover:bg-forest/90 disabled:opacity-60 disabled:cursor-not-allowed sm:ml-auto"
@@ -564,6 +625,12 @@ export default function AwakeningRegistrationAdmin() {
           registration={deleting}
           onClose={() => setDeleting(null)}
           onDeleted={load}
+        />
+      )}
+      {showBulkUpload && (
+        <AwakeningBulkUploadModal
+          onClose={() => setShowBulkUpload(false)}
+          onComplete={load}
         />
       )}
     </Layout>

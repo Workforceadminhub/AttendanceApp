@@ -12,7 +12,14 @@ import {
 } from "../utils/schemas";
 import { submitAwakeningRegistration } from "../services/awakeningConference";
 import { PUBLIC_SUBMIT_ERROR } from "../utils/safeMessages";
+import { getEffectiveRouteList } from "../utils/routeObject";
+import { teams, workerRoles } from "../utils/teams";
 import { CheckCircleIcon } from "@heroicons/react/24/outline";
+
+const DEPARTMENT_OPTIONS = Array.from(
+  new Set(getEffectiveRouteList().map((d) => d.department).filter(Boolean))
+).sort();
+const TEAM_OPTIONS = teams.map((t) => t.value);
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
 
@@ -86,6 +93,9 @@ function RegistrationForm() {
       cell_designation: "",
       foundation_course_status: "",
       attendance_day: [],
+      worker_team: "",
+      department: "",
+      worker_designation: "",
       preferred_service_team: "",
       serving_day: "",
       join_prayer_team: "",
@@ -114,6 +124,9 @@ function RegistrationForm() {
       };
       if (data.belongs_to_cell === "yes") payload.cell_designation = data.cell_designation;
       if (isWorker) {
+        payload.worker_team = data.worker_team;
+        payload.department = data.department;
+        payload.worker_designation = data.worker_designation;
         payload.preferred_service_team = data.preferred_service_team;
         payload.serving_day = data.serving_day;
         payload.join_prayer_team = data.join_prayer_team;
@@ -279,6 +292,41 @@ function RegistrationForm() {
           <p className="text-xs font-mono uppercase tracking-widest text-ink-500">
             Serving Details
           </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="worker_team" required>Worker Team</Label>
+              <Controller name="worker_team" control={control} render={({ field }) => (
+                <select id="worker_team" className={selectClass} {...field}>
+                  <option value="">Select team</option>
+                  {TEAM_OPTIONS.map((t) => <option key={t}>{t}</option>)}
+                </select>
+              )} />
+              <FieldError message={errors.worker_team?.message} />
+            </div>
+
+            <div>
+              <Label htmlFor="department" required>Department</Label>
+              <Controller name="department" control={control} render={({ field }) => (
+                <select id="department" className={selectClass} {...field}>
+                  <option value="">Select department</option>
+                  {DEPARTMENT_OPTIONS.map((d) => <option key={d}>{d}</option>)}
+                </select>
+              )} />
+              <FieldError message={errors.department?.message} />
+            </div>
+
+            <div>
+              <Label htmlFor="worker_designation" required>Worker Designation</Label>
+              <Controller name="worker_designation" control={control} render={({ field }) => (
+                <select id="worker_designation" className={selectClass} {...field}>
+                  <option value="">Select designation</option>
+                  {workerRoles.map((r) => <option key={r}>{r}</option>)}
+                </select>
+              )} />
+              <FieldError message={errors.worker_designation?.message} />
+            </div>
+          </div>
 
           <div>
             <Label htmlFor="preferred_service_team" required>Preferred Service Team</Label>

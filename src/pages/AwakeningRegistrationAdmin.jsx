@@ -19,11 +19,13 @@ import {
   AWAKENING_CELL_DESIGNATIONS,
 } from "../utils/schemas";
 import { getUserRole } from "../utils/getUserRole";
+import { exportAwakeningWorkbook } from "../utils/exportAwakening";
 import {
   PencilSquareIcon,
   TrashIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ArrowDownTrayIcon,
   ArrowLeftIcon,
 } from "@heroicons/react/24/outline";
 
@@ -370,6 +372,7 @@ export default function AwakeningRegistrationAdmin() {
 
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Debounce search input → only fire after 400ms of no typing
   useEffect(() => {
@@ -405,6 +408,23 @@ export default function AwakeningRegistrationAdmin() {
   }, [page, search, campus, regType, team]);
 
   useEffect(() => { load(); }, [load]);
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const count = await exportAwakeningWorkbook({
+        search,
+        campus,
+        registrationType: regType,
+        serviceTeam: team,
+      });
+      toast.success(`Exported ${count} registration${count !== 1 ? "s" : ""} — one sheet per campus.`);
+    } catch (err) {
+      toast.error(err.message || "Export failed.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const selectClass =
     "rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ink transition";
@@ -463,8 +483,8 @@ export default function AwakeningRegistrationAdmin() {
           )}
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-3">
+        {/* Filters + export */}
+        <div className="flex flex-wrap items-center gap-3">
           <input
             type="search"
             placeholder="Search name, email, phone..."
@@ -483,6 +503,15 @@ export default function AwakeningRegistrationAdmin() {
           <select value={team} onChange={(e) => setTeam(e.target.value)} className={selectClass}>
             {ALL_TEAMS.map((t) => <option key={t}>{t}</option>)}
           </select>
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={isExporting}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-3 py-2 text-sm font-medium text-white transition hover:bg-forest/90 disabled:opacity-60 disabled:cursor-not-allowed sm:ml-auto"
+          >
+            <ArrowDownTrayIcon className="h-4 w-4" />
+            {isExporting ? "Exporting..." : "Export Report"}
+          </button>
         </div>
 
         {/* Table */}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
@@ -344,7 +344,25 @@ function DeleteModal({ registration, onClose, onDeleted }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AwakeningRegistrationAdmin() {
+  const navigate = useNavigate();
+
   const [registrations, setRegistrations] = useState([]);
+
+  // Role guard — super-admin / church-admin only
+  useEffect(() => {
+    const authUser = JSON.parse(sessionStorage.getItem("authUser"));
+    const isSuperAdmin =
+      authUser?.department === "Super Admin" ||
+      authUser?.permissionLevel === "SUPER_ADMIN";
+    const isChurchAdmin =
+      authUser?.department === "Church Admin" ||
+      authUser?.permissionLevel === "CHURCH_ADMIN";
+    if (!isSuperAdmin && !isChurchAdmin) {
+      toast.error("Access denied.");
+      navigate("/login");
+    }
+  }, [navigate]);
+
   const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 1, hasNext: false, hasPrev: false });
   const [isLoading, setIsLoading] = useState(true);
 

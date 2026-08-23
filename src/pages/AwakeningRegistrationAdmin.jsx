@@ -18,6 +18,7 @@ import {
   AWAKENING_SERVICE_TEAMS,
   AWAKENING_CELL_DESIGNATIONS,
 } from "../utils/schemas";
+import { getUserRole } from "../utils/getUserRole";
 import {
   PencilSquareIcon,
   TrashIcon,
@@ -348,15 +349,9 @@ export default function AwakeningRegistrationAdmin() {
 
   const [registrations, setRegistrations] = useState([]);
 
-  // Role guard — super-admin / church-admin only
+  // Role guard — super-admin / church-admin only (canonical resolver)
   useEffect(() => {
-    const authUser = JSON.parse(sessionStorage.getItem("authUser"));
-    const isSuperAdmin =
-      authUser?.department === "Super Admin" ||
-      authUser?.permissionLevel === "SUPER_ADMIN";
-    const isChurchAdmin =
-      authUser?.department === "Church Admin" ||
-      authUser?.permissionLevel === "CHURCH_ADMIN";
+    const { isSuperAdmin, isChurchAdmin } = getUserRole();
     if (!isSuperAdmin && !isChurchAdmin) {
       toast.error("Access denied.");
       navigate("/login");

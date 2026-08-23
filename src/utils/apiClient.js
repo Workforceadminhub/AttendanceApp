@@ -22,6 +22,7 @@ const PUBLIC_PATHS = [
   "/reset-password",
   "/set-password",
   "/leadership-registration",
+  "/awakening",
   "/new/worker",
   "/leadersmeeting/confirm",
   "/leaders-meeting",

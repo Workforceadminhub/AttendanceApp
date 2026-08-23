@@ -245,6 +245,9 @@ export default function Header() {
           { name: "Workers Meeting Report", href: "/report/workers-meeting" },
         ]
       : []),
+    ...((isSuperAdmin || isChurchAdminRole)
+      ? [{ header: "Conference Reports" }, { name: "Awakening Registrations", href: "/admin/awakening-registrations" }]
+      : []),
   ];
 
   const settingsDropdown = [
@@ -525,6 +528,18 @@ export default function Header() {
                 {item.name}
               </SheetLink>
             ))}
+          </NavGroup>
+        )}
+
+        {/* Conference reports */}
+        {(isSuperAdmin || isChurchAdminRole) && (
+          <NavGroup label="Conference Reports">
+            <SheetLink
+              href="/admin/awakening-registrations"
+              onClick={() => setMobileOpen(false)}
+            >
+              Awakening Registrations
+            </SheetLink>
           </NavGroup>
         )}
 

@@ -2,6 +2,60 @@ import apiRequest from "../utils/apiClient";
 import { PUBLIC_SUBMIT_ERROR } from "../utils/safeMessages";
 
 /**
+ * Check whether someone is already registered (public, no auth).
+ * Backend: GET /api/awakening-conference/check?email=...&phone=...
+ * Accepts either or both params. Returns { exists: boolean, record? }.
+ * 404 → not registered. Network/5xx errors throw so callers can block or retry.
+ */
+export const checkAwakeningRegistration = async ({ email, phone } = {}) => {
+  const params = {};
+  if (email && email.trim()) params.email = email.trim();
+  if (phone && phone.trim()) params.phone = phone.trim();
+  if (!params.email && !params.phone) return { exists: false };
+
+  try {
+    const response = await apiRequest(
+      "GET",
+      "/api/awakening-conference/check",
+      params,
+      undefined,
+      false // public endpoint — no Bearer token
+    );
+    if (!response) return { exists: false };
+
+    const payload = response.data ?? response.record;
+    const explicitExists = [
+      response.exists,
+      response.registered,
+      response.is_registered,
+      response.isRegistered,
+      payload?.exists,
+      payload?.registered,
+      payload?.is_registered,
+      payload?.isRegistered,
+    ].find((value) => typeof value === "boolean");
+
+    if (typeof explicitExists === "boolean") {
+      return {
+        exists: explicitExists,
+        record: payload && typeof payload === "object" ? payload : undefined,
+      };
+    }
+    if (typeof payload === "boolean") return { exists: payload };
+    if (Array.isArray(payload)) {
+      return { exists: payload.length > 0, record: payload[0] };
+    }
+    if (payload && typeof payload === "object") {
+      return { exists: true, record: payload };
+    }
+    return { exists: false };
+  } catch (err) {
+    if (err?.status === 404) return { exists: false };
+    throw err;
+  }
+};
+
+/**
  * Submit a public Awakening Conference registration (no auth required).
  * Backend: POST /api/awakening-conference
  */

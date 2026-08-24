@@ -24,6 +24,10 @@ yarn-error.log*
 
 .env
 
+# One-time local session created by scripts/prepare-ux-audit-login.mjs.
+# It contains a short-lived access token and must never be committed.
+/.ux-audit/
+
 #amplify-do-not-edit-begin
 amplify/\#current-cloud-backend
 amplify/.config/local-*

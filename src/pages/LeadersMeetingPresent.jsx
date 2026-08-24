@@ -22,8 +22,14 @@ import {
 import { getEffectiveRouteList } from "../utils/routeObject";
 import { fetchTeamsAndDepartmentsForFilter } from "../services/departments";
 import Spinner from "../components/ui/Spinner";
+import SuccessMark from "../components/ui/SuccessMark";
+import {
+  formatMeetingDisplayDate,
+  getMeetingDate,
+} from "../utils/meetingConfig";
 
-const MEETING_DATE = "2026-08-15";
+const MEETING_DATE = getMeetingDate("leaders");
+const DISPLAY_DATE = formatMeetingDisplayDate(MEETING_DATE);
 
 const isDistrictsTeam = (team) => team === "Districts" || team === "District";
 
@@ -1010,7 +1016,7 @@ function SuccessScreen({ onBackToSearch }) {
   return (
     <div className="text-center py-8 space-y-5">
       <div className="space-y-3">
-        <CheckCircleIcon className="mx-auto h-14 w-14 text-forest" />
+        <SuccessMark className="mx-auto h-14 w-14 text-forest" />
         <h2 className="text-2xl font-semibold text-ink">You Are Marked Present</h2>
         <p className="text-sm text-ink-500 leading-relaxed max-w-sm mx-auto">
           Your attendance has been recorded. Welcome to the meeting.
@@ -1039,7 +1045,7 @@ function Shell({ children }) {
           />
           <span className="hidden sm:inline-block h-4 w-px bg-ink-200" />
           <span className="hidden sm:inline-block text-sm text-ink-500 font-mono">
-            Leaders Meeting - Saturday, 15th August 2026
+            Leaders Meeting - {DISPLAY_DATE}
           </span>
         </div>
       </header>
@@ -1108,7 +1114,7 @@ export default function LeadersMeetingPresent() {
     <Shell>
       <div className="mb-8">
         <p className="text-xs font-mono uppercase tracking-widest text-ink-500 mb-1">
-          Leaders Meeting - Saturday, 15th August 2026
+          Leaders Meeting - {DISPLAY_DATE}
         </p>
         {step === "select" && (
           <p className="mt-2 text-sm text-ink-500">

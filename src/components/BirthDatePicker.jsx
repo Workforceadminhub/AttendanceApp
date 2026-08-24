@@ -50,7 +50,15 @@ const getDaysInMonth = (month) => {
  return daysInMonth[month] || 31;
 };
 
-export default function BirthDatePicker({ value, onChange, placeholder = "Select birth date", className = "" }) {
+export default function BirthDatePicker({
+ id,
+ value,
+ onChange,
+ placeholder = "Select birth date",
+ className = "",
+ ariaInvalid = false,
+ ariaDescribedBy,
+}) {
  const [isOpen, setIsOpen] = useState(false);
  const [selectedDay, setSelectedDay] = useState(null);
  const [selectedMonth, setSelectedMonth] = useState(null);
@@ -84,6 +92,18 @@ export default function BirthDatePicker({ value, onChange, placeholder = "Select
  return () => document.removeEventListener("mousedown", handleClickOutside);
  }, []);
 
+ useEffect(() => {
+ if (!isOpen) return undefined;
+ const handleEscape = (event) => {
+ if (event.key === "Escape") {
+ setIsOpen(false);
+ document.getElementById(id)?.focus();
+ }
+ };
+ document.addEventListener("keydown", handleEscape);
+ return () => document.removeEventListener("keydown", handleEscape);
+ }, [id, isOpen]);
+
  const handleMonthSelect = (monthIndex) => {
  setSelectedMonth(monthIndex);
  // If selected day is greater than days in new month, reset it
@@ -113,49 +133,62 @@ export default function BirthDatePicker({ value, onChange, placeholder = "Select
  return (
  <div className={`relative ${className}`} ref={dropdownRef}>
  {/* Input Display */}
- <div
- className="w-full px-3 py-2 border border-ink-300 rounded-md bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-ink-900/10 flex items-center justify-between"
+ <button
+ id={id}
+ type="button"
+ aria-haspopup="dialog"
+ aria-expanded={isOpen}
+ aria-invalid={ariaInvalid}
+ aria-describedby={ariaDescribedBy}
+ className="qc-input t-input flex items-center justify-between text-left aria-[invalid=true]:border-brick aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-brick/10"
  onClick={() => setIsOpen(!isOpen)}
  >
  <span className={value ? "text-ink-900" : "text-ink-400"}>
  {value || placeholder}
  </span>
- <div className="flex items-center space-x-2">
+ <svg
+ className={`h-5 w-5 shrink-0 text-ink-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+ fill="none"
+ stroke="currentColor"
+ viewBox="0 0 24 24"
+ aria-hidden="true"
+ >
+ <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+ </svg>
+ </button>
  {value && (
  <button
  type="button"
+ aria-label="Clear birth date"
  onClick={(e) => {
  e.stopPropagation();
  handleClear();
  }}
- className="text-ink-400 hover:text-ink-600"
+ className="absolute right-8 top-1/2 flex min-h-touch min-w-touch -translate-y-1/2 items-center justify-center rounded-sm text-ink-400 transition-colors hover:text-ink-700"
  >
- <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+ <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
  </svg>
  </button>
  )}
- <svg
- className={`w-5 h-5 text-ink-400 transition-transform ${isOpen ? "transform rotate-180" : ""}`}
- fill="none"
- stroke="currentColor"
- viewBox="0 0 24 24"
- >
- <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
- </svg>
- </div>
- </div>
 
  {/* Dropdown */}
- {isOpen && (
- <div className="absolute z-50 mt-1 w-full bg-white border border-ink-300 rounded-lg shadow-lg p-4">
+ <div
+ role="dialog"
+ aria-label="Choose birth date"
+ aria-hidden={!isOpen}
+ inert={!isOpen}
+ data-origin="top-left"
+ className={`t-dropdown absolute z-50 mt-2 w-full rounded-md border border-ink-200 bg-white p-4 shadow-lg ${isOpen ? "is-open" : ""}`}
+ >
  {/* Month Selector */}
  <div className="mb-4">
- <label className="block text-sm font-medium text-ink-700 mb-2">Month</label>
+ <label htmlFor={`${id}-month`} className="block text-sm font-medium text-ink-700 mb-2">Month</label>
  <select
+ id={`${id}-month`}
  value={selectedMonth ?? ""}
  onChange={(e) => handleMonthSelect(parseInt(e.target.value))}
- className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
+ className="min-h-touch w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
  >
  <option value="">Select Month</option>
  {months.map((month, index) => (
@@ -175,8 +208,10 @@ export default function BirthDatePicker({ value, onChange, placeholder = "Select
  <button
  key={day}
  type="button"
+ aria-label={`${day} ${months[selectedMonth]}`}
+ aria-pressed={selectedDay === day}
  onClick={() => handleDaySelect(day)}
- className={`p-2 text-sm rounded-md transition-colors ${
+ className={`min-h-touch px-1 text-sm rounded-md transition-colors ${
  selectedDay === day
  ? "bg-ink-900 text-white"
  : "bg-cream hover:bg-ink-100 text-ink-700"
@@ -202,7 +237,6 @@ export default function BirthDatePicker({ value, onChange, placeholder = "Select
  </div>
  )}
  </div>
- )}
  </div>
  );
 }

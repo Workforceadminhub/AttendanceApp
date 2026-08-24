@@ -1,72 +1,67 @@
 import React from "react";
+import GenericModal from "./GenericModal";
+
+const fields = [
+  ["reasonfordelete", "Reason for exit"],
+  ["nameofrequester", "Name of requester"],
+  ["roleofrequester", "Role of requester"],
+];
 
 const Modal = ({
- isOpen,
- onClose,
- onConfirm,
- title,
- confirmText,
- isLoading,
- confirmingText,
- formData,
- setFormData,
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  confirmText,
+  isLoading,
+  confirmingText,
+  formData,
+  setFormData,
 }) => {
- if (!isOpen) return null;
+  if (!isOpen) return null;
 
- return (
- <div className="fixed inset-0 flex items-center justify-center backdrop-blur-xl opacity-95 z-10">
- <div className="bg-white p-6 rounded-lg shadow-lg w-96 h-96">
- <h2 className="text-xl font-bold text-center mb-4">{title}</h2>
- <div className="flex py-4">
- <label className="text-lg text-brick mt-2 mr-2">*</label>
- <input
- type="text"
- placeholder="Reason for exit"
- className="border p-3 w-full rounded-md"
- onChange={(e) =>
- setFormData({ ...formData, reasonfordelete: e.target.value })
- }
- />
- </div>
- <div className="flex py-4">
- <label className="text-lg text-brick mt-2 mr-2">*</label>
- <input
- type="text"
- placeholder="Name of requester"
- className="border p-3 w-full rounded-md"
- onChange={(e) =>
- setFormData({ ...formData, nameofrequester: e.target.value })
- }
- />
- </div>
- <div className="flex py-4">
- <label className="text-lg text-brick mt-2 mr-2">*</label>
- <input
- type="text"
- placeholder="Role of requester"
- className="border p-3 w-full rounded-md"
- onChange={(e) =>
- setFormData({ ...formData, roleofrequester: e.target.value })
- }
- />
- </div>
- <div className="flex justify-between">
- <button
- className="bg-ink-300 text-black px-4 py-2 rounded-md hover:bg-ink-400 w-full mr-2"
- onClick={onClose}
- >
- Cancel
- </button>
- <button
- className="bg-brick text-white px-4 py-2 rounded-md hover:bg-brick/80 w-full ml-2"
- onClick={onConfirm}
- >
- {isLoading ? confirmingText : confirmText}
- </button>
- </div>
- </div>
- </div>
- );
+  return (
+    <GenericModal isOpen={isOpen} onClose={onClose} title={title} size="small">
+      <p className="text-sm text-ink-600">
+        Add the required audit details before confirming this change.
+      </p>
+
+      <div className="space-y-4">
+        {fields.map(([name, label]) => (
+          <div key={name}>
+            <label htmlFor={`exit-${name}`} className="qc-label text-ink-700">
+              {label} <span className="text-brick" aria-hidden="true">*</span>
+            </label>
+            <input
+              id={`exit-${name}`}
+              name={name}
+              type="text"
+              required
+              value={formData?.[name] || ""}
+              className="qc-input"
+              onChange={(event) =>
+                setFormData({ ...formData, [name]: event.target.value })
+              }
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-col-reverse gap-3 border-t border-ink-200 pt-4 sm:flex-row sm:justify-end">
+        <button type="button" className="qc-btn-secondary sm:min-w-24" onClick={onClose}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="qc-btn-danger sm:min-w-36"
+          disabled={isLoading}
+          onClick={onConfirm}
+        >
+          {isLoading ? confirmingText : confirmText}
+        </button>
+      </div>
+    </GenericModal>
+  );
 };
 
 export default Modal;

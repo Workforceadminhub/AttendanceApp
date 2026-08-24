@@ -20,6 +20,7 @@ import {
 } from "@heroicons/react/24/outline";
 import BirthDatePicker from "../components/BirthDatePicker";
 import Spinner from "../components/ui/Spinner";
+import SuccessMark from "../components/ui/SuccessMark";
 import { DROPDOWN_OPTIONS } from "../utils/sampleWorkersExcel";
 import { teamsAndDepartments } from "../utils/teams";
 
@@ -45,7 +46,7 @@ const inputClass =
 const selectClass = `${inputClass} appearance-none`;
 
 const MEETING_TYPE = "workers";
-const MEETING_DATE = getMeetingDate(DEFAULT_WORKERS_MEETING_DATE);
+const MEETING_DATE = getMeetingDate("workers") || DEFAULT_WORKERS_MEETING_DATE;
 const DISPLAY_DATE = formatMeetingDisplayDate(MEETING_DATE);
 
 // ── Step 1: Name Search ──────────────────────────────────────────────────────
@@ -1061,7 +1062,7 @@ function SuccessScreen({ variant }) {
   };
   return (
     <div className="text-center py-8 space-y-3">
-      <CheckCircleIcon className="mx-auto h-14 w-14 text-forest" />
+      <SuccessMark className="mx-auto h-14 w-14 text-forest" />
       <h2 className="text-2xl font-semibold text-ink">
         {titles[variant] || titles.confirm}
       </h2>
@@ -1147,7 +1148,7 @@ export default function WorkersMeetingConfirm() {
       </div>
 
       {step === "search" && (
-        <NameSearchStep onResults={handleResults} token={sessionToken} />
+        <NameSearchStep onResults={handleResults} token={null} />
       )}
       {step === "select" && (
         <SelectWorkerStep
@@ -1157,13 +1158,13 @@ export default function WorkersMeetingConfirm() {
           onBack={handleBackToSearch}
           onRetrySearch={handleResults}
           onAddNew={handleAddNew}
-          token={sessionToken}
+          token={null}
         />
       )}
       {step === "edit" && selectedWorker && (
         <EditWorkerStep
           worker={selectedWorker}
-          token={sessionToken}
+          token={null}
           onBack={handleBackToSelect}
           onDone={handleDone}
         />
@@ -1171,7 +1172,7 @@ export default function WorkersMeetingConfirm() {
       {step === "create" && (
         <CreateWorkerStep
           searchedName={searchedName}
-          token={sessionToken}
+          token={null}
           onBack={handleBackToSelect}
           onDone={handleDone}
         />

@@ -1,0 +1,360 @@
+[
+  {
+    "time": "2026-08-23T20:47:52.195Z",
+    "route": "/",
+    "action": "Captured mobile default state",
+    "selector": "document",
+    "result": "375x812 full-page screenshot"
+  },
+  {
+    "time": "2026-08-23T20:47:58.371Z",
+    "route": "/",
+    "action": "Clicked Sign in",
+    "selector": "a[href='/login']",
+    "result": "navigation started"
+  },
+  {
+    "time": "2026-08-23T20:47:58.716Z",
+    "route": "/login",
+    "action": "Verified route change",
+    "selector": "location.href",
+    "result": "https://attendance.hiccgbagada.com/login"
+  },
+  {
+    "time": "2026-08-23T20:48:09.257Z",
+    "route": "/login",
+    "action": "Typed invalid test pass ID",
+    "selector": "input[name='code']",
+    "result": "value entered"
+  },
+  {
+    "time": "2026-08-23T20:48:09.363Z",
+    "route": "/login",
+    "action": "Clicked Continue",
+    "selector": "button[type='submit']",
+    "result": "authentication request started"
+  },
+  {
+    "time": "2026-08-23T20:48:12.350Z",
+    "route": "/login",
+    "action": "Verified post-action state",
+    "selector": "[role='alert'], .Toastify",
+    "result": "error feedback visible"
+  },
+  {
+    "time": "2026-08-23T20:48:12.350Z",
+    "route": "/login",
+    "action": "Read console after primary action",
+    "selector": "console",
+    "result": "0 warnings/errors"
+  },
+  {
+    "time": "2026-08-23T20:48:21.536Z",
+    "route": "/login",
+    "action": "Opened email-and-password detail state",
+    "selector": "button[name*='email']",
+    "result": "alternate form requested"
+  },
+  {
+    "time": "2026-08-23T20:50:44.982Z",
+    "route": "/leadership-registration",
+    "action": "Typed test phone number",
+    "selector": "#phone",
+    "result": "11 digits entered"
+  },
+  {
+    "time": "2026-08-23T20:50:45.785Z",
+    "route": "/leadership-registration",
+    "action": "Clicked Find Me",
+    "selector": "button",
+    "result": "lookup started"
+  },
+  {
+    "time": "2026-08-23T20:50:48.744Z",
+    "route": "/leadership-registration",
+    "action": "Verified post-lookup state",
+    "selector": "main",
+    "result": "clear empty/error state visible"
+  },
+  {
+    "time": "2026-08-23T20:50:48.745Z",
+    "route": "/leadership-registration",
+    "action": "Read console after primary action",
+    "selector": "console",
+    "result": "0 recent warnings/errors"
+  },
+  {
+    "time": "2026-08-23T20:50:54.752Z",
+    "route": "/leadership-registration",
+    "action": "Opened detail form",
+    "selector": "button[name='Fill in my details']",
+    "result": "manual registration form requested"
+  },
+  {
+    "time": "2026-08-23T20:51:07.186Z",
+    "route": "/workers-meeting",
+    "action": "Typed test full name",
+    "selector": "#search-name",
+    "result": "name entered"
+  },
+  {
+    "time": "2026-08-23T20:51:08.043Z",
+    "route": "/workers-meeting",
+    "action": "Clicked Find Me",
+    "selector": "button",
+    "result": "worker lookup started"
+  },
+  {
+    "time": "2026-08-23T20:51:11.603Z",
+    "route": "/workers-meeting",
+    "action": "Verified result state",
+    "selector": "main",
+    "result": "error with retry guidance visible"
+  },
+  {
+    "time": "2026-08-23T20:51:11.603Z",
+    "route": "/workers-meeting",
+    "action": "Read console after primary action",
+    "selector": "console",
+    "result": "0 recent warnings/errors"
+  },
+  {
+    "time": "2026-08-23T20:52:03.020Z",
+    "route": "/leaders-meeting",
+    "action": "Typed test full name",
+    "selector": "#search-name",
+    "result": "name entered"
+  },
+  {
+    "time": "2026-08-23T20:52:03.845Z",
+    "route": "/leaders-meeting",
+    "action": "Clicked Find Me",
+    "selector": "button",
+    "result": "worker lookup started"
+  },
+  {
+    "time": "2026-08-23T20:52:06.802Z",
+    "route": "/leaders-meeting",
+    "action": "Verified result state",
+    "selector": "main",
+    "result": "empty result with recovery visible"
+  },
+  {
+    "time": "2026-08-23T20:52:06.802Z",
+    "route": "/leaders-meeting",
+    "action": "Read console after primary action",
+    "selector": "console",
+    "result": "0 recent warnings/errors"
+  },
+  {
+    "time": "2026-08-23T20:52:13.244Z",
+    "route": "/leaders-meeting",
+    "action": "Opened add-worker detail state",
+    "selector": "button",
+    "result": "recovery form requested"
+  },
+  {
+    "time": "2026-08-23T20:52:32.378Z",
+    "route": "/awakening",
+    "action": "Selected Worker / Volunteer",
+    "selector": "#registration_type",
+    "result": "worker-only fields revealed"
+  },
+  {
+    "time": "2026-08-23T20:52:47.046Z",
+    "route": "/awakening",
+    "action": "Selected belongs to a cell: Yes",
+    "selector": "button[aria-pressed] first",
+    "result": "cell designation field revealed"
+  },
+  {
+    "time": "2026-08-23T20:52:49.093Z",
+    "route": "/awakening",
+    "action": "Clicked Register with required fields empty",
+    "selector": "button[type='submit']",
+    "result": "client validation requested"
+  },
+  {
+    "time": "2026-08-23T20:52:51.750Z",
+    "route": "/awakening",
+    "action": "Verified validation state",
+    "selector": "p.text-sienna",
+    "result": "7 inline validation messages"
+  },
+  {
+    "time": "2026-08-23T20:52:51.750Z",
+    "route": "/awakening",
+    "action": "Read console after primary action",
+    "selector": "console",
+    "result": "0 recent warnings/errors"
+  },
+  {
+    "time": "2026-08-23T20:57:52.980Z",
+    "route": "/new/worker",
+    "action": "Typed worker first name",
+    "selector": "#firstname",
+    "result": "field value entered"
+  },
+  {
+    "time": "2026-08-23T20:57:53.681Z",
+    "route": "/new/worker",
+    "action": "Clicked Submit for review with incomplete form",
+    "selector": "button[type='submit']",
+    "result": "client validation requested"
+  },
+  {
+    "time": "2026-08-23T20:57:56.097Z",
+    "route": "/new/worker",
+    "action": "Verified inline validation and focus",
+    "selector": "[aria-invalid='true']",
+    "result": "12 invalid fields; focus moved to lastname"
+  },
+  {
+    "time": "2026-08-23T20:57:56.097Z",
+    "route": "/new/worker",
+    "action": "Read console after primary action",
+    "selector": "console",
+    "result": "4 recent warnings/errors"
+  },
+  {
+    "time": "2026-08-23T21:11:48.212Z",
+    "route": "/",
+    "action": "Clicked corrected Register a worker CTA",
+    "selector": "a[href='/new/worker']",
+    "result": "navigated to /new/worker"
+  },
+  {
+    "time": "2026-08-23T21:11:48.212Z",
+    "route": "/leadersmeeting/confirm",
+    "action": "Opened repaired confirmation route",
+    "selector": "main",
+    "result": "Confirm Your Attendance rendered; no error boundary"
+  },
+  {
+    "time": "2026-08-23T21:11:48.212Z",
+    "route": "/leadersmeeting/confirm",
+    "action": "Typed test name and clicked Find Me",
+    "selector": "input, button",
+    "result": "settled into no-results recovery with Try Again and Add yourself"
+  },
+  {
+    "time": "2026-08-23T21:11:48.212Z",
+    "route": "/leadersmeeting/confirm",
+    "action": "Read console after lookup",
+    "selector": "console",
+    "result": "0 warnings/errors in fresh local tab"
+  },
+  {
+    "time": "2026-08-23T21:11:48.212Z",
+    "route": "/workersmeeting/confirm",
+    "action": "Opened repaired route, typed test name, and clicked Find Me",
+    "selector": "input, button",
+    "result": "specific temporarily-unavailable recovery visible"
+  },
+  {
+    "time": "2026-08-23T21:11:48.212Z",
+    "route": "/workersmeeting/confirm",
+    "action": "Read console after lookup",
+    "selector": "console",
+    "result": "0 warnings/errors in fresh local tab"
+  },
+  {
+    "time": "2026-08-23T21:11:48.212Z",
+    "route": "/new/worker",
+    "action": "Typed first name and submitted incomplete form",
+    "selector": "#firstname, button[type=submit]",
+    "result": "12 invalid fields; value preserved; focus moved to lastname"
+  },
+  {
+    "time": "2026-08-23T21:11:48.212Z",
+    "route": "/new/worker",
+    "action": "Checked responsive layout after validation",
+    "selector": "documentElement",
+    "result": "375x812; no horizontal overflow"
+  },
+  {
+    "time": "2026-08-23T21:11:48.212Z",
+    "route": "/new/worker",
+    "action": "Read console after validation",
+    "selector": "console",
+    "result": "0 warnings/errors in fresh local tab"
+  },
+  {
+    "time": "2026-08-23T21:11:48.212Z",
+    "route": "/new/worker",
+    "action": "Opened date picker and pressed Escape",
+    "selector": "#birthdate",
+    "result": "dialog closed and focus returned to birthdate trigger"
+  },
+  {
+    "time": "2026-08-23T21:11:48.212Z",
+    "route": "/new/worker",
+    "action": "Ran targeted axe-core check",
+    "selector": "registration container",
+    "result": "0 Critical/Serious violations"
+  },
+  {
+    "time": "2026-08-24T15:12:00.000Z",
+    "role": "Church Admin",
+    "route": "/attendance/dashboard",
+    "action": "Bootstrapped one-time local session and loaded dashboard",
+    "selector": "role session handoff",
+    "result": "Dashboard rendered with Workers, Attendance, Meeting Reports, Hub, and Settings navigation"
+  },
+  {
+    "time": "2026-08-24T15:13:00.000Z",
+    "role": "Church Admin",
+    "route": "/church-admin/workers",
+    "action": "Typed search, opened Filter Workers, selected Programs, applied filter, and expanded a row",
+    "selector": "textbox, dialog, combobox, button",
+    "result": "Search returned 3 matches; Programs returned 2 matches; details panel opened"
+  },
+  {
+    "time": "2026-08-24T15:14:00.000Z",
+    "role": "Church Admin",
+    "route": "/church-admin/add-worker",
+    "action": "Opened Add Worker and submitted empty form",
+    "selector": "button[name='Add Worker']",
+    "result": "Field-specific required-field recovery toast displayed without creating data"
+  },
+  {
+    "time": "2026-08-24T15:15:00.000Z",
+    "role": "Super Admin",
+    "route": "/summary/super-admin",
+    "action": "Selected Programs team and waited for summary data",
+    "selector": "select[aria-label='Team']",
+    "result": "Department options, attendance leaderboard, and Workers count loaded"
+  },
+  {
+    "time": "2026-08-24T15:16:00.000Z",
+    "role": "Super Admin",
+    "route": "/report",
+    "action": "Selected Sunday 23/8/2026",
+    "selector": "select[aria-label='Attendance date']",
+    "result": "Export CSV and Export Excel actions became available"
+  },
+  {
+    "time": "2026-08-24T15:17:00.000Z",
+    "role": "HOD",
+    "route": "/dashboard/wadata",
+    "action": "Bootstrapped one-time local session and loaded dashboard",
+    "selector": "role session handoff",
+    "result": "Department dashboard rendered with summary cards, birthday widget, and three task links"
+  },
+  {
+    "time": "2026-08-24T15:18:00.000Z",
+    "role": "HOD",
+    "route": "/department/wadata/workers",
+    "action": "Opened Workers and expanded worker details",
+    "selector": "link[name='View Workers'], button[name='Expand details']",
+    "result": "17 workers loaded; detail row expanded with contact, attendance, and status fields"
+  },
+  {
+    "time": "2026-08-24T15:19:00.000Z",
+    "role": "HOD",
+    "route": "/worker/3/attendance?department=Workforce%20Admin&team=",
+    "action": "Opened leaderboard worker link and reviewed attendance history",
+    "selector": "link[name='Oluwatosin Adetayo Adeniyi']",
+    "result": "34 year-to-date records rendered after throttled API fan-out; no new console errors"
+  }
+]

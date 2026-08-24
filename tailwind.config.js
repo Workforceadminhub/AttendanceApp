@@ -99,10 +99,10 @@ module.exports = {
         sidebar: "240px",
       },
       transitionDuration: {
-        DEFAULT: "150ms",
+        DEFAULT: "var(--duration-quick)",
       },
       transitionTimingFunction: {
-        DEFAULT: "cubic-bezier(0.4, 0, 0.2, 1)",
+        DEFAULT: "var(--ease-smooth-out)",
       },
       keyframes: {
         "sheet-up": {
@@ -119,8 +119,8 @@ module.exports = {
         },
       },
       animation: {
-        "sheet-up": "sheet-up 200ms cubic-bezier(0.4, 0, 0.2, 1)",
-        "fade-in": "fade-in 150ms ease-out",
+        "sheet-up": "sheet-up var(--duration-slow) var(--ease-smooth-out)",
+        "fade-in": "fade-in var(--duration-quick) var(--ease-out)",
         "live-pulse": "live-pulse 2s ease-in-out infinite",
       },
     },

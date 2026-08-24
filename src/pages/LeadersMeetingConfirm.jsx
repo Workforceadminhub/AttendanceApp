@@ -18,7 +18,12 @@ import { DROPDOWN_OPTIONS } from "../utils/sampleWorkersExcel";
 import { getEffectiveRouteList } from "../utils/routeObject";
 import { fetchDepartments } from "../services/departments";
 import Spinner from "../components/ui/Spinner";
+import SuccessMark from "../components/ui/SuccessMark";
 import { filterDepartmentsForDistrictSubTeam } from "../utils/teams";
+import {
+  formatMeetingDisplayDate,
+  getMeetingDate,
+} from "../utils/meetingConfig";
 
 const isDistrictsTeam = (team) => team === "Districts" || team === "District";
 
@@ -43,7 +48,8 @@ const inputClass =
 
 const selectClass = `${inputClass} appearance-none`;
 
-const MEETING_DATE = "2026-08-15";
+const MEETING_DATE = getMeetingDate("leaders");
+const DISPLAY_DATE = formatMeetingDisplayDate(MEETING_DATE);
 
 // ── Step 1: Name Search ──────────────────────────────────────────────────────
 
@@ -1050,7 +1056,7 @@ function SuccessScreen({ variant }) {
   };
   return (
     <div className="text-center py-8 space-y-3">
-      <CheckCircleIcon className="mx-auto h-14 w-14 text-forest" />
+      <SuccessMark className="mx-auto h-14 w-14 text-forest" />
       <h2 className="text-2xl font-semibold text-ink">
         {titles[variant] || titles.confirm}
       </h2>
@@ -1121,7 +1127,7 @@ export default function LeadersMeetingConfirm() {
     <Shell>
       <div className="mb-8">
         <p className="text-xs font-mono uppercase tracking-widest text-ink-500 mb-1">
-          Leaders Meeting - Saturday, 15th August 2026
+          Leaders Meeting - {DISPLAY_DATE}
         </p>
         <h1 className="text-2xl sm:text-3xl font-semibold text-ink leading-snug">
           Confirm Your Attendance
@@ -1136,7 +1142,7 @@ export default function LeadersMeetingConfirm() {
       </div>
 
       {step === "search" && (
-        <NameSearchStep onResults={handleResults} token={sessionToken} />
+        <NameSearchStep onResults={handleResults} token={null} />
       )}
       {step === "select" && (
         <SelectWorkerStep
@@ -1146,13 +1152,13 @@ export default function LeadersMeetingConfirm() {
           onBack={handleBackToSearch}
           onRetrySearch={handleResults}
           onAddNew={handleAddNew}
-          token={sessionToken}
+          token={null}
         />
       )}
       {step === "edit" && selectedWorker && (
         <EditWorkerStep
           worker={selectedWorker}
-          token={sessionToken}
+          token={null}
           onBack={handleBackToSelect}
           onDone={handleDone}
         />
@@ -1160,7 +1166,7 @@ export default function LeadersMeetingConfirm() {
       {step === "create" && (
         <CreateWorkerStep
           searchedName={searchedName}
-          token={sessionToken}
+          token={null}
           onBack={handleBackToSelect}
           onDone={handleDone}
         />
@@ -1182,7 +1188,7 @@ function Shell({ children }) {
           />
           <span className="hidden sm:inline-block h-4 w-px bg-ink-200" />
           <span className="hidden sm:inline-block text-sm text-ink-500 font-mono">
-            Leaders Meeting - Saturday, 15th August 2026
+            Leaders Meeting - {DISPLAY_DATE}
           </span>
         </div>
       </header>

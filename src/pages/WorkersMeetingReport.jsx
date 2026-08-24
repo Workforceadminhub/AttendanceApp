@@ -66,7 +66,9 @@ function formatDate(iso) {
 export default function WorkersMeetingReport() {
   const TEAM_STRENGTH = getStoredTeamStrengths();
   const navigate = useNavigate();
-  const [meetingDate, setMeetingDate] = useState(() => getMeetingDate(DEFAULT_WORKERS_MEETING_DATE));
+  const [meetingDate, setMeetingDate] = useState(
+    () => getMeetingDate("workers") || DEFAULT_WORKERS_MEETING_DATE
+  );
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("summary"); // summary | list
   const [status, setStatus] = useState("all");

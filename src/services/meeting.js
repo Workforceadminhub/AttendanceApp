@@ -29,7 +29,7 @@ export async function getMeetingSession(meetingType = "leaders", forceRefresh = 
     "POST",
     "/api/meeting/auth/session",
     { client_id: clientId, meeting_type: meetingType },
-    undefined,
+    { suppressConsoleError: true },
     false
   );
   if (!response || response.error) {
@@ -47,17 +47,28 @@ export async function getMeetingSession(meetingType = "leaders", forceRefresh = 
  * Helper to execute meeting API call with transparent session key attachment and auto-refresh
  */
 async function executeMeetingCall(meetingType, requestFn) {
-  let keyToUse = await getMeetingSession(meetingType);
   try {
-    return await requestFn(keyToUse);
-  } catch (err) {
-    const isSessionErr =
-      err?.status === 401 ||
-      err?.status === 403 ||
-      /session|expired|unauthorized|api key|missing|invalid/i.test(err?.message || "");
-    if (isSessionErr) {
-      keyToUse = await getMeetingSession(meetingType, true);
+    let keyToUse = await getMeetingSession(meetingType);
+    try {
       return await requestFn(keyToUse);
+    } catch (err) {
+      const isSessionErr =
+        err?.status === 401 ||
+        err?.status === 403 ||
+        /session|expired|unauthorized|api key|missing|invalid/i.test(err?.message || "");
+      if (isSessionErr) {
+        keyToUse = await getMeetingSession(meetingType, true);
+        return await requestFn(keyToUse);
+      }
+      throw err;
+    }
+  } catch (err) {
+    if (meetingType === "workers" && err?.status !== 401 && err?.status !== 403) {
+      const unavailable = new Error(
+        "Workers Meeting check-in is temporarily unavailable. Please try again later or speak to your team leader."
+      );
+      unavailable.status = 503;
+      throw unavailable;
     }
     throw err;
   }
@@ -90,7 +101,7 @@ export async function searchMeetingWorkers(name, ...args) {
       "GET",
       endpoint,
       { name, date },
-      { headers: { "x-api-key": apiKey } },
+      { headers: { "x-api-key": apiKey }, suppressConsoleError: true },
       false
     );
     if (!response || response.error) {
@@ -117,7 +128,7 @@ export async function createMeetingWorker(data, ...args) {
       "POST",
       endpoint,
       data,
-      { headers: { "x-api-key": apiKey } },
+      { headers: { "x-api-key": apiKey }, suppressConsoleError: true },
       false
     );
     if (!response || response.error) {
@@ -144,7 +155,7 @@ export async function updateMeetingWorker(workerId, data, ...args) {
       "PUT",
       endpoint,
       data,
-      { headers: { "x-api-key": apiKey } },
+      { headers: { "x-api-key": apiKey }, suppressConsoleError: true },
       false
     );
     if (!response || response.error) {
@@ -171,7 +182,7 @@ export async function markMeetingWorkerPresent(workerId, data, ...args) {
       "POST",
       endpoint,
       data,
-      { headers: { "x-api-key": apiKey } },
+      { headers: { "x-api-key": apiKey }, suppressConsoleError: true },
       false
     );
     if (!response || response.error) {

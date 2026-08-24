@@ -70,10 +70,10 @@ export default function Home() {
               <span aria-hidden="true">→</span>
             </a>
             <a
-              href="/login"
-              className="text-sm font-medium text-ink-700 hover:text-ink-900 transition-colors px-2 py-2"
+              href="/new/worker"
+              className="qc-btn-ghost sm:px-3"
             >
-              Learn more <span aria-hidden="true">→</span>
+              Register a worker <span aria-hidden="true">→</span>
             </a>
           </div>
         </section>

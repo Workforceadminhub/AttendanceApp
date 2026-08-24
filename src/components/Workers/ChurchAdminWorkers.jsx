@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
@@ -618,7 +618,7 @@ Type "DELETE" to confirm (case-sensitive):`;
  const statsHref = `/worker/${person.id}/attendance?department=${encodeURIComponent(person.department || "")}&team=${encodeURIComponent(person.team || "")}`;
 
  return (
- <>
+ <Fragment key={person.id || person.workerid || `worker-${idx}`}>
  <tr
  key={person.id}
  onClick={() => navigate(statsHref)}
@@ -784,7 +784,7 @@ Type "DELETE" to confirm (case-sensitive):`;
  </td>
  </tr>
  )}
- </>
+ </Fragment>
  );
  })}
  </tbody>

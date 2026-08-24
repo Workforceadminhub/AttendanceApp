@@ -64,6 +64,9 @@ const MeetingSettings = lazy(() => import("./pages/MeetingSettings"));
 const AdminDepartmentRedirect = lazy(() => import("./pages/AdminDepartmentRedirect"));
 const AdminWorkersRedirect = lazy(() => import("./pages/AdminWorkersRedirect"));
 const AdminSummaryDetail = lazy(() => import("./pages/AdminSummaryDetail"));
+const AuditSessionBootstrap = import.meta.env.DEV
+  ? lazy(() => import("./pages/AuditSessionBootstrap"))
+  : null;
 
 // Hub pages (RBAC, Trainings, Courses, Certificates)
 const TrainingList = lazy(() => import("./pages/hub/trainings/TrainingList"));
@@ -132,7 +135,10 @@ const AppRoutes = () => {
   return (
     <RouteErrorBoundary>
       <Suspense fallback={<LoadingState />}>
-        <Routes>
+          <Routes>
+            {AuditSessionBootstrap && (
+              <Route path="/__ux-audit/:role" element={<AuditSessionBootstrap />} />
+            )}
             <Route index element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />

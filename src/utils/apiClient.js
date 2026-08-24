@@ -132,14 +132,19 @@ export async function apiRequest(
     const response = await api.request(options);
     return response.data;
   } catch (error) {
-    if (process.env.NODE_ENV !== "production") {
+    const status = error.response?.status;
+    const isTransientBackendFailure = status === 429 || status === 502 || status === 503 || status === 504;
+    if (
+      process.env.NODE_ENV !== "production" &&
+      !error.config?.suppressConsoleError &&
+      !isTransientBackendFailure
+    ) {
       // eslint-disable-next-line no-console
       console.error(
         "[API Error]",
         redactSensitive(error.response?.data || error.message)
       );
     }
-    const status = error.response?.status;
     const url = error.config?.url || "";
 
     // Non-login and non-meeting 401s are handled by the interceptor (session timeout → redirect).

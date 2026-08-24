@@ -24,23 +24,63 @@ import { useHubNav } from "../contexts/RBACContext";
 
 function NavDropdown({ label, items }) {
   const [open, setOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
   const ref = useRef(null);
+  const closeTimer = useRef(null);
+
+  const getCloseMs = () =>
+    parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue("--dropdown-close-dur")
+    ) || 150;
+
+  const openDropdown = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    setClosing(false);
+    setOpen(true);
+  };
+
+  const closeDropdown = () => {
+    setOpen(false);
+    setClosing(true);
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => {
+      setClosing(false);
+      closeTimer.current = null;
+    }, getCloseMs());
+  };
 
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+      if (open && ref.current && !ref.current.contains(e.target)) closeDropdown();
+    };
+    const handleEscape = (e) => {
+      if (open && e.key === "Escape") {
+        closeDropdown();
+        ref.current?.querySelector("button")?.focus();
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [open]);
+
+  useEffect(() => () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
   }, []);
+
+  const menuId = `nav-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
 
   return (
     <div className="relative" ref={ref}>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => (open ? closeDropdown() : openDropdown())}
         className="flex items-center gap-1 text-sm font-medium text-ink-700 hover:text-ink-900 transition-colors py-1"
         aria-expanded={open}
+        aria-controls={menuId}
       >
         {label}
         <ChevronDownIcon
@@ -49,8 +89,15 @@ function NavDropdown({ label, items }) {
           }`}
         />
       </button>
-      {open && (
-        <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-ink-200 rounded-md z-50 overflow-hidden">
+        <div
+          id={menuId}
+          data-origin="top-right"
+          aria-hidden={!open}
+          inert={!open}
+          className={`t-dropdown absolute right-0 top-full mt-2 w-56 bg-white border border-ink-200 rounded-md z-50 overflow-hidden ${
+            open ? "is-open" : closing ? "is-closing" : ""
+          }`}
+        >
           <div className="px-3 py-2 border-b border-ink-100">
             <span className="qc-section-title">{label}</span>
           </div>
@@ -67,7 +114,7 @@ function NavDropdown({ label, items }) {
                 <a
                   key={item.name}
                   href={item.href}
-                  onClick={() => setOpen(false)}
+                  onClick={closeDropdown}
                   className="block px-3 py-2 text-sm text-ink-700 hover:bg-cream-200 hover:text-ink-900 transition-colors"
                 >
                   {item.name}
@@ -76,7 +123,6 @@ function NavDropdown({ label, items }) {
             )}
           </div>
         </div>
-      )}
     </div>
   );
 }

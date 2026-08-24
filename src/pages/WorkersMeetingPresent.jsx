@@ -20,10 +20,11 @@ import {
 } from "@heroicons/react/24/outline";
 import { DROPDOWN_OPTIONS } from "../utils/sampleWorkersExcel";
 import Spinner from "../components/ui/Spinner";
+import SuccessMark from "../components/ui/SuccessMark";
 import { teamsAndDepartments } from "../utils/teams";
 
 const MEETING_TYPE = "workers";
-const MEETING_DATE = getMeetingDate(DEFAULT_WORKERS_MEETING_DATE);
+const MEETING_DATE = getMeetingDate("workers") || DEFAULT_WORKERS_MEETING_DATE;
 const DISPLAY_DATE = formatMeetingDisplayDate(MEETING_DATE);
 
 const PLACEHOLDER_ROLES = new Set([
@@ -789,7 +790,7 @@ function CreateWorkerStep({ searchedName, token, onBack, onDone }) {
 function SuccessScreen() {
   return (
     <div className="text-center py-8 space-y-3">
-      <CheckCircleIcon className="mx-auto h-14 w-14 text-forest" />
+      <SuccessMark className="mx-auto h-14 w-14 text-forest" />
       <h2 className="text-2xl font-semibold text-ink">You are marked present!</h2>
       <p className="text-sm text-ink-500 leading-relaxed max-w-sm mx-auto">
         Thank you for attending the Workers Meeting. Your attendance has been recorded successfully.

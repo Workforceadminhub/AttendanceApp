@@ -31,6 +31,21 @@ function sundayToShortLabel(dateStr) {
 const STATUS_MAP = { Present: 3, Online: 2, Absent: 1 };
 const STATUS_LABELS = { 3: "Present", 2: "Online", 1: "Absent" };
 
+async function mapWithConcurrency(items, worker, concurrency = 4) {
+ const results = new Array(items.length);
+ let cursor = 0;
+ const run = async () => {
+  while (cursor < items.length) {
+   const index = cursor++;
+   results[index] = await worker(items[index], index);
+  }
+ };
+ await Promise.all(
+  Array.from({ length: Math.min(concurrency, items.length) }, () => run())
+ );
+ return results;
+}
+
 /** Parse "Sunday - d/m/y" → "Sunday d, Month yyyy" for the log table */
 function sundayToDisplayDate(dateStr) {
  if (!dateStr) return "";
@@ -61,10 +76,13 @@ export default function WorkerAttendanceHistory() {
  const { data: attendanceByDate, isLoading } = useQuery({
  queryKey: ["workerAttendanceByDate", workerId, department, sundays.length],
  queryFn: async () => {
- const results = await Promise.all(
- sundays.map((sunday) =>
- fetchWorkers(department, sunday, permissions).catch(() => null)
- )
+ // Keep the history view from opening dozens of connections at once. The
+ // attendance API is shared with the dashboard and can return transient 503s
+ // when the full year is requested in parallel.
+ const results = await mapWithConcurrency(
+  sundays,
+  (sunday) => fetchWorkers(department, sunday, permissions).catch(() => null),
+  4
  );
  return sundays.map((sunday, i) => ({ sunday, workers: results[i] }));
  },

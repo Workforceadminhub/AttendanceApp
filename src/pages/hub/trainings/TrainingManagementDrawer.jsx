@@ -614,7 +614,7 @@ export function TrainingFormDrawer({ mode = "create", initialTraining, onClose, 
               className="qc-input text-sm"
               value={form.cohort}
               onChange={set("cohort")}
-              placeholder="e.g. June 2026"
+              placeholder="Foundation course, June cohort 2026"
             />
           </div>
         </div>

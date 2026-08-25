@@ -22,6 +22,8 @@ const SESSION_USER_KEYS = [
   "sub",
   "workerId",
   "worker_id",
+  "workerProfileId",
+  "worker_profile_id",
   "username",
 ];
 
@@ -66,6 +68,20 @@ export function getSessionUser() {
   } catch {
     return null;
   }
+}
+
+/**
+ * Return a worker-record identifier only when sign-in explicitly supplied it.
+ * A generic account `id` can identify the auth account rather than a worker.
+ */
+export function getLinkedWorkerId(user = getSessionUser()) {
+  const candidates = [
+    user?.workerId,
+    user?.worker_id,
+    user?.workerProfileId,
+    user?.worker_profile_id,
+  ];
+  return candidates.find((value) => value !== undefined && value !== null && value !== "") ?? null;
 }
 
 /** Clear tokens only (e.g. expired session redirect). */

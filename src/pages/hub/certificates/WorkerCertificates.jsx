@@ -7,11 +7,12 @@ import CertificatePreview from "../../../components/hub/certificates/Certificate
 import { hubGet } from "../../../services/hub/client";
 import { downloadCertificate } from "../../../services/hub/certificates";
 import { getUser } from "../../../utils/getUser";
+import { getLinkedWorkerId } from "../../../utils/authSession";
 
 export default function WorkerCertificates() {
   const user = getUser();
   const [preview, setPreview] = useState(null);
-  const workerId = user?.workerId ?? user?.worker_id ?? user?.id;
+  const workerId = getLinkedWorkerId(user);
 
   const { data, isLoading } = useQuery({
     queryKey: ["hub-worker-certificates", workerId],

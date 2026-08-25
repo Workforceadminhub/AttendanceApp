@@ -3,7 +3,9 @@ import {
   PROGRESSION_STATE,
   completionFor,
   daysServed,
+  durationFromDates,
   isEligibleForNextLevel,
+  isTrainingFull,
   nextSessionDate,
   trainingStatus,
   unwrapTrainingDetail,
@@ -92,6 +94,20 @@ describe("trainingStatus", () => {
     expect(trainingStatus({ start_date: "2026-09-01", end_date: "2026-09-05" }, { now })).toBe("upcoming");
     expect(trainingStatus({ start_date: "2026-08-01", end_date: "2026-08-30" }, { now })).toBe("ongoing");
     expect(trainingStatus({ start_date: "2026-06-01", end_date: "2026-06-30" }, { now })).toBe("completed");
+  });
+});
+
+describe("training scheduling helpers", () => {
+  it("derives an inclusive duration from the start and end dates", () => {
+    expect(durationFromDates("2026-08-01", "2026-08-01")).toBe("1 day");
+    expect(durationFromDates("2026-08-01", "2026-08-03")).toBe("3 days");
+    expect(durationFromDates("2026-08-03", "2026-08-01")).toBe("");
+  });
+
+  it("blocks registration once capacity has been reached", () => {
+    expect(isTrainingFull({ capacity: 2, number_of_enrollees: 2 })).toBe(true);
+    expect(isTrainingFull({ capacity: 2 }, [{ id: 1 }])).toBe(false);
+    expect(isTrainingFull({ capacity: 0, number_of_enrollees: 99 })).toBe(false);
   });
 });
 

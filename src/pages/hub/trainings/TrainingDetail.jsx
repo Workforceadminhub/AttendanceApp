@@ -18,6 +18,7 @@ import {
   fetchNominations,
   fetchRegistrationRequests,
   fetchTrainingCertificates,
+  fetchWorkerTrainings,
   registerForTraining,
   reviewRegistrationRequest,
 } from "../../../services/hub/trainings";
@@ -28,6 +29,7 @@ import {
   formatDate,
   initials,
   isProgressive,
+  isTrainingFull,
   kindLabel,
   nextSessionDate,
   progressTone,
@@ -61,13 +63,15 @@ export default function TrainingDetail() {
   const canMarkAttendance = useCanAction("mark_training_attendance");
   const canNominate = useCanAction("nominate_workers");
 
-  const { isSuperAdmin, isChurchAdmin, isAdmin, user } = getUserRole();
+  const { isSuperAdmin, isChurchAdmin, isAdmin, isHOD, user } = getUserRole();
   const isAdminView = isSuperAdmin || isChurchAdmin || isAdmin;
   const canSelfRegister = !isAdminView;
 
   const [tab, setTab] = useState(isAdminView ? "enrollees" : "sessions");
   const [showRefresher, setShowRefresher] = useState(false);
   const [previewCertificate, setPreviewCertificate] = useState(null);
+  const [priorTrainingCompleted, setPriorTrainingCompleted] = useState(false);
+  const [priorTrainingCompletionDate, setPriorTrainingCompletionDate] = useState("");
 
   const { data: trainingData, isLoading } = useQuery({
     queryKey: ["hub-training", id],
@@ -76,6 +80,7 @@ export default function TrainingDetail() {
   const detail = unwrapTrainingDetail(trainingData);
   const training = detail?.training ?? null;
   const participation = detail?.participation ?? [];
+  const myWorkerId = user?.workerId ?? user?.worker_id ?? user?.id;
 
   const { data: sessionsData } = useQuery({
     queryKey: ["hub-training-sessions", id],
@@ -120,7 +125,12 @@ export default function TrainingDetail() {
   });
 
   const registerMut = useMutation({
-    mutationFn: (options) => registerForTraining(id, undefined, options),
+    mutationFn: (options) => {
+      if (isTrainingFull(training, enrollees)) {
+        throw new Error("This training is full and is no longer accepting registrations.");
+      }
+      return registerForTraining(id, myWorkerId, options);
+    },
     onSuccess: (response) => {
       const payload = unwrapData(response);
       if (payload?.already_enrolled) toast.info("You are already enrolled in this training");
@@ -129,11 +139,14 @@ export default function TrainingDetail() {
       queryClient.invalidateQueries({ queryKey: ["hub-training", id] });
       queryClient.invalidateQueries({ queryKey: ["hub-training-enrollees", id] });
     },
-    onError: (err) => toast.error(err.message || "Registration failed"),
+    onError: (err) => toast.error(
+      /no worker profile linked/i.test(err.message || "")
+        ? "We could not find your worker profile. Please ask an administrator to link this account to your worker record."
+        : err.message || "Registration failed"
+    ),
   });
 
   // The worker's own record drives the completion / refresher states.
-  const myWorkerId = user?.workerId ?? user?.worker_id ?? user?.id;
   const myEnrollment = useMemo(
     () => enrollees.find((e) => String(workerIdOf(e)) === String(myWorkerId)),
     [enrollees, myWorkerId]
@@ -153,6 +166,23 @@ export default function TrainingDetail() {
         : [],
     [pathTrainingsData, training]
   );
+  const currentPathIndex = chain.findIndex((step) => String(step.id) === String(training?.id));
+  const prerequisiteTraining = currentPathIndex > 0 ? chain[currentPathIndex - 1] : null;
+  const { data: workerTrainingsData } = useQuery({
+    queryKey: ["hub-worker-trainings", myWorkerId],
+    queryFn: () => fetchWorkerTrainings(myWorkerId),
+    enabled: canSelfRegister && Boolean(myWorkerId && prerequisiteTraining),
+  });
+  const workerTrainingsPayload = unwrapData(workerTrainingsData);
+  const workerTrainings = Array.isArray(workerTrainingsPayload)
+    ? workerTrainingsPayload
+    : workerTrainingsPayload?.trainings ?? [];
+  const platformPrerequisite = workerTrainings.find(
+    (record) => String(record.training_id ?? record.id) === String(prerequisiteTraining?.id)
+  );
+  const hasPlatformPrerequisite = String(platformPrerequisite?.status ?? "").toLowerCase() === "completed";
+  const needsPrerequisiteAcknowledgement =
+    canSelfRegister && Boolean(prerequisiteTraining) && !myEnrollment && !hasPlatformPrerequisite;
 
   if (isLoading) {
     return (
@@ -177,6 +207,7 @@ export default function TrainingDetail() {
   }
 
   const status = trainingStatus(training);
+  const isFull = isTrainingFull(training, enrollees);
   const curriculum = unwrapData(curriculumData) ?? [];
   const nominations = unwrapData(nominationsData) ?? [];
   const requests = unwrapData(requestsData) ?? [];
@@ -227,15 +258,24 @@ export default function TrainingDetail() {
                 ) : status !== "completed" && !myEnrollment ? (
                   <button
                     type="button"
-                    disabled={registerMut.isPending}
-                    onClick={() => registerMut.mutate({})}
+                    disabled={
+                      registerMut.isPending ||
+                      isFull ||
+                      (needsPrerequisiteAcknowledgement && (!priorTrainingCompleted || !priorTrainingCompletionDate))
+                    }
+                    onClick={() => registerMut.mutate({
+                      priorTrainingCompletion: prerequisiteTraining && priorTrainingCompleted
+                        ? { training_id: prerequisiteTraining.id, completed_at: priorTrainingCompletionDate }
+                        : undefined,
+                    })}
+                    aria-describedby={needsPrerequisiteAcknowledgement ? "prerequisite-completion-note" : undefined}
                     className="qc-btn-primary"
                   >
-                    {registerMut.isPending ? "Registering..." : "Register"}
+                    {registerMut.isPending ? "Registering..." : isFull ? "Training Full" : "Register"}
                   </button>
                 ) : null
               )}
-              {canNominate && (
+              {canNominate && !isHOD && (
                 <Link to={`/hub/trainings/${id}/nominate`} className="qc-btn-secondary">
                   Nominate Workers
                 </Link>
@@ -252,6 +292,38 @@ export default function TrainingDetail() {
               )}
             </div>
           </div>
+
+          {needsPrerequisiteAcknowledgement && (
+            <div className="qc-card p-5">
+              <h2 className="text-base font-semibold text-ink-900">Confirm prerequisite completion</h2>
+              <p id="prerequisite-completion-note" className="mt-1 text-sm text-ink-600">
+                {prerequisiteTraining.name} must be completed before you can register for this level. If you completed it outside this platform, record the completion below.
+              </p>
+              <label className="mt-4 flex items-start gap-3 text-sm text-ink-700">
+                <input
+                  type="checkbox"
+                  checked={priorTrainingCompleted}
+                  onChange={(event) => setPriorTrainingCompleted(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-ink-300 accent-ink-900"
+                />
+                <span>I have completed {prerequisiteTraining.name}.</span>
+              </label>
+              {priorTrainingCompleted && (
+                <div className="mt-3 max-w-xs">
+                  <label className="qc-label" htmlFor="prior-training-completion-date">Completion date *</label>
+                  <input
+                    id="prior-training-completion-date"
+                    type="date"
+                    className="qc-input qc-num"
+                    value={priorTrainingCompletionDate}
+                    onChange={(event) => setPriorTrainingCompletionDate(event.target.value)}
+                    max={asDate(new Date().toISOString())}
+                    required
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* FE-T9 Refresher — separated from a normal registration on purpose */}
           {canSelfRegister && hasCompleted && (

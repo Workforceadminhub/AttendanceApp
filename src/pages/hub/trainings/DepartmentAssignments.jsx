@@ -6,6 +6,7 @@ import Header from "../../../components/Header";
 import Layout from "../../../components/Layout";
 import { Stat, Tag } from "../../../components/ui";
 import { useEffectiveRouteList } from "../../../contexts/DepartmentsContext";
+import { useCanAction } from "../../../contexts/RBACContext";
 import { getUserRole } from "../../../utils/getUserRole";
 import { getNextSunday } from "../../../utils/getDate";
 import {
@@ -40,6 +41,7 @@ import {
 export default function DepartmentAssignments() {
   const { id } = useParams();
   const queryClient = useQueryClient();
+  const canManageAssignments = useCanAction("create_training");
   const { isSuperAdmin, isChurchAdmin, isAdmin, user } = getUserRole();
   const routeList = useEffectiveRouteList();
 
@@ -125,7 +127,11 @@ export default function DepartmentAssignments() {
       setShowForm(false);
       queryClient.invalidateQueries({ queryKey: ["hub-training-dept-assignments", id] });
     },
-    onError: (err) => toast.error(err.message || "Failed to create assignment"),
+    onError: (err) => toast.error(
+      err.status === 403
+        ? "Only training administrators can create department assignments."
+        : err.message || "Failed to create assignment"
+    ),
   });
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
@@ -148,13 +154,15 @@ export default function DepartmentAssignments() {
                 {training ? ` after ${training.name}` : ""}.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowForm(!showForm)}
-              className="qc-btn-primary shrink-0"
-            >
-              {showForm ? "Cancel" : "Assign Worker"}
-            </button>
+            {canManageAssignments && (
+              <button
+                type="button"
+                onClick={() => setShowForm(!showForm)}
+                className="qc-btn-primary shrink-0"
+              >
+                {showForm ? "Cancel" : "Assign Worker"}
+              </button>
+            )}
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

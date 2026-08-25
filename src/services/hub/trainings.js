@@ -44,6 +44,9 @@ export function registerForTraining(id, workerId, options = {}) {
   const body = workerId ? { worker_id: workerId } : {};
   // A refresher retake is flagged so it is not counted as a new completion.
   if (options.refresher) body.enrollment_type = "refresher";
+  if (options.priorTrainingCompletion) {
+    body.prior_training_completion = options.priorTrainingCompletion;
+  }
   return hubPost(`/trainings/${id}/register`, body);
 }
 
@@ -201,4 +204,8 @@ export function createProgressionPath(data) {
 
 export function updateProgressionPath(id, data) {
   return hubPatch(`/progression-paths/${id}`, data);
+}
+
+export function deleteProgressionPath(id) {
+  return hubDelete(`/progression-paths/${id}`);
 }

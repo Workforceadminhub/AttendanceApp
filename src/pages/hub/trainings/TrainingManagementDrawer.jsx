@@ -3,8 +3,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import { Link } from "react-router-dom";
 import { Tag } from "../../../components/ui";
+import { useEffectiveRouteList } from "../../../contexts/DepartmentsContext";
 import {
   createTraining,
+  createProgressionPath,
   fetchEnrollees,
   fetchProgressionPaths,
   fetchSessions,
@@ -18,6 +20,7 @@ import {
   TRAINING_KIND,
   asDate,
   completionFor,
+  durationFromDates,
   display,
   initials,
   isProgressive,
@@ -45,6 +48,7 @@ const CATEGORY_OPTIONS = [
 const MODE_OPTIONS = [
   { value: "physical", label: "Physical" },
   { value: "virtual", label: "Virtual" },
+  { value: "hybrid", label: "Hybrid" },
 ];
 
 function Panel({ title, subtitle, children, footer, wide = false, onClose }) {
@@ -295,7 +299,10 @@ export function TrainingDetailDrawer({ trainingId, fallbackTraining, onClose, on
 
 export function TrainingFormDrawer({ mode = "create", initialTraining, onClose, onSaved }) {
   const queryClient = useQueryClient();
+  const routeList = useEffectiveRouteList();
   const initial = initialTraining || {};
+  const initialTemplate =
+    initial.template_slug ?? initial.certificate_template?.slug ?? initial.certificate_template_id ?? "";
   const [form, setForm] = useState({
     name: initial.name || "",
     description: initial.description || initial.short_description || "",
@@ -304,11 +311,15 @@ export function TrainingFormDrawer({ mode = "create", initialTraining, onClose, 
     end_date: asDate(initial.end_date),
     category: String(initial.category || "training").toLowerCase(),
     mode: String(initial.mode || "physical").toLowerCase(),
-    duration: initial.duration || "",
+    duration: durationFromDates(initial.start_date, initial.end_date) || initial.duration || "",
     capacity: initial.capacity || "",
     registration_deadline: asDate(initial.registration_deadline),
     cohort: initial.cohort || "",
-    certificate_template_id: initial.certificate_template_id || "",
+    visibility_scope: initial.visibility_scope ?? initial.visibility ?? "all_workers",
+    department_name: initial.department_name ?? initial.department ?? "",
+    location: initial.location ?? initial.meeting_location ?? "",
+    meeting_link: initial.meeting_link ?? initial.meeting_url ?? "",
+    template_slug: initialTemplate,
     training_kind: String(initial.training_kind || TRAINING_KIND.STANDALONE).toLowerCase(),
     progression_path_id: initial.progression_path_id || "",
     prerequisite_template_slug: initial.prerequisite_template_slug || "",
@@ -320,6 +331,10 @@ export function TrainingFormDrawer({ mode = "create", initialTraining, onClose, 
     queryFn: fetchProgressionPaths,
   });
   const paths = unwrapData(pathsData) ?? [];
+  const departments = useMemo(
+    () => [...new Set(routeList.map((entry) => entry.department).filter(Boolean))].sort(),
+    [routeList]
+  );
 
   const { data: allTrainingsData } = useQuery({
     queryKey: ["hub-trainings", "all-for-pathway"],
@@ -344,6 +359,19 @@ export function TrainingFormDrawer({ mode = "create", initialTraining, onClose, 
       onSaved(response);
     },
     onError: (error) => toast.error(error.message || "Unable to save training"),
+  });
+
+  const createPathMut = useMutation({
+    mutationFn: (payload) => createProgressionPath(payload),
+    onSuccess: (response, payload) => {
+      const path = unwrapData(response);
+      const pathId = path?.id ?? path?._id;
+      toast.success("Pathway created");
+      queryClient.invalidateQueries({ queryKey: ["hub-progression-paths"] });
+      setForm((current) => ({ ...current, progression_path_id: pathId ?? current.progression_path_id }));
+      if (!pathId) toast.info(`Select “${payload.name}” once the pathway list refreshes.`);
+    },
+    onError: (error) => toast.error(error.message || "Unable to create pathway"),
   });
 
   const set = (field) => (event) => {
@@ -383,7 +411,10 @@ export function TrainingFormDrawer({ mode = "create", initialTraining, onClose, 
       setErrors(found);
       return;
     }
-    const payload = { ...form };
+    const payload = {
+      ...form,
+      duration: durationFromDates(form.start_date, form.end_date),
+    };
     if (payload.capacity) payload.capacity = Number(payload.capacity);
     Object.keys(payload).forEach((key) => {
       if (payload[key] === "") delete payload[key];
@@ -458,6 +489,28 @@ export function TrainingFormDrawer({ mode = "create", initialTraining, onClose, 
           </div>
         </div>
 
+        <div>
+          <label className="qc-label" htmlFor="training-visibility">Who can see and register for this training? *</label>
+          <select
+            id="training-visibility"
+            className="qc-input text-sm"
+            value={form.visibility_scope}
+            onChange={set("visibility_scope")}
+          >
+            <option value="all_workers">All workers</option>
+            <option value="department">A specific department</option>
+          </select>
+        </div>
+        {form.visibility_scope === "department" && (
+          <div>
+            <label className="qc-label" htmlFor="training-department">Department *</label>
+            <select id="training-department" className="qc-input text-sm" value={form.department_name} onChange={set("department_name")} required>
+              <option value="">Select the department that can access this training</option>
+              {departments.map((department) => <option key={department} value={department}>{department}</option>)}
+            </select>
+          </div>
+        )}
+
         <SectionHeading>Schedule</SectionHeading>
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -503,6 +556,18 @@ export function TrainingFormDrawer({ mode = "create", initialTraining, onClose, 
             ))}
           </div>
         </div>
+        {(form.mode === "physical" || form.mode === "hybrid") && (
+          <div>
+            <label className="qc-label" htmlFor="training-location">Meeting location *</label>
+            <input id="training-location" className="qc-input text-sm" value={form.location} onChange={set("location")} placeholder="e.g. HICC Gbagada, Main Auditorium" />
+          </div>
+        )}
+        {(form.mode === "virtual" || form.mode === "hybrid") && (
+          <div>
+            <label className="qc-label" htmlFor="training-meeting-link">Meeting link *</label>
+            <input id="training-meeting-link" type="url" className="qc-input text-sm" value={form.meeting_link} onChange={set("meeting_link")} placeholder="e.g. https://zoom.us/j/123456789" />
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="qc-label" htmlFor="training-deadline">Registration deadline</label>
@@ -519,10 +584,12 @@ export function TrainingFormDrawer({ mode = "create", initialTraining, onClose, 
             <input
               id="training-duration"
               className="qc-input text-sm"
-              value={form.duration}
-              onChange={set("duration")}
-              placeholder="e.g. 3 days"
+              value={durationFromDates(form.start_date, form.end_date)}
+              readOnly
+              aria-describedby="training-duration-hint"
+              placeholder="Set start and end dates"
             />
+            <p id="training-duration-hint" className="mt-1 text-xs text-ink-500">Calculated automatically from the scheduled dates.</p>
           </div>
         </div>
 
@@ -566,6 +633,8 @@ export function TrainingFormDrawer({ mode = "create", initialTraining, onClose, 
           trainings={allTrainings}
           draft={draft}
           error={errors.progression_path_id}
+          onCreatePathway={(payload) => createPathMut.mutate(payload)}
+          creatingPathway={createPathMut.isPending}
         />
 
         {/* FE-C2 — the template is assigned here rather than on its own screen. */}
@@ -575,18 +644,21 @@ export function TrainingFormDrawer({ mode = "create", initialTraining, onClose, 
           <select
             id="training-template"
             className="qc-input text-sm"
-            value={form.certificate_template_id}
-            onChange={set("certificate_template_id")}
+            value={form.template_slug}
+            onChange={set("template_slug")}
           >
             <option value="">No certificate for this training</option>
             {templates.map((template) => (
-              <option key={template.id ?? template.name} value={template.id ?? template.name}>
+              <option key={template.id ?? template.name} value={template.slug ?? template.template_slug ?? template.name ?? template.id}>
                 {template.name}
               </option>
             ))}
           </select>
           <p className="text-xs text-ink-500 mt-1">
             Workers who attend every session are issued this certificate automatically.
+          </p>
+          <p className="text-xs text-ink-500 mt-1">
+            Need a different layout? Create a certificate template first, then return here to select it.
           </p>
         </div>
       </form>
@@ -678,7 +750,7 @@ export function CohortManagementDrawer({ trainingId, trainingName, onClose }) {
                   className="qc-input text-sm"
                   value={name}
                   onChange={(event) => setName(event.target.value)}
-                  placeholder="e.g. BLC Batch C - Sept 2026"
+                  placeholder="Foundation course, June cohort 2026"
                   required
                 />
               </div>

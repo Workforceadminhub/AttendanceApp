@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { TRAINING_KIND } from "../../../utils/training";
 
 /**
@@ -100,8 +100,12 @@ export default function TrainingClassification({
   trainings,
   draft,
   error,
+  onCreatePathway,
+  creatingPathway = false,
 }) {
   const isProgressive = kind === TRAINING_KIND.PROGRESSIVE;
+  const [newPathName, setNewPathName] = useState("");
+  const [showNewPath, setShowNewPath] = useState(false);
 
   const chain = useMemo(
     () => (isProgressive ? buildPathwayChain(trainings, { pathId, draft }) : []),
@@ -188,10 +192,41 @@ export default function TrainingClassification({
             )}
             {!pathsLoading && (paths ?? []).length === 0 && (
               <span className="text-xs text-ink-500 mt-1 block">
-                No pathways yet. Create one under Training Programs first.
+                No pathways yet. Create one below without leaving this training.
               </span>
             )}
             {error && <span className="text-xs text-brick mt-1 block">{error}</span>}
+            {onCreatePathway && (
+              <div className="mt-2">
+                {!showNewPath ? (
+                  <button type="button" onClick={() => setShowNewPath(true)} className="text-xs font-medium text-forest hover:underline">
+                    + Add a new pathway
+                  </button>
+                ) : (
+                  <div className="flex flex-col sm:flex-row gap-2 rounded border border-ink-200 bg-cream-50 p-3">
+                    <input
+                      className="qc-input text-sm flex-1"
+                      value={newPathName}
+                      onChange={(event) => setNewPathName(event.target.value)}
+                      placeholder="e.g. Foundation to Leadership Pathway"
+                      aria-label="New pathway name"
+                    />
+                    <button
+                      type="button"
+                      disabled={!newPathName.trim() || creatingPathway}
+                      onClick={() => {
+                        onCreatePathway({ name: newPathName.trim() });
+                        setNewPathName("");
+                        setShowNewPath(false);
+                      }}
+                      className="qc-btn-secondary whitespace-nowrap"
+                    >
+                      {creatingPathway ? "Creating..." : "Create pathway"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {pathId && (

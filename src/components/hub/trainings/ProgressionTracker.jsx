@@ -193,12 +193,9 @@ function ServiceProgress({ assignment }) {
  */
 function resolveStates({ chain, currentTrainingId, sessions, participation, workerId, assignment }) {
   if (!workerId) {
-    // Admin view: describe the pathway, not a person's position on it.
-    return chain.map((step) =>
-      String(step.id) === String(currentTrainingId)
-        ? PROGRESSION_STATE.IN_PROGRESS
-        : PROGRESSION_STATE.NOT_STARTED
-    );
+    // This is a pathway map, not an individual's record. Never imply that a
+    // later level is underway while its prerequisite is still not started.
+    return chain.map(() => PROGRESSION_STATE.NOT_STARTED);
   }
 
   const completed = chain.map((step) => {

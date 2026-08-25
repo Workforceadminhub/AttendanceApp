@@ -7,6 +7,7 @@ import Layout from "../../../components/Layout";
 import { Tag } from "../../../components/ui";
 import { useCanAction } from "../../../contexts/RBACContext";
 import { getUserRole } from "../../../utils/getUserRole";
+import { getLinkedWorkerId } from "../../../utils/authSession";
 import ProgressionTracker from "../../../components/hub/trainings/ProgressionTracker";
 import CertificatePreview from "../../../components/hub/certificates/CertificatePreview";
 import {
@@ -80,7 +81,9 @@ export default function TrainingDetail() {
   const detail = unwrapTrainingDetail(trainingData);
   const training = detail?.training ?? null;
   const participation = detail?.participation ?? [];
-  const myWorkerId = user?.workerId ?? user?.worker_id ?? user?.id;
+  // Never treat the generic auth account ID as a worker record. Self-registration
+  // is resolved by the API from the authenticated account.
+  const myWorkerId = getLinkedWorkerId(user);
 
   const { data: sessionsData } = useQuery({
     queryKey: ["hub-training-sessions", id],
@@ -129,7 +132,7 @@ export default function TrainingDetail() {
       if (isTrainingFull(training, enrollees)) {
         throw new Error("This training is full and is no longer accepting registrations.");
       }
-      return registerForTraining(id, myWorkerId, options);
+      return registerForTraining(id, undefined, options);
     },
     onSuccess: (response) => {
       const payload = unwrapData(response);

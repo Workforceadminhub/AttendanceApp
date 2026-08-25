@@ -4,8 +4,10 @@ import { toast } from "react-toastify";
 import { Tag } from "../../../components/ui";
 import {
   createProgressionPath,
+  deleteProgressionPath,
   fetchProgressionPaths,
   fetchTrainings,
+  updateProgressionPath,
 } from "../../../services/hub/trainings";
 import { unwrapData } from "../../../utils/training";
 import { buildPathwayChain } from "./TrainingClassification";
@@ -22,6 +24,7 @@ export default function ProgressionPaths() {
   const queryClient = useQueryClient();
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: "", description: "" });
+  const [editingId, setEditingId] = useState(null);
 
   const { data: pathsData, isLoading } = useQuery({
     queryKey: ["hub-progression-paths"],
@@ -55,6 +58,27 @@ export default function ProgressionPaths() {
     onError: (err) => toast.error(err.message || "Failed to create pathway"),
   });
 
+  const updateMut = useMutation({
+    mutationFn: ({ id, payload }) => updateProgressionPath(id, payload),
+    onSuccess: () => {
+      toast.success("Progression pathway updated");
+      queryClient.invalidateQueries({ queryKey: ["hub-progression-paths"] });
+      setForm({ name: "", description: "" });
+      setEditingId(null);
+      setAdding(false);
+    },
+    onError: (err) => toast.error(err.message || "Failed to update pathway"),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: deleteProgressionPath,
+    onSuccess: () => {
+      toast.success("Progression pathway deleted");
+      queryClient.invalidateQueries({ queryKey: ["hub-progression-paths"] });
+    },
+    onError: (err) => toast.error(err.message || "Failed to delete pathway"),
+  });
+
   const handleSubmit = (event) => {
     event.preventDefault();
     if (!form.name.trim()) {
@@ -63,7 +87,20 @@ export default function ProgressionPaths() {
     }
     const payload = { name: form.name.trim() };
     if (form.description.trim()) payload.description = form.description.trim();
-    createMut.mutate(payload);
+    if (editingId) updateMut.mutate({ id: editingId, payload });
+    else createMut.mutate(payload);
+  };
+
+  const beginEdit = (path) => {
+    setEditingId(path.id);
+    setForm({ name: path.name ?? "", description: path.description ?? "" });
+    setAdding(true);
+  };
+
+  const cancelForm = () => {
+    setAdding(false);
+    setEditingId(null);
+    setForm({ name: "", description: "" });
   };
 
   return (
@@ -76,7 +113,7 @@ export default function ProgressionPaths() {
             from its Classification section.
           </p>
         </div>
-        <button type="button" onClick={() => setAdding((current) => !current)} className="qc-btn-secondary">
+        <button type="button" onClick={adding ? cancelForm : () => setAdding(true)} className="qc-btn-secondary">
           {adding ? "Cancel" : "+ New Pathway"}
         </button>
       </div>
@@ -105,8 +142,12 @@ export default function ProgressionPaths() {
               placeholder="What this ladder leads to"
             />
           </div>
-          <button type="submit" disabled={createMut.isPending} className="qc-btn-primary">
-            {createMut.isPending ? "Saving..." : "Create Pathway"}
+          <button type="submit" disabled={createMut.isPending || updateMut.isPending} className="qc-btn-primary">
+            {createMut.isPending || updateMut.isPending
+              ? "Saving..."
+              : editingId
+              ? "Save Pathway"
+              : "Create Pathway"}
           </button>
         </form>
       )}
@@ -150,6 +191,22 @@ export default function ProgressionPaths() {
                   ))}
                 </ol>
               )}
+              <div className="mt-4 flex gap-3 text-xs">
+                <button type="button" onClick={() => beginEdit(path)} className="font-medium text-ink-700 hover:text-ink-900 underline underline-offset-2">
+                  Edit pathway
+                </button>
+                <button
+                  type="button"
+                  disabled={deleteMut.isPending || chain.length > 0}
+                  onClick={() => {
+                    if (window.confirm(`Delete ${path.name}?`)) deleteMut.mutate(path.id);
+                  }}
+                  className="font-medium text-brick hover:underline disabled:opacity-40"
+                  title={chain.length > 0 ? "Remove or reassign its trainings before deleting this pathway" : undefined}
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           ))}
         </div>

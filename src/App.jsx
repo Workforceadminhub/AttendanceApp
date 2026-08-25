@@ -83,8 +83,8 @@ const CreateCourse = lazy(() => import("./pages/hub/courses/CreateCourse"));
 const WorkerCertificates = lazy(() => import("./pages/hub/certificates/WorkerCertificates"));
 const CertificateTemplates = lazy(() => import("./pages/hub/certificates/CertificateTemplates"));
 const CertificateInventory = lazy(() => import("./pages/hub/certificates/CertificateInventory"));
-const TrainingPrograms = lazy(() => import("./pages/hub/trainings/TrainingPrograms"));
 const Cohorts = lazy(() => import("./pages/hub/trainings/Cohorts"));
+const ProgressionPathwaysPage = lazy(() => import("./pages/hub/trainings/ProgressionPathwaysPage"));
 
 
 const queryClient = new QueryClient({
@@ -629,10 +629,10 @@ const AppRoutes = () => {
               }
             />
             <Route
-              path="/hub/trainings/programs"
+              path="/hub/trainings/pathways"
               element={
                 <HubRoute requiredNav="trainings">
-                  <TrainingPrograms />
+                  <ProgressionPathwaysPage />
                 </HubRoute>
               }
             />

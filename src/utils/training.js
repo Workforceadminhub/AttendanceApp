@@ -82,6 +82,25 @@ export function asDate(value) {
   return value ? String(value).slice(0, 10) : "";
 }
 
+/** Inclusive, human-readable duration derived from the scheduled dates. */
+export function durationFromDates(startDate, endDate) {
+  const start = asDate(startDate);
+  const end = asDate(endDate);
+  if (!start || !end || end < start) return "";
+  const startMs = Date.parse(`${start}T00:00:00Z`);
+  const endMs = Date.parse(`${end}T00:00:00Z`);
+  const days = Math.round((endMs - startMs) / 86400000) + 1;
+  return `${days} ${days === 1 ? "day" : "days"}`;
+}
+
+/** Handles both list and detail API enrolment counts. */
+export function isTrainingFull(training, enrollees = []) {
+  const capacity = Number(training?.capacity ?? 0);
+  if (!Number.isFinite(capacity) || capacity <= 0) return false;
+  const count = Number(training?.number_of_enrollees ?? training?.enrollee_count ?? enrollees.length);
+  return Number.isFinite(count) && count >= capacity;
+}
+
 /** ISO timestamp → `21 Aug 2026`. Returns a plain hyphen when empty. */
 export function formatDate(value) {
   if (!value) return "-";

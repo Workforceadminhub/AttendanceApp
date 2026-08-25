@@ -86,9 +86,10 @@ export default function TrainingList() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2 shrink-0">
-                  <Link to="/hub/trainings/programs" className="qc-btn-secondary">
-                    Training Programs
+                  <Link to="/hub/trainings/pathways" className="qc-btn-secondary">
+                    Progression Pathways
                   </Link>
+                  <Link to="/hub/trainings/cohorts" className="qc-btn-secondary">Cohorts</Link>
                   <Link to="/hub/certificates/inventory" className="qc-btn-secondary">
                     Certificate Inventory
                   </Link>
@@ -135,9 +136,6 @@ export default function TrainingList() {
                 <div className="flex flex-wrap gap-2 shrink-0">
                   <Link to="/hub/certificates" className="qc-btn-secondary">
                     Certificates
-                  </Link>
-                  <Link to="/hub/trainings/cohorts" className="qc-btn-primary">
-                    Cohorts
                   </Link>
                 </div>
               </div>
@@ -401,10 +399,10 @@ function TrainingRow({ training, activeRoleView, onManage, onOpen }) {
           </Link>
         ) : activeRoleView === "hod" ? (
           <Link
-            to={`/hub/trainings/${training.id}/nominate`}
+            to={`/hub/trainings/${training.id}`}
             className="text-xs font-semibold text-ink-900 hover:text-ink-700 underline underline-offset-2"
           >
-            Nominate
+            View Details
           </Link>
         ) : (
           <button

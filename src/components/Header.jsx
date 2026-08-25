@@ -169,7 +169,7 @@ export default function Header() {
     ...(showTrainings ? [{ name: "Trainings", href: "/hub/trainings" }] : []),
     ...(showTrainings && (isSuperAdmin || isChurchAdminRole || isAdmin)
       ? [
-          { name: "Training Programs", href: "/hub/trainings/programs" },
+          { name: "Progression Pathways", href: "/hub/trainings/pathways" },
           { name: "Cohorts & Batches", href: "/hub/trainings/cohorts" },
         ]
       : []),

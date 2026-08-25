@@ -5,6 +5,7 @@ import Header from "../../../components/Header";
 import Layout from "../../../components/Layout";
 import { Tag } from "../../../components/ui";
 import { useCanAction } from "../../../contexts/RBACContext";
+import { getUserRole } from "../../../utils/getUserRole";
 import { fetchTemplates, createTemplate } from "../../../services/hub/certificates";
 import { display, formatDate } from "../../../utils/training";
 
@@ -14,7 +15,7 @@ const BLANK = {
   headline: "Certificate of Completion",
   subtitle: "This certifies that",
   body: "has successfully completed the programme",
-  signatory: "Leadership & Development Team",
+  signatory: "Authorised Signatory",
   accent_color: "#0A0E1A",
   logo_url: "",
   signature_url: "",
@@ -26,6 +27,8 @@ const MAX_IMAGE_BYTES = 400 * 1024;
 export default function CertificateTemplates() {
   const queryClient = useQueryClient();
   const canCreate = useCanAction("create_training");
+  const { isAdmin } = getUserRole();
+  const canManageTemplates = canCreate || isAdmin;
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(BLANK);
   const [activeTemplate, setActiveTemplate] = useState(null);
@@ -67,6 +70,14 @@ export default function CertificateTemplates() {
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
+  const saveTemplate = () => {
+    if (!form.name.trim()) {
+      toast.error("Give this certificate template a name before saving it.");
+      return;
+    }
+    createMut.mutate();
+  };
+
   const handleImage = (field) => (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -96,7 +107,7 @@ export default function CertificateTemplates() {
                 Build a layout once, then assign it to a training from its Certificate section.
               </p>
             </div>
-            {canCreate && (
+            {canManageTemplates && (
               <button
                 type="button"
                 onClick={() => setShowForm(!showForm)}
@@ -156,8 +167,9 @@ export default function CertificateTemplates() {
                   />
                 </div>
                 <div>
-                  <label className="qc-label" htmlFor="template-signatory">Signatory</label>
+                  <label className="qc-label" htmlFor="template-signatory">Authorised signatory</label>
                   <input id="template-signatory" className="qc-input text-sm" value={form.signatory} onChange={set("signatory")} />
+                  <p className="mt-1 text-xs text-ink-500">This certificate uses one signatory.</p>
                 </div>
                 <div>
                   <label className="qc-label" htmlFor="template-accent">Accent colour</label>
@@ -202,8 +214,8 @@ export default function CertificateTemplates() {
 
                 <button
                   type="button"
-                  disabled={!form.name.trim() || createMut.isPending}
-                  onClick={() => createMut.mutate()}
+                  disabled={createMut.isPending}
+                  onClick={saveTemplate}
                   className="qc-btn-primary"
                 >
                   {createMut.isPending ? "Creating..." : "Save Template"}

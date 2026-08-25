@@ -10,6 +10,7 @@ import {
   updateCohort,
   deleteCohort,
 } from "../../../services/hub/cohorts";
+import { fetchTrainings } from "../../../services/hub/trainings";
 import GenericModal from "../../../components/GenericModal";
 
 export default function Cohorts() {
@@ -22,6 +23,7 @@ export default function Cohorts() {
 
   const [form, setForm] = useState({
     name: "",
+    training_id: "",
     start_date: "",
     end_date: "",
   });
@@ -30,6 +32,11 @@ export default function Cohorts() {
     queryKey: ["hub-cohorts"],
     queryFn: () => fetchCohorts(),
   });
+  const { data: trainingsData } = useQuery({
+    queryKey: ["hub-trainings", "cohort-picker"],
+    queryFn: () => fetchTrainings({ per_page: 100 }),
+  });
+  const trainings = trainingsData?.data ?? [];
 
   const rawCohorts = data?.data ?? (Array.isArray(data) ? data : []);
   const cohorts = [...rawCohorts].sort((a, b) => {
@@ -82,7 +89,7 @@ export default function Cohorts() {
 
   const openCreateModal = () => {
     setEditingCohort(null);
-    setForm({ name: "", start_date: "", end_date: "" });
+    setForm({ name: "", training_id: "", start_date: "", end_date: "" });
     setModalOpen(true);
   };
 
@@ -90,6 +97,7 @@ export default function Cohorts() {
     setEditingCohort(cohort);
     setForm({
       name: cohort.name || "",
+      training_id: cohort.training_id ?? cohort.training?.id ?? "",
       start_date: cohort.start_date ? cohort.start_date.split("T")[0] : "",
       end_date: cohort.end_date ? cohort.end_date.split("T")[0] : "",
     });
@@ -99,7 +107,7 @@ export default function Cohorts() {
   const closeModal = () => {
     setModalOpen(false);
     setEditingCohort(null);
-    setForm({ name: "", start_date: "", end_date: "" });
+    setForm({ name: "", training_id: "", start_date: "", end_date: "" });
   };
 
   const handleSubmit = (e) => {
@@ -110,9 +118,11 @@ export default function Cohorts() {
     }
     const payload = {
       name: form.name.trim(),
+      training_id: form.training_id,
     };
     if (form.start_date) payload.start_date = form.start_date;
     if (form.end_date) payload.end_date = form.end_date;
+    if (!payload.training_id) delete payload.training_id;
 
     const cohortId = editingCohort?.id || editingCohort?._id;
     if (editingCohort && cohortId) {
@@ -173,6 +183,7 @@ export default function Cohorts() {
                   <thead className="bg-cream-100 border-b border-ink-200 text-xs font-medium text-ink-500 uppercase tracking-wider">
                     <tr>
                       <th className="px-4 py-3">Cohort Name</th>
+                      <th className="px-4 py-3">Training</th>
                       <th className="px-4 py-3">Start Date</th>
                       <th className="px-4 py-3">End Date</th>
                       <th className="px-4 py-3">ID</th>
@@ -185,6 +196,7 @@ export default function Cohorts() {
                       return (
                         <tr key={cohortId || cohort.name} className="hover:bg-cream-50 transition-colors">
                           <td className="px-4 py-3 font-medium text-ink-900">{cohort.name}</td>
+                          <td className="px-4 py-3 text-ink-600">{cohort.training_name ?? cohort.training?.name ?? "Not linked"}</td>
                           <td className="px-4 py-3 qc-num text-xs text-ink-600">
                             {cohort.start_date ? cohort.start_date.split("T")[0] : "-"}
                           </td>
@@ -234,9 +246,25 @@ export default function Cohorts() {
                 className="qc-input"
                 value={form.name}
                 onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                placeholder="e.g. June 2026"
+                placeholder="Foundation course, June cohort 2026"
                 required
               />
+            </div>
+
+            <div>
+              <label className="qc-label" htmlFor="cohort-training">Training</label>
+              <select
+                id="cohort-training"
+                className="qc-input"
+                value={form.training_id}
+                onChange={(e) => setForm((prev) => ({ ...prev, training_id: e.target.value }))}
+              >
+                <option value="">Link this cohort later</option>
+                {trainings.map((training) => (
+                  <option key={training.id ?? training._id} value={training.id ?? training._id}>{training.name}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-ink-500">Attach this cohort to the training it will take.</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

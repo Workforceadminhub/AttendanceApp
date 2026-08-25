@@ -15,6 +15,7 @@ import {
   nominateWorkers,
 } from "../../../services/hub/trainings";
 import { hubGet } from "../../../services/hub/client";
+import { sendBulkEmail } from "../../../services/email";
 import {
   formatDate,
   initials,
@@ -32,11 +33,21 @@ const NOMINATION_TONE = {
   expired: "neutral",
 };
 
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[char]);
+}
+
 export default function NominateWorkers() {
   const { id } = useParams();
   const queryClient = useQueryClient();
   const canNominate = useCanAction("nominate_workers");
-  const { isSuperAdmin, isChurchAdmin, isAdmin, user } = getUserRole();
+  const { isSuperAdmin, isChurchAdmin, isAdmin, isHOD, user } = getUserRole();
   const routeList = useEffectiveRouteList();
 
   const canPickAnyDepartment = isSuperAdmin || isChurchAdmin || isAdmin;
@@ -95,12 +106,35 @@ export default function NominateWorkers() {
       const days = expiresInDays ? Number(expiresInDays) : undefined;
       return nominateWorkers(id, workerIds, days);
     },
-    onSuccess: (res) => {
-      const results = unwrapData(res) ?? [];
-      const succeeded = results.filter((r) => r.success).length;
-      const failed = results.length - succeeded;
+    onSuccess: async (res) => {
+      const payload = unwrapData(res);
+      const results = Array.isArray(payload) ? payload : payload?.results ?? payload?.nominations ?? [];
+      const succeeded = Array.isArray(results) && results.length > 0
+        ? results.filter((result) => result.success !== false && !result.error).length
+        : Number(payload?.nominated_count ?? payload?.success_count ?? payload?.nominated ?? selected.length);
+      const failed = Array.isArray(results) && results.length > 0
+        ? results.length - succeeded
+        : Number(payload?.failed_count ?? payload?.failed ?? 0);
       toast.success(`${succeeded} worker${succeeded !== 1 ? "s" : ""} nominated`);
-      if (failed > 0) toast.warn(`${failed} could not be nominated`);
+      if (failed > 0) toast.warn(`${failed} worker${failed !== 1 ? "s" : ""} could not be nominated`);
+
+      const recipients = selected
+        .map((worker) => worker.email ?? worker.email_address ?? worker.emailAddress)
+        .filter(Boolean);
+      if (succeeded > 0 && recipients.length > 0) {
+        try {
+          await sendBulkEmail({
+            subject: `You have been nominated for ${training?.name ?? "a training"}`,
+            recipients,
+            html: `<p>Hello,</p><p>You have been nominated for <strong>${escapeHtml(training?.name ?? "a training")}</strong>.</p><p>Please sign in to the Workers System to accept or decline the nomination.</p><p>Harvesters International Christian Centre, Gbagada</p>`,
+          });
+          toast.success(`Nomination email${recipients.length === 1 ? "" : "s"} sent`);
+        } catch (emailError) {
+          toast.warn(emailError.message || "Nominations were saved, but notification email could not be sent.");
+        }
+      } else if (succeeded > 0) {
+        toast.info("Nominations were saved. No email address was available for the selected worker.");
+      }
       setSelected([]);
       queryClient.invalidateQueries({ queryKey: ["hub-training-nominations", id] });
     },
@@ -118,7 +152,7 @@ export default function NominateWorkers() {
 
   const isSelected = (worker) => selected.some((w) => workerIdOf(w) === workerIdOf(worker));
 
-  if (!canNominate) {
+  if (!canNominate || isHOD) {
     return (
       <>
         <Header />

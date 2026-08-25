@@ -221,7 +221,13 @@ function resolveStates({ chain, currentTrainingId, sessions, participation, work
       }
       return PROGRESSION_STATE.COMPLETE;
     }
-    if (String(step.id) === String(currentTrainingId)) return PROGRESSION_STATE.IN_PROGRESS;
+    if (String(step.id) === String(currentTrainingId)) {
+      // A later level cannot be in progress until every preceding level has
+      // a recorded completion. This prevents contradictory pathway states.
+      return completed.slice(0, index).every(Boolean)
+        ? PROGRESSION_STATE.IN_PROGRESS
+        : PROGRESSION_STATE.NOT_STARTED;
+    }
     return PROGRESSION_STATE.NOT_STARTED;
   });
 }

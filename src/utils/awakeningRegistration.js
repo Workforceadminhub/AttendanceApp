@@ -17,6 +17,17 @@ const LEGACY_DAY_ALIASES = {
   sunday_13_sept: "sunday_13th_september",
 };
 
+const SERVICE_TEAM_GROUPS = {
+  Media: ["Media", "Photography", "Streaming", "Videography"],
+  "Venue Management": ["Venue Management", "Venue Set up"],
+};
+
+const SERVICE_TEAM_ALIASES = Object.fromEntries(
+  Object.entries(SERVICE_TEAM_GROUPS).flatMap(([normalized, values]) =>
+    values.map((value) => [value.toLowerCase(), normalized])
+  )
+);
+
 /**
  * Awakening shows one parent department for every specialist variant. The
  * source department list remains unchanged for the rest of the workers system.
@@ -38,6 +49,24 @@ export function getAwakeningDepartmentOptions(departments) {
         .filter(Boolean)
     )
   ).sort();
+}
+
+/**
+ * Present legacy service-team values under the current Awakening category
+ * without altering the stored registration.
+ */
+export function normalizeAwakeningServiceTeam(serviceTeam) {
+  const value = String(serviceTeam ?? "").trim();
+  return SERVICE_TEAM_ALIASES[value.toLowerCase()] ?? value;
+}
+
+/**
+ * Returns every persisted value represented by a selected current category.
+ * This lets dashboard filters include registrations made before consolidation.
+ */
+export function getAwakeningServiceTeamQueryValues(serviceTeam) {
+  const normalized = normalizeAwakeningServiceTeam(serviceTeam);
+  return SERVICE_TEAM_GROUPS[normalized] ?? [serviceTeam];
 }
 
 function toDayArray(value) {

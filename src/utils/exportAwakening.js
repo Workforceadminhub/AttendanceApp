@@ -1,8 +1,12 @@
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { format } from "date-fns";
-import { fetchAwakeningRegistrations } from "../services/awakeningConference";
-import { formatAwakeningDays } from "./awakeningRegistration";
+import { fetchAllAwakeningRegistrations } from "../services/awakeningConference";
+import {
+  formatAwakeningDays,
+  normalizeAwakeningDepartment,
+  normalizeAwakeningServiceTeam,
+} from "./awakeningRegistration";
 
 /**
  * Export Awakening Conference registrations to a multi-sheet Excel workbook.
@@ -11,8 +15,6 @@ import { formatAwakeningDays } from "./awakeningRegistration";
  * - One worksheet per campus, rows sorted newest-registration-first.
  * - Sheet names are the campus names; campuses without records are skipped.
  */
-
-const PAGE_SIZE = 100;
 
 const foundationLabel = (value) => ({
   yes: "Completed",
@@ -25,28 +27,6 @@ function registeredAt(row) {
   const raw = row?.created_at ?? row?.createdAt ?? row?.timestamp;
   const date = raw ? new Date(raw) : null;
   return date && !Number.isNaN(date.getTime()) ? date : null;
-}
-
-async function fetchAllRegistrations(filters) {
-  const first = await fetchAwakeningRegistrations({
-    ...filters,
-    page: 1,
-    limit: PAGE_SIZE,
-  });
-  const rows = [...first.data];
-  const totalPages = first.pagination?.totalPages ?? 1;
-  for (let page = 2; page <= totalPages; page += 1) {
-    // eslint-disable-next-line no-await-in-loop
-    const next = await fetchAwakeningRegistrations({
-      ...filters,
-      page,
-      limit: PAGE_SIZE,
-    });
-    rows.push(...next.data);
-  }
-  return rows.sort(
-    (a, b) => (registeredAt(b)?.getTime() ?? 0) - (registeredAt(a)?.getTime() ?? 0)
-  );
 }
 
 function fullName(row) {
@@ -92,9 +72,9 @@ function addSheet(workbook, campusName, rows) {
       campus: row.campus ?? "—",
       type: row.registration_type === "worker" ? "Worker" : "Attendee",
       workerTeam: row.worker_team || "—",
-      department: row.department || "—",
+      department: normalizeAwakeningDepartment(row.department) || "—",
       designation: row.worker_designation || "—",
-      team: row.preferred_service_team ?? "—",
+      team: normalizeAwakeningServiceTeam(row.preferred_service_team) || "—",
       servingDay: formatAwakeningDays(row.serving_day),
       attendingDays: formatAwakeningDays(row.attendance_day),
       cell:
@@ -114,7 +94,7 @@ function addSheet(workbook, campusName, rows) {
 }
 
 export async function exportAwakeningWorkbook(filters = {}) {
-  const rows = await fetchAllRegistrations(filters);
+  const rows = await fetchAllAwakeningRegistrations(filters);
   if (!rows.length) {
     throw new Error("No registrations match the current filters.");
   }

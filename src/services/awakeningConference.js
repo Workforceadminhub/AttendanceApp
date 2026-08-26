@@ -1,5 +1,6 @@
 import apiRequest from "../utils/apiClient";
 import { PUBLIC_SUBMIT_ERROR } from "../utils/safeMessages";
+import { getAwakeningServiceTeamQueryValues } from "../utils/awakeningRegistration";
 
 /**
  * Check whether someone is already registered (public, no auth).
@@ -114,6 +115,60 @@ export const fetchAwakeningRegistrations = async ({
       hasPrev: false,
     },
   };
+};
+
+const EXPORT_PAGE_SIZE = 100;
+
+function registrationTime(registration) {
+  const value = registration?.created_at ?? registration?.createdAt ?? registration?.timestamp;
+  const time = value ? new Date(value).getTime() : 0;
+  return Number.isNaN(time) ? 0 : time;
+}
+
+async function fetchAllForServiceTeam(filters, serviceTeam) {
+  const first = await fetchAwakeningRegistrations({
+    ...filters,
+    serviceTeam,
+    page: 1,
+    limit: EXPORT_PAGE_SIZE,
+  });
+  const rows = [...first.data];
+
+  for (let page = 2; page <= (first.pagination?.totalPages ?? 1); page += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    const next = await fetchAwakeningRegistrations({
+      ...filters,
+      serviceTeam,
+      page,
+      limit: EXPORT_PAGE_SIZE,
+    });
+    rows.push(...next.data);
+  }
+
+  return rows;
+}
+
+/**
+ * Fetch all matching records without modifying them. A grouped service-team
+ * filter queries its historical values too, then combines the results so a
+ * current category includes registrations made before it was consolidated.
+ */
+export const fetchAllAwakeningRegistrations = async ({ serviceTeam, ...filters } = {}) => {
+  const values = getAwakeningServiceTeamQueryValues(serviceTeam);
+  const resultSets = await Promise.all(
+    values.map((value) => fetchAllForServiceTeam(filters, value))
+  );
+  const seen = new Set();
+
+  return resultSets
+    .flat()
+    .filter((registration) => {
+      const identifier = registration.id ?? `${registration.email ?? ""}:${registration.phone ?? ""}:${registration.created_at ?? ""}`;
+      if (seen.has(identifier)) return false;
+      seen.add(identifier);
+      return true;
+    })
+    .sort((a, b) => registrationTime(b) - registrationTime(a));
 };
 
 /**

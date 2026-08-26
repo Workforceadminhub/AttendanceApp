@@ -16,15 +16,16 @@ import {
   checkAwakeningRegistration,
   submitAwakeningRegistration,
 } from "../services/awakeningConference";
-import { buildAwakeningRegistrationPayload } from "../utils/awakeningRegistration";
+import {
+  buildAwakeningRegistrationPayload,
+  getAwakeningDepartmentOptions,
+} from "../utils/awakeningRegistration";
 import { PUBLIC_SUBMIT_ERROR } from "../utils/safeMessages";
 import { getEffectiveRouteList } from "../utils/routeObject";
 import { teams, workerRoles } from "../utils/teams";
 import { CheckCircleIcon } from "@heroicons/react/24/outline";
 
-const DEPARTMENT_OPTIONS = Array.from(
-  new Set(getEffectiveRouteList().map((d) => d.department).filter(Boolean))
-).sort();
+const DEPARTMENT_OPTIONS = getAwakeningDepartmentOptions(getEffectiveRouteList());
 const TEAM_OPTIONS = teams.map((t) => t.value);
 
 // ── Small helpers ─────────────────────────────────────────────────────────────

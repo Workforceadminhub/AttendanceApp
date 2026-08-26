@@ -24,6 +24,7 @@ import { teams, workerRoles } from "../utils/teams";
 import { exportAwakeningWorkbook } from "../utils/exportAwakening";
 import {
   formatAwakeningDays,
+  getAwakeningDepartmentOptions,
   normalizeAwakeningDays,
 } from "../utils/awakeningRegistration";
 import {
@@ -41,9 +42,9 @@ const ALL_TYPES = ["All Types", "attendee", "worker"];
 const ALL_TEAMS = ["All Teams", ...AWAKENING_SERVICE_TEAMS];
 
 export const AWAKENING_TEAM_OPTIONS = teams.map((t) => t.value);
-export const AWAKENING_DEPARTMENT_OPTIONS = Array.from(
-  new Set(getEffectiveRouteList().map((d) => d.department).filter(Boolean))
-).sort();
+export const AWAKENING_DEPARTMENT_OPTIONS = getAwakeningDepartmentOptions(
+  getEffectiveRouteList()
+);
 export const AWAKENING_ROLE_OPTIONS = [...workerRoles];
 
 const PAGE_LIMIT = 15;

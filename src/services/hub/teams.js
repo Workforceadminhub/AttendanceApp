@@ -20,8 +20,7 @@ export function normalizeTeamOptions(raw) {
     if (item == null) return;
     if (typeof item === "string" || typeof item === "number") {
       const name = String(item).trim();
-      const norm = name.toLowerCase();
-      if (name && norm !== "gbagada campus" && norm !== "gbagada") {
+      if (name) {
         byValue.set(name, { value: name, label: name });
       }
       return;
@@ -32,13 +31,9 @@ export function normalizeTeamOptions(raw) {
     ).trim();
     if (!value) return;
 
-    const normVal = value.toLowerCase();
-    if (normVal === "gbagada campus" || normVal === "gbagada") return;
-
     const label = String(
       item.label ?? item.display_name ?? item.displayName ?? value
     ).trim();
-    if (label.toLowerCase() === "gbagada campus" || label.toLowerCase() === "gbagada") return;
 
     byValue.set(value, { value, label: label || value });
   });

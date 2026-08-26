@@ -17,6 +17,28 @@ const LEGACY_DAY_ALIASES = {
   sunday_13_sept: "sunday_13th_september",
 };
 
+/**
+ * Awakening shows one parent department for every specialist variant. The
+ * source department list remains unchanged for the rest of the workers system.
+ */
+export function normalizeAwakeningDepartment(department) {
+  const value = String(department ?? "").trim();
+
+  if (/^media-/i.test(value)) return "Media";
+
+  return value.split(/\s+-\s+/)[0];
+}
+
+export function getAwakeningDepartmentOptions(departments) {
+  return Array.from(
+    new Set(
+      departments
+        .map((entry) => normalizeAwakeningDepartment(entry?.department ?? entry))
+        .filter(Boolean)
+    )
+  ).sort();
+}
+
 function toDayArray(value) {
   if (Array.isArray(value)) return value;
   if (!value) return [];

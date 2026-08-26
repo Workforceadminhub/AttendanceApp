@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   AWAKENING_ATTENDANCE_DAYS,
+  AWAKENING_SERVICE_TEAMS,
   awakeningRegistrationSchema,
   isValidAwakeningPhone,
   workerSchema,
 } from "./schemas";
+import { getAwakeningDepartmentOptions } from "./awakeningRegistration";
 
 const attendeeFormValues = {
   first_name: "Ada",
@@ -38,6 +40,43 @@ describe("awakeningRegistrationSchema", () => {
       "friday_11th",
       "sunday_13th_september",
       "all_days",
+    ]);
+  });
+
+  it("uses one Media and Venue Management option for Awakening service teams", () => {
+    expect(AWAKENING_SERVICE_TEAMS).toContain("Media");
+    expect(AWAKENING_SERVICE_TEAMS).toContain("Venue Management");
+    expect(AWAKENING_SERVICE_TEAMS).not.toEqual(
+      expect.arrayContaining(["Photography", "Streaming", "Videography", "Venue Set up"])
+    );
+  });
+
+  it("groups every specialist department variant for Awakening", () => {
+    expect(
+      getAwakeningDepartmentOptions([
+        { department: "Media-Photo (Capturing)" },
+        { department: "Media-Video" },
+        { department: "Venue Management - Zeina team" },
+        { department: "Venue Management - Tosin Agbetuyi team" },
+        { department: "Greeters - Team Jireh" },
+        { department: "Greeters - Team Yahweh" },
+        { department: "Ushering - Bimpe" },
+        { department: "Ushering - Tosin" },
+        { department: "Administration - Kidszone" },
+        { department: "Administration - Stirhouse" },
+        { department: "Learning and Development - Kidszone" },
+        { department: "Programming and Environment - Stirhouse" },
+        { department: "Reach and Partnership - Kidszone" },
+      ])
+    ).toEqual([
+      "Administration",
+      "Greeters",
+      "Learning and Development",
+      "Media",
+      "Programming and Environment",
+      "Reach and Partnership",
+      "Ushering",
+      "Venue Management",
     ]);
   });
 

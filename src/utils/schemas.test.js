@@ -67,9 +67,14 @@ describe("awakeningRegistrationSchema", () => {
         { department: "Learning and Development - Kidszone" },
         { department: "Programming and Environment - Stirhouse" },
         { department: "Reach and Partnership - Kidszone" },
+        { department: "Diamond ET" },
+        { department: "Emerald ET" },
+        { department: "Pearl ET" },
+        { department: "Sapphire ET" },
       ])
     ).toEqual([
       "Administration",
+      "Exalted Tribe",
       "Greeters",
       "Learning and Development",
       "Media",

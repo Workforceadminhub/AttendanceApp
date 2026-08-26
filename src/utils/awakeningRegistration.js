@@ -25,6 +25,7 @@ export function normalizeAwakeningDepartment(department) {
   const value = String(department ?? "").trim();
 
   if (/^media-/i.test(value)) return "Media";
+  if (/\bET$/i.test(value)) return "Exalted Tribe";
 
   return value.split(/\s+-\s+/)[0];
 }

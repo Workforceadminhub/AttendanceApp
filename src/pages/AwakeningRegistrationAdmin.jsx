@@ -8,6 +8,7 @@ import Tag from "../components/ui/Tag";
 import GenericModal from "../components/GenericModal";
 import AwakeningBulkUploadModal from "../components/AwakeningBulkUploadModal";
 import {
+  fetchAllAwakeningRegistrations,
   fetchAwakeningRegistrations,
   updateAwakeningRegistration,
   deleteAwakeningRegistration,
@@ -25,8 +26,20 @@ import { exportAwakeningWorkbook } from "../utils/exportAwakening";
 import {
   formatAwakeningDays,
   getAwakeningDepartmentOptions,
+  getAwakeningServiceTeamQueryValues,
   normalizeAwakeningDays,
+  normalizeAwakeningDepartment,
+  normalizeAwakeningServiceTeam,
 } from "../utils/awakeningRegistration";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import {
   PencilSquareIcon,
   TrashIcon,
@@ -35,6 +48,8 @@ import {
   ArrowDownTrayIcon,
   ArrowUpTrayIcon,
   ArrowLeftIcon,
+  ChartBarIcon,
+  ListBulletIcon,
 } from "@heroicons/react/24/outline";
 
 const ALL_CAMPUSES = ["All Campuses", ...AWAKENING_CAMPUSES];
@@ -100,7 +115,7 @@ const columns = [
   {
     key: "department",
     header: "Department",
-    render: (r) => r.department || "—",
+    render: (r) => normalizeAwakeningDepartment(r.department) || "—",
   },
   {
     key: "worker_designation",
@@ -111,7 +126,7 @@ const columns = [
     key: "preferred_service_team",
     header: "Service Team",
     hideOnSm: true,
-    render: (r) => r.preferred_service_team || "—",
+    render: (r) => normalizeAwakeningServiceTeam(r.preferred_service_team) || "—",
   },
   {
     key: "serving_day",
@@ -148,10 +163,99 @@ const columns = [
   { key: "email", header: "Email", hideOnSm: true, render: (r) => r.email },
 ];
 
+function countBy(rows, getValue) {
+  const counts = new Map();
+  rows.forEach((row) => {
+    const value = getValue(row);
+    if (!value) return;
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  });
+  return [...counts]
+    .map(([name, registrations]) => ({ name, registrations }))
+    .sort((a, b) => b.registrations - a.registrations || a.name.localeCompare(b.name));
+}
+
+function RegistrationOverview({ rows, loading }) {
+  if (loading) {
+    return <div className="h-80 rounded-xl border border-ink-200 bg-white" aria-busy="true" />;
+  }
+
+  if (!rows.length) {
+    return (
+      <div className="rounded-xl border border-ink-200 bg-white px-5 py-12 text-center text-sm text-ink-500">
+        No registrations match the current filters.
+      </div>
+    );
+  }
+
+  const registrationTypes = countBy(rows, (row) =>
+    row.registration_type === "worker" ? "Workers" : "Attendees"
+  );
+  const serviceTeams = countBy(rows, (row) =>
+    normalizeAwakeningServiceTeam(row.preferred_service_team)
+  );
+  const displayedServiceTeams = serviceTeams.slice(0, 12);
+
+  return (
+    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] gap-6">
+      <section className="rounded-xl border border-ink-200 bg-white p-5" aria-labelledby="registration-mix-heading">
+        <div className="mb-4">
+          <h2 id="registration-mix-heading" className="text-base font-semibold text-ink">Registration mix</h2>
+          <p className="mt-1 text-sm text-ink-500">{rows.length} matching registration{rows.length === 1 ? "" : "s"}</p>
+        </div>
+        <div className="h-64" role="img" aria-label="Registrations split by attendee and worker type">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={registrationTypes} margin={{ top: 8, right: 8, left: -22, bottom: 0 }}>
+              <CartesianGrid stroke="#e4e1da" vertical={false} />
+              <XAxis dataKey="name" tick={{ fill: "#57534e", fontSize: 12 }} axisLine={false} tickLine={false} />
+              <YAxis allowDecimals={false} tick={{ fill: "#57534e", fontSize: 12 }} axisLine={false} tickLine={false} />
+              <Tooltip cursor={{ fill: "#f4f1ea" }} formatter={(value) => [value, "Registrations"]} />
+              <Bar dataKey="registrations" fill="#22543d" radius={[5, 5, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-ink-200 bg-white p-5" aria-labelledby="service-team-heading">
+        <div className="mb-4">
+          <h2 id="service-team-heading" className="text-base font-semibold text-ink">Workers by service team</h2>
+          <p className="mt-1 text-sm text-ink-500">
+            {serviceTeams.length > displayedServiceTeams.length
+              ? `Showing the first ${displayedServiceTeams.length} of ${serviceTeams.length} teams.`
+              : "Historical team names are grouped under the current categories."}
+          </p>
+        </div>
+        {displayedServiceTeams.length ? (
+          <div className="h-80" role="img" aria-label="Worker registrations grouped by normalized service team">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={displayedServiceTeams} layout="vertical" margin={{ top: 0, right: 18, left: 18, bottom: 0 }}>
+                <CartesianGrid stroke="#e4e1da" horizontal={false} />
+                <XAxis type="number" allowDecimals={false} tick={{ fill: "#57534e", fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis dataKey="name" type="category" width={142} tick={{ fill: "#57534e", fontSize: 12 }} axisLine={false} tickLine={false} />
+                <Tooltip cursor={{ fill: "#f4f1ea" }} formatter={(value) => [value, "Workers"]} />
+                <Bar dataKey="registrations" fill="#b7791f" radius={[0, 5, 5, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="flex h-80 items-center justify-center text-sm text-ink-500">No worker service-team data yet.</div>
+        )}
+      </section>
+    </div>
+  );
+}
+
 // ── Edit modal ────────────────────────────────────────────────────────────────
 
 const inputClass =
   "w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ink transition";
+
+function NormalizedLegacyOption({ value, options, normalize }) {
+  if (!value || options.includes(value)) return null;
+  const label = normalize(value);
+  if (!label || label === value) return null;
+  return <option value={value}>{label}</option>;
+}
 
 function EditModal({ registration, onClose, onSaved }) {
   const [form, setForm] = useState({
@@ -283,6 +387,11 @@ function EditModal({ registration, onClose, onSaved }) {
               <label className={labelCls}>Department</label>
               <select className={inputClass} value={form.department} onChange={set("department")}>
                 <option value="">Select department</option>
+                <NormalizedLegacyOption
+                  value={form.department}
+                  options={AWAKENING_DEPARTMENT_OPTIONS}
+                  normalize={normalizeAwakeningDepartment}
+                />
                 {AWAKENING_DEPARTMENT_OPTIONS.map((d) => <option key={d}>{d}</option>)}
               </select>
             </div>
@@ -297,6 +406,11 @@ function EditModal({ registration, onClose, onSaved }) {
               <label className={labelCls}>Preferred Service Team</label>
               <select className={inputClass} value={form.preferred_service_team} onChange={set("preferred_service_team")}>
                 <option value="">Select team</option>
+                <NormalizedLegacyOption
+                  value={form.preferred_service_team}
+                  options={AWAKENING_SERVICE_TEAMS}
+                  normalize={normalizeAwakeningServiceTeam}
+                />
                 {AWAKENING_SERVICE_TEAMS.map((t) => <option key={t}>{t}</option>)}
               </select>
             </div>
@@ -419,6 +533,7 @@ export default function AwakeningRegistrationAdmin() {
   const navigate = useNavigate();
 
   const [registrations, setRegistrations] = useState([]);
+  const [overviewRegistrations, setOverviewRegistrations] = useState([]);
 
   // Role guard — super-admin / church-admin only (canonical resolver)
   useEffect(() => {
@@ -431,6 +546,8 @@ export default function AwakeningRegistrationAdmin() {
 
   const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 1, hasNext: false, hasPrev: false });
   const [isLoading, setIsLoading] = useState(true);
+  const [isOverviewLoading, setIsOverviewLoading] = useState(true);
+  const [view, setView] = useState("overview");
 
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState(""); // debounced separately
@@ -460,6 +577,27 @@ export default function AwakeningRegistrationAdmin() {
   const load = useCallback(async () => {
     setIsLoading(true);
     try {
+      const serviceTeamValues = getAwakeningServiceTeamQueryValues(team);
+      if (serviceTeamValues.length > 1) {
+        const rows = await fetchAllAwakeningRegistrations({
+          search,
+          campus,
+          registrationType: regType,
+          serviceTeam: team,
+        });
+        const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_LIMIT));
+        const safePage = Math.min(page, totalPages);
+        const start = (safePage - 1) * PAGE_LIMIT;
+        setRegistrations(rows.slice(start, start + PAGE_LIMIT));
+        setPagination({
+          page: safePage,
+          total: rows.length,
+          totalPages,
+          hasNext: safePage < totalPages,
+          hasPrev: safePage > 1,
+        });
+        return;
+      }
       const result = await fetchAwakeningRegistrations({
         page,
         limit: PAGE_LIMIT,
@@ -477,7 +615,25 @@ export default function AwakeningRegistrationAdmin() {
     }
   }, [page, search, campus, regType, team]);
 
-  useEffect(() => { load(); }, [load]);
+  const loadOverview = useCallback(async () => {
+    setIsOverviewLoading(true);
+    try {
+      const rows = await fetchAllAwakeningRegistrations({
+        search,
+        campus,
+        registrationType: regType,
+        serviceTeam: team,
+      });
+      setOverviewRegistrations(rows);
+    } catch (err) {
+      toast.error(err.message || "Failed to load registration overview.");
+    } finally {
+      setIsOverviewLoading(false);
+    }
+  }, [search, campus, regType, team]);
+
+  useEffect(() => { loadOverview(); }, [loadOverview]);
+  useEffect(() => { if (view === "list") load(); }, [view, load]);
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -546,7 +702,12 @@ export default function AwakeningRegistrationAdmin() {
             </p>
             <h1 className="text-2xl font-semibold text-ink">Conference Registrations</h1>
           </div>
-          {!isLoading && (
+          {view === "overview" && !isOverviewLoading && (
+            <span className="text-sm text-ink-500 font-mono">
+              {overviewRegistrations.length} total record{overviewRegistrations.length !== 1 ? "s" : ""}
+            </span>
+          )}
+          {view === "list" && !isLoading && (
             <span className="text-sm text-ink-500 font-mono">
               {pagination.total} total record{pagination.total !== 1 ? "s" : ""}
             </span>
@@ -592,18 +753,42 @@ export default function AwakeningRegistrationAdmin() {
           </button>
         </div>
 
-        {/* Table */}
-        <DataTable
-          columns={[...columns, actionsColumn]}
-          rows={registrations}
-          rowKey={(r, i) => r.id ?? i}
-          loading={isLoading}
-          loadingRows={PAGE_LIMIT}
-          empty="No registrations found."
-        />
+        <div className="inline-flex rounded-lg border border-ink-200 bg-white p-1" role="tablist" aria-label="Registration view">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "overview"}
+            onClick={() => setView("overview")}
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition ${view === "overview" ? "bg-ink text-cream" : "text-ink-600 hover:bg-ink-100"}`}
+          >
+            <ChartBarIcon className="h-4 w-4" />
+            Overview
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "list"}
+            onClick={() => setView("list")}
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition ${view === "list" ? "bg-ink text-cream" : "text-ink-600 hover:bg-ink-100"}`}
+          >
+            <ListBulletIcon className="h-4 w-4" />
+            View list
+          </button>
+        </div>
 
-        {/* Pagination */}
-        {!isLoading && pagination.totalPages > 1 && (
+        {view === "overview" ? (
+          <RegistrationOverview rows={overviewRegistrations} loading={isOverviewLoading} />
+        ) : (
+          <>
+            <DataTable
+              columns={[...columns, actionsColumn]}
+              rows={registrations}
+              rowKey={(r, i) => r.id ?? i}
+              loading={isLoading}
+              loadingRows={PAGE_LIMIT}
+              empty="No registrations found."
+            />
+            {!isLoading && pagination.totalPages > 1 && (
           <div className="flex items-center justify-between pt-2">
             <p className="text-xs text-ink-500 font-mono">
               Page {pagination.page} of {pagination.totalPages}
@@ -627,6 +812,8 @@ export default function AwakeningRegistrationAdmin() {
               </button>
             </div>
           </div>
+            )}
+          </>
         )}
       </div>
 
@@ -634,20 +821,29 @@ export default function AwakeningRegistrationAdmin() {
         <EditModal
           registration={editing}
           onClose={() => setEditing(null)}
-          onSaved={load}
+          onSaved={() => {
+            load();
+            loadOverview();
+          }}
         />
       )}
       {deleting && (
         <DeleteModal
           registration={deleting}
           onClose={() => setDeleting(null)}
-          onDeleted={load}
+          onDeleted={() => {
+            load();
+            loadOverview();
+          }}
         />
       )}
       {showBulkUpload && (
         <AwakeningBulkUploadModal
           onClose={() => setShowBulkUpload(false)}
-          onComplete={load}
+          onComplete={() => {
+            load();
+            loadOverview();
+          }}
         />
       )}
     </Layout>

@@ -8,7 +8,10 @@ vi.mock("../utils/apiClient", () => ({
   default: apiRequestMock,
 }));
 
-import { checkAwakeningRegistration } from "./awakeningConference";
+import {
+  checkAwakeningRegistration,
+  fetchAllAwakeningRegistrations,
+} from "./awakeningConference";
 
 describe("checkAwakeningRegistration", () => {
   beforeEach(() => {
@@ -51,5 +54,26 @@ describe("checkAwakeningRegistration", () => {
 
     await expect(checkAwakeningRegistration({ email: "ada@example.com" }))
       .resolves.toEqual({ exists: false });
+  });
+
+  it("combines historical service-team values for a normalized filter", async () => {
+    const rowsByServiceTeam = {
+      Media: [{ id: "current", created_at: "2026-08-03T12:00:00Z" }],
+      Photography: [{ id: "photo", created_at: "2026-08-02T12:00:00Z" }],
+      Streaming: [{ id: "stream", created_at: "2026-08-04T12:00:00Z" }],
+      Videography: [{ id: "video", created_at: "2026-08-01T12:00:00Z" }],
+    };
+    apiRequestMock.mockImplementation((_method, _path, params) => ({
+      data: rowsByServiceTeam[params.preferred_service_team],
+      pagination: { totalPages: 1 },
+    }));
+
+    await expect(fetchAllAwakeningRegistrations({ serviceTeam: "Media" })).resolves.toEqual([
+      { id: "stream", created_at: "2026-08-04T12:00:00Z" },
+      { id: "current", created_at: "2026-08-03T12:00:00Z" },
+      { id: "photo", created_at: "2026-08-02T12:00:00Z" },
+      { id: "video", created_at: "2026-08-01T12:00:00Z" },
+    ]);
+    expect(apiRequestMock).toHaveBeenCalledTimes(4);
   });
 });

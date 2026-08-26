@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   buildAwakeningRegistrationPayload,
   formatAwakeningDays,
+  getAwakeningServiceTeamQueryValues,
+  normalizeAwakeningDepartment,
   normalizeAwakeningDays,
+  normalizeAwakeningServiceTeam,
 } from "./awakeningRegistration";
 
 describe("Awakening registration helpers", () => {
@@ -22,6 +25,23 @@ describe("Awakening registration helpers", () => {
   it("formats multiple current and legacy days for tables and exports", () => {
     expect(formatAwakeningDays(["friday_11_sept", "sunday_13th_september"]))
       .toBe("Fri 11 September, Sun 13 September");
+  });
+
+  it("normalizes historical department and service-team labels for display", () => {
+    expect(normalizeAwakeningDepartment("Media-Video")).toBe("Media");
+    expect(normalizeAwakeningDepartment("Pearl ET")).toBe("Exalted Tribe");
+    expect(normalizeAwakeningDepartment("Ushering - Tosin")).toBe("Ushering");
+    expect(normalizeAwakeningServiceTeam("Photography")).toBe("Media");
+    expect(normalizeAwakeningServiceTeam("Venue Set up")).toBe("Venue Management");
+  });
+
+  it("includes historical values when filtering a normalized service team", () => {
+    expect(getAwakeningServiceTeamQueryValues("Media")).toEqual([
+      "Media", "Photography", "Streaming", "Videography",
+    ]);
+    expect(getAwakeningServiceTeamQueryValues("Venue Management")).toEqual([
+      "Venue Management", "Venue Set up",
+    ]);
   });
 
   it("forces prayer flags to no when retained worker state becomes an attendee", () => {

@@ -10,6 +10,7 @@ import {
  fetchAdmins,
  createAdmin,
  updateAdmin,
+ updateAdminProfile,
  deleteAdmin,
  inviteAdminByEmail,
  assignAccessByEmail,
@@ -521,11 +522,26 @@ export default function ManageAdmins() {
 
  setIsSubmitting(true);
  try {
+ const previousTeam = Array.isArray(selectedAdmin.team)
+ ? selectedAdmin.team
+ : String(selectedAdmin.team || "")
+ .split(",")
+ .map((team) => team.trim())
+ .filter(Boolean);
+ const profileChanged =
+ editFormData.department !== (selectedAdmin.department || "") ||
+ editFormData.team.join(",") !== previousTeam.join(",");
  const updateData = {
  permissions: editFormData.permissions,
  };
  if (updateRole) {
  updateData.role = editFormData.role;
+ }
+ if (profileChanged) {
+ await updateAdminProfile(selectedAdmin.id, {
+ department: editFormData.department,
+ team: editFormData.team.join(", "),
+ });
  }
  await updateAdmin(selectedAdmin.id, updateData);
  toast.success("Admin updated successfully");
@@ -1153,7 +1169,7 @@ export default function ManageAdmins() {
  size="medium"
  >
  <form onSubmit={handleEditSubmit} className="space-y-4">
- {/* Non-editable fields — greyed out */}
+ {/* Admin code is not editable through the API. */}
  <div>
  <label className="block text-sm font-medium text-ink-400">
  Admin Code
@@ -1167,39 +1183,70 @@ export default function ManageAdmins() {
  </div>
 
  <div>
- <label className="block text-sm font-medium text-ink-400">
+ <label className="block text-sm font-medium text-ink-700 mb-1">
  Department
  </label>
- <input
- type="text"
- value={editFormData.department}
- disabled
- className="mt-1 block w-full rounded-md border-ink-200 bg-cream-200 text-ink-500 sm:text-sm border px-3 py-2 cursor-not-allowed"
+ <Select
+ options={departmentOptions}
+ value={departmentOptions.find((d) => d.value === editFormData.department) || null}
+ onChange={(opt) => {
+ const department = opt?.value || "";
+ const teamForDept = department ? getTeamForDepartment(department) : null;
+ setEditFormData((prev) => ({
+ ...prev,
+ department,
+ team: teamForDept ? [teamForDept] : prev.team,
+ }));
+ }}
+ placeholder="Select department"
+ styles={selectStyles}
+ menuPlacement="auto"
+ menuPortalTarget={typeof document !== "undefined" ? document.body : null}
+ menuPosition="fixed"
+ isClearable
  />
  </div>
 
  <div>
- <label className="block text-sm font-medium text-ink-400">
+ <label className="block text-sm font-medium text-ink-700 mb-1">
  Team
  </label>
- <input
- type="text"
- value={Array.isArray(editFormData.team) ? editFormData.team.join(", ") : editFormData.team}
- disabled
- className="mt-1 block w-full rounded-md border-ink-200 bg-cream-200 text-ink-500 sm:text-sm border px-3 py-2 cursor-not-allowed"
+ <Select
+ isMulti
+ options={teamOptions.map((team) => ({ value: team, label: team }))}
+ value={editFormData.team.map((team) => ({ value: team, label: team }))}
+ onChange={(options) =>
+ setEditFormData((prev) => ({
+ ...prev,
+ team: options ? options.map((option) => option.value) : [],
+ }))
+ }
+ placeholder="Select team(s)"
+ styles={selectStyles}
+ menuPlacement="auto"
+ menuPortalTarget={typeof document !== "undefined" ? document.body : null}
+ menuPosition="fixed"
+ isClearable
  />
  </div>
 
  <div>
  <label className="block text-sm font-medium text-ink-400">
- Route
+ Landing route
  </label>
  <input
  type="text"
- value={editFormData.route}
+ value={
+ resolveAdminRoute({
+ role: updateRole ? editFormData.role : selectedAdmin?.role,
+ department: editFormData.department,
+ team: editFormData.team,
+ }) || "No automatic route available"
+ }
  disabled
  className="mt-1 block w-full rounded-md border-ink-200 bg-cream-200 text-ink-500 sm:text-sm border px-3 py-2 cursor-not-allowed"
  />
+ <p className="text-xs text-ink-400 mt-1">Derived from the selected role, department, and team.</p>
  </div>
 
  <hr className="border-ink-200" />

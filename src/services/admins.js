@@ -6,7 +6,7 @@ import apiRequest from "../utils/apiClient";
  */
 export const fetchAdmins = async () => {
   try {
-    const response = await apiRequest("GET", "/api/super/admin/admins");
+    const response = await apiRequest("GET", "/api/hub/super/admin/admins");
     if (!response || response.error) {
       throw new Error(response?.error || "Failed to fetch admins");
     }
@@ -29,7 +29,7 @@ export const fetchAdmins = async () => {
  */
 export const createAdmin = async (data) => {
   try {
-    const response = await apiRequest("POST", "/api/super/admin/admins", {
+    const response = await apiRequest("POST", "/api/hub/super/admin/admins", {
       code: data.code,
       role: data.role,
       route: data.route,
@@ -44,6 +44,24 @@ export const createAdmin = async (data) => {
   } catch (error) {
     throw error;
   }
+};
+
+/**
+ * Update an admin's profile fields.
+ * @param {number|string} id - Admin ID
+ * @param {{ department?: string, team?: string }} data - Profile fields to update
+ * @returns {Promise<Object>} Updated admin
+ */
+export const updateAdminProfile = async (id, data) => {
+  const response = await apiRequest(
+    "PUT",
+    `/api/hub/super/admin/${id}`,
+    data
+  );
+  if (!response || response.error) {
+    throw new Error(response?.error || "Failed to update admin details");
+  }
+  return response.data || response;
 };
 
 /**
@@ -80,7 +98,7 @@ export const assignPermissions = async (id, permissions) => {
   try {
     const response = await apiRequest(
       "PUT",
-      `/api/super/admin/${id}/permissions`,
+      `/api/hub/super/admin/${id}/permissions`,
       { permissions }
     );
     if (!response || response.error) {
@@ -102,7 +120,7 @@ export const assignRole = async (id, role) => {
   try {
     const response = await apiRequest(
       "PUT",
-      `/api/super/admin/${id}/role`,
+      `/api/hub/super/admin/${id}/role`,
       { role }
     );
     if (!response || response.error) {
@@ -187,7 +205,7 @@ export const deleteAdmin = async (id) => {
   try {
     const response = await apiRequest(
       "DELETE",
-      `/api/super/admin/${id}`
+      `/api/hub/super/admin/${id}`
     );
     if (!response || response.error) {
       throw new Error(response?.error || "Failed to delete admin");

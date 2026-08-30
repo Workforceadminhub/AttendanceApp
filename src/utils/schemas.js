@@ -150,9 +150,9 @@ export const AWAKENING_SERVICE_TEAMS = [
   "Bus Mobilization", "Content Creation", "Crowd Control", "Event Experience",
   "Event Planning", "Facility & Maintenance", "Greeters", "Guest Welcome",
   "HIU", "Hospitality", "Medical Team", "Music", "Parking Hospitality",
-  "Media", "Parking", "Publicity", "Quality Assurance", "Registration",
-  "Restrooms", "Shuttle Service", "Stage Management", "Testimonies", "Traffic",
-  "Ushering", "Venue Management",
+  "Parking", "Photography", "Publicity", "Quality Assurance", "Registration",
+  "Restrooms", "Shuttle Service", "Stage Management", "Streaming", "Testimonies",
+  "Traffic", "Ushering", "Venue Set up", "Videography",
 ];
 
 export const AWAKENING_CELL_DESIGNATIONS = [

@@ -43,12 +43,12 @@ describe("awakeningRegistrationSchema", () => {
     ]);
   });
 
-  it("uses one Media and Venue Management option for Awakening service teams", () => {
-    expect(AWAKENING_SERVICE_TEAMS).toContain("Media");
-    expect(AWAKENING_SERVICE_TEAMS).toContain("Venue Management");
-    expect(AWAKENING_SERVICE_TEAMS).not.toEqual(
+  it("offers only backend-accepted Awakening service teams", () => {
+    expect(AWAKENING_SERVICE_TEAMS).toEqual(
       expect.arrayContaining(["Photography", "Streaming", "Videography", "Venue Set up"])
     );
+    expect(AWAKENING_SERVICE_TEAMS).not.toContain("Media");
+    expect(AWAKENING_SERVICE_TEAMS).not.toContain("Venue Management");
   });
 
   it("groups every specialist department variant for Awakening", () => {

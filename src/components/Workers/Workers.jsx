@@ -1,7 +1,7 @@
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchAdminWorkers, fetchWorkers } from "../../services/workers";
 import { toast } from "react-toastify";
 import { getNextSunday } from "../../utils/getDate";
@@ -68,6 +68,7 @@ export default function Workers() {
  const [selectedWorkers, setSelectedWorkers] = useState(new Set());
  const [isSelectAll, setIsSelectAll] = useState(false);
  const [allWorkers, setAllWorkers] = useState([]);
+ const latestSuperAdminRequest = useRef(0);
 
  const [filterOptions, setFilterOptions] = useState({
  departments: [{ value: "All", label: "All Departments" }],
@@ -105,6 +106,7 @@ export default function Workers() {
  const fallbackFilterOptions = useMemo(() => generateFallbackFilterOptions(), []);
 
  const querySuperAdminWorkers = useCallback(async (page = 1, limit = 50, search = "") => {
+ const requestId = ++latestSuperAdminRequest.current;
  setIsLoading(true);
  try {
  const params = { limit: 3478 };
@@ -118,6 +120,10 @@ export default function Workers() {
  });
 
  const result = await apiRequest("GET", "/api/super/admin/workers", params);
+
+ // Filter/search requests can overlap. Ignore a response that belongs to an
+ // earlier selection so it cannot overwrite the current table.
+ if (requestId !== latestSuperAdminRequest.current) return;
 
  // Handle the actual API response structure: result.data.data
  let workersData = [];
@@ -165,6 +171,7 @@ export default function Workers() {
 
  setIsLoading(false);
  } catch (error) {
+ if (requestId !== latestSuperAdminRequest.current) return;
  // Check if it's an authentication error
  if (
  error.message.includes("401") ||

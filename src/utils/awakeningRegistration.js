@@ -35,6 +35,8 @@ const SERVICE_TEAM_ALIASES = Object.fromEntries(
 export function normalizeAwakeningDepartment(department) {
   const value = String(department ?? "").trim();
 
+  if (/\s+-\s+kidszone$/i.test(value)) return "Kidszone";
+  if (/\s+-\s+stir\s*house$/i.test(value)) return "Stirhouse";
   if (/^media-/i.test(value)) return "Media";
   if (/\bET$/i.test(value)) return "Exalted Tribe";
 

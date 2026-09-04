@@ -31,6 +31,8 @@ describe("Awakening registration helpers", () => {
     expect(normalizeAwakeningDepartment("Media-Video")).toBe("Media");
     expect(normalizeAwakeningDepartment("Pearl ET")).toBe("Exalted Tribe");
     expect(normalizeAwakeningDepartment("Ushering - Tosin")).toBe("Ushering");
+    expect(normalizeAwakeningDepartment("Administration - Kidszone")).toBe("Kidszone");
+    expect(normalizeAwakeningDepartment("Reach and Partnership - Stirhouse")).toBe("Stirhouse");
     expect(normalizeAwakeningServiceTeam("Photography")).toBe("Media");
     expect(normalizeAwakeningServiceTeam("Venue Set up")).toBe("Venue Management");
   });

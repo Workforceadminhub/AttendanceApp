@@ -29,6 +29,7 @@ import {
 import GenericModal from "../GenericModal";
 import LoadingState from "../LoadingState";
 import { saveAs } from "file-saver";
+import { filterWorkersByPlacement } from "../../utils/filterWorkers";
 
 export default function Workers() {
  const navigate = useNavigate();
@@ -131,7 +132,8 @@ export default function Workers() {
  }
 
  // Sort workers by ID on the client side since we fetched all data
- const sortedWorkers = (workersData || []).sort((a, b) => {
+ const filteredWorkers = filterWorkersByPlacement(workersData, filters);
+ const sortedWorkers = filteredWorkers.sort((a, b) => {
  const idA = parseInt(a.id || a.workerid || 0);
  const idB = parseInt(b.id || b.workerid || 0);
  return idA - idB;

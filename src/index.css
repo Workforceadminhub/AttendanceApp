@@ -135,6 +135,11 @@
   transition: border-color var(--revert-dur, 280ms) ease-out;
 }
 
+.worker-form [aria-invalid="true"] {
+  border-color: var(--color-brick, #a33a2b);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brick, #a33a2b) 12%, transparent);
+}
+
 .t-error-msg {
   opacity: 0;
   visibility: hidden;

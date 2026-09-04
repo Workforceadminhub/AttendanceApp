@@ -24,6 +24,7 @@ import GenericModal from "../GenericModal";
 import LoadingState from "../LoadingState";
 import { getUser } from "../../utils/getUser";
 import { getUserRole } from "../../utils/getUserRole";
+import { filterWorkersByPlacement } from "../../utils/filterWorkers";
 
 
 export default function ChurchAdminWorkers() {
@@ -130,7 +131,8 @@ export default function ChurchAdminWorkers() {
 
  const result = await apiRequest("GET", "/api/super/admin/workers", params);
  // Handle nested data structure: result.data.data contains the workers array
- setData(result.data?.data || result.workers || []);
+ const workers = result.data?.data || result.workers || [];
+ setData(filterWorkersByPlacement(workers, filters));
  
  // Handle pagination info if available
  let paginationInfo = null;
@@ -175,7 +177,8 @@ export default function ChurchAdminWorkers() {
 
  const result = await apiRequest("GET", "/api/super/admin/workers", params);
  // Handle nested data structure: result.data.data contains the workers array
- setData(result.data?.data || result.workers || []);
+ const workers = result.data?.data || result.workers || [];
+ setData(filterWorkersByPlacement(workers, filters));
  } catch (error) {
  toast.error("Failed to fetch workers");
  setData([]);

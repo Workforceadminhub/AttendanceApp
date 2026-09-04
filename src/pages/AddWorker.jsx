@@ -16,11 +16,19 @@ import { downloadSampleWorkersExcel } from "../utils/sampleWorkersExcel";
 import { fetchTeamsAndDepartmentsForFilter } from "../services/departments";
 import { getEffectiveRouteList } from "../utils/routeObject";
 import { getUserRole } from "../utils/getUserRole";
+import WorkerFormErrorSummary from "../components/WorkerFormErrorSummary";
+import {
+ focusFirstWorkerError,
+ validateAuthenticatedWorker,
+ workerErrorProps,
+} from "../utils/workerFormValidation";
 
 export default function AddWorker() {
  const navigate = useNavigate();
  const [mode, setMode] = useState("single"); // 'single' or 'bulk'
  const [isLoading, setIsLoading] = useState(false);
+ const [formErrors, setFormErrors] = useState({});
+ const [submitError, setSubmitError] = useState("");
 
  // Single worker form state for Super Admin
  const [newWorker, setNewWorker] = useState({
@@ -142,30 +150,26 @@ export default function AddWorker() {
         departments: depts,
       }));
     }
-  }, [newWorker.team, newWorker.district_sub_team, newWorker.department, filterData]);
+ }, [newWorker.team, newWorker.district_sub_team, newWorker.department, filterData]);
+
+ useEffect(() => {
+ setFormErrors((current) => {
+ if (Object.keys(current).length === 0) return current;
+ const latestErrors = validateAuthenticatedWorker(newWorker);
+ return Object.fromEntries(
+ Object.entries(current).filter(([field]) => latestErrors[field])
+ );
+ });
+ setSubmitError("");
+ }, [newWorker]);
 
  // Single worker functions
  const addNewWorker = async () => {
- // Validate required fields
- if (
- !newWorker.firstname ||
- !newWorker.lastname ||
- !newWorker.email ||
- !newWorker.phonenumber ||
- !newWorker.department ||
- !newWorker.team
- ) {
- toast.error(
- "Please fill in all required fields (First Name, Last Name, Email, Phone Number, Department, Team)"
- );
- return;
- }
-  if (!/^\d{11}$/.test((newWorker.phonenumber || "").trim())) {
-    toast.error("Phone number must be exactly 11 digits.");
-    return;
-  }
- if (newWorker.team === "Districts" && !newWorker.district_sub_team) {
- toast.error("Please select a District/Sub-team");
+ const nextErrors = validateAuthenticatedWorker(newWorker);
+ setFormErrors(nextErrors);
+ setSubmitError("");
+ if (Object.keys(nextErrors).length > 0) {
+ focusFirstWorkerError(nextErrors);
  return;
  }
 
@@ -173,10 +177,13 @@ export default function AddWorker() {
  try {
  const workerToSend = {
  ...newWorker,
+ email: newWorker.email.trim(),
  workerrole: normalizeWorkerRole(newWorker.workerrole),
  };
  await apiRequest("POST", "/api/super/admin/workers", workerToSend);
  toast.success("Worker added successfully");
+ setFormErrors({});
+ setSubmitError("");
 
  // Reset form
  setNewWorker({
@@ -194,6 +201,7 @@ export default function AddWorker() {
  gender: "Male",
  address: "",
  occupation: "",
+ employment: "",
  district_sub_team: "",
  });
   } catch (error) {
@@ -201,6 +209,7 @@ export default function AddWorker() {
     const msg = /worker\s+already\s+exist/i.test(rawMsg)
       ? "Worker already belongs to another department"
       : error?.message || "Failed to add worker";
+    setSubmitError(msg);
     toast.error(msg);
   } finally {
  setIsLoading(false);
@@ -490,7 +499,15 @@ export default function AddWorker() {
  </h2>
  </div>
 
- <div className="space-y-6">
+ <form
+ onSubmit={(event) => {
+ event.preventDefault();
+ addNewWorker();
+ }}
+ noValidate
+ className="worker-form space-y-6"
+ >
+ <WorkerFormErrorSummary errors={formErrors} submitError={submitError} />
  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
  {/* First Name */}
  <div>
@@ -498,6 +515,7 @@ export default function AddWorker() {
  First Name <span className="text-brick">*</span>
  </label>
  <input
+ {...workerErrorProps(formErrors, "firstname")}
  type="text"
  value={newWorker.firstname}
  onChange={(e) =>
@@ -517,6 +535,7 @@ export default function AddWorker() {
  Last Name <span className="text-brick">*</span>
  </label>
  <input
+ {...workerErrorProps(formErrors, "lastname")}
  type="text"
  value={newWorker.lastname}
  onChange={(e) =>
@@ -555,6 +574,7 @@ export default function AddWorker() {
  Gender <span className="text-brick">*</span>
  </label>
  <select
+ {...workerErrorProps(formErrors, "gender")}
  value={newWorker.gender}
  onChange={(e) =>
  setNewWorker({ ...newWorker, gender: e.target.value })
@@ -573,6 +593,7 @@ export default function AddWorker() {
  Phone Number <span className="text-brick">*</span>
  </label>
  <input
+ {...workerErrorProps(formErrors, "phonenumber")}
  type="tel"
  value={newWorker.phonenumber}
  onChange={(e) =>
@@ -593,6 +614,7 @@ export default function AddWorker() {
  Email Address <span className="text-brick">*</span>
  </label>
  <input
+ {...workerErrorProps(formErrors, "email")}
  type="email"
  value={newWorker.email}
  onChange={(e) =>
@@ -609,6 +631,7 @@ export default function AddWorker() {
  Team <span className="text-brick">*</span>
  </label>
  <select
+ {...workerErrorProps(formErrors, "team")}
  value={newWorker.team}
  onChange={(e) =>
  setNewWorker({
@@ -636,6 +659,7 @@ export default function AddWorker() {
  District/Sub-team <span className="text-brick">*</span>
  </label>
  <select
+ {...workerErrorProps(formErrors, "district_sub_team")}
  value={newWorker.district_sub_team}
  onChange={(e) =>
  setNewWorker({
@@ -659,6 +683,7 @@ export default function AddWorker() {
  Department <span className="text-brick">*</span>
  </label>
  <select
+ {...workerErrorProps(formErrors, "department")}
  value={newWorker.department}
  onChange={(e) => {
    setNewWorker({
@@ -692,6 +717,7 @@ export default function AddWorker() {
  Worker Role <span className="text-brick">*</span>
  </label>
  <select
+ {...workerErrorProps(formErrors, "workerrole")}
  value={newWorker.workerrole}
  onChange={(e) =>
  setNewWorker({
@@ -729,6 +755,9 @@ export default function AddWorker() {
  Birth Date <span className="text-brick">*</span>
  </label>
  <BirthDatePicker
+ id="birthdate"
+ ariaInvalid={Boolean(formErrors.birthdate)}
+ ariaDescribedBy={formErrors.birthdate ? "birthdate-error" : undefined}
  value={newWorker.birthdate}
  onChange={(value) =>
  setNewWorker({
@@ -746,6 +775,7 @@ export default function AddWorker() {
  Marital Status <span className="text-brick">*</span>
  </label>
  <select
+ {...workerErrorProps(formErrors, "maritalstatus")}
  value={newWorker.maritalstatus}
  onChange={(e) =>
  setNewWorker({
@@ -770,6 +800,7 @@ export default function AddWorker() {
  Age Range <span className="text-brick">*</span>
  </label>
  <select
+ {...workerErrorProps(formErrors, "agerange")}
  value={newWorker.agerange}
  onChange={(e) =>
  setNewWorker({
@@ -796,6 +827,7 @@ export default function AddWorker() {
  Employment Status <span className="text-brick">*</span>
  </label>
  <select
+ {...workerErrorProps(formErrors, "employment")}
  value={newWorker.employment}
  onChange={(e) =>
  setNewWorker({
@@ -838,6 +870,7 @@ export default function AddWorker() {
  Address <span className="text-brick">*</span>
  </label>
  <textarea
+ {...workerErrorProps(formErrors, "address")}
  value={newWorker.address}
  onChange={(e) =>
  setNewWorker({
@@ -851,10 +884,10 @@ export default function AddWorker() {
  />
  </div>
  </div>
- </div>
 
  <div className="flex justify-end space-x-4 pt-6 border-t border-ink-200">
  <button
+ type="button"
  onClick={() => navigate("/workers/super-admin")}
  className="px-6 py-2 border border-ink-300 rounded-md text-sm font-medium text-ink-700 bg-white hover:bg-cream focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ink-900/10"
  >
@@ -862,7 +895,7 @@ export default function AddWorker() {
  </button>
 
  <button
- onClick={addNewWorker}
+ type="submit"
  disabled={isLoading}
  className="inline-flex items-center justify-center px-6 py-3 border border-transparent rounded-lg shadow-md text-base font-semibold text-white bg-forest hover:bg-forest/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
  >
@@ -910,6 +943,7 @@ export default function AddWorker() {
  )}
  </button>
  </div>
+ </form>
  </div>
  )}
 

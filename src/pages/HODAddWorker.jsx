@@ -10,6 +10,12 @@ import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
 import { addNewWorker } from "../services/workers";
 import { getUser } from "../utils/getUser";
 import { DROPDOWN_OPTIONS } from "../utils/sampleWorkersExcel";
+import WorkerFormErrorSummary from "../components/WorkerFormErrorSummary";
+import {
+ focusFirstWorkerError,
+ validateAuthenticatedWorker,
+ workerErrorProps,
+} from "../utils/workerFormValidation";
 
 const initialWorker = {
  firstname: "",
@@ -36,6 +42,8 @@ export default function HODAddWorker() {
 
  const [worker, setWorker] = useState(initialWorker);
  const [isLoading, setIsLoading] = useState(false);
+ const [formErrors, setFormErrors] = useState({});
+ const [submitError, setSubmitError] = useState("");
 
  const departmentInfo = getEffectiveRouteList().find((r) => r.department === decodedDepartment);
  const team = departmentInfo?.team || "";
@@ -46,46 +54,49 @@ export default function HODAddWorker() {
  canAccessDepartment(decodedDepartment);
 
  useEffect(() => {
+ setFormErrors((current) => {
+ if (Object.keys(current).length === 0) return current;
+ const latestErrors = validateAuthenticatedWorker(worker, {
+ includePlacement: false,
+ requireOccupation: true,
+ requireDistrictSubTeam: ["District", "Districts"].includes(team),
+ });
+ return Object.fromEntries(
+ Object.entries(current).filter(([field]) => latestErrors[field])
+ );
+ });
+ setSubmitError("");
+ }, [worker, team]);
+
+ useEffect(() => {
  if (!decodedDepartment || !canAddWorkers) {
  toast.error("Access denied. You cannot add workers to this department.");
  navigate("/summary");
  }
  }, [decodedDepartment, canAddWorkers, navigate]);
 
- const requiredFields = [
- "firstname",
- "lastname",
- "email",
- "phonenumber",
- "gender",
- "workerrole",
- "birthdate",
- "maritalstatus",
- "agerange",
- "employment",
- "occupation",
- "address",
- ];
-
  const handleSubmit = async (e) => {
  e.preventDefault();
- const missing = requiredFields.filter((f) => !String(worker[f] || "").trim());
- if (missing.length > 0) {
- toast.error("Please fill all required fields.");
+ const nextErrors = validateAuthenticatedWorker(worker, {
+ includePlacement: false,
+ requireOccupation: true,
+ requireDistrictSubTeam: ["District", "Districts"].includes(team),
+ });
+ setFormErrors(nextErrors);
+ setSubmitError("");
+ if (Object.keys(nextErrors).length > 0) {
+ focusFirstWorkerError(nextErrors);
  return;
  }
 
  const phoneDigits = (worker.phonenumber || "").replace(/\D/g, "");
- if (phoneDigits.length !== 11) {
- toast.error("Phone number must be exactly 11 digits.");
- return;
- }
 
  setIsLoading(true);
  try {
  const authUser = getUser();
  const payload = {
  ...worker,
+ email: worker.email.trim(),
  phonenumber: phoneDigits,
  department: decodedDepartment,
  team,
@@ -97,12 +108,15 @@ export default function HODAddWorker() {
  "Worker addition request submitted. The request has been sent to your subteam head and team lead for approval. Once approved, the request would be effected."
  );
  setWorker(initialWorker);
+ setFormErrors({});
+ setSubmitError("");
  navigate(`/department/${getDepartmentRoute(decodedDepartment) || encodeURIComponent(decodedDepartment)}/workers`);
   } catch (err) {
     const rawMsg = err?.message || "";
     const msg = /worker\s+already\s+exist/i.test(rawMsg)
       ? "Worker already belongs to another department"
       : err?.message || "Failed to add worker.";
+    setSubmitError(msg);
     toast.error(msg);
   } finally {
  setIsLoading(false);
@@ -140,13 +154,15 @@ export default function HODAddWorker() {
  <div className="bg-white rounded-lg shadow border p-6">
  <h1 className="text-2xl font-bold text-ink-900 mb-6">Add Worker</h1>
 
- <form onSubmit={handleSubmit} className="space-y-6">
+ <form onSubmit={handleSubmit} noValidate className="worker-form space-y-6">
+ <WorkerFormErrorSummary errors={formErrors} submitError={submitError} />
  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
  <div>
  <label className="block text-sm font-medium text-ink-700 mb-2">
  First Name <span className="text-brick">*</span>
  </label>
  <input
+ {...workerErrorProps(formErrors, "firstname")}
  type="text"
  value={worker.firstname}
  onChange={(e) => setWorker({ ...worker, firstname: e.target.value })}
@@ -160,6 +176,7 @@ export default function HODAddWorker() {
  Last Name <span className="text-brick">*</span>
  </label>
  <input
+ {...workerErrorProps(formErrors, "lastname")}
  type="text"
  value={worker.lastname}
  onChange={(e) => setWorker({ ...worker, lastname: e.target.value })}
@@ -184,6 +201,7 @@ export default function HODAddWorker() {
  Gender <span className="text-brick">*</span>
  </label>
  <select
+ {...workerErrorProps(formErrors, "gender")}
  value={worker.gender}
  onChange={(e) => setWorker({ ...worker, gender: e.target.value })}
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
@@ -200,6 +218,7 @@ export default function HODAddWorker() {
  Phone Number <span className="text-brick">*</span>
  </label>
  <input
+ {...workerErrorProps(formErrors, "phonenumber")}
  type="tel"
  value={worker.phonenumber}
  onChange={(e) => {
@@ -217,6 +236,7 @@ export default function HODAddWorker() {
   Email Address <span className="text-brick">*</span>
   </label>
   <input
+  {...workerErrorProps(formErrors, "email")}
   type="email"
   value={worker.email}
   onChange={(e) => setWorker({ ...worker, email: e.target.value })}
@@ -231,6 +251,7 @@ export default function HODAddWorker() {
   District/Sub-team <span className="text-brick">*</span>
   </label>
   <select
+  {...workerErrorProps(formErrors, "district_sub_team")}
   value={worker.district_sub_team}
   onChange={(e) => setWorker({ ...worker, district_sub_team: e.target.value })}
   className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
@@ -247,6 +268,7 @@ export default function HODAddWorker() {
  Worker Role <span className="text-brick">*</span>
  </label>
  <select
+ {...workerErrorProps(formErrors, "workerrole")}
  value={worker.workerrole}
  onChange={(e) => setWorker({ ...worker, workerrole: e.target.value })}
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
@@ -263,6 +285,9 @@ export default function HODAddWorker() {
  Birth Date (day & month) <span className="text-brick">*</span>
  </label>
  <BirthDatePicker
+ id="birthdate"
+ ariaInvalid={Boolean(formErrors.birthdate)}
+ ariaDescribedBy={formErrors.birthdate ? "birthdate-error" : undefined}
  value={worker.birthdate}
  onChange={(value) => setWorker({ ...worker, birthdate: value })}
  placeholder="e.g. 15th May"
@@ -274,6 +299,7 @@ export default function HODAddWorker() {
  Marital Status <span className="text-brick">*</span>
  </label>
  <select
+ {...workerErrorProps(formErrors, "maritalstatus")}
  value={worker.maritalstatus}
  onChange={(e) => setWorker({ ...worker, maritalstatus: e.target.value })}
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
@@ -290,6 +316,7 @@ export default function HODAddWorker() {
  Age Range <span className="text-brick">*</span>
  </label>
  <select
+ {...workerErrorProps(formErrors, "agerange")}
  value={worker.agerange}
  onChange={(e) => setWorker({ ...worker, agerange: e.target.value })}
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
@@ -306,6 +333,7 @@ export default function HODAddWorker() {
  Employment Status <span className="text-brick">*</span>
  </label>
  <select
+ {...workerErrorProps(formErrors, "employment")}
  value={worker.employment}
  onChange={(e) => setWorker({ ...worker, employment: e.target.value })}
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
@@ -322,6 +350,7 @@ export default function HODAddWorker() {
  Occupation <span className="text-brick">*</span>
  </label>
  <input
+ {...workerErrorProps(formErrors, "occupation")}
  type="text"
  value={worker.occupation}
  onChange={(e) => setWorker({ ...worker, occupation: e.target.value })}
@@ -335,6 +364,7 @@ export default function HODAddWorker() {
  Address <span className="text-brick">*</span>
  </label>
  <textarea
+ {...workerErrorProps(formErrors, "address")}
  value={worker.address}
  onChange={(e) => setWorker({ ...worker, address: e.target.value })}
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"

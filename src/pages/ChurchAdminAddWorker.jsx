@@ -16,11 +16,19 @@ import BirthDatePicker from "../components/BirthDatePicker";
 import apiRequest from "../utils/apiClient";
 import { fetchTeamsAndDepartmentsForFilter } from "../services/departments";
 import { getEffectiveRouteList } from "../utils/routeObject";
+import WorkerFormErrorSummary from "../components/WorkerFormErrorSummary";
+import {
+ focusFirstWorkerError,
+ validateAuthenticatedWorker,
+ workerErrorProps,
+} from "../utils/workerFormValidation";
 
 export default function ChurchAdminAddWorker() {
  const navigate = useNavigate();
  const [mode, setMode] = useState("single"); // 'single' or 'bulk'
  const [isLoading, setIsLoading] = useState(false);
+ const [formErrors, setFormErrors] = useState({});
+ const [submitError, setSubmitError] = useState("");
 
  // Single worker form state for Church Admin
  const [newWorker, setNewWorker] = useState({
@@ -128,31 +136,39 @@ export default function ChurchAdminAddWorker() {
     }
   }, [newWorker.team, newWorker.district_sub_team, newWorker.department, filterData]);
 
+ useEffect(() => {
+ setFormErrors((current) => {
+ if (Object.keys(current).length === 0) return current;
+ const latestErrors = validateAuthenticatedWorker(newWorker);
+ return Object.fromEntries(
+ Object.entries(current).filter(([field]) => latestErrors[field])
+ );
+ });
+ setSubmitError("");
+ }, [newWorker]);
+
  // Handle single worker form submission
  const handleSingleSubmit = async (e) => {
  e.preventDefault();
- 
- // Validate required fields
- const requiredFields = ['firstname', 'lastname', 'email', 'phonenumber', 'department', 'team', 'workerrole', 'birthdate', 'agerange', 'gender', 'maritalstatus', 'employment', 'address'];
- const missingFields = requiredFields.filter(field => !newWorker[field]);
- 
- if (missingFields.length > 0) {
- toast.error(`Please fill in all required fields: ${missingFields.join(', ')}`);
+ const nextErrors = validateAuthenticatedWorker(newWorker);
+ setFormErrors(nextErrors);
+ setSubmitError("");
+ if (Object.keys(nextErrors).length > 0) {
+ focusFirstWorkerError(nextErrors);
  return;
  }
- if (!/^\d{11}$/.test((newWorker.phonenumber || "").trim())) {
-    toast.error("Phone number must be exactly 11 digits.");
-    return;
-  }
 
  setIsLoading(true);
  try {
  const workerToSend = {
  ...newWorker,
+ email: newWorker.email.trim(),
  workerrole: normalizeWorkerRole(newWorker.workerrole),
  };
  await apiRequest("POST", "/api/super/admin/workers", workerToSend);
  toast.success("Worker added successfully!");
+ setFormErrors({});
+ setSubmitError("");
  
  // Reset form
  setNewWorker({
@@ -179,6 +195,7 @@ export default function ChurchAdminAddWorker() {
     const msg = /worker\s+already\s+exist/i.test(rawMsg)
       ? "Worker already belongs to another department"
       : error?.message || "Failed to add worker";
+    setSubmitError(msg);
     toast.error(msg);
  } finally {
  setIsLoading(false);
@@ -401,7 +418,8 @@ export default function ChurchAdminAddWorker() {
  <div className="bg-white rounded-lg border border-ink-200 p-6">
  <h2 className="text-xl font-semibold text-ink-900 mb-6">Add Single Worker</h2>
  
- <form onSubmit={handleSingleSubmit} className="space-y-6">
+ <form onSubmit={handleSingleSubmit} noValidate className="worker-form space-y-6">
+ <WorkerFormErrorSummary errors={formErrors} submitError={submitError} />
  <div className="space-y-6">
  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
  {/* First Name */}
@@ -410,6 +428,7 @@ export default function ChurchAdminAddWorker() {
  First Name <span className="text-brick">*</span>
  </label>
  <input
+ {...workerErrorProps(formErrors, "firstname")}
  type="text"
  value={newWorker.firstname}
  onChange={(e) =>
@@ -429,6 +448,7 @@ export default function ChurchAdminAddWorker() {
  Last Name <span className="text-brick">*</span>
  </label>
  <input
+ {...workerErrorProps(formErrors, "lastname")}
  type="text"
  value={newWorker.lastname}
  onChange={(e) =>
@@ -467,6 +487,7 @@ export default function ChurchAdminAddWorker() {
  Gender <span className="text-brick">*</span>
  </label>
  <select
+ {...workerErrorProps(formErrors, "gender")}
  value={newWorker.gender}
  onChange={(e) =>
  setNewWorker({ ...newWorker, gender: e.target.value })
@@ -485,6 +506,7 @@ export default function ChurchAdminAddWorker() {
  Phone Number <span className="text-brick">*</span>
  </label>
  <input
+ {...workerErrorProps(formErrors, "phonenumber")}
  type="tel"
  value={newWorker.phonenumber}
  onChange={(e) =>
@@ -505,6 +527,7 @@ export default function ChurchAdminAddWorker() {
  Email Address <span className="text-brick">*</span>
  </label>
  <input
+ {...workerErrorProps(formErrors, "email")}
  type="email"
  value={newWorker.email}
  onChange={(e) =>
@@ -521,6 +544,7 @@ export default function ChurchAdminAddWorker() {
  Team <span className="text-brick">*</span>
  </label>
  <select
+ {...workerErrorProps(formErrors, "team")}
  value={newWorker.team}
  onChange={(e) =>
  setNewWorker({
@@ -547,6 +571,7 @@ export default function ChurchAdminAddWorker() {
  District/Sub-team <span className="text-brick">*</span>
  </label>
  <select
+ {...workerErrorProps(formErrors, "district_sub_team")}
  value={newWorker.district_sub_team}
  onChange={(e) =>
  setNewWorker({
@@ -570,6 +595,7 @@ export default function ChurchAdminAddWorker() {
  Department <span className="text-brick">*</span>
  </label>
  <select
+ {...workerErrorProps(formErrors, "department")}
  value={newWorker.department}
  onChange={(e) => {
  const selectedDept = e.target.value;
@@ -610,6 +636,7 @@ export default function ChurchAdminAddWorker() {
  Worker Role <span className="text-brick">*</span>
  </label>
  <select
+ {...workerErrorProps(formErrors, "workerrole")}
  value={newWorker.workerrole}
  onChange={(e) =>
  setNewWorker({
@@ -647,6 +674,9 @@ export default function ChurchAdminAddWorker() {
  Birth Date <span className="text-brick">*</span>
  </label>
  <BirthDatePicker
+ id="birthdate"
+ ariaInvalid={Boolean(formErrors.birthdate)}
+ ariaDescribedBy={formErrors.birthdate ? "birthdate-error" : undefined}
  value={newWorker.birthdate}
  onChange={(value) =>
  setNewWorker({
@@ -664,6 +694,7 @@ export default function ChurchAdminAddWorker() {
  Marital Status <span className="text-brick">*</span>
  </label>
  <select
+ {...workerErrorProps(formErrors, "maritalstatus")}
  value={newWorker.maritalstatus}
  onChange={(e) =>
  setNewWorker({
@@ -688,6 +719,7 @@ export default function ChurchAdminAddWorker() {
  Age Range <span className="text-brick">*</span>
  </label>
  <select
+ {...workerErrorProps(formErrors, "agerange")}
  value={newWorker.agerange}
  onChange={(e) =>
  setNewWorker({
@@ -714,6 +746,7 @@ export default function ChurchAdminAddWorker() {
  Employment Status <span className="text-brick">*</span>
  </label>
  <select
+ {...workerErrorProps(formErrors, "employment")}
  value={newWorker.employment}
  onChange={(e) =>
  setNewWorker({
@@ -756,6 +789,7 @@ export default function ChurchAdminAddWorker() {
  Address <span className="text-brick">*</span>
  </label>
  <textarea
+ {...workerErrorProps(formErrors, "address")}
  value={newWorker.address}
  onChange={(e) =>
  setNewWorker({

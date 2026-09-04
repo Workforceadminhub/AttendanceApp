@@ -7,6 +7,8 @@ import {
   isEligibleForNextLevel,
   isTrainingFull,
   nextSessionDate,
+  resolveProgressionStates,
+  successfulNominationRecipients,
   trainingStatus,
   unwrapTrainingDetail,
 } from "./training";
@@ -146,6 +148,65 @@ describe("progression eligibility", () => {
       "eligible",
       "complete",
     ]);
+  });
+});
+
+describe("resolveProgressionStates", () => {
+  const chain = [
+    { id: "foundation", name: "Foundation" },
+    { id: "advanced", name: "Advanced" },
+  ];
+  const completedFoundation = [
+    { training: { id: "foundation" }, status: "completed", completed_at: "2026-08-01" },
+  ];
+
+  it("does not treat viewing the current level as enrollment", () => {
+    expect(resolveProgressionStates({
+      chain,
+      currentTrainingId: "advanced",
+      workerId: 7,
+      workerTrainings: completedFoundation,
+      isCurrentEnrolled: false,
+    })).toEqual([
+      PROGRESSION_STATE.COMPLETED_SERVING,
+      PROGRESSION_STATE.NOT_STARTED,
+    ]);
+  });
+
+  it("marks the current level in progress only after enrollment", () => {
+    expect(resolveProgressionStates({
+      chain,
+      currentTrainingId: "advanced",
+      workerId: 7,
+      workerTrainings: completedFoundation,
+      isCurrentEnrolled: true,
+    })[1]).toBe(PROGRESSION_STATE.IN_PROGRESS);
+  });
+});
+
+describe("successfulNominationRecipients", () => {
+  const selected = [
+    { id: 1, email: "one@example.com" },
+    { id: 2, email: "two@example.com" },
+  ];
+
+  it("returns every address when the nomination batch fully succeeds", () => {
+    expect(successfulNominationRecipients(selected, [], 0)).toEqual([
+      "one@example.com",
+      "two@example.com",
+    ]);
+  });
+
+  it("emails only identifiable successful workers after a partial result", () => {
+    const results = [
+      { worker_id: 1, success: true },
+      { worker_id: 2, success: false, error: "Already nominated" },
+    ];
+    expect(successfulNominationRecipients(selected, results, 1)).toEqual(["one@example.com"]);
+  });
+
+  it("fails closed when partial successes cannot be mapped to workers", () => {
+    expect(successfulNominationRecipients(selected, [{ success: true }, { success: false }], 1)).toEqual([]);
   });
 });
 

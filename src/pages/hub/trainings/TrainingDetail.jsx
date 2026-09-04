@@ -20,6 +20,7 @@ import {
   fetchRegistrationRequests,
   fetchTrainingCertificates,
   fetchWorkerTrainings,
+  completeEnrollment,
   registerForTraining,
   reviewRegistrationRequest,
 } from "../../../services/hub/trainings";
@@ -27,9 +28,11 @@ import {
   asDate,
   completionFor,
   display,
+  findWorkerTrainingRecord,
   formatDate,
   initials,
   isProgressive,
+  isWorkerTrainingCompleted,
   isTrainingFull,
   kindLabel,
   nextSessionDate,
@@ -52,7 +55,7 @@ const ADMIN_TABS = [
   { key: "certificates", label: "Certificates" },
 ];
 
-// A worker does not need the full enrollee list — only their own record.
+// A worker does not need the full enrollee list - only their own record.
 const WORKER_TABS = [
   { key: "sessions", label: "Sessions" },
   { key: "curriculum", label: "Curriculum" },
@@ -71,16 +74,14 @@ export default function TrainingDetail() {
   const [tab, setTab] = useState(isAdminView ? "enrollees" : "sessions");
   const [showRefresher, setShowRefresher] = useState(false);
   const [previewCertificate, setPreviewCertificate] = useState(null);
-  const [priorTrainingCompleted, setPriorTrainingCompleted] = useState(false);
-  const [priorTrainingCompletionDate, setPriorTrainingCompletionDate] = useState("");
 
   const { data: trainingData, isLoading } = useQuery({
     queryKey: ["hub-training", id],
     queryFn: () => fetchTraining(id),
   });
-  const detail = unwrapTrainingDetail(trainingData);
+  const detail = useMemo(() => unwrapTrainingDetail(trainingData), [trainingData]);
   const training = detail?.training ?? null;
-  const participation = detail?.participation ?? [];
+  const participation = useMemo(() => detail?.participation ?? [], [detail]);
   // Never treat the generic auth account ID as a worker record. Self-registration
   // is resolved by the API from the authenticated account.
   const myWorkerId = getLinkedWorkerId(user);
@@ -89,13 +90,16 @@ export default function TrainingDetail() {
     queryKey: ["hub-training-sessions", id],
     queryFn: () => fetchSessions(id),
   });
-  const sessions = unwrapData(sessionsData) ?? [];
+  const sessions = useMemo(() => unwrapData(sessionsData) ?? [], [sessionsData]);
 
   const { data: enrolleesData } = useQuery({
     queryKey: ["hub-training-enrollees", id],
     queryFn: () => fetchEnrollees(id),
   });
-  const enrollees = unwrapData(enrolleesData) ?? detail?.enrollees ?? [];
+  const enrollees = useMemo(
+    () => unwrapData(enrolleesData) ?? detail?.enrollees ?? [],
+    [enrolleesData, detail]
+  );
 
   const { data: curriculumData } = useQuery({
     queryKey: ["hub-training-curriculum", id],
@@ -141,6 +145,7 @@ export default function TrainingDetail() {
       setShowRefresher(false);
       queryClient.invalidateQueries({ queryKey: ["hub-training", id] });
       queryClient.invalidateQueries({ queryKey: ["hub-training-enrollees", id] });
+      queryClient.invalidateQueries({ queryKey: ["hub-worker-trainings", myWorkerId] });
     },
     onError: (err) => toast.error(
       /no worker profile linked/i.test(err.message || "")
@@ -180,11 +185,10 @@ export default function TrainingDetail() {
   const workerTrainings = Array.isArray(workerTrainingsPayload)
     ? workerTrainingsPayload
     : workerTrainingsPayload?.trainings ?? [];
-  const platformPrerequisite = workerTrainings.find(
-    (record) => String(record.training_id ?? record.id) === String(prerequisiteTraining?.id)
+  const hasPlatformPrerequisite = isWorkerTrainingCompleted(
+    findWorkerTrainingRecord(workerTrainings, prerequisiteTraining?.id)
   );
-  const hasPlatformPrerequisite = String(platformPrerequisite?.status ?? "").toLowerCase() === "completed";
-  const needsPrerequisiteAcknowledgement =
+  const isPrerequisiteMissing =
     canSelfRegister && Boolean(prerequisiteTraining) && !myEnrollment && !hasPlatformPrerequisite;
 
   if (isLoading) {
@@ -264,14 +268,10 @@ export default function TrainingDetail() {
                     disabled={
                       registerMut.isPending ||
                       isFull ||
-                      (needsPrerequisiteAcknowledgement && (!priorTrainingCompleted || !priorTrainingCompletionDate))
+                      isPrerequisiteMissing
                     }
-                    onClick={() => registerMut.mutate({
-                      priorTrainingCompletion: prerequisiteTraining && priorTrainingCompleted
-                        ? { training_id: prerequisiteTraining.id, completed_at: priorTrainingCompletionDate }
-                        : undefined,
-                    })}
-                    aria-describedby={needsPrerequisiteAcknowledgement ? "prerequisite-completion-note" : undefined}
+                    onClick={() => registerMut.mutate({})}
+                    aria-describedby={isPrerequisiteMissing ? "prerequisite-completion-note" : undefined}
                     className="qc-btn-primary"
                   >
                     {registerMut.isPending ? "Registering..." : isFull ? "Training Full" : "Register"}
@@ -296,39 +296,18 @@ export default function TrainingDetail() {
             </div>
           </div>
 
-          {needsPrerequisiteAcknowledgement && (
+          {isPrerequisiteMissing && (
             <div className="qc-card p-5">
-              <h2 className="text-base font-semibold text-ink-900">Confirm prerequisite completion</h2>
+              <h2 className="text-base font-semibold text-ink-900">Prerequisite not recorded</h2>
               <p id="prerequisite-completion-note" className="mt-1 text-sm text-ink-600">
-                {prerequisiteTraining.name} must be completed before you can register for this level. If you completed it outside this platform, record the completion below.
+                {prerequisiteTraining.name} must be completed before you can register for this level.
+                Registration remains locked until that completion appears in your training history.
+                If you completed it outside this platform, ask a training administrator for help.
               </p>
-              <label className="mt-4 flex items-start gap-3 text-sm text-ink-700">
-                <input
-                  type="checkbox"
-                  checked={priorTrainingCompleted}
-                  onChange={(event) => setPriorTrainingCompleted(event.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-ink-300 accent-ink-900"
-                />
-                <span>I have completed {prerequisiteTraining.name}.</span>
-              </label>
-              {priorTrainingCompleted && (
-                <div className="mt-3 max-w-xs">
-                  <label className="qc-label" htmlFor="prior-training-completion-date">Completion date *</label>
-                  <input
-                    id="prior-training-completion-date"
-                    type="date"
-                    className="qc-input qc-num"
-                    value={priorTrainingCompletionDate}
-                    onChange={(event) => setPriorTrainingCompletionDate(event.target.value)}
-                    max={asDate(new Date().toISOString())}
-                    required
-                  />
-                </div>
-              )}
             </div>
           )}
 
-          {/* FE-T9 Refresher — separated from a normal registration on purpose */}
+          {/* FE-T9 Refresher - separated from a normal registration on purpose */}
           {canSelfRegister && hasCompleted && (
             <div className="qc-card p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -423,7 +402,9 @@ export default function TrainingDetail() {
               currentTrainingId={training.id}
               sessions={sessions}
               participation={participation}
+              workerTrainings={workerTrainings}
               workerId={canSelfRegister ? myWorkerId : null}
+              isCurrentEnrolled={Boolean(myEnrollment)}
             />
           )}
 
@@ -446,9 +427,15 @@ export default function TrainingDetail() {
           </div>
 
           {/* Tab content */}
-          <div className="qc-card p-0 overflow-hidden">
+          <div className="qc-card p-0 overflow-x-auto">
             {tab === "enrollees" && (
-              <EnrolleeTable enrollees={enrollees} sessions={sessions} participation={participation} />
+              <EnrolleeTable
+                enrollees={enrollees}
+                sessions={sessions}
+                participation={participation}
+                trainingId={id}
+                canComplete={canMarkAttendance}
+              />
             )}
             {tab === "sessions" && <SessionList sessions={sessions} />}
             {tab === "curriculum" && <CurriculumView curriculum={curriculum} />}
@@ -471,8 +458,28 @@ export default function TrainingDetail() {
   );
 }
 
-/** No grades are shown anywhere — attendance and completion only. */
-function EnrolleeTable({ enrollees, sessions, participation }) {
+/** No grades are shown anywhere - attendance and completion only. */
+function EnrolleeTable({ enrollees, sessions, participation, trainingId, canComplete }) {
+  const queryClient = useQueryClient();
+  const completeMut = useMutation({
+    mutationFn: (enrollmentId) => completeEnrollment(trainingId, enrollmentId),
+    onSuccess: (response) => {
+      const payload = unwrapData(response);
+      const certificateCreated = Boolean(
+        payload?.certificate_created || payload?.certificate_number || payload?.certificate?.certificate_number
+      );
+      toast.success(
+        certificateCreated
+          ? "Training marked as completed and the certificate was generated"
+          : "Training marked as completed"
+      );
+      queryClient.invalidateQueries({ queryKey: ["hub-training-enrollees", trainingId] });
+      queryClient.invalidateQueries({ queryKey: ["hub-training-certificates", trainingId] });
+      queryClient.invalidateQueries({ queryKey: ["hub-training", trainingId] });
+    },
+    onError: (error) => toast.error(error.message || "Could not mark this training as completed"),
+  });
+
   if (enrollees.length === 0) return <Empty msg="No enrollees yet." />;
   return (
     <table className="w-full text-sm">
@@ -482,6 +489,7 @@ function EnrolleeTable({ enrollees, sessions, participation }) {
           <th className="text-left px-4 py-3 font-medium text-ink-700">Type</th>
           <th className="text-left px-4 py-3 font-medium text-ink-700">Attendance</th>
           <th className="text-left px-4 py-3 font-medium text-ink-700">Status</th>
+          {canComplete && <th className="text-right px-4 py-3 font-medium text-ink-700">Action</th>}
         </tr>
       </thead>
       <tbody className="divide-y divide-ink-100">
@@ -493,6 +501,9 @@ function EnrolleeTable({ enrollees, sessions, participation }) {
           const completed =
             String(enrollee.status ?? "").toLowerCase() === "completed" ||
             (progress.total > 0 && progress.complete);
+          const enrollmentId = enrollee.enrollment_id ?? enrollee.id;
+          const isCompleting =
+            completeMut.isPending && String(completeMut.variables) === String(enrollmentId);
           return (
             <tr key={enrollee.id ?? wid ?? index}>
               <td className="px-4 py-3">
@@ -523,6 +534,26 @@ function EnrolleeTable({ enrollees, sessions, participation }) {
                   {completed ? "Completed" : enrollee.status ?? "enrolled"}
                 </Tag>
               </td>
+              {canComplete && (
+                <td className="px-4 py-3 text-right">
+                {!completed && enrollmentId ? (
+                  <button
+                    type="button"
+                    disabled={isCompleting}
+                    onClick={() => {
+                      if (window.confirm(`Mark ${name} as completed? A certificate will be issued when this training has a certificate template.`)) {
+                        completeMut.mutate(enrollmentId);
+                      }
+                    }}
+                    className="text-xs font-semibold text-ink-900 underline underline-offset-2 disabled:opacity-50"
+                  >
+                    {isCompleting ? "Saving..." : "Mark completed"}
+                  </button>
+                ) : (
+                  <span className="text-xs text-ink-400">-</span>
+                )}
+                </td>
+              )}
             </tr>
           );
         })}

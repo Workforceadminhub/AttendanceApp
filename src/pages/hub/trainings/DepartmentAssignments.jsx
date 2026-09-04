@@ -6,7 +6,6 @@ import Header from "../../../components/Header";
 import Layout from "../../../components/Layout";
 import { Stat, Tag } from "../../../components/ui";
 import { useEffectiveRouteList } from "../../../contexts/DepartmentsContext";
-import { useCanAction } from "../../../contexts/RBACContext";
 import { getUserRole } from "../../../utils/getUserRole";
 import { getNextSunday } from "../../../utils/getDate";
 import {
@@ -41,8 +40,11 @@ import {
 export default function DepartmentAssignments() {
   const { id } = useParams();
   const queryClient = useQueryClient();
-  const canManageAssignments = useCanAction("create_training");
   const { isSuperAdmin, isChurchAdmin, isAdmin, user } = getUserRole();
+  // The department-assignment API currently accepts only the two
+  // organisation-wide training administrator roles. This is intentionally
+  // narrower than the general `create_training` permission.
+  const canManageAssignments = isSuperAdmin || isChurchAdmin;
   const routeList = useEffectiveRouteList();
 
   const canPickAnyDepartment = isSuperAdmin || isChurchAdmin || isAdmin;
@@ -171,6 +173,14 @@ export default function DepartmentAssignments() {
             <Stat label="Close to Eligible" value={rows.filter((r) => !r.eligible && r.servicePct >= 80).length} loading={isLoading} />
             <Stat label="Eligible for Next Level" value={eligibleCount} loading={isLoading} />
           </div>
+
+          {!canManageAssignments && (
+            <div className="rounded-md border border-ink-200 bg-white px-4 py-3 text-sm text-ink-600">
+              This page is read-only for your role. A training administrator is an existing
+              <span className="font-medium text-ink-900"> Super Admin or Church Admin</span>; no
+              separate worker label is required.
+            </div>
+          )}
 
           {showForm && (
             <div className="qc-card p-5 space-y-4">

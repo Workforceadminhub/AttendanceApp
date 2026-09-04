@@ -25,7 +25,7 @@ const INITIAL_MEETINGS = [
 /**
  * Loads meetings array from localStorage or returns default
  */
-export function getStoredMeetings() {
+function getStoredMeetings() {
   try {
     const raw = localStorage.getItem(MEETINGS_STORAGE_KEY);
     if (raw) {
@@ -37,14 +37,15 @@ export function getStoredMeetings() {
   } catch (err) {
     console.error("Failed to read meetings from storage:", err);
   }
-  saveStoredMeetings(INITIAL_MEETINGS);
-  return INITIAL_MEETINGS;
+  const defaults = INITIAL_MEETINGS.map((m) => ({ ...m }));
+  saveStoredMeetings(defaults);
+  return defaults;
 }
 
 /**
  * Saves meetings array to localStorage
  */
-export function saveStoredMeetings(meetings) {
+function saveStoredMeetings(meetings) {
   try {
     localStorage.setItem(MEETINGS_STORAGE_KEY, JSON.stringify(meetings));
   } catch (err) {
@@ -151,7 +152,8 @@ export function deleteMeeting(meetingId) {
   // If we deleted the active meeting, set the first remaining one as active
   const remainingSameType = updated.filter((m) => m.meetingType === target.meetingType);
   if (target.isActive && remainingSameType.length > 0) {
-    remainingSameType[0].isActive = true;
+    const nextActiveId = remainingSameType[0].id;
+    updated = updated.map((m) => (m.id === nextActiveId ? { ...m, isActive: true } : m));
   } else if (remainingSameType.length === 0) {
     const defaultDate = target.meetingType === "leaders" ? DEFAULT_LEADERS_MEETING_DATE : DEFAULT_WORKERS_MEETING_DATE;
     updated.push({

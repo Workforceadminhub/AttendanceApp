@@ -6,7 +6,7 @@ import LoadingState from "./LoadingState";
 
 /**
  * Parse "Sunday - d/m/y" → "yyyy-MM-dd" (used only for sorting/cutoff,
- * NOT for the API call — the backend expects the original Sunday string format).
+ * NOT for the API call - the backend expects the original Sunday string format).
  */
 function sundayToISO(dateStr) {
  if (!dateStr || !/^Sunday - \d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) return null;
@@ -39,7 +39,7 @@ function formatSundayLabel(sundayStr) {
  */
 export default function AttendanceHistorySection({ permissions }) {
  // Build list of all past Sundays (including current) in descending order.
- // Values are the original "Sunday - d/m/y" strings — the backend expects this format.
+ // Values are the original "Sunday - d/m/y" strings - the backend expects this format.
  const sundayOptions = useMemo(() => {
  const allSundays = getSundaysInYear(2026);
  const cutoff = sundayToISO(getNextSunday()) || "";
@@ -276,7 +276,7 @@ export default function AttendanceHistorySection({ permissions }) {
  )}
  </div>
 
- {/* Results — only rendered when data is available */}
+ {/* Results - only rendered when data is available */}
  {loading ? (
  <LoadingState type="table" rows={4} />
  ) : records.length > 0 ? (

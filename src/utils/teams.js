@@ -266,7 +266,7 @@ export const PASTOR_BIOLA_COMMUNITIES = [
   "Koinonia Community",
 ];
 
-/** Labels that are district clusters, not departments — hide from dept dropdowns */
+/** Labels that are district clusters, not departments - hide from dept dropdowns */
 export const DISTRICT_CLUSTER_LABELS = [
   "Pastor Biola",
   "Pastor Isaac",

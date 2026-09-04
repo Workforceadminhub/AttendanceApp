@@ -1,7 +1,7 @@
 import clsx from "clsx";
 
 /**
- * Tag — terminal-style status indicator.
+ * Tag - terminal-style status indicator.
  *
  * Rendered as: ■ LABEL  (uppercase, tracked, mono-feel)
  * Replaces rounded-full pill badges. The square block carries the tone color;
@@ -9,7 +9,7 @@ import clsx from "clsx";
  *
  * Tones:
  *  - neutral   (default)
- *  - live      sienna — reserved for "happening now"
+ *  - live      sienna - reserved for "happening now"
  *  - success   forest
  *  - warning   mustard
  *  - danger    brick

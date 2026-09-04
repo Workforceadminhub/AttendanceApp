@@ -14,7 +14,7 @@ import { DepartmentsProvider, useDepartmentRoutes } from "./contexts/Departments
 import { RBACProvider } from "./contexts/RBACContext";
 import HubRoute from "./components/auth/HubRoute";
 
-// Code-split heavy pages — keeps initial bundle small
+// Code-split heavy pages - keeps initial bundle small
 const Dashboard = lazy(() => import("./components/Workers/Dashboard"));
 const DepartmentSummary = lazy(() => import("./components/Workers/DepartmentSummary"));
 const DepartmentAttendance = lazy(() => import("./components/Workers/DepartmentAttendance"));
@@ -96,7 +96,7 @@ const queryClient = new QueryClient({
       staleTime: 5 * 60 * 1000, // 5 minutes
       gcTime: 10 * 60 * 1000, // 10 minutes
       retry: (failureCount, error) => {
-        // Don't retry auth/permission errors (deterministic — won't change on retry)
+        // Don't retry auth/permission errors (deterministic - won't change on retry)
         const msg = error?.message || "";
         if (msg.includes("Invalid credentials") || msg.includes("permission")) return false;
         // Server errors (5xx) ARE often transient (Lambda cold starts, API
@@ -611,7 +611,7 @@ const AppRoutes = () => {
               }
             />
 
-            {/* ── Hub routes (additive — existing routes above are untouched) ── */}
+            {/* ── Hub routes (additive - existing routes above are untouched) ── */}
             <Route
               path="/hub/trainings"
               element={
@@ -733,10 +733,10 @@ const AppRoutes = () => {
                 </HubRoute>
               }
             />
-            {/* Public — no auth required */}
+            {/* Public - no auth required */}
             <Route path="/verify/:certificateNumber" element={<VerifyCertificate />} />
 
-            {/* Fallback param routes — catch new dept/admin slugs before dept cache refreshes */}
+            {/* Fallback param routes - catch new dept/admin slugs before dept cache refreshes */}
             <Route
               path="/dashboard/admin/:teamRoute"
               element={

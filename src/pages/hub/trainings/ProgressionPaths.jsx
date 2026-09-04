@@ -13,7 +13,7 @@ import { unwrapData } from "../../../utils/training";
 import { buildPathwayChain } from "./TrainingClassification";
 
 /**
- * Progression pathways — the ordered chains that progressive trainings sit on.
+ * Progression pathways - the ordered chains that progressive trainings sit on.
  *
  * A pathway is created here; a training joins one (and takes its position in the
  * chain) on the Create/Edit Training form, which is where the classification

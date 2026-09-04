@@ -293,7 +293,7 @@ export default function Dashboard() {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
-            // Determine which meeting type to show — pick the one whose date is closest to today
+            // Determine which meeting type to show - pick the one whose date is closest to today
             const leadersMeeting = getActiveMeeting("leaders");
             const workersMeeting = getActiveMeeting("workers");
 
@@ -443,7 +443,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Sunday Workers Attendance Table — untouched and active */}
+        {/* Sunday Workers Attendance Table - untouched and active */}
         {isAdminMember && isChurchAdmin && departmentSummaryRows.length > 0 && (
           <div className="flow-root mb-8">
             <SundayWorkersAttendanceTable
@@ -453,7 +453,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Unmarked alert — sienna because it's an active "act now" cue */}
+        {/* Unmarked alert - sienna because it's an active "act now" cue */}
         {!isLoading && unmarkedCount !== null && unmarkedCount > 0 && departmentInfo && (
           <Link
             to={`/attendance${departmentInfo.route}`}
@@ -475,7 +475,7 @@ export default function Dashboard() {
           </Link>
         )}
 
-        {/* Quick links — hairline tiles */}
+        {/* Quick links - hairline tiles */}
         {quickLinks.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {quickLinks.map((link) => (

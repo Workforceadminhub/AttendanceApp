@@ -67,7 +67,7 @@ export const workersApi = {
   /** Approve a PENDING_ADD worker */
   approve: (workerId) => apiRequest("PUT", `/api/super/admin/${workerId}/workers/approve`),
 
-  /** Public add — goes to PENDING_ADD */
+  /** Public add - goes to PENDING_ADD */
   addPublic: (worker) => apiRequest("POST", "/api/workers/add", worker, undefined, false),
 };
 

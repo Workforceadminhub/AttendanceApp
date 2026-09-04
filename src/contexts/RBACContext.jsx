@@ -21,7 +21,7 @@ const ADMIN_TRAINING_ACTIONS = new Set([
  * - On mount (if an accessToken exists) it fetches the user's role,
  *   navigation visibility, allowed actions, and scope filter.
  * - If the call fails (legacy JWT not accepted, network error, etc.)
- *   the context value stays null — every consumer falls back gracefully
+ *   the context value stays null - every consumer falls back gracefully
  *   and the existing app behaviour is unchanged.
  * - Exposes a `refresh()` to re-fetch after login or role change.
  */
@@ -57,7 +57,7 @@ export function RBACProvider({ children }) {
     }
   }, []);
 
-  // Re-check on route changes — catches the login→dashboard transition
+  // Re-check on route changes - catches the login→dashboard transition
   // where the token appears mid-session. Skips if already loaded.
   useEffect(() => {
     const token = sessionStorage.getItem("accessToken");

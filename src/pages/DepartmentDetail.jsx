@@ -126,7 +126,7 @@ export default function DepartmentDetail() {
  });
  const authUser = getUser();
  const permissions = expandPermissions(authUser);
- // Throttle to 4 concurrent /api/attendance calls — firing all 50+ in
+ // Throttle to 4 concurrent /api/attendance calls - firing all 50+ in
  // parallel saturates Lambda concurrency and makes most requests 503.
  // 4 in flight, retry up to 2x per Sunday on transient failure.
  const fetchWithRetry = async (activeDate, attempts = 3) => {
@@ -141,7 +141,7 @@ export default function DepartmentDetail() {
  const CONCURRENCY = 4;
  for (let i = 0; i < sundayStrings.length; i += CONCURRENCY) {
  const slice = sundayStrings.slice(i, i + CONCURRENCY);
- // eslint-disable-next-line no-await-in-loop
+  
  const sliceResults = await Promise.all(slice.map(fetchWithRetry));
  sliceResults.forEach((r, j) => {
  results[i + j] = r;
@@ -470,7 +470,7 @@ export default function DepartmentDetail() {
  )}
  </div>
 
- {/* Leaderboard — uses GET /api/attendance/trends with user permissions */}
+ {/* Leaderboard - uses GET /api/attendance/trends with user permissions */}
  <div className="mb-8">
  <AttendanceLeaderboard
  department={decodedDepartment}

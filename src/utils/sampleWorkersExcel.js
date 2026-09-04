@@ -110,7 +110,7 @@ function listFormula(values) {
  * Generate and download sample workers Excel with dropdowns for Gender, Worker Role, Marital Status, Age Range, Employment Status, and Team.
  * Department and Team mapping by role:
  * - Super Admin bulk add: "Department" and "Team" columns are read from the file; use exact names from the app.
- * - Church Admin bulk add: same as Super Admin — "Department" and "Team" are read from the file; fill them for each row.
+ * - Church Admin bulk add: same as Super Admin - "Department" and "Team" are read from the file; fill them for each row.
  * - Team Admin / Sub Team Admin bulk add: "Department" and "Team" are read from the file when present; you must have access to that department. If omitted, the page's department/team are used.
  * - HOD bulk add: Department and Team are set from the page (the department you're on); these columns are ignored. You can leave them blank or omit them.
  */

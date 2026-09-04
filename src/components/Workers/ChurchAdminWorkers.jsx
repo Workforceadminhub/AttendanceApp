@@ -106,7 +106,7 @@ export default function ChurchAdminWorkers() {
  ];
 
  setFilterOptions({ teams, departments });
- } catch (error) {
+ } catch {
  // Fallback to empty options
  setFilterOptions({ teams: [], departments: [] });
  }
@@ -153,7 +153,7 @@ export default function ChurchAdminWorkers() {
  hasPrev: paginationInfo.hasPrev || false,
  });
  }
- } catch (error) {
+ } catch {
  toast.error("Failed to fetch workers");
  setData([]);
  } finally {
@@ -179,7 +179,7 @@ export default function ChurchAdminWorkers() {
  // Handle nested data structure: result.data.data contains the workers array
  const workers = result.data?.data || result.workers || [];
  setData(filterWorkersByPlacement(workers, filters));
- } catch (error) {
+ } catch {
  toast.error("Failed to fetch workers");
  setData([]);
  } finally {
@@ -202,7 +202,7 @@ export default function ChurchAdminWorkers() {
  permissions
  );
  setData(result);
- } catch (error) {
+ } catch {
  toast.error("Failed to fetch workers");
  setData([]);
  } finally {
@@ -225,7 +225,7 @@ export default function ChurchAdminWorkers() {
  search
  );
  setData(result);
- } catch (error) {
+ } catch {
  toast.error("Failed to fetch workers");
  setData([]);
  } finally {
@@ -235,15 +235,17 @@ export default function ChurchAdminWorkers() {
 
  // Load data based on user type
  useEffect(() => {
+ const run = () => {
  if (isSuperAdmin) {
- querySuperAdminWorkers(1, 20, debouncedSearchTerm);
+ return querySuperAdminWorkers(1, 20, debouncedSearchTerm);
  } else if (isChurchAdmin) {
- queryChurchAdminWorkers(1, 20, debouncedSearchTerm);
+ return queryChurchAdminWorkers(1, 20, debouncedSearchTerm);
  } else if (isAdminMember) {
- queryAdminWorkers(debouncedSearchTerm);
- } else {
- queryWorkers(debouncedSearchTerm);
+ return queryAdminWorkers(debouncedSearchTerm);
  }
+ return queryWorkers(debouncedSearchTerm);
+ };
+ run();
  }, [
  filters,
  debouncedSearchTerm,
@@ -334,7 +336,7 @@ Type "DELETE" to confirm (case-sensitive):`;
  } else {
  queryWorkers(searchTerm);
  }
- } catch (error) {
+ } catch {
  toast.error("Failed to delete worker");
  } finally {
  setIsLoading(false);
@@ -625,7 +627,15 @@ Type "DELETE" to confirm (case-sensitive):`;
  <tr
  key={person.id}
  onClick={() => navigate(statsHref)}
- className="cursor-pointer hover:bg-cream-200 transition-colors"
+ onKeyDown={(e) => {
+ if (e.key === "Enter") {
+ e.preventDefault();
+ navigate(statsHref);
+ }
+ }}
+ tabIndex={0}
+ role="link"
+ className="cursor-pointer hover:bg-cream-200 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink-900"
  >
  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-ink-900">
  {person.id || person.workerid || idx + 1}
@@ -929,7 +939,7 @@ Type "DELETE" to confirm (case-sensitive):`;
 
  return pages.map((page, index) => (
  <button
- key={index}
+ key={`${page}-${index}`}
  onClick={() => {
  if (typeof page === "number") {
  if (isSuperAdmin) {

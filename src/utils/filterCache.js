@@ -9,7 +9,7 @@ const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 /**
  * Extract unique values from workers data for filter options
  */
-export const extractFilterData = (workers) => {
+const extractFilterData = (workers) => {
   if (!Array.isArray(workers)) return null;
 
   const departments = new Set();
@@ -38,7 +38,7 @@ export const extractFilterData = (workers) => {
 /**
  * Fetch all workers data for filter extraction
  */
-export const fetchWorkersForFilters = async () => {
+const fetchWorkersForFilters = async () => {
   try {
     const result = await apiRequest("GET", "/api/super/admin/workers", {
       limit: 4000,
@@ -47,9 +47,9 @@ export const fetchWorkersForFilters = async () => {
     // Handle the API response structure based on your curl example
     let workersData = [];
     
-    if (result.data && result.data.data && Array.isArray(result.data.data)) {
+    if (result?.data?.data && Array.isArray(result.data.data)) {
       workersData = result.data.data;
-    } else if (result.data && Array.isArray(result.data)) {
+    } else if (result?.data && Array.isArray(result.data)) {
       workersData = result.data;
     } else if (Array.isArray(result)) {
       workersData = result;
@@ -64,7 +64,7 @@ export const fetchWorkersForFilters = async () => {
 /**
  * Cache filter data in localStorage
  */
-export const cacheFilterData = (filterData) => {
+const cacheFilterData = (filterData) => {
   try {
     const cacheData = {
       data: filterData,
@@ -114,7 +114,7 @@ export const clearFilterCache = () => {
 /**
  * Initialize and cache filter data from API
  */
-export const initializeFilterData = async (accessToken) => {
+export const initializeFilterData = async () => {
   try {
     // Clear existing cache
     clearFilterCache();

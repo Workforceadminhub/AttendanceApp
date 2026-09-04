@@ -25,7 +25,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
  *
  * Notes:
  *   - The container has fixed height; pass `height` to override (default 600px).
- *   - Row height must be predictable — pass `rowHeight` matching the actual
+ *   - Row height must be predictable - pass `rowHeight` matching the actual
  *     CSS row height (or use estimateSize prop for variable heights).
  *   - The wrapper renders a div, not a <table>, because virtualization needs
  *     absolute positioning on rows. Use this only for *visual* tables; if you

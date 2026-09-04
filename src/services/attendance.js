@@ -1,7 +1,6 @@
 import { ulid } from "ulid";
 import apiRequest from "../utils/apiClient";
 import { getNextSunday } from "../utils/getDate";
-import { departmentNameForApi } from "../utils/routeObject";
 
 // const table = "attendance2";
 export const addAttendance = async (attendance) => {
@@ -14,13 +13,12 @@ export const addAttendance = async (attendance) => {
     });
 
     if (!response || response.error) {
-      throw new Error(response?.error || "Failed to fetch admin attendance");
+      throw new Error(response?.error || "Failed to add attendance");
     }
 
     return response.data;
   } catch (error) {
-    // Silent error handling
-    return null; // You can return null or handle errors differently
+    throw error instanceof Error ? error : new Error("Failed to add attendance");
   }
 };
 
@@ -99,9 +97,9 @@ export function calculateTotals(data) {
 
   // Calculate the overall percentage
   const overallPercentage =
-    totals?.total === 0
-      ? "0.00%"
-      : ((totals?.present / totals?.total) * 100).toFixed(2) + "%";
+    !totals || !totals.total
+      ? "0%"
+      : ((totals.present / totals.total) * 100).toFixed(2) + "%";
 
   return [
     { name: "Total strength", stat: totals?.total },
@@ -111,91 +109,6 @@ export function calculateTotals(data) {
   ];
 }
 // ========== Phase 7 - Date Range Functions ==========
-
-/**
- * Fetches attendance data for a specific department within a date range.
- * @param {string} department - Department name
- * @param {string} startDate - ISO date string for range start
- * @param {string} endDate - ISO date string for range end
- * @returns {Promise<Array|null>} Attendance data array or null on error
- */
-export const fetchAttendanceByDateRange = async (department, startDate, endDate) => {
-  try {
-    const response = await apiRequest("GET", "/api/attendance", {
-      department: departmentNameForApi(department),
-      startDate,
-      endDate,
-    });
-
-    if (!response || response.error) {
-      throw new Error(response?.error || "Failed to fetch attendance by date range");
-    }
-
-    return response.data;
-  } catch (error) {
-    // Silent error handling
-    return null;
-  }
-};
-
-/**
- * Fetches attendance trend data for a department over a date range.
- * @param {string} department - Department name
- * @param {string} startDate - ISO date string for range start
- * @param {string} endDate - ISO date string for range end
- * @returns {Promise<Array|null>} Trend data array or null on error
- */
-export const fetchAttendanceTrends = async (department, startDate, endDate) => {
-  try {
-    const response = await apiRequest("GET", "/api/attendance/trends", {
-      department: departmentNameForApi(department),
-      startDate,
-      endDate,
-    });
-
-    if (!response || response.error) {
-      throw new Error(response?.error || "Failed to fetch attendance trends");
-    }
-
-    const raw = response.data ?? response;
-    if (Array.isArray(raw)) return raw;
-    if (Array.isArray(raw?.data)) return raw.data;
-    if (Array.isArray(raw?.trends)) return raw.trends;
-    return [];
-  } catch (error) {
-    // Silent error handling
-    return [];
-  }
-};
-
-/**
- * Phase 7 spec: Fetches department attendance from GET /api/departments/:departmentRoute/attendance
- * Returns { department, summary, workers } with summary.present, summary.absent, summary.presentPercentage
- * @param {string} departmentRoute - Department route (e.g. "mincc" or "mincc")
- * @param {string} startDate - ISO date string for range start
- * @param {string} endDate - ISO date string for range end
- * @returns {Promise<Object|null>} { department, summary, workers } or null on error
- */
-export const fetchDepartmentAttendance = async (departmentRoute, startDate, endDate) => {
-  try {
-    const route = departmentRoute?.startsWith("/") ? departmentRoute.slice(1) : departmentRoute;
-    const params = new URLSearchParams();
-    if (startDate) params.append("startDate", startDate);
-    if (endDate) params.append("endDate", endDate);
-    const query = params.toString();
-    const url = `/api/departments/${route}/attendance${query ? `?${query}` : ""}`;
-
-    const response = await apiRequest("GET", url);
-
-    if (!response || response.error) {
-      throw new Error(response?.error || "Failed to fetch department attendance");
-    }
-
-    return response.data ?? response;
-  } catch (error) {
-    return null;
-  }
-};
 
 /**
  * Fetches attendance leaderboard data for a set of departments via the

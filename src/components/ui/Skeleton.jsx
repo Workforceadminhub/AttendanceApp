@@ -24,7 +24,7 @@ export function SkeletonRow({ width = "100%", height = 16, className = "" }) {
   );
 }
 
-/** Card-shaped skeleton block — useful for dashboard widgets. */
+/** Card-shaped skeleton block - useful for dashboard widgets. */
 export function SkeletonCard({ lines = 3, className = "" }) {
   return (
     <div className={clsx("p-4 border rounded-lg space-y-3 bg-white", className)}>

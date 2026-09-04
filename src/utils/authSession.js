@@ -1,7 +1,7 @@
 import { clearFilterCache } from "./filterCache";
 import { clearSessionRoutes } from "./routeObject";
 
-/** Fields required for routing, RBAC, and header display — nothing else from login. */
+/** Fields required for routing, RBAC, and header display - nothing else from login. */
 const SESSION_USER_KEYS = [
   "code",
   "department",
@@ -91,7 +91,7 @@ export function clearAuthTokens() {
   sessionStorage.removeItem("refreshToken");
 }
 
-/** Full logout — tokens, route hints, and cached filters. */
+/** Full logout - tokens, route hints, and cached filters. */
 export function logoutSession() {
   clearAuthTokens();
   clearSessionRoutes();

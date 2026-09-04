@@ -72,7 +72,7 @@ export default function HODBulkAddWorker() {
 
  const workers = convertToWorkerObjects(jsonData);
  setParsedWorkers(workers);
- } catch (error) {
+ } catch {
  toast.error("Error parsing file. Please check the format.");
  }
  };
@@ -82,6 +82,7 @@ export default function HODBulkAddWorker() {
  const convertToWorkerObjects = (data) => {
  return data
  .map((row, index) => {
+ const _id = crypto.randomUUID();
  const rowDept = (row["Department"] || row["department"] || "").toString().trim();
  const rowTeam = (row["Team"] || row["team"] || "").toString().trim();
 
@@ -92,6 +93,7 @@ export default function HODBulkAddWorker() {
  if (rowDept && rowTeam) {
  if (!canAccessDepartment(rowDept)) {
  return {
+ _id,
  firstname: row["First Name"] || row["firstname"] || "",
  lastname: row["Last Name"] || row["lastname"] || "",
  _error: `You don't have access to department: ${rowDept}`,
@@ -101,6 +103,7 @@ export default function HODBulkAddWorker() {
  const canonicalTeam = getTeamForDepartment(rowDept);
  if (!canonicalTeam || canonicalTeam.trim().toLowerCase() !== rowTeam.trim().toLowerCase()) {
  return {
+ _id,
  firstname: row["First Name"] || row["firstname"] || "",
  lastname: row["Last Name"] || row["lastname"] || "",
  _error: `Department "${rowDept}" and Team "${rowTeam}" don't match. Use the team for that department.`,
@@ -113,6 +116,7 @@ export default function HODBulkAddWorker() {
  }
 
  const worker = {
+ _id,
  firstname: row["First Name"] || row["firstname"] || "",
  lastname: row["Last Name"] || row["lastname"] || "",
  othername: row["Other Name"] || row["othername"] || "",
@@ -429,8 +433,8 @@ export default function HODBulkAddWorker() {
  </tr>
  </thead>
  <tbody className="bg-white divide-y divide-ink-200">
- {parsedWorkers.slice(0, 15).map((worker, index) => (
- <tr key={index} className={worker._error ? "bg-brick/10" : ""}>
+ {parsedWorkers.slice(0, 15).map((worker) => (
+ <tr key={worker._id} className={worker._error ? "bg-brick/10" : ""}>
  <td className="px-4 py-2 text-sm text-ink-900">
  {worker.firstname} {worker.lastname}
  </td>

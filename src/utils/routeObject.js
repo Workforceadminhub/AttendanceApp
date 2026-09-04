@@ -1,7 +1,7 @@
 import { ADMIN_ENUMS } from "./enums";
 
 /**
- * Static fallback list — used before the DepartmentsProvider has loaded
+ * Static fallback list - used before the DepartmentsProvider has loaded
  * the live `/api/departments` response, and as a backstop for legacy
  * direct imports. Once the provider calls `setDynamicDepartments(...)`,
  * helpers in this file read from the merged effective list instead.
@@ -684,7 +684,7 @@ export function resolveAdminRoute({ role, department, team, route } = {}) {
 /**
  * Post-login landing path for an authenticated user.
  * The route stored on the admin record (returned by /auth/signin) is the
- * source of truth — it must match what was saved at create time.
+ * source of truth - it must match what was saved at create time.
  * @param {object} authUser
  * @returns {string}
  */

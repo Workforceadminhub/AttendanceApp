@@ -21,7 +21,7 @@ export default function MyNominations() {
   const acceptMut = useMutation({
     mutationFn: (id) => acceptNomination(id),
     onSuccess: () => {
-      toast.success("Nomination accepted — you are now enrolled");
+      toast.success("Nomination accepted - you are now enrolled");
       queryClient.invalidateQueries({ queryKey: ["hub-my-nominations"] });
     },
     onError: (err) => toast.error(err.message || "Failed to accept"),

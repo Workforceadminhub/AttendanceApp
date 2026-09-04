@@ -1,7 +1,7 @@
 import { redactSensitive } from "./redactSensitive";
 
 /**
- * Error reporter — abstracts Sentry / similar so the rest of the codebase
+ * Error reporter - abstracts Sentry / similar so the rest of the codebase
  * doesn't import vendor SDKs directly.
  *
  * SETUP REQUIRED before this does anything in production:
@@ -49,7 +49,7 @@ export function initErrorReporter() {
 export function reportError(err, context) {
   const safeContext = context ? redactSensitive(context) : undefined;
   if (process.env.NODE_ENV !== "production") {
-    // eslint-disable-next-line no-console
+     
     console.error("[errorReporter]", err, safeContext);
     return;
   }
@@ -60,7 +60,7 @@ export function reportError(err, context) {
 export function reportMessage(msg, context) {
   const safeContext = context ? redactSensitive(context) : undefined;
   if (process.env.NODE_ENV !== "production") {
-    // eslint-disable-next-line no-console
+     
     console.warn("[errorReporter]", msg, safeContext);
     return;
   }

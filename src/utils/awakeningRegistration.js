@@ -104,7 +104,7 @@ export function formatAwakeningDays(value) {
       );
     });
 
-  return labels.join(", ") || "—";
+  return labels.join(", ") || "-";
 }
 
 export function buildAwakeningRegistrationPayload(data) {

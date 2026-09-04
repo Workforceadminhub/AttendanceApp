@@ -51,7 +51,7 @@ const columns = [
     key: "leadershipRole",
     header: "Role",
     hideOnSm: true,
-    render: (r) => r.leadershipRole || "—",
+    render: (r) => r.leadershipRole || "-",
   },
   {
     key: "email",

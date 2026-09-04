@@ -1,14 +1,14 @@
 import clsx from "clsx";
 
 /**
- * DataTable — table on `lg+`, card-stack below.
+ * DataTable - table on `lg+`, card-stack below.
  *
  * Columns spec:
  *   {
  *     key:        unique id
  *     header:     column label
  *     render:     (row) => ReactNode  (cell content)
- *     mono:       boolean — render with mono numerals (counts, %, IDs, dates)
+ *     mono:       boolean - render with mono numerals (counts, %, IDs, dates)
  *     align:      "left" | "right" | "center"
  *     hideOnSm:   hide this column on the mobile card view
  *     primary:    show as the title in the mobile card
@@ -16,7 +16,7 @@ import clsx from "clsx";
  *     trailing:   show on the right side of the mobile card (status, count, etc.)
  *   }
  *
- * Each row's onClick (if provided) makes the entire row a tap target — the
+ * Each row's onClick (if provided) makes the entire row a tap target - the
  * mobile card surface is a single 44px+ tap zone.
  *
  * Keep the desktop table dense and the mobile cards generous. Same data,

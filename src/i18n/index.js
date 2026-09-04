@@ -1,5 +1,5 @@
 /**
- * i18n scaffold — start replacing hardcoded user-facing strings with t() calls
+ * i18n scaffold - start replacing hardcoded user-facing strings with t() calls
  * even before deciding on a translation backend. Keeps the messages indexable
  * and makes a future translation pass cheap.
  *

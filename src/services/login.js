@@ -21,7 +21,7 @@ const loginService = async (code) => {
     ensureSessionRoute(authUser);
     sessionStorage.setItem("authUser", JSON.stringify(authUser));
 
-    initializeFilterData(response.accessToken).catch(() => {});
+    initializeFilterData().catch(() => {});
 
     return { ...response, authUser };
   }

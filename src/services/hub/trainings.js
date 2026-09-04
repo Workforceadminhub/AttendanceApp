@@ -1,18 +1,5 @@
 import { hubGet, hubPost, hubPatch, hubDelete } from "./client";
-
-function sortById(items) {
-  if (!Array.isArray(items)) return items;
-  return [...items].sort((a, b) => {
-    const idA = a?.id ?? a?._id;
-    const idB = b?.id ?? b?._id;
-    const numA = Number(idA);
-    const numB = Number(idB);
-    if (!isNaN(numA) && !isNaN(numB) && idA !== null && idB !== null && idA !== "" && idB !== "") {
-      return numA - numB;
-    }
-    return String(idA ?? "").localeCompare(String(idB ?? ""));
-  });
-}
+import { sortById } from "./sortById";
 
 export async function fetchTrainings(params) {
   const res = await hubGet("/trainings", params);
@@ -44,9 +31,6 @@ export function registerForTraining(id, workerId, options = {}) {
   const body = workerId ? { worker_id: workerId } : {};
   // A refresher retake is flagged so it is not counted as a new completion.
   if (options.refresher) body.enrollment_type = "refresher";
-  if (options.priorTrainingCompletion) {
-    body.prior_training_completion = options.priorTrainingCompletion;
-  }
   return hubPost(`/trainings/${id}/register`, body);
 }
 
@@ -102,18 +86,6 @@ export function fetchCurriculum(id) {
   return hubGet(`/trainings/${id}/curriculum`);
 }
 
-export function fetchWorkerCurriculum(id) {
-  return hubGet(`/trainings/${id}/worker-curriculum`);
-}
-
-export function addModule(id, title, sortOrder) {
-  return hubPost(`/trainings/${id}/modules`, { title, sort_order: sortOrder });
-}
-
-export function addLesson(id, moduleId, data) {
-  return hubPost(`/trainings/${id}/modules/${moduleId}/lessons`, data);
-}
-
 export function completeEnrollment(id, enrollmentId) {
   return hubPost(`/trainings/${id}/enrollments/${enrollmentId}/complete`);
 }
@@ -130,23 +102,6 @@ export function createDeptAssignment(id, data) {
   return hubPost(`/trainings/${id}/department-assignments`, data);
 }
 
-export function createStreamSession(id, data) {
-  return hubPost(`/trainings/${id}/stream-sessions`, data);
-}
-
-export function updateStreamSession(id, sessionId, data) {
-  return hubPatch(`/trainings/${id}/stream-sessions/${sessionId}`, data);
-}
-
-export function fetchRecordings(id, libraryOnly) {
-  const params = libraryOnly ? { library_only: true } : {};
-  return hubGet(`/trainings/${id}/recordings`, params);
-}
-
-export function addRecording(id, data) {
-  return hubPost(`/trainings/${id}/recordings`, data);
-}
-
 export function fetchWorkerTrainings(workerId) {
   return hubGet(`/users/${workerId}/trainings`);
 }
@@ -155,45 +110,7 @@ export function fetchWorkerTrainingMetrics(workerId) {
   return hubGet(`/users/${workerId}/training-metrics`);
 }
 
-export function fetchTrainingCategories() {
-  return hubGet("/trainings/categories");
-}
-
-// Training Program Endpoints (Postman Collection)
-export function fetchTrainingPrograms() {
-  return hubGet("/training-programs");
-}
-
-export function createTrainingProgram(data) {
-  return hubPost("/training-programs", data);
-}
-
-export function updateTrainingProgram(id, data) {
-  return hubPatch(`/training-programs/${id}`, data);
-}
-
-export function deleteTrainingProgram(id) {
-  return hubDelete(`/training-programs/${id}`);
-}
-
-// Cohort Endpoints (Postman Collection)
-export function fetchCohorts() {
-  return hubGet("/cohorts");
-}
-
-export function createCohort(data) {
-  return hubPost("/cohorts", data);
-}
-
-export function updateCohort(id, data) {
-  return hubPatch(`/cohorts/${id}`, data);
-}
-
-export function deleteCohort(id) {
-  return hubDelete(`/cohorts/${id}`);
-}
-
-// Progression Path Endpoints — the ordered chain a progressive training sits in.
+// Progression Path Endpoints - the ordered chain a progressive training sits in.
 export function fetchProgressionPaths() {
   return hubGet("/progression-paths");
 }

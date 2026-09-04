@@ -3,7 +3,7 @@ import { XMarkIcon } from "@heroicons/react/24/outline";
 import clsx from "clsx";
 
 /**
- * MobileSheet — bottom sheet for filters, dropdowns, and modals on mobile.
+ * MobileSheet - bottom sheet for filters, dropdowns, and modals on mobile.
  *
  * Slide-up animation. Respects safe-area-inset-bottom.
  * Use this in place of centered modals on small screens, or as the mobile

@@ -72,11 +72,11 @@ const foundationLabel = (value) => ({
   no: "Not completed",
   not_yet_but_would_love_to: "Wants to",
 }[value] ?? value);
-const yesNoLabel = (v) => (v === "yes" ? "Yes" : v === "no" ? "No" : "—");
+const yesNoLabel = (v) => (v === "yes" ? "Yes" : v === "no" ? "No" : "-");
 
 function DaysList({ values }) {
   const days = Array.isArray(values) ? values : values ? [values] : [];
-  if (!days.length) return <span>—</span>;
+  if (!days.length) return <span>-</span>;
   return (
     <span className="inline-flex flex-wrap gap-1">
       {days.map((d) => (
@@ -94,39 +94,39 @@ const columns = [
     header: "Name",
     primary: true,
     render: (r) =>
-      [r.first_name, r.last_name].filter(Boolean).join(" ") || "—",
+      [r.first_name, r.last_name].filter(Boolean).join(" ") || "-",
   },
-  { key: "campus", header: "Campus", secondary: true, render: (r) => r.campus || "—" },
+  { key: "campus", header: "Campus", secondary: true, render: (r) => r.campus || "-" },
   {
     key: "registration_type",
     header: "Type",
     trailing: true,
     render: (r) => (
       <Tag tone={r.registration_type === "worker" ? "warning" : "success"}>
-        {r.registration_type || "—"}
+        {r.registration_type || "-"}
       </Tag>
     ),
   },
   {
     key: "worker_team",
     header: "Worker Team",
-    render: (r) => r.worker_team || "—",
+    render: (r) => r.worker_team || "-",
   },
   {
     key: "department",
     header: "Department",
-    render: (r) => normalizeAwakeningDepartment(r.department) || "—",
+    render: (r) => normalizeAwakeningDepartment(r.department) || "-",
   },
   {
     key: "worker_designation",
     header: "Designation",
-    render: (r) => r.worker_designation || "—",
+    render: (r) => r.worker_designation || "-",
   },
   {
     key: "preferred_service_team",
     header: "Service Team",
     hideOnSm: true,
-    render: (r) => normalizeAwakeningServiceTeam(r.preferred_service_team) || "—",
+    render: (r) => normalizeAwakeningServiceTeam(r.preferred_service_team) || "-",
   },
   {
     key: "serving_day",
@@ -535,7 +535,7 @@ export default function AwakeningRegistrationAdmin() {
   const [registrations, setRegistrations] = useState([]);
   const [overviewRegistrations, setOverviewRegistrations] = useState([]);
 
-  // Role guard — super-admin / church-admin only (canonical resolver)
+  // Role guard - super-admin / church-admin only (canonical resolver)
   useEffect(() => {
     const { isSuperAdmin, isChurchAdmin } = getUserRole();
     if (!isSuperAdmin && !isChurchAdmin) {
@@ -644,7 +644,7 @@ export default function AwakeningRegistrationAdmin() {
         registrationType: regType,
         serviceTeam: team,
       });
-      toast.success(`Exported ${count} registration${count !== 1 ? "s" : ""} — one sheet per campus.`);
+      toast.success(`Exported ${count} registration${count !== 1 ? "s" : ""} - one sheet per campus.`);
     } catch (err) {
       toast.error(err.message || "Export failed.");
     } finally {

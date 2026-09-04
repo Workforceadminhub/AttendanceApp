@@ -1,7 +1,7 @@
 import clsx from "clsx";
 
 /**
- * Stat — KPI tile.
+ * Stat - KPI tile.
  *
  * eyebrow:   small uppercase label
  * value:     the headline number (rendered in Geist Mono, tabular)

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
@@ -28,7 +28,12 @@ export default function AddWorker() {
  const [mode, setMode] = useState("single"); // 'single' or 'bulk'
  const [isLoading, setIsLoading] = useState(false);
  const [formErrors, setFormErrors] = useState({});
- const [submitError, setSubmitError] = useState("");
+ // Submit error is tied to the form values it was raised for, so editing hides it.
+ const [submitErrorState, setSubmitErrorState] = useState(null);
+ const submitError =
+ submitErrorState && submitErrorState.worker === newWorker ? submitErrorState.message : "";
+ const setSubmitError = (message) =>
+ setSubmitErrorState(message ? { message, worker: newWorker } : null);
 
  // Single worker form state for Super Admin
  const [newWorker, setNewWorker] = useState({
@@ -89,6 +94,8 @@ export default function AddWorker() {
           });
         }
       }
+    }).catch((error) => {
+      if (import.meta.env.DEV) console.error("Failed to load teams/departments", error);
     });
     return () => {
       isMounted = false;
@@ -105,8 +112,8 @@ export default function AddWorker() {
  }
  }, [navigate]);
 
-  // Update departments when team / district sub-team changes
-  useEffect(() => {
+  // Department options derived from team / district sub-team (handlers reset department on change)
+  const departmentOptions = useMemo(() => {
     if (newWorker.team) {
       const depts =
         filterData.departmentsByTeam[newWorker.team] ||
@@ -131,37 +138,20 @@ export default function AddWorker() {
         newWorker.team,
         newWorker.district_sub_team
       );
-
-      setFilterOptions((prev) => ({
-        ...prev,
-        departments: filtered.map((dept) => ({ value: dept, label: dept })),
-      }));
-
-      if (
-        newWorker.department &&
-        !filtered.some((d) => d === newWorker.department)
-      ) {
-        setNewWorker((prev) => ({ ...prev, department: "" }));
-      }
+      return filtered.map((dept) => ({ value: dept, label: dept }));
     } else {
-      const depts = (filterData.departments || []).filter((d) => d.value !== "All");
-      setFilterOptions((prev) => ({
-        ...prev,
-        departments: depts,
-      }));
+      return (filterData.departments || []).filter((d) => d.value !== "All");
     }
- }, [newWorker.team, newWorker.district_sub_team, newWorker.department, filterData]);
+  }, [newWorker.team, newWorker.district_sub_team, filterData]);
 
- useEffect(() => {
- setFormErrors((current) => {
- if (Object.keys(current).length === 0) return current;
+ // Only show errors still present for the current form values.
+ const visibleErrors = useMemo(() => {
+ if (Object.keys(formErrors).length === 0) return formErrors;
  const latestErrors = validateAuthenticatedWorker(newWorker);
  return Object.fromEntries(
- Object.entries(current).filter(([field]) => latestErrors[field])
+ Object.entries(formErrors).filter(([field]) => latestErrors[field])
  );
- });
- setSubmitError("");
- }, [newWorker]);
+ }, [formErrors, newWorker]);
 
  // Single worker functions
  const addNewWorker = async () => {
@@ -271,7 +261,7 @@ export default function AddWorker() {
  `Successfully parsed ${workers.length} workers from Excel file`
  );
  }
- } catch (error) {
+ } catch {
  // Silent error handling
  toast.error("Error parsing Excel file. Please check the format.");
  }
@@ -280,13 +270,7 @@ export default function AddWorker() {
  };
 
  const convertToWorkerObjects = (jsonData) => {
- if (jsonData.length < 2) return [];
-
- // Assume first row is headers
- const headers = jsonData[0].map(
- (h) => h?.toString().toLowerCase().trim() || ""
- );
- const dataRows = jsonData.slice(1);
+ if (!Array.isArray(jsonData) || jsonData.length === 0) return [];
 
  // Map headers to our expected fields
  const fieldMapping = {
@@ -320,10 +304,13 @@ export default function AddWorker() {
 
  const workers = [];
 
- dataRows.forEach((row, index) => {
- if (row.every((cell) => !cell || cell.toString().trim() === "")) return; // Skip empty rows
+ // Rows are objects keyed by header (see parseExcelFile)
+ jsonData.forEach((row) => {
+ const entries = Object.entries(row || {});
+ if (entries.every(([, cell]) => !cell || cell.toString().trim() === "")) return; // Skip empty rows
 
  const worker = {
+ _id: crypto.randomUUID(),
  firstname: "",
  lastname: "",
  othername: "",
@@ -340,9 +327,10 @@ export default function AddWorker() {
  occupation: "",
  };
 
- // Map data based on headers
- headers.forEach((header, colIndex) => {
- const value = row[colIndex]?.toString().trim() || "";
+ // Map data based on headers (case-insensitive, trimmed)
+ entries.forEach(([rawHeader, rawValue]) => {
+ const header = rawHeader?.toString().toLowerCase().trim() || "";
+ const value = rawValue?.toString().trim() || "";
 
  // Find matching field
  for (const [field, aliases] of Object.entries(fieldMapping)) {
@@ -396,7 +384,7 @@ export default function AddWorker() {
  const errors = [];
 
  for (let i = 0; i < parsedWorkers.length; i++) {
- const worker = { ...parsedWorkers[i] };
+ const { _id, ...worker } = parsedWorkers[i];
 
  worker.workerrole = normalizeWorkerRole(worker.workerrole);
 
@@ -414,9 +402,6 @@ export default function AddWorker() {
  error: error.message,
  });
  }
-
- // Small delay to prevent overwhelming the API
- await new Promise((resolve) => setTimeout(resolve, 100));
  }
 
  setBulkUploadProgress((prev) => ({
@@ -430,10 +415,12 @@ export default function AddWorker() {
  toast.success(`Successfully added ${successCount} workers`);
  }
  if (errors.length > 0) {
- toast.error(
- `Failed to add ${errors.length} workers. Check console for details.`
- );
- // Log errors silently
+ const preview = errors
+ .slice(0, 3)
+ .map((e) => `${e.worker}: ${e.error}`)
+ .join("; ");
+ const more = errors.length > 3 ? ` (and ${errors.length - 3} more)` : "";
+ toast.error(`Failed to add ${errors.length} workers. ${preview}${more}`);
  }
 
  setIsLoading(false);
@@ -456,7 +443,7 @@ export default function AddWorker() {
  </div>
 
  <>
- {/* Mode tabs — sliding ink underline */}
+ {/* Mode tabs - sliding ink underline */}
  <div className="mb-6 flex border-b border-ink-200">
  <button
  type="button"
@@ -507,7 +494,7 @@ export default function AddWorker() {
  noValidate
  className="worker-form space-y-6"
  >
- <WorkerFormErrorSummary errors={formErrors} submitError={submitError} />
+ <WorkerFormErrorSummary errors={visibleErrors} submitError={submitError} />
  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
  {/* First Name */}
  <div>
@@ -515,7 +502,7 @@ export default function AddWorker() {
  First Name <span className="text-brick">*</span>
  </label>
  <input
- {...workerErrorProps(formErrors, "firstname")}
+ {...workerErrorProps(visibleErrors, "firstname")}
  type="text"
  value={newWorker.firstname}
  onChange={(e) =>
@@ -535,7 +522,7 @@ export default function AddWorker() {
  Last Name <span className="text-brick">*</span>
  </label>
  <input
- {...workerErrorProps(formErrors, "lastname")}
+ {...workerErrorProps(visibleErrors, "lastname")}
  type="text"
  value={newWorker.lastname}
  onChange={(e) =>
@@ -574,7 +561,7 @@ export default function AddWorker() {
  Gender <span className="text-brick">*</span>
  </label>
  <select
- {...workerErrorProps(formErrors, "gender")}
+ {...workerErrorProps(visibleErrors, "gender")}
  value={newWorker.gender}
  onChange={(e) =>
  setNewWorker({ ...newWorker, gender: e.target.value })
@@ -593,7 +580,7 @@ export default function AddWorker() {
  Phone Number <span className="text-brick">*</span>
  </label>
  <input
- {...workerErrorProps(formErrors, "phonenumber")}
+ {...workerErrorProps(visibleErrors, "phonenumber")}
  type="tel"
  value={newWorker.phonenumber}
  onChange={(e) =>
@@ -614,7 +601,7 @@ export default function AddWorker() {
  Email Address <span className="text-brick">*</span>
  </label>
  <input
- {...workerErrorProps(formErrors, "email")}
+ {...workerErrorProps(visibleErrors, "email")}
  type="email"
  value={newWorker.email}
  onChange={(e) =>
@@ -631,7 +618,7 @@ export default function AddWorker() {
  Team <span className="text-brick">*</span>
  </label>
  <select
- {...workerErrorProps(formErrors, "team")}
+ {...workerErrorProps(visibleErrors, "team")}
  value={newWorker.team}
  onChange={(e) =>
  setNewWorker({
@@ -652,14 +639,14 @@ export default function AddWorker() {
  </select>
  </div>
 
- {/* District/Sub-team — always before Department when Districts */}
+ {/* District/Sub-team - always before Department when Districts */}
  {(newWorker.team === "Districts" || newWorker.team === "District") && (
  <div>
  <label className="block text-sm font-medium text-ink-700 mb-2">
  District/Sub-team <span className="text-brick">*</span>
  </label>
  <select
- {...workerErrorProps(formErrors, "district_sub_team")}
+ {...workerErrorProps(visibleErrors, "district_sub_team")}
  value={newWorker.district_sub_team}
  onChange={(e) =>
  setNewWorker({
@@ -683,7 +670,7 @@ export default function AddWorker() {
  Department <span className="text-brick">*</span>
  </label>
  <select
- {...workerErrorProps(formErrors, "department")}
+ {...workerErrorProps(visibleErrors, "department")}
  value={newWorker.department}
  onChange={(e) => {
    setNewWorker({
@@ -703,7 +690,7 @@ export default function AddWorker() {
  ? "Select District/Sub-team first"
  : "Select Department"}
  </option>
- {filterOptions.departments.map((dept) => (
+ {departmentOptions.map((dept) => (
  <option key={dept.value} value={dept.value}>
  {dept.label}
  </option>
@@ -717,7 +704,7 @@ export default function AddWorker() {
  Worker Role <span className="text-brick">*</span>
  </label>
  <select
- {...workerErrorProps(formErrors, "workerrole")}
+ {...workerErrorProps(visibleErrors, "workerrole")}
  value={newWorker.workerrole}
  onChange={(e) =>
  setNewWorker({
@@ -756,8 +743,8 @@ export default function AddWorker() {
  </label>
  <BirthDatePicker
  id="birthdate"
- ariaInvalid={Boolean(formErrors.birthdate)}
- ariaDescribedBy={formErrors.birthdate ? "birthdate-error" : undefined}
+ ariaInvalid={Boolean(visibleErrors.birthdate)}
+ ariaDescribedBy={visibleErrors.birthdate ? "birthdate-error" : undefined}
  value={newWorker.birthdate}
  onChange={(value) =>
  setNewWorker({
@@ -775,7 +762,7 @@ export default function AddWorker() {
  Marital Status <span className="text-brick">*</span>
  </label>
  <select
- {...workerErrorProps(formErrors, "maritalstatus")}
+ {...workerErrorProps(visibleErrors, "maritalstatus")}
  value={newWorker.maritalstatus}
  onChange={(e) =>
  setNewWorker({
@@ -800,7 +787,7 @@ export default function AddWorker() {
  Age Range <span className="text-brick">*</span>
  </label>
  <select
- {...workerErrorProps(formErrors, "agerange")}
+ {...workerErrorProps(visibleErrors, "agerange")}
  value={newWorker.agerange}
  onChange={(e) =>
  setNewWorker({
@@ -827,7 +814,7 @@ export default function AddWorker() {
  Employment Status <span className="text-brick">*</span>
  </label>
  <select
- {...workerErrorProps(formErrors, "employment")}
+ {...workerErrorProps(visibleErrors, "employment")}
  value={newWorker.employment}
  onChange={(e) =>
  setNewWorker({
@@ -870,7 +857,7 @@ export default function AddWorker() {
  Address <span className="text-brick">*</span>
  </label>
  <textarea
- {...workerErrorProps(formErrors, "address")}
+ {...workerErrorProps(visibleErrors, "address")}
  value={newWorker.address}
  onChange={(e) =>
  setNewWorker({
@@ -1056,8 +1043,8 @@ export default function AddWorker() {
  </tr>
  </thead>
  <tbody className="bg-white divide-y divide-ink-200">
- {parsedWorkers.slice(0, 10).map((worker, index) => (
- <tr key={index}>
+ {parsedWorkers.slice(0, 10).map((worker) => (
+ <tr key={worker._id}>
  <td className="px-3 py-2 whitespace-nowrap text-sm text-ink-900">
  {worker.firstname} {worker.lastname}
  </td>
@@ -1113,7 +1100,7 @@ export default function AddWorker() {
  </p>
  <div className="max-h-40 overflow-y-auto bg-brick/10 border border-brick/30 rounded p-3">
  {bulkUploadProgress.errors.map((error, index) => (
- <p key={index} className="text-xs text-brick">
+ <p key={`${error.worker}-${index}`} className="text-xs text-brick">
  {error.worker}: {error.error}
  </p>
  ))}

@@ -33,7 +33,7 @@ export default function VerifyCertificate() {
 
   useEffect(() => {
     if (urlCertNumber) doVerify(urlCertNumber);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [urlCertNumber]);
 
   const handleSubmit = (e) => {

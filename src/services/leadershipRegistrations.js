@@ -7,7 +7,7 @@ import { PUBLIC_LOOKUP_HINT, PUBLIC_SUBMIT_ERROR } from "../utils/safeMessages";
  * Backend: GET /api/workers/lookup?phone=xxx
  */
 export const lookupWorkerByPhone = async (phone) => {
-  // Send exactly what the user typed — backend accepts all formats:
+  // Send exactly what the user typed - backend accepts all formats:
   // 08152957065 | 8152957065 | 2348152957065 | +2348152957065
   const trimmed = phone.trim();
   const response = await apiRequest(
@@ -33,7 +33,7 @@ export const submitRegistration = async (data) => {
     "/api/leadership-registrations",
     data,
     undefined,
-    false // public endpoint — no Bearer token
+    false // public endpoint - no Bearer token
   );
   if (!response || response.error) {
     throw new Error(PUBLIC_SUBMIT_ERROR);

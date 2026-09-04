@@ -217,7 +217,7 @@
 }
 
 /* ============================================================
-   Quiet Cockpit — base layer
+   Quiet Cockpit - base layer
    Cream surface, hairline borders, mono numerals where it counts.
    ============================================================ */
 @layer base {
@@ -335,7 +335,7 @@
     font-feature-settings: "tnum", "zero";
   }
 
-  /* Buttons — operational, hairline, no decorative shadows */
+  /* Buttons - operational, hairline, no decorative shadows */
   .qc-btn {
     @apply inline-flex items-center justify-center gap-2 min-h-touch px-4 py-2 rounded-md text-sm font-medium transition-colors;
     @apply disabled:opacity-50 disabled:pointer-events-none;
@@ -352,7 +352,7 @@
   .qc-btn-danger {
     @apply inline-flex items-center justify-center gap-2 min-h-touch px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none bg-brick text-white hover:bg-brick/90;
   }
-  /* Sienna is reserved for "live/now" — only one button variant uses it */
+  /* Sienna is reserved for "live/now" - only one button variant uses it */
   .qc-btn-live {
     @apply inline-flex items-center justify-center gap-2 min-h-touch px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none bg-sienna text-white hover:bg-sienna-dark;
   }
@@ -368,12 +368,12 @@
     @apply block text-2xs uppercase tracking-tag text-ink-500 font-medium mb-1.5;
   }
 
-  /* Section heads — used on dashboards and panels */
+  /* Section heads - used on dashboards and panels */
   .qc-section-title {
     @apply text-2xs uppercase tracking-tag text-ink-500 font-semibold;
   }
 
-  /* Eyebrow — small label above big numerals */
+  /* Eyebrow - small label above big numerals */
   .qc-eyebrow {
     @apply text-2xs uppercase tracking-tag text-ink-500;
   }
@@ -384,7 +384,7 @@
     padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
   }
 
-  /* Live indicator — sienna pulse used to mean "happening now" */
+  /* Live indicator - sienna pulse used to mean "happening now" */
   .qc-live-dot {
     @apply inline-block w-2 h-2 rounded-full bg-sienna animate-live-pulse;
   }

@@ -1,6 +1,7 @@
 import apiRequest from "../utils/apiClient";
 
 const activeSessionTokens = {};
+const pendingSessionRequests = {};
 
 function getOrCreateDeviceId() {
   const KEY = "meeting_device_id";
@@ -20,27 +21,38 @@ function getOrCreateDeviceId() {
 /**
  * Fetches (or returns cached) meeting session API key from /api/meeting/auth/session
  */
-export async function getMeetingSession(meetingType = "leaders", forceRefresh = false) {
+async function getMeetingSession(meetingType = "leaders", forceRefresh = false) {
   if (!forceRefresh && activeSessionTokens[meetingType]) {
     return activeSessionTokens[meetingType];
   }
-  const clientId = getOrCreateDeviceId();
-  const response = await apiRequest(
-    "POST",
-    "/api/meeting/auth/session",
-    { client_id: clientId, meeting_type: meetingType },
-    { suppressConsoleError: true },
-    false
-  );
-  if (!response || response.error) {
-    throw new Error(response?.error || response?.message || "Failed to start meeting session.");
+  if (pendingSessionRequests[meetingType]) {
+    return pendingSessionRequests[meetingType];
   }
-  const apiKey = response.data?.api_key || response.api_key;
-  if (!apiKey) {
-    throw new Error("No API key in session response.");
+  const request = (async () => {
+    const clientId = getOrCreateDeviceId();
+    const response = await apiRequest(
+      "POST",
+      "/api/meeting/auth/session",
+      { client_id: clientId, meeting_type: meetingType },
+      { suppressConsoleError: true },
+      false
+    );
+    if (!response || response.error) {
+      throw new Error(response?.error || response?.message || "Failed to start meeting session.");
+    }
+    const apiKey = response.data?.api_key || response.api_key;
+    if (!apiKey) {
+      throw new Error("No API key in session response.");
+    }
+    activeSessionTokens[meetingType] = apiKey;
+    return apiKey;
+  })();
+  pendingSessionRequests[meetingType] = request;
+  try {
+    return await request;
+  } finally {
+    delete pendingSessionRequests[meetingType];
   }
-  activeSessionTokens[meetingType] = apiKey;
-  return apiKey;
 }
 
 /**
@@ -206,21 +218,6 @@ export async function getMeetingRegistrations(meetingDate, status = "all", meeti
   );
   if (!response || response.error) {
     throw new Error(response?.error || "Failed to fetch registrations.");
-  }
-  return response;
-}
-
-export async function getMeetingRegistrationsSummary(meetingDate, meetingType = "leaders") {
-  const endpoint = `/api/super/admin/meeting/${meetingType}/registrations/summary`;
-  const response = await apiRequest(
-    "GET",
-    endpoint,
-    { meeting_date: meetingDate },
-    undefined,
-    true
-  );
-  if (!response || response.error) {
-    throw new Error(response?.error || "Failed to fetch meeting summary.");
   }
   return response;
 }

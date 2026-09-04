@@ -110,7 +110,7 @@ export default function CertificateInventory() {
             <Stat label="Showing" value={filtered.length} loading={isLoading} />
           </div>
 
-          {/* Filters — this list grows indefinitely */}
+          {/* Filters - this list grows indefinitely */}
           <div className="qc-card p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="qc-label" htmlFor="inventory-training">Training</label>

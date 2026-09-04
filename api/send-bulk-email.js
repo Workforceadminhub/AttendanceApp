@@ -21,7 +21,9 @@ import { insertRows, supabaseConfigured } from "./_lib/supabase.js";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESEND_BATCH = 100;
 const BREVO_BATCH = 1000;
-const ZOHO_BATCH = 50;
+// Hard cap on recipients per request. Real per-user rate limiting needs a
+// shared store (e.g. Supabase/Redis); serverless in-memory counters do not work.
+const MAX_BULK_RECIPIENTS = Number(process.env.MAX_BULK_RECIPIENTS) || 2000;
 const DEFAULT_FROM_NAME =
   process.env.EMAIL_FROM_NAME || "Harvesters International Christian Centre, Gbagada";
 
@@ -72,7 +74,7 @@ async function sendViaResend({ from, subject, html, recipients, campaignId }) {
       console.error("Resend batch threw:", e?.message || e);
     }
   }
-  return { sent, failed, errors };
+  return { sent, failed, remaining: [], errors };
 }
 
 async function sendViaBrevo({ from, subject, html, recipients, campaignId }) {
@@ -111,7 +113,7 @@ async function sendViaBrevo({ from, subject, html, recipients, campaignId }) {
       console.error("Brevo threw:", e?.message || e);
     }
   }
-  return { sent, failed, errors };
+  return { sent, failed, remaining: [], errors };
 }
 
 function delay(ms) {
@@ -143,34 +145,36 @@ async function sendViaZoho({ from, subject, html, recipients, campaignId }) {
   const remaining = [];
   const errors = [];
 
-  for (let i = 0; i < recipients.length; i++) {
-    if (Date.now() - startTime > ZOHO_TIME_BUDGET_MS) {
-      remaining.push(...recipients.slice(i));
-      break;
-    }
-    try {
-      await transporter.sendMail({
-        from: fromAddr,
-        to: recipients[i],
-        subject,
-        html,
-        headers: { "X-Campaign-Id": campaignId },
-      });
-      sent++;
-    } catch (e) {
-      failed.push(recipients[i]);
-      const msg = e?.message || String(e);
-      if (!errors.includes(msg)) errors.push(msg);
-      console.error("Zoho send failed:", recipients[i], msg);
-      if (msg.includes("Unusual sending activity")) {
-        remaining.push(...recipients.slice(i + 1));
+  try {
+    for (let i = 0; i < recipients.length; i++) {
+      if (Date.now() - startTime > ZOHO_TIME_BUDGET_MS) {
+        remaining.push(...recipients.slice(i));
         break;
       }
+      try {
+        await transporter.sendMail({
+          from: fromAddr,
+          to: recipients[i],
+          subject,
+          html,
+          headers: { "X-Campaign-Id": campaignId },
+        });
+        sent++;
+      } catch (e) {
+        failed.push(recipients[i]);
+        const msg = e?.message || String(e);
+        if (!errors.includes(msg)) errors.push(msg);
+        console.error("Zoho send failed:", recipients[i], msg);
+        if (msg.includes("Unusual sending activity")) {
+          remaining.push(...recipients.slice(i + 1));
+          break;
+        }
+      }
+      if (i < recipients.length - 1) await delay(500);
     }
-    if (i < recipients.length - 1) await delay(500);
+  } finally {
+    transporter.close();
   }
-
-  transporter.close();
   return { sent, failed, remaining, errors };
 }
 
@@ -196,7 +200,7 @@ export default async function handler(req, res) {
   body = body || {};
 
   // Auth: admin (from verified token claims) or allowlisted code.
-  const auth = await authorize(req.headers.authorization, body.requesterCode);
+  const auth = await authorize(req.headers.authorization);
   if (!auth.ok) {
     console.error("bulk-email authorize failed:", auth.reason);
     return res.status(auth.status).json({ error: "Unauthorized.", reason: auth.reason });
@@ -212,8 +216,20 @@ export default async function handler(req, res) {
   if (!Array.isArray(recipients) || recipients.length === 0) {
     return res.status(400).json({ error: "recipients[] is required." });
   }
+  if (recipients.length > MAX_BULK_RECIPIENTS) {
+    return res.status(400).json({
+      error: `Too many recipients. Maximum is ${MAX_BULK_RECIPIENTS} per request.`,
+    });
+  }
 
-  const provider = String(body.provider || process.env.EMAIL_PROVIDER || "resend").toLowerCase();
+  const configuredProvider = process.env.RESEND_API_KEY
+    ? "resend"
+    : process.env.BREVO_API_KEY
+    ? "brevo"
+    : process.env.ZOHO_SMTP_USER && process.env.ZOHO_SMTP_PASS
+    ? "zoho"
+    : "resend";
+  const provider = String(body.provider || process.env.EMAIL_PROVIDER || configuredProvider).toLowerCase();
   if (provider !== "resend" && provider !== "brevo" && provider !== "zoho") {
     return res.status(400).json({ error: `Unknown provider "${provider}".` });
   }
@@ -223,8 +239,8 @@ export default async function handler(req, res) {
   if (provider === "brevo" && !process.env.BREVO_API_KEY) {
     return res.status(500).json({ error: "BREVO_API_KEY is not configured." });
   }
-  if (provider === "zoho" && !process.env.ZOHO_SMTP_USER) {
-    return res.status(500).json({ error: "ZOHO_SMTP_USER is not configured." });
+  if (provider === "zoho" && (!process.env.ZOHO_SMTP_USER || !process.env.ZOHO_SMTP_PASS)) {
+    return res.status(500).json({ error: "ZOHO_SMTP_USER / ZOHO_SMTP_PASS is not configured." });
   }
 
   const clean = [...new Set(recipients.map((r) => String(r).trim().toLowerCase()))].filter((r) =>
@@ -266,7 +282,9 @@ export default async function handler(req, res) {
   }
 
   const errorSample = [...new Set(errors || [])].slice(0, 3);
-  return res.status(200).json({
+  // 502 only when the provider rejected every recipient; partial success stays 200.
+  const status = sent === 0 && failed.length > 0 ? 502 : 200;
+  return res.status(status).json({
     provider,
     campaignId,
     sent,

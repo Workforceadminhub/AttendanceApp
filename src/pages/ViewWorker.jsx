@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
@@ -14,6 +15,10 @@ import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
 import { getDepartmentRoute, getEffectiveRouteList } from "../utils/routeObject";
 import { fetchTeamsAndDepartmentsForFilter } from "../services/departments";
 import apiRequest from "../utils/apiClient";
+import {
+ fetchWorkerTrainings,
+ fetchWorkerTrainingMetrics,
+} from "../services/hub/trainings";
 
 const isDistrictsTeam = (team) =>
  team === "Districts" || team === "District";
@@ -42,6 +47,41 @@ export default function ViewWorker() {
  // Check if user can edit workers (Super Admin, Church Admin, HOD, Team Admin, Sub Team Admin)
  const canEditWorkers =
  isSuperAdmin || isChurchAdmin || isHOD || isTeamAdmin || isSubTeamAdmin;
+
+ const resolvedWorkerId = worker?.id ?? worker?.worker_id ?? worker?.workerId ?? worker?.workerid;
+ const workerAccessVerified = Boolean(
+ worker && resolvedWorkerId !== undefined && String(resolvedWorkerId) === String(workerId)
+ );
+
+ const {
+ data: trainingData,
+ isLoading: trainingsLoading,
+ error: trainingsError,
+ refetch: refetchTrainings,
+ } = useQuery({
+ queryKey: ["hub-worker-trainings", workerId],
+ queryFn: () => fetchWorkerTrainings(workerId),
+ enabled: Boolean(workerId && canEditWorkers && workerAccessVerified),
+ });
+ const {
+ data: trainingMetricsData,
+ isLoading: trainingMetricsLoading,
+ error: trainingMetricsError,
+ refetch: refetchTrainingMetrics,
+ } = useQuery({
+ queryKey: ["hub-worker-training-metrics", workerId],
+ queryFn: () => fetchWorkerTrainingMetrics(workerId),
+ enabled: Boolean(workerId && canEditWorkers && workerAccessVerified),
+ });
+
+ const trainingPayload = trainingData?.data ?? trainingData;
+ const workerTrainings = Array.isArray(trainingPayload)
+ ? trainingPayload
+ : trainingPayload?.trainings ?? [];
+ const trainingMetricsPayload = trainingMetricsData?.data ?? trainingMetricsData ?? {};
+ const trainingMetrics = trainingMetricsPayload.metrics ?? trainingMetricsPayload;
+ const metricValue = (value, fallback) =>
+ trainingMetricsLoading ? "…" : trainingMetricsError ? "-" : value ?? fallback;
 
  useEffect(() => {
  if (!canEditWorkers) {
@@ -104,6 +144,8 @@ export default function ViewWorker() {
  // Fetch worker details
  useEffect(() => {
  const fetchWorkerDetails = async () => {
+ setIsLoading(true);
+ setWorker(null);
  try {
  const responseData = await apiRequest(
  "GET",
@@ -279,11 +321,6 @@ const getHODCancelPath = () => {
  setHasChanges(checkForChanges(newEditedWorker));
  };
 
- // Debug: Log the current worker data
- useEffect(() => {
- if (worker) {
- }
- }, [worker, editedWorker]);
 
   if (isLoading) {
     return (
@@ -479,7 +516,7 @@ const getHODCancelPath = () => {
  </select>
  </div>
 
- {/* District/Sub-team — always before Department when Districts */}
+ {/* District/Sub-team - always before Department when Districts */}
  {(editedWorker.team === "Districts" || editedWorker.team === "District") && (
  <div>
  <label className="block text-sm font-medium text-ink-700 mb-2">
@@ -654,6 +691,75 @@ const getHODCancelPath = () => {
  </div>
  </div>
  
+ {/* Training history is visible to department leaders on the worker record. */}
+ <section className="pt-6 border-t border-ink-200" aria-labelledby="worker-training-history">
+ <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+ <div>
+ <h2 id="worker-training-history" className="text-lg font-semibold text-ink-900">
+ Training history
+ </h2>
+ <p className="mt-1 text-sm text-ink-500">
+ Trainings this worker has enrolled in or completed.
+ </p>
+ </div>
+ <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-500">
+ <span><strong className="qc-num text-ink-900">{metricValue(trainingMetrics.total_trainings_taken, workerTrainings.length)}</strong> taken</span>
+ <span><strong className="qc-num text-ink-900">{metricValue(trainingMetrics.completed, workerTrainings.filter((item) => String(item.status ?? item.training?.status).toLowerCase() === "completed").length)}</strong> completed</span>
+ <span><strong className="qc-num text-ink-900">{metricValue(trainingMetrics.certificates, 0)}</strong> certificates</span>
+ </div>
+ </div>
+
+ <div className="mt-4 overflow-hidden rounded-md border border-ink-200 bg-white">
+ {trainingsLoading ? (
+ <div className="p-5 text-sm text-center text-ink-500">Loading training history...</div>
+ ) : trainingsError ? (
+ <div className="p-5 text-sm text-center text-brick">
+ <p>Training history could not be loaded.</p>
+ <button
+ type="button"
+ onClick={() => { refetchTrainings(); refetchTrainingMetrics(); }}
+ className="mt-2 font-medium underline underline-offset-2"
+ >
+ Try again
+ </button>
+ </div>
+ ) : workerTrainings.length === 0 ? (
+ <div className="p-5 text-sm text-center text-ink-500">No training records yet.</div>
+ ) : (
+ <div className="divide-y divide-ink-100">
+ {workerTrainings.map((item, index) => {
+ const training = item.training ?? item;
+ const status = String(item.status ?? training.status ?? "enrolled").toLowerCase();
+ const completedAt = item.completed_at ?? item.completion_date ?? training.completed_at;
+ return (
+ <div key={item.enrollment_id ?? item.id ?? training.id ?? index} className="flex flex-col sm:flex-row sm:items-center gap-2 px-4 py-3">
+ <div className="min-w-0 flex-1">
+ <div className="text-sm font-medium text-ink-900 truncate">{training.name ?? training.title ?? "Training"}</div>
+ <div className="mt-0.5 text-xs text-ink-500">
+ {completedAt ? `Completed ${new Date(completedAt).toLocaleDateString("en-GB")}` : "No completion date recorded"}
+ </div>
+ </div>
+ <span className={`self-start sm:self-auto px-2 py-1 rounded text-xs font-medium capitalize ${
+ status === "completed" ? "bg-forest/10 text-forest" : status === "ongoing" || status === "enrolled" ? "bg-mustard-50 text-mustard" : "bg-ink-100 text-ink-600"
+ }`}>
+ {status}
+ </span>
+ </div>
+ );
+ })}
+ </div>
+ )}
+ </div>
+ {trainingMetricsError && !trainingsError && (
+ <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-ink-500">
+ <span>Training summary totals are temporarily unavailable; the history above is still current.</span>
+ <button type="button" onClick={() => refetchTrainingMetrics()} className="font-medium text-ink-700 underline underline-offset-2">
+ Retry summary
+ </button>
+ </div>
+ )}
+ </section>
+
  {/* Action Buttons */}
  <div className="flex justify-end space-x-3 pt-6 border-t border-ink-200">
  <button

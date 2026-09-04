@@ -20,8 +20,8 @@ const foundationLabel = (value) => ({
   yes: "Completed",
   no: "Not completed",
   not_yet_but_would_love_to: "Wants to",
-}[value] ?? "—");
-const yesNoLabel = (v) => (v === "yes" ? "Yes" : v === "no" ? "No" : "—");
+}[value] ?? "-");
+const yesNoLabel = (v) => (v === "yes" ? "Yes" : v === "no" ? "No" : "-");
 
 function registeredAt(row) {
   const raw = row?.created_at ?? row?.createdAt ?? row?.timestamp;
@@ -30,7 +30,7 @@ function registeredAt(row) {
 }
 
 function fullName(row) {
-  return [row.first_name, row.last_name].filter(Boolean).join(" ") || "—";
+  return [row.first_name, row.last_name].filter(Boolean).join(" ") || "-";
 }
 
 function addSheet(workbook, campusName, rows) {
@@ -67,14 +67,14 @@ function addSheet(workbook, campusName, rows) {
     sheet.addRow({
       sn: index + 1,
       name: fullName(row),
-      phone: row.phone ?? "—",
-      email: row.email ?? "—",
-      campus: row.campus ?? "—",
+      phone: row.phone ?? "-",
+      email: row.email ?? "-",
+      campus: row.campus ?? "-",
       type: row.registration_type === "worker" ? "Worker" : "Attendee",
-      workerTeam: row.worker_team || "—",
-      department: normalizeAwakeningDepartment(row.department) || "—",
-      designation: row.worker_designation || "—",
-      team: normalizeAwakeningServiceTeam(row.preferred_service_team) || "—",
+      workerTeam: row.worker_team || "-",
+      department: normalizeAwakeningDepartment(row.department) || "-",
+      designation: row.worker_designation || "-",
+      team: normalizeAwakeningServiceTeam(row.preferred_service_team) || "-",
       servingDay: formatAwakeningDays(row.serving_day),
       attendingDays: formatAwakeningDays(row.attendance_day),
       cell:
@@ -86,7 +86,7 @@ function addSheet(workbook, campusName, rows) {
       leadPrayer: yesNoLabel(row.lead_prayer_team),
       registered: registeredAt(row)
         ? format(registeredAt(row), "dd MMM yyyy, h:mm a")
-        : "—",
+        : "-",
     });
   });
 

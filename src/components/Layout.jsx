@@ -1,7 +1,7 @@
 import React from "react";
 
 /**
- * Layout — page content shell.
+ * Layout - page content shell.
  *
  * Centered max-width column with consistent horizontal padding and a
  * generous vertical rhythm. Pages render their own <Header /> above this.

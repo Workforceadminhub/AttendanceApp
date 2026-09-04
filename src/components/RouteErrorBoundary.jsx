@@ -17,7 +17,7 @@ export default class RouteErrorBoundary extends React.Component {
 
   componentDidCatch(error, info) {
     if (process.env.NODE_ENV !== "production") {
-      // eslint-disable-next-line no-console
+       
       console.error("[RouteErrorBoundary]", error, info);
     }
     // Hook for Sentry-or-equivalent (see src/utils/errorReporter.js)

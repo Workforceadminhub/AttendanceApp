@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Navigate } from "react-router-dom";
 import { getUser } from "../../utils/getUser";
 import { useRBAC } from "../../contexts/RBACContext";
@@ -11,14 +12,14 @@ import { useRBAC } from "../../contexts/RBACContext";
  *    the API enforce permissions server-side (graceful degradation)
  */
 export default function HubRoute({ requiredNav, children }) {
-  const user = getUser();
+  const user = useMemo(() => getUser(), []);
   const { rbac, loading } = useRBAC();
 
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  // While RBAC is loading, don't flash a redirect — show children
+  // While RBAC is loading, don't flash a redirect - show children
   // (the page itself will show its own loading state from data queries)
   if (loading) {
     return <>{children}</>;

@@ -20,7 +20,7 @@ export const checkAwakeningRegistration = async ({ email, phone } = {}) => {
       "/api/awakening-conference/check",
       params,
       undefined,
-      false // public endpoint — no Bearer token
+      false // public endpoint - no Bearer token
     );
     if (!response) return { exists: false };
 
@@ -66,7 +66,7 @@ export const submitAwakeningRegistration = async (data) => {
     "/api/awakening-conference",
     data,
     undefined,
-    false // public endpoint — no Bearer token
+    false // public endpoint - no Bearer token
   );
   if (!response || response.error) {
     throw new Error(response?.message || PUBLIC_SUBMIT_ERROR);
@@ -75,7 +75,7 @@ export const submitAwakeningRegistration = async (data) => {
 };
 
 /**
- * Fetch registrations for admin view (JWT required — super-admin / church-admin).
+ * Fetch registrations for admin view (JWT required - super-admin / church-admin).
  * Supports server-side filtering + pagination.
  * Backend: GET /api/super/admin/awakening-conference?page=1&limit=10&search=ada&campus=Gbagada...
  *
@@ -135,7 +135,7 @@ async function fetchAllForServiceTeam(filters, serviceTeam) {
   const rows = [...first.data];
 
   for (let page = 2; page <= (first.pagination?.totalPages ?? 1); page += 1) {
-    // eslint-disable-next-line no-await-in-loop
+     
     const next = await fetchAwakeningRegistrations({
       ...filters,
       serviceTeam,
@@ -172,7 +172,7 @@ export const fetchAllAwakeningRegistrations = async ({ serviceTeam, ...filters }
 };
 
 /**
- * Update a registration (JWT required — super-admin / church-admin).
+ * Update a registration (JWT required - super-admin / church-admin).
  * Backend: PUT /api/super/admin/awakening-conference/{id}
  */
 export const updateAwakeningRegistration = async (id, data) => {
@@ -188,7 +188,7 @@ export const updateAwakeningRegistration = async (id, data) => {
 };
 
 /**
- * Delete a registration (JWT required — super-admin / church-admin).
+ * Delete a registration (JWT required - super-admin / church-admin).
  * Backend: DELETE /api/super/admin/awakening-conference/{id}
  */
 export const deleteAwakeningRegistration = async (id) => {

@@ -1,7 +1,7 @@
 import { apiRequest } from "../../utils/apiClient";
 
 /**
- * Hub API helper — delegates to the existing apiRequest but prefixes
+ * Hub API helper - delegates to the existing apiRequest but prefixes
  * every endpoint with /api/hub so callers can use short paths
  * (e.g. "/trainings" instead of "/api/hub/trainings").
  *
@@ -18,22 +18,22 @@ export function hubRequest(method, endpoint, data, config, requireAuth = true) {
   return apiRequest(method, prefixed, data, config, requireAuth);
 }
 
-export function hubGet(endpoint, params, config) {
-  return hubRequest("GET", endpoint, params, config);
+export function hubGet(endpoint, params, config, requireAuth = true) {
+  return hubRequest("GET", endpoint, params, config, requireAuth);
 }
 
-export function hubPost(endpoint, data, config) {
-  return hubRequest("POST", endpoint, data, config);
+export function hubPost(endpoint, data, config, requireAuth = true) {
+  return hubRequest("POST", endpoint, data, config, requireAuth);
 }
 
-export function hubPut(endpoint, data, config) {
-  return hubRequest("PUT", endpoint, data, config);
+export function hubPut(endpoint, data, config, requireAuth = true) {
+  return hubRequest("PUT", endpoint, data, config, requireAuth);
 }
 
-export function hubPatch(endpoint, data, config) {
-  return hubRequest("PATCH", endpoint, data, config);
+export function hubPatch(endpoint, data, config, requireAuth = true) {
+  return hubRequest("PATCH", endpoint, data, config, requireAuth);
 }
 
-export function hubDelete(endpoint, params, config) {
-  return hubRequest("DELETE", endpoint, params, config);
+export function hubDelete(endpoint, params, config, requireAuth = true) {
+  return hubRequest("DELETE", endpoint, params, config, requireAuth);
 }

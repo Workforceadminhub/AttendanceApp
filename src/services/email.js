@@ -44,7 +44,7 @@ export const parseRecipients = (raw = "") => {
  * through Resend. The function verifies the caller's session token, so we
  * forward the stored access token as a Bearer header.
  *
- * Endpoint — POST /api/send-bulk-email
+ * Endpoint - POST /api/send-bulk-email
  *   { subject: string, html: string, recipients: string[] }
  * The function sends one message per recipient so addresses are never exposed.
  *
@@ -67,9 +67,8 @@ export const sendBulkEmail = async ({ subject, html, recipients, provider }) => 
   }
 
   const token = getAccessToken();
-  // The caller's login code lets the function authorize allowlisted users when
-  // the JWT doesn't embed it. It's only trusted after the token is verified
-  // server-side, so it can't be used to bypass auth.
+  // Attribution only. The server derives identity from the verified JWT and
+  // ignores this value for authorization.
   const requesterCode = getSessionUser()?.code;
 
   const res = await fetch("/api/send-bulk-email", {

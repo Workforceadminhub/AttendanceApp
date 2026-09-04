@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchDepartments } from "../services/departments";
 import {
@@ -16,9 +16,9 @@ const DepartmentsContext = createContext({
 });
 
 // Bump this version any time the merge/shape logic in setDynamicDepartments
-// changes — guarantees a clean rehydrate for users with stale localStorage.
+// changes - guarantees a clean rehydrate for users with stale localStorage.
 const CACHE_KEY = "departmentsCache:v2";
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h — depts barely change
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h - depts barely change
 
 export const DEPARTMENTS_QUERY_KEY = ["departments"];
 
@@ -39,14 +39,13 @@ function writeCache(data) {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify({ data, savedAt: Date.now() }));
   } catch {
-    // quota / private-mode — non-fatal
+    // quota / private-mode - non-fatal
   }
 }
 
 export function DepartmentsProvider({ children }) {
   const isAuthed = typeof window !== "undefined" && !!sessionStorage.getItem("accessToken");
-  const cached = readCache();
-  if (cached) setDynamicDepartments(cached);
+  const [cached] = useState(() => readCache());
 
   const query = useQuery({
     queryKey: DEPARTMENTS_QUERY_KEY,

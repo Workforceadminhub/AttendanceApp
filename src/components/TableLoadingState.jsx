@@ -1,7 +1,7 @@
 import React from "react";
 
 /**
- * TableLoadingState — must be rendered inside a parent <table>.
+ * TableLoadingState - must be rendered inside a parent <table>.
  *
  * The previous implementation had two bugs:
  *  - the inner loop reused `length` (rows), producing a square skeleton

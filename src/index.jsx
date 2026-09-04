@@ -44,6 +44,6 @@ reportWebVitals((metric) => {
       fetch("/api/metrics/web-vitals", { method: "POST", keepalive: true, body, headers: { "Content-Type": "application/json" } });
     }
   } catch {
-    // swallow — metrics must never break the app
+    // swallow - metrics must never break the app
   }
 });

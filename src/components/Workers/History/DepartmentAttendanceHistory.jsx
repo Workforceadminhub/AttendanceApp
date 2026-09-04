@@ -225,15 +225,11 @@ export default function DepartmentAttendanceHistory() {
       (worker) => worker.workerid === newWorker.workerid
     );
 
+    // Always return a new array so React sees a state change.
     if (index !== -1) {
-      // If a match is found, replace the old object with the new one
-      array[index] = newWorker;
-      return array;
-    } else {
-      // If no match is found, add the new object to the array
-      array.push(newWorker);
-      return array;
+      return array.map((worker, i) => (i === index ? newWorker : worker));
     }
+    return [...array, newWorker];
   }
 
   const updateAttendance = (selected, person) => {
@@ -251,10 +247,15 @@ export default function DepartmentAttendanceHistory() {
 
   const saveAttendance = async () => {
     setAttendanceLoading(true);
-    await addAttendance(attendance);
-    setAttendanceLoading(false);
-    setRefresh("added");
-    toast.success("Attendance added successfully");
+    try {
+      await addAttendance(attendance);
+      setRefresh("added");
+      toast.success("Attendance added successfully");
+    } catch (error) {
+      toast.error(error?.message || "Failed to add attendance");
+    } finally {
+      setAttendanceLoading(false);
+    }
   };
 
   const debouncedSetActiveGroup = debounce(
@@ -414,7 +415,7 @@ export default function DepartmentAttendanceHistory() {
                             <div className="w-48 z-1000 pr-4">
                               <ReactSelectDropdown
                                 title="Mark attendance"
-                                disabled={true || attendanceIsClosed}
+                                disabled
                                 defaultValue={
                                   person?.attendance
                                     ? {

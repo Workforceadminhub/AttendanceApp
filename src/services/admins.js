@@ -5,15 +5,11 @@ import apiRequest from "../utils/apiClient";
  * @returns {Promise<Array>} List of admin users
  */
 export const fetchAdmins = async () => {
-  try {
-    const response = await apiRequest("GET", "/api/hub/super/admin/admins");
-    if (!response || response.error) {
-      throw new Error(response?.error || "Failed to fetch admins");
-    }
-    return response.data || response;
-  } catch (error) {
-    throw error;
+  const response = await apiRequest("GET", "/api/hub/super/admin/admins");
+  if (!response || response.error) {
+    throw new Error(response?.error || "Failed to fetch admins");
   }
+  return response.data || response;
 };
 
 /**
@@ -28,22 +24,18 @@ export const fetchAdmins = async () => {
  * @returns {Promise<Object>} Created admin
  */
 export const createAdmin = async (data) => {
-  try {
-    const response = await apiRequest("POST", "/api/hub/super/admin/admins", {
-      code: data.code,
-      role: data.role,
-      route: data.route,
-      department: data.department,
-      team: data.team,
-      permissions: data.permissions,
-    });
-    if (!response || response.error) {
-      throw new Error(response?.error || "Failed to create admin");
-    }
-    return response.data || response;
-  } catch (error) {
-    throw error;
+  const response = await apiRequest("POST", "/api/hub/super/admin/admins", {
+    code: data.code,
+    role: data.role,
+    route: data.route,
+    department: data.department,
+    team: data.team,
+    permissions: data.permissions,
+  });
+  if (!response || response.error) {
+    throw new Error(response?.error || "Failed to create admin");
   }
+  return response.data || response;
 };
 
 /**
@@ -74,18 +66,26 @@ export const updateAdminProfile = async (id, data) => {
  * @returns {Promise<Object>} Updated admin
  */
 export const updateAdmin = async (id, data) => {
-  try {
-    const results = {};
-    if (data.role !== undefined) {
-      results.role = await assignRole(id, data.role);
-    }
-    if (data.permissions !== undefined) {
-      results.permissions = await assignPermissions(id, data.permissions);
-    }
-    return results;
-  } catch (error) {
-    throw error;
+  let admin = {};
+  let roleUpdated = false;
+  if (data.role !== undefined) {
+    admin = { ...admin, ...(await assignRole(id, data.role)) };
+    roleUpdated = true;
   }
+  if (data.permissions !== undefined) {
+    try {
+      admin = { ...admin, ...(await assignPermissions(id, data.permissions)) };
+    } catch (error) {
+      if (roleUpdated) {
+        throw new Error(
+          `Role was updated but permissions failed: ${error?.message || "Failed to assign permissions"}`,
+          { cause: error }
+        );
+      }
+      throw error;
+    }
+  }
+  return { ...admin };
 };
 
 /**
@@ -94,20 +94,16 @@ export const updateAdmin = async (id, data) => {
  * @param {Array<string>} permissions - List of permissions
  * @returns {Promise<Object>} Updated admin
  */
-export const assignPermissions = async (id, permissions) => {
-  try {
-    const response = await apiRequest(
-      "PUT",
-      `/api/hub/super/admin/${id}/permissions`,
-      { permissions }
-    );
-    if (!response || response.error) {
-      throw new Error(response?.error || "Failed to assign permissions");
-    }
-    return response.data || response;
-  } catch (error) {
-    throw error;
+const assignPermissions = async (id, permissions) => {
+  const response = await apiRequest(
+    "PUT",
+    `/api/hub/super/admin/${id}/permissions`,
+    { permissions }
+  );
+  if (!response || response.error) {
+    throw new Error(response?.error || "Failed to assign permissions");
   }
+  return response.data || response;
 };
 
 /**
@@ -116,20 +112,16 @@ export const assignPermissions = async (id, permissions) => {
  * @param {string} role - Role to assign
  * @returns {Promise<Object>} Updated admin
  */
-export const assignRole = async (id, role) => {
-  try {
-    const response = await apiRequest(
-      "PUT",
-      `/api/hub/super/admin/${id}/role`,
-      { role }
-    );
-    if (!response || response.error) {
-      throw new Error(response?.error || "Failed to assign role");
-    }
-    return response.data || response;
-  } catch (error) {
-    throw error;
+const assignRole = async (id, role) => {
+  const response = await apiRequest(
+    "PUT",
+    `/api/hub/super/admin/${id}/role`,
+    { role }
+  );
+  if (!response || response.error) {
+    throw new Error(response?.error || "Failed to assign role");
   }
+  return response.data || response;
 };
 
 /**
@@ -202,16 +194,12 @@ export const assignAccessByEmail = async (data) => {
  * @returns {Promise<Object>} Deletion result
  */
 export const deleteAdmin = async (id) => {
-  try {
-    const response = await apiRequest(
-      "DELETE",
-      `/api/hub/super/admin/${id}`
-    );
-    if (!response || response.error) {
-      throw new Error(response?.error || "Failed to delete admin");
-    }
-    return response.data || response;
-  } catch (error) {
-    throw error;
+  const response = await apiRequest(
+    "DELETE",
+    `/api/hub/super/admin/${id}`
+  );
+  if (!response || response.error) {
+    throw new Error(response?.error || "Failed to delete admin");
   }
+  return response.data || response;
 };

@@ -23,38 +23,12 @@ export function hubForgotPassword(email) {
   return hubPost("/auth/forgot-password", { email }, undefined, false);
 }
 
-export function hubResetPassword(payloadOrEmail, otpOrPassword, newPassword, confirmPassword) {
-  if (typeof payloadOrEmail === "object" && payloadOrEmail !== null) {
-    return hubPost("/auth/reset-password", payloadOrEmail, undefined, false);
+export function hubResetPassword(payload) {
+  if (!payload || typeof payload !== "object") {
+    throw new Error("hubResetPassword expects an object payload");
   }
-  if (newPassword !== undefined) {
-    return hubPost(
-      "/auth/reset-password",
-      {
-        email: payloadOrEmail,
-        otp: otpOrPassword,
-        newPassword,
-        confirmPassword: confirmPassword || newPassword,
-      },
-      undefined,
-      false
-    );
-  }
-  return hubPost(
-    "/auth/reset-password",
-    {
-      email: payloadOrEmail,
-      otp: otpOrPassword,
-      token: otpOrPassword,
-      password: otpOrPassword,
-      newPassword: otpOrPassword,
-      confirmPassword: otpOrPassword,
-    },
-    undefined,
-    false
-  );
+  return hubPost("/auth/reset-password", payload, undefined, false);
 }
-
 
 export function hubSetPassword(password, token) {
   return hubPost(

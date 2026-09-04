@@ -1,5 +1,5 @@
 /**
- * Harvesters Workers System — Email Design Standard
+ * Harvesters Workers System - Email Design Standard
  * ===================================================
  * One source of truth for every transactional / bulk email the app sends.
  *
@@ -53,11 +53,11 @@ function safeUrl(url = "") {
 /**
  * Render a single line of lightweight markdown to email-safe inline HTML.
  * Supported: **bold**, *italic*, [label](url). Input is escaped FIRST, then
- * markers are converted — so user text can never inject real tags.
+ * markers are converted - so user text can never inject real tags.
  */
 export function renderInline(text = "") {
   let out = escapeHtml(text);
-  // links: [label](url) — escapeHtml already neutralised the url's quotes
+  // links: [label](url) - escapeHtml already neutralised the url's quotes
   out = out.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, label, url) => {
     const href = safeUrl(url.replace(/&amp;/g, "&"));
     return `<a href="${escapeHtml(href)}" target="_blank" style="color:${BRAND.sienna};text-decoration:underline;">${label}</a>`;

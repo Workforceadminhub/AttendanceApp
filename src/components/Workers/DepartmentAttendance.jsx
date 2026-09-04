@@ -1,7 +1,7 @@
 import { useLocation } from "react-router-dom";
 import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
  fetchAdminWorkers,
  fetchWorkers,
@@ -347,7 +347,16 @@ export default function DepartmentAttendance() {
  // Allow church admin to mark attendance, keep other admin roles read-only
  const disableForAdminRole = isAdminMember && !isChurchAdmin;
 
+ // Incremented per fetch; responses from an older request are ignored
+ // (covers unmount and rapid dependency changes).
+ const requestIdRef = useRef(0);
+ useEffect(() => () => {
+ requestIdRef.current += 1;
+ }, []);
+
  const queryAdminWorkers = useCallback(() => {
+ const requestId = ++requestIdRef.current;
+ const isCurrent = () => requestId === requestIdRef.current;
  setIsLoading(true);
  const rawPermissions = expandPermissions(authUser);
  const basePermissions = filterTeamFromPermissions(rawPermissions, authUser?.team);
@@ -368,10 +377,12 @@ export default function DepartmentAttendance() {
 
  fetchAdminWorkers(team.team, apiActiveGroup, selectedSunday, "", permissionsForApi)
  .then((res) => {
+ if (!isCurrent()) return;
  setData(sortWorkersById(res));
  setIsLoading(false);
  })
  .catch((error) => {
+ if (!isCurrent()) return;
  toast.error(`Error loading attendance: ${error.message}`);
  setIsLoading(false);
  });
@@ -385,16 +396,20 @@ export default function DepartmentAttendance() {
  ]);
 
  const queryWorkers = useCallback(() => {
+ const requestId = ++requestIdRef.current;
+ const isCurrent = () => requestId === requestIdRef.current;
  setIsLoading(true);
  const permissions = expandPermissions(authUser);
 
  if (isSubTeamAdmin && selectedDepartmentFilter !== "All") {
  fetchWorkers(selectedDepartmentFilter, selectedSunday, permissions, "")
  .then((res) => {
+ if (!isCurrent()) return;
  setData(sortWorkersById(res));
  setIsLoading(false);
  })
  .catch((error) => {
+ if (!isCurrent()) return;
  toast.error(`Error loading attendance: ${error.message}`);
  setIsLoading(false);
  });
@@ -406,11 +421,13 @@ export default function DepartmentAttendance() {
  apiDepartments.map((d) => fetchWorkers(d.name, selectedSunday, permissions, ""))
  )
  .then((results) => {
+ if (!isCurrent()) return;
  const merged = results.flat();
  setData(sortWorkersById(merged));
  setIsLoading(false);
  })
  .catch((error) => {
+ if (!isCurrent()) return;
  toast.error(`Error loading attendance: ${error.message}`);
  setIsLoading(false);
  });
@@ -419,10 +436,12 @@ export default function DepartmentAttendance() {
 
  fetchWorkers(team.department, selectedSunday, permissions, "")
  .then((res) => {
+ if (!isCurrent()) return;
  setData(sortWorkersById(res));
  setIsLoading(false);
  })
  .catch((error) => {
+ if (!isCurrent()) return;
  toast.error(`Error loading attendance: ${error.message}`);
  setIsLoading(false);
  });
@@ -436,9 +455,15 @@ export default function DepartmentAttendance() {
  ]);
 
  useEffect(() => {
+ let cancelled = false;
  switchOffAttendance()
- .then((res) => setAttendanceIsClosed(res))
+ .then((res) => {
+ if (!cancelled) setAttendanceIsClosed(res);
+ })
  .catch(() => {});
+ return () => {
+ cancelled = true;
+ };
  }, []);
 
  // Sub-team-admin: fetch departments from API and keep only assigned.
@@ -458,7 +483,9 @@ export default function DepartmentAttendance() {
  });
  setApiDepartments(filtered);
  })
- .catch(() => setApiDepartments([]));
+ .catch(() => {
+ if (!cancelled) setApiDepartments([]);
+ });
  return () => {
  cancelled = true;
  };
@@ -485,17 +512,10 @@ export default function DepartmentAttendance() {
  subTeamApiDepartmentsCountDep,
  selectedSunday,
  isHistoryMode,
+ refresh,
  queryAdminWorkers,
  queryWorkers,
  ]);
-
- useEffect(() => {
- if (isAdminMember) {
- queryAdminWorkers();
- } else {
- queryWorkers();
- }
- }, [refresh, isAdminMember, queryAdminWorkers, queryWorkers]);
 
  // Reset department filter if selected department no longer in available list
  const availableDepartmentNames = availableDepartments;
@@ -517,13 +537,10 @@ export default function DepartmentAttendance() {
 
  if (index !== -1) {
  // If a match is found, replace the old object with the new one
- array[index] = newWorker;
- return array;
- } else {
- // If no match is found, add the new object to the array
- array.push(newWorker);
- return array;
+ return array.map((worker, i) => (i === index ? newWorker : worker));
  }
+ // If no match is found, add the new object to a new array
+ return [...array, newWorker];
  }
 
  const handleSort = (columnKey) => {
@@ -553,15 +570,16 @@ export default function DepartmentAttendance() {
  };
 
  const updateAttendance = (selected, person) => {
- const newAttendance = updateOrAddWorker(attendance, {
+ setAttendance((prev) =>
+ updateOrAddWorker(prev, {
  workerid: person.id,
  name: person.fullname,
  attendance: selected?.label,
  department: team.department,
  team: team.team,
  attendancedate: dateForAttendance,
- });
- setAttendance(newAttendance);
+ })
+ );
  };
 
  const saveAttendance = async () => {
@@ -578,10 +596,11 @@ export default function DepartmentAttendance() {
  }
  };
 
- const debouncedSetActiveGroup = debounce(
- (value) => setActiveGroup(value),
- DEBOUNCE_INTERVAL
+ const debouncedSetActiveGroup = useMemo(
+ () => debounce((value) => setActiveGroup(value), DEBOUNCE_INTERVAL),
+ []
  );
+ useEffect(() => () => debouncedSetActiveGroup.cancel(), [debouncedSetActiveGroup]);
 
  const handleChange = (selected) => {
  debouncedSetActiveGroup(selected?.value);
@@ -603,7 +622,10 @@ export default function DepartmentAttendance() {
  setModalOpen(false);
  setRefresh(Math.random());
  })
- .catch((error) => toast.error(`Error removing worker: ${error.message}`));
+ .catch((error) => {
+ setIsLoading(false);
+ toast.error(`Error removing worker: ${error.message}`);
+ });
  }
  };
 

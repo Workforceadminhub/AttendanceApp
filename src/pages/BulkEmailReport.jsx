@@ -7,7 +7,7 @@ import { fetchEmailReport } from "../services/email";
 import { canSendBulkEmail } from "../utils/bulkEmailAccess";
 
 const fmtDate = (iso) => {
-  if (!iso) return "—";
+  if (!iso) return "-";
   try {
     return new Date(iso).toLocaleString(undefined, {
       year: "numeric",
@@ -21,7 +21,7 @@ const fmtDate = (iso) => {
   }
 };
 
-const pct = (n, d) => (d > 0 ? `${Math.round((n / d) * 100)}%` : "—");
+const pct = (n, d) => (d > 0 ? `${Math.round((n / d) * 100)}%` : "-");
 
 export default function BulkEmailReport() {
   if (!canSendBulkEmail()) return <Navigate to="/" replace />;
@@ -124,9 +124,9 @@ function Report() {
                       <td className={`${td} max-w-[260px] truncate`} title={s.subject}>
                         {s.subject}
                       </td>
-                      <td className={td}>{s.sent_by || "—"}</td>
+                      <td className={td}>{s.sent_by || "-"}</td>
                       <td className={`${td} capitalize`}>{s.provider}</td>
-                      <td className={td}>{s.recipients_count ?? "—"}</td>
+                      <td className={td}>{s.recipients_count ?? "-"}</td>
                       <td className={td}>
                         {s.sent_count ?? 0}
                         {s.failed_count ? (

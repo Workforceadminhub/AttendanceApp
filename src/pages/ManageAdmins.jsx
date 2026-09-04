@@ -5,6 +5,7 @@ import Header from "../components/Header";
 import Layout from "../components/Layout";
 import GenericModal from "../components/GenericModal";
 import LoadingState from "../components/LoadingState";
+import PermissionsTreePicker from "../components/admins/PermissionsTreePicker";
 import { toast } from "react-toastify";
 import {
  fetchAdmins,
@@ -109,9 +110,10 @@ export default function ManageAdmins() {
  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
 
  // Collapsed team groups (true = collapsed, default all collapsed)
- const [collapsedTeams, setCollapsedTeams] = useState(null);
+ // Teams default to collapsed; only explicit toggles are stored.
+ const [collapsedTeams, setCollapsedTeams] = useState({});
 
- // Add admin form (route is derived on submit — not stored in form state)
+ // Add admin form (route is derived on submit - not stored in form state)
  const [formData, setFormData] = useState({
  code: "",
  role: "",
@@ -219,32 +221,6 @@ export default function ManageAdmins() {
     [activeDeptAndTeamNames]
   );
 
- // All department names from routeObject for "Check All" across all teams
- const allPermissionDepts = useMemo(
- () => permissionsByTeam.flatMap((g) => g.departments),
- [permissionsByTeam]
- );
-
- const [collapsedPermTeams, setCollapsedPermTeams] = useState({});
-
- // Default all permission teams (in add/edit modals) to collapsed on first load
- useEffect(() => {
- setCollapsedPermTeams((prev) => {
- // If we've already initialized (or user has toggled), keep existing state
- if (prev && Object.keys(prev).length > 0) return prev;
-
- const initial = {};
- permissionsByTeam.forEach((group) => {
- initial[group.team] = true;
- });
- return initial;
- });
- }, [permissionsByTeam]);
-
- const togglePermTeamCollapse = (team) => {
- setCollapsedPermTeams((prev) => ({ ...prev, [team]: !prev[team] }));
- };
-
   // Check if user is super admin
   useEffect(() => {
     const { isSuperAdmin, user } = getUserRole();
@@ -256,18 +232,21 @@ export default function ManageAdmins() {
   }, [navigate]);
 
  // Fetch admins and departments
+ const loadingRef = useRef(false);
  const loadAdmins = useCallback(async () => {
- if (isLoading) return;
+ if (loadingRef.current) return;
+ loadingRef.current = true;
  setIsLoading(true);
  try {
  const data = await fetchAdmins();
  setAdmins(Array.isArray(data) ? data : []);
- } catch (error) {
+ } catch {
  toast.error("Failed to fetch admins");
  } finally {
+ loadingRef.current = false;
  setIsLoading(false);
  }
- }, [isLoading]);
+ }, []);
 
  const loadDepartments = useCallback(async () => {
  try {
@@ -277,7 +256,7 @@ export default function ManageAdmins() {
  ]);
  setDepartments(Array.isArray(data) ? data : []);
  setHubTeamOptions(Array.isArray(teams) ? teams : []);
- } catch (error) {
+ } catch {
  // Silent fail - departments/teams are for dropdown options
  }
  }, []);
@@ -285,32 +264,14 @@ export default function ManageAdmins() {
  useEffect(() => {
  if (hasFetched.current) return;
  hasFetched.current = true;
- loadAdmins();
- loadDepartments();
+ void loadAdmins();
+ void loadDepartments();
  }, [loadAdmins, loadDepartments]);
 
  // Form handlers
  const handleInputChange = (e) => {
  const { name, value } = e.target;
  setFormData((prev) => ({ ...prev, [name]: value }));
- };
-
- const handlePermissionToggle = (permission) => {
- setFormData((prev) => ({
- ...prev,
- permissions: prev.permissions.includes(permission)
- ? prev.permissions.filter((p) => p !== permission)
- : [...prev.permissions, permission],
- }));
- };
-
- const handleEditPermissionToggle = (permission) => {
- setEditFormData((prev) => ({
- ...prev,
- permissions: prev.permissions.includes(permission)
- ? prev.permissions.filter((p) => p !== permission)
- : [...prev.permissions, permission],
- }));
  };
 
  // Add admin
@@ -370,7 +331,7 @@ export default function ManageAdmins() {
  toast.success("Admin created successfully");
  invalidateDepartments();
  setIsAddModalOpen(false);
- loadAdmins();
+ await loadAdmins();
  } catch (error) {
  toast.error(error.message || "Failed to create admin");
  } finally {
@@ -381,7 +342,7 @@ export default function ManageAdmins() {
  // Edit admin
  const handleOpenEditModal = (admin) => {
  setSelectedAdmin(admin);
- // Parse team — could be a comma-separated string or array
+ // Parse team - could be a comma-separated string or array
  let teamArr = [];
  if (Array.isArray(admin.team)) {
  teamArr = admin.team;
@@ -423,7 +384,7 @@ export default function ManageAdmins() {
  setIsAssignRoleModalOpen(false);
  setAssignRoleAdmin(null);
  setAssignRoleRole("");
- loadAdmins();
+ await loadAdmins();
  } catch (error) {
  toast.error(error.message || "Failed to update role");
  } finally {
@@ -450,15 +411,6 @@ export default function ManageAdmins() {
  isactive: admin?.isactive !== false,
  });
  setEmailModalMode(mode);
- };
-
- const handleEmailPermissionToggle = (permission) => {
- setEmailFormData((prev) => ({
- ...prev,
- permissions: prev.permissions.includes(permission)
- ? prev.permissions.filter((p) => p !== permission)
- : [...prev.permissions, permission],
- }));
  };
 
  const handleEmailModalSubmit = async (e) => {
@@ -490,7 +442,7 @@ export default function ManageAdmins() {
  toast.success("Access updated successfully");
  }
  setEmailModalMode(null);
- loadAdmins();
+ await loadAdmins();
  } catch (error) {
  // 502 on invite means the access row and temp password were saved but the
  // invite email failed to send, so treat it as a partial success.
@@ -499,7 +451,7 @@ export default function ManageAdmins() {
  "Invite saved, but the email could not be sent. Retry the invite to resend it."
  );
  setEmailModalMode(null);
- loadAdmins();
+ await loadAdmins();
  } else {
  toast.error(
  error.message ||
@@ -547,7 +499,7 @@ export default function ManageAdmins() {
  toast.success("Admin updated successfully");
  setIsEditModalOpen(false);
  setSelectedAdmin(null);
- loadAdmins();
+ await loadAdmins();
  } catch (error) {
  toast.error(error.message || "Failed to update admin");
  } finally {
@@ -565,15 +517,15 @@ export default function ManageAdmins() {
  return;
  }
 
- setIsLoading(true);
+ setIsSubmitting(true);
  try {
  await deleteAdmin(admin.id);
  toast.success("Admin deleted successfully");
- loadAdmins();
+ await loadAdmins();
  } catch (error) {
  toast.error(error.message || "Failed to delete admin");
  } finally {
- setIsLoading(false);
+ setIsSubmitting(false);
  }
  };
 
@@ -645,17 +597,10 @@ export default function ManageAdmins() {
  return teamNames.map((team) => ({ team, admins: groups[team] }));
  }, [sortedAdmins]);
 
- // Default all teams to collapsed on first load
- useEffect(() => {
- if (collapsedTeams === null && groupedByTeam.length > 0) {
- const initial = {};
- groupedByTeam.forEach((g) => { initial[g.team] = true; });
- setCollapsedTeams(initial);
- }
- }, [groupedByTeam, collapsedTeams]);
+ const isTeamCollapsed = (team) => collapsedTeams[team] ?? true;
 
  const toggleTeamCollapse = (team) => {
- setCollapsedTeams((prev) => ({ ...prev, [team]: !prev[team] }));
+ setCollapsedTeams((prev) => ({ ...prev, [team]: !(prev[team] ?? true) }));
  };
 
  return (
@@ -786,7 +731,7 @@ export default function ManageAdmins() {
  className="px-6 py-2 text-sm font-semibold text-ink-700"
  >
  <div className="flex items-center">
- {!collapsedTeams || collapsedTeams[group.team] ? (
+ {isTeamCollapsed(group.team) ? (
  <ChevronRightIcon className="h-4 w-4 mr-2 text-ink-500" />
  ) : (
  <ChevronDownIcon className="h-4 w-4 mr-2 text-ink-500" />
@@ -798,7 +743,7 @@ export default function ManageAdmins() {
  </div>
  </td>
  </tr>
- {collapsedTeams && !collapsedTeams[group.team] && group.admins.map((admin) => (
+ {!isTeamCollapsed(group.team) && group.admins.map((admin) => (
  <tr key={admin.id} className="hover:bg-cream">
  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-ink-900">
  {admin.id}
@@ -1065,78 +1010,11 @@ export default function ManageAdmins() {
  </p>
  </div>
 
- <div>
- <div className="flex items-center justify-between mb-2">
- <label className="block text-sm font-medium text-ink-700">
- Permissions
- </label>
- <button
- type="button"
- onClick={() => {
- const allChecked = allPermissionDepts.every((d) => formData.permissions.includes(d));
- setFormData((prev) => ({
- ...prev,
- permissions: allChecked ? [] : [...allPermissionDepts],
- }));
- }}
- className="text-xs text-ink-900 hover:text-ink-900 font-medium"
- >
- {allPermissionDepts.every((d) => formData.permissions.includes(d)) ? "Uncheck All" : "Check All"}
- </button>
- </div>
- <div className="max-h-60 overflow-y-auto border rounded-md p-2 space-y-1">
- {permissionsByTeam.map((group) => {
- const teamDepts = group.departments;
- const allTeamChecked = teamDepts.every((d) => formData.permissions.includes(d));
- const isCollapsed = collapsedPermTeams[group.team];
- return (
- <div key={group.team} className="mb-1">
- <div className="flex items-center justify-between bg-cream rounded px-2 py-1.5 cursor-pointer select-none hover:bg-cream-200" onClick={() => togglePermTeamCollapse(group.team)}>
- <div className="flex items-center">
- {isCollapsed ? (
- <ChevronRightIcon className="h-3.5 w-3.5 mr-1.5 text-ink-500" />
- ) : (
- <ChevronDownIcon className="h-3.5 w-3.5 mr-1.5 text-ink-500" />
- )}
- <span className="text-xs font-semibold text-ink-600 uppercase tracking-wide">{group.team}</span>
- <span className="ml-1.5 text-xs text-ink-400">({teamDepts.filter((d) => formData.permissions.includes(d)).length}/{teamDepts.length})</span>
- </div>
- <button
- type="button"
- onClick={(e) => {
- e.stopPropagation();
- setFormData((prev) => ({
- ...prev,
- permissions: allTeamChecked
- ? prev.permissions.filter((p) => !teamDepts.includes(p))
- : [...new Set([...prev.permissions, ...teamDepts])],
- }));
- }}
- className="text-xs text-ink-900 hover:text-ink-900 font-medium"
- >
- {allTeamChecked ? "Uncheck" : "Check All"}
- </button>
- </div>
- {!isCollapsed && (
- <div className="ml-5 mt-1 space-y-0.5">
- {teamDepts.map((dept) => (
- <label key={dept} className="flex items-center space-x-2 py-0.5 px-2 hover:bg-cream rounded cursor-pointer">
- <input
- type="checkbox"
- checked={formData.permissions.includes(dept)}
- onChange={() => handlePermissionToggle(dept)}
- className="h-4 w-4 text-ink-900 focus:ring-ink-900/10 border-ink-300 rounded"
+ <PermissionsTreePicker
+ value={formData.permissions}
+ onChange={(permissions) => setFormData((prev) => ({ ...prev, permissions }))}
+ groups={permissionsByTeam}
  />
- <span className="text-sm text-ink-700">{dept}</span>
- </label>
- ))}
- </div>
- )}
- </div>
- );
- })}
- </div>
- </div>
 
  <div className="flex justify-end space-x-3 pt-4">
  <button
@@ -1283,78 +1161,11 @@ export default function ManageAdmins() {
  )}
  </div>
 
- <div>
- <div className="flex items-center justify-between mb-2">
- <label className="block text-sm font-medium text-ink-700">
- Permissions
- </label>
- <button
- type="button"
- onClick={() => {
- const allChecked = allPermissionDepts.every((d) => editFormData.permissions.includes(d));
- setEditFormData((prev) => ({
- ...prev,
- permissions: allChecked ? [] : [...allPermissionDepts],
- }));
- }}
- className="text-xs text-ink-900 hover:text-ink-900 font-medium"
- >
- {allPermissionDepts.every((d) => editFormData.permissions.includes(d)) ? "Uncheck All" : "Check All"}
- </button>
- </div>
- <div className="max-h-60 overflow-y-auto border rounded-md p-2 space-y-1">
- {permissionsByTeam.map((group) => {
- const teamDepts = group.departments;
- const allTeamChecked = teamDepts.every((d) => editFormData.permissions.includes(d));
- const isCollapsed = collapsedPermTeams[group.team];
- return (
- <div key={group.team} className="mb-1">
- <div className="flex items-center justify-between bg-cream rounded px-2 py-1.5 cursor-pointer select-none hover:bg-cream-200" onClick={() => togglePermTeamCollapse(group.team)}>
- <div className="flex items-center">
- {isCollapsed ? (
- <ChevronRightIcon className="h-3.5 w-3.5 mr-1.5 text-ink-500" />
- ) : (
- <ChevronDownIcon className="h-3.5 w-3.5 mr-1.5 text-ink-500" />
- )}
- <span className="text-xs font-semibold text-ink-600 uppercase tracking-wide">{group.team}</span>
- <span className="ml-1.5 text-xs text-ink-400">({teamDepts.filter((d) => editFormData.permissions.includes(d)).length}/{teamDepts.length})</span>
- </div>
- <button
- type="button"
- onClick={(e) => {
- e.stopPropagation();
- setEditFormData((prev) => ({
- ...prev,
- permissions: allTeamChecked
- ? prev.permissions.filter((p) => !teamDepts.includes(p))
- : [...new Set([...prev.permissions, ...teamDepts])],
- }));
- }}
- className="text-xs text-ink-900 hover:text-ink-900 font-medium"
- >
- {allTeamChecked ? "Uncheck" : "Check All"}
- </button>
- </div>
- {!isCollapsed && (
- <div className="ml-5 mt-1 space-y-0.5">
- {teamDepts.map((dept) => (
- <label key={dept} className="flex items-center space-x-2 py-0.5 px-2 hover:bg-cream rounded cursor-pointer">
- <input
- type="checkbox"
- checked={editFormData.permissions.includes(dept)}
- onChange={() => handleEditPermissionToggle(dept)}
- className="h-4 w-4 text-ink-900 focus:ring-ink-900/10 border-ink-300 rounded"
+ <PermissionsTreePicker
+ value={editFormData.permissions}
+ onChange={(permissions) => setEditFormData((prev) => ({ ...prev, permissions }))}
+ groups={permissionsByTeam}
  />
- <span className="text-sm text-ink-700">{dept}</span>
- </label>
- ))}
- </div>
- )}
- </div>
- );
- })}
- </div>
- </div>
 
  <div className="flex justify-end space-x-3 pt-4">
  <button
@@ -1431,7 +1242,7 @@ export default function ManageAdmins() {
  </form>
  </GenericModal>
 
- {/* Email RBAC Modal — Invite by email / Assign access by email */}
+ {/* Email RBAC Modal - Invite by email / Assign access by email */}
  <GenericModal
  isOpen={!!emailModalMode}
  onClose={() => setEmailModalMode(null)}
@@ -1544,94 +1355,11 @@ export default function ManageAdmins() {
  </label>
  )}
 
- <div>
- <div className="flex items-center justify-between mb-2">
- <label className="block text-sm font-medium text-ink-700">
- Permissions
- </label>
- <button
- type="button"
- onClick={() => {
- const allChecked = allPermissionDepts.every((d) =>
- emailFormData.permissions.includes(d)
- );
- setEmailFormData((prev) => ({
- ...prev,
- permissions: allChecked ? [] : [...allPermissionDepts],
- }));
- }}
- className="text-xs text-ink-900 hover:text-ink-900 font-medium"
- >
- {allPermissionDepts.every((d) => emailFormData.permissions.includes(d))
- ? "Uncheck All"
- : "Check All"}
- </button>
- </div>
- <div className="max-h-60 overflow-y-auto border rounded-md p-2 space-y-1">
- {permissionsByTeam.map((group) => {
- const teamDepts = group.departments;
- const allTeamChecked = teamDepts.every((d) =>
- emailFormData.permissions.includes(d)
- );
- const isCollapsed = collapsedPermTeams[group.team];
- return (
- <div key={group.team} className="mb-1">
- <div
- className="flex items-center justify-between bg-cream rounded px-2 py-1.5 cursor-pointer select-none hover:bg-cream-200"
- onClick={() => togglePermTeamCollapse(group.team)}
- >
- <div className="flex items-center">
- {isCollapsed ? (
- <ChevronRightIcon className="h-3.5 w-3.5 mr-1.5 text-ink-500" />
- ) : (
- <ChevronDownIcon className="h-3.5 w-3.5 mr-1.5 text-ink-500" />
- )}
- <span className="text-xs font-semibold text-ink-600 uppercase tracking-wide">
- {group.team}
- </span>
- <span className="ml-1.5 text-xs text-ink-400">
- ({teamDepts.filter((d) => emailFormData.permissions.includes(d)).length}/{teamDepts.length})
- </span>
- </div>
- <button
- type="button"
- onClick={(e) => {
- e.stopPropagation();
- setEmailFormData((prev) => ({
- ...prev,
- permissions: allTeamChecked
- ? prev.permissions.filter((p) => !teamDepts.includes(p))
- : [...new Set([...prev.permissions, ...teamDepts])],
- }));
- }}
- className="text-xs text-ink-900 hover:text-ink-900 font-medium"
- >
- {allTeamChecked ? "Uncheck" : "Check All"}
- </button>
- </div>
- {!isCollapsed && (
- <div className="ml-5 mt-1 space-y-0.5">
- {teamDepts.map((dept) => (
- <label
- key={dept}
- className="flex items-center space-x-2 py-0.5 px-2 hover:bg-cream rounded cursor-pointer"
- >
- <input
- type="checkbox"
- checked={emailFormData.permissions.includes(dept)}
- onChange={() => handleEmailPermissionToggle(dept)}
- className="h-4 w-4 text-ink-900 focus:ring-ink-900/10 border-ink-300 rounded"
+ <PermissionsTreePicker
+ value={emailFormData.permissions}
+ onChange={(permissions) => setEmailFormData((prev) => ({ ...prev, permissions }))}
+ groups={permissionsByTeam}
  />
- <span className="text-sm text-ink-700">{dept}</span>
- </label>
- ))}
- </div>
- )}
- </div>
- );
- })}
- </div>
- </div>
 
  <div className="flex justify-end space-x-3 pt-4">
  <button

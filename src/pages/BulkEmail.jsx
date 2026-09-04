@@ -201,7 +201,7 @@ function BulkEmailComposer() {
                 className={inputCls}
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                placeholder="e.g. Workers' Meeting — This Saturday"
+                placeholder="e.g. Workers' Meeting - This Saturday"
               />
             </div>
 

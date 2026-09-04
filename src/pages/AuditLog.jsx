@@ -4,7 +4,7 @@ import Header from "../components/Header";
 import Layout from "../components/Layout";
 import DateRangeFilter from "../components/DateRangeFilter";
 import LoadingState from "../components/LoadingState";
-import { fetchAuditLogs } from "../services/overview";
+import { fetchAuditLogs } from "../services/audit";
 import { getUserRole } from "../utils/getUserRole";
 import { format, startOfDay, endOfDay } from "date-fns";
 

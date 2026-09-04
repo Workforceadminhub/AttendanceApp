@@ -139,7 +139,7 @@ export async function apiRequest(
       !error.config?.suppressConsoleError &&
       !isTransientBackendFailure
     ) {
-      // eslint-disable-next-line no-console
+       
       console.error(
         "[API Error]",
         redactSensitive(error.response?.data || error.message)

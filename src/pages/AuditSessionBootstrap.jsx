@@ -13,10 +13,16 @@ function getOneTimeSession(role) {
   if (!sessionRequests.has(role)) {
     sessionRequests.set(
       role,
-      fetch(`/_ux-audit/session/${role}`, { cache: "no-store" }).then(async (response) => {
-        if (!response.ok) throw new Error("The one-time audit session was not found.");
-        return response.json();
-      })
+      fetch(`/_ux-audit/session/${role}`, { cache: "no-store" })
+        .then(async (response) => {
+          if (!response.ok) throw new Error("The one-time audit session was not found.");
+          return response.json();
+        })
+        .catch((error) => {
+          // Drop the failed request so a later attempt can retry.
+          sessionRequests.delete(role);
+          throw error;
+        })
     );
   }
   return sessionRequests.get(role);

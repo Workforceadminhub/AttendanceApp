@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Bars3Icon, XMarkIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { getUser } from "../utils/getUser";
 import { logoutSession } from "../utils/authSession";
 import { getUserRole } from "../utils/getUserRole";
@@ -111,14 +111,14 @@ function NavDropdown({ label, items }) {
                   {item.header}
                 </div>
               ) : (
-                <a
+                <Link
                   key={item.name}
-                  href={item.href}
+                  to={item.href}
                   onClick={closeDropdown}
                   className="block px-3 py-2 text-sm text-ink-700 hover:bg-cream-200 hover:text-ink-900 transition-colors"
                 >
                   {item.name}
-                </a>
+                </Link>
               )
             )}
           </div>
@@ -129,18 +129,18 @@ function NavDropdown({ label, items }) {
 
 function NavLink({ href, children }) {
   return (
-    <a
-      href={href}
+    <Link
+      to={href}
       className="text-sm font-medium text-ink-700 hover:text-ink-900 transition-colors py-1 relative"
     >
       {children}
-    </a>
+    </Link>
   );
 }
 
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const authUser = getUser();
+  const authUser = useMemo(() => getUser(), []);
   const navigate = useNavigate();
 
   // Fix: redirect side-effect must not run during render
@@ -159,7 +159,7 @@ export default function Header() {
 
   const canAccessApprovals = isAdmin;
 
-  // Hub nav items — only appear when RBAC context loads successfully.
+  // Hub nav items - only appear when RBAC context loads successfully.
   // If legacy JWT is rejected by /rbac/me, these stay false → no change to existing nav.
   const showTrainings = useHubNav("trainings");
   const showCourses = useHubNav("courses");
@@ -170,7 +170,6 @@ export default function Header() {
     ...(showTrainings && (isSuperAdmin || isChurchAdminRole || isAdmin)
       ? [
           { name: "Progression Pathways", href: "/hub/trainings/pathways" },
-          { name: "Cohorts & Batches", href: "/hub/trainings/cohorts" },
         ]
       : []),
     ...(showTrainings ? [{ name: "My Nominations", href: "/hub/trainings/nominations" }] : []),
@@ -363,8 +362,8 @@ export default function Header() {
         className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8 h-16"
       >
         {/* Brand */}
-        <a
-          href={homePage}
+        <Link
+          to={homePage}
           className="-m-1.5 p-1.5 flex min-w-0 items-center gap-3 shrink-0"
         >
           <img
@@ -376,7 +375,7 @@ export default function Header() {
             <span className="h-4 w-px bg-ink-200" />
             <span className="qc-section-title text-ink-700">HICC-GBAGADA</span>
           </span>
-        </a>
+        </Link>
 
         {/* Desktop nav */}
         <div className="hidden lg:flex items-center gap-7 flex-1 justify-end">
@@ -423,12 +422,12 @@ export default function Header() {
           <span className="h-5 w-px bg-ink-200 mx-1" />
 
           {!authUser ? (
-            <a
-              href="/login"
+            <Link
+              to="/login"
               className="text-sm font-medium text-ink-900 hover:underline"
             >
               Log in <span aria-hidden="true">→</span>
-            </a>
+            </Link>
           ) : (
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 text-sm">
@@ -485,13 +484,13 @@ export default function Header() {
               Logout
             </button>
           ) : (
-            <a
-              href="/login"
+            <Link
+              to="/login"
               onClick={() => setMobileOpen(false)}
               className="qc-btn-primary w-full"
             >
               Log in →
-            </a>
+            </Link>
           )
         }
       >
@@ -619,8 +618,8 @@ function NavGroup({ label, children }) {
 
 function SheetLink({ href, onClick, children }) {
   return (
-    <a
-      href={href}
+    <Link
+      to={href}
       onClick={onClick}
       className="flex items-center justify-between px-3 py-3 -mx-1 rounded-md text-base text-ink-900 hover:bg-cream-200 transition-colors min-h-touch"
     >
@@ -628,6 +627,6 @@ function SheetLink({ href, onClick, children }) {
       <span className="text-ink-400" aria-hidden="true">
         →
       </span>
-    </a>
+    </Link>
   );
 }

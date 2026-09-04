@@ -43,7 +43,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed." });
   }
 
-  const auth = await authorize(req.headers.authorization, req.query?.requesterCode);
+  const auth = await authorize(req.headers.authorization);
   if (!auth.ok) {
     return res.status(auth.status).json({ error: "Unauthorized.", reason: auth.reason });
   }

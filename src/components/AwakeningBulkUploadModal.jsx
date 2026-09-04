@@ -89,7 +89,7 @@ function normaliseRow(raw) {
       : undefined,
     foundation_course_status: clean(raw.foundation_course_status).toLowerCase(),
     attendance_day: normalizeAwakeningDays(raw.attendance_day),
-    // Free text for the endpoint — trimmed only, no enum constraint
+    // Free text for the endpoint - trimmed only, no enum constraint
     worker_team: clean(raw.worker_team) || undefined,
     department: clean(raw.department) || undefined,
     worker_designation: clean(raw.worker_designation) || undefined,
@@ -160,7 +160,7 @@ async function parseFile(file) {
     });
   }
 
-  // Excel (.xlsx / .xls) via ExcelJS — same approach as HODBulkAddWorker
+  // Excel (.xlsx / .xls) via ExcelJS - same approach as HODBulkAddWorker
   const buffer = await file.arrayBuffer();
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer);
@@ -224,8 +224,8 @@ export default function AwakeningBulkUploadModal({ onClose, onComplete }) {
     setProgress({ completed: 0, total: queue.length, failures });
     for (let i = 0; i < queue.length; i += 1) {
       try {
-        // Sequential on purpose — register endpoint called one after the other
-        // eslint-disable-next-line no-await-in-loop
+        // Sequential on purpose - register endpoint called one after the other
+         
         await submitAwakeningRegistration(queue[i].payload);
       } catch (err) {
         failures.push({
@@ -241,7 +241,7 @@ export default function AwakeningBulkUploadModal({ onClose, onComplete }) {
       setProgress({ completed: i + 1, total: queue.length, failures: [...failures] });
     }
     const succeeded = queue.length - failures.length;
-    toast.success(`Bulk upload finished — ${succeeded} registered, ${failures.length} failed.`);
+    toast.success(`Bulk upload finished - ${succeeded} registered, ${failures.length} failed.`);
     onComplete();
   };
 
@@ -313,10 +313,10 @@ export default function AwakeningBulkUploadModal({ onClose, onComplete }) {
                   <tr key={r.rowNumber} className="border-b border-ink-100 last:border-b-0">
                     <td className="px-3 py-2 qc-num">{r.rowNumber}</td>
                     <td className="px-3 py-2">
-                      {[r.normalised.first_name, r.normalised.last_name].filter(Boolean).join(" ") || "—"}
+                      {[r.normalised.first_name, r.normalised.last_name].filter(Boolean).join(" ") || "-"}
                     </td>
-                    <td className="px-3 py-2">{r.normalised.campus || "—"}</td>
-                    <td className="px-3 py-2">{r.normalised.registration_type || "—"}</td>
+                    <td className="px-3 py-2">{r.normalised.campus || "-"}</td>
+                    <td className="px-3 py-2">{r.normalised.registration_type || "-"}</td>
                     <td className="px-3 py-2 qc-num">{r.normalised.phone}</td>
                     <td className="px-3 py-2">
                       {r.payload ? (
@@ -375,14 +375,14 @@ export default function AwakeningBulkUploadModal({ onClose, onComplete }) {
               />
             </div>
             <p className="text-xs text-ink-500 mt-1.5">
-              Sending requests sequentially — please keep this window open.
+              Sending requests sequentially - please keep this window open.
             </p>
           </div>
 
           {progress.completed === progress.total && (
             <div className="rounded-lg border border-ink-200 p-3 space-y-1.5">
               <p className="text-sm font-medium text-forest">
-                Done — {progress.total - progress.failures.length} registered
+                Done - {progress.total - progress.failures.length} registered
                 {progress.failures.length > 0 && `, ${progress.failures.length} failed`}
               </p>
               {progress.failures.map((f) => (

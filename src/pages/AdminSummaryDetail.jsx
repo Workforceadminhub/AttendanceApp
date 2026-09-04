@@ -117,7 +117,7 @@ export default function AdminSummaryDetail() {
       const CONCURRENCY = 4;
       for (let i = 0; i < sundayStrings.length; i += CONCURRENCY) {
         const slice = sundayStrings.slice(i, i + CONCURRENCY);
-        // eslint-disable-next-line no-await-in-loop
+         
         const sliceResults = await Promise.all(slice.map(fetchWithRetry));
         sliceResults.forEach((result, index) => {
           results[i + index] = result;

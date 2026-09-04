@@ -4,5 +4,9 @@ export const exportAttendance = async (attendancedate) => {
   const result = await apiRequest("POST", "/api/super/admin/attendance/export", {
     attendancedate,
   });
-  return result.data;
+  const payload = result?.data;
+  if (payload === undefined) {
+    throw new Error(result?.error || "Failed to export attendance");
+  }
+  return payload;
 };

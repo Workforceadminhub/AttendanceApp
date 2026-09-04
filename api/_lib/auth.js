@@ -66,10 +66,12 @@ function codeFromClaims(claims) {
 }
 
 /**
- * Returns { ok, status, reason } and, on success, { code } — the caller's
- * lowercased login code/id when derivable (for attribution).
+ * Returns { ok, status, reason } and, on success, { code } - the caller's
+ * lowercased login code/id derived from the verified token claims only.
+ * Identity is never taken from the request body or query; the second
+ * parameter is accepted for backwards compatibility and ignored.
  */
-export async function authorize(authHeader, requesterCode) {
+export async function authorize(authHeader) {
   if (!authHeader || !/^Bearer\s+.+/i.test(authHeader)) {
     return { ok: false, status: 401, reason: "missing_bearer_token" };
   }
@@ -77,10 +79,9 @@ export async function authorize(authHeader, requesterCode) {
     return { ok: false, status: 500, reason: "backend_url_not_configured" };
   }
 
-  let userStatus = await statusOf(authHeader, USER_VERIFY_PATH);
-  let adminStatus = 0;
+  const userStatus = await statusOf(authHeader, USER_VERIFY_PATH);
   if (userStatus !== 200) {
-    adminStatus = await statusOf(authHeader, ADMIN_VERIFY_PATH);
+    const adminStatus = await statusOf(authHeader, ADMIN_VERIFY_PATH);
     if (adminStatus !== 200) {
       return {
         ok: false,
@@ -91,7 +92,7 @@ export async function authorize(authHeader, requesterCode) {
   }
 
   const claims = decodeJwt(authHeader);
-  const code = codeFromClaims(claims) || String(requesterCode || "").trim().toLowerCase();
+  const code = codeFromClaims(claims);
   if (isAdminFromClaims(claims)) return { ok: true, code };
   if (code && ALLOWLIST.includes(code)) return { ok: true, code };
 

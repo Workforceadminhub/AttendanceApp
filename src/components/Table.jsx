@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import Tag from "./ui/Tag";
 
 /**
- * Pending workers table — Quiet Cockpit.
+ * Pending workers table - Quiet Cockpit.
  *
  * Same props as before (people, handleInactive, handleActive, loading) so the
  * consuming page stays unchanged. Renders a hairline-bordered table on lg+

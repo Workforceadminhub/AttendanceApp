@@ -132,7 +132,7 @@ export default function MarkAttendance() {
     },
     onSuccess: (results) => {
       // Marking the final session can auto-complete a worker and issue their
-      // certificate — surface that rather than letting it happen silently.
+      // certificate - surface that rather than letting it happen silently.
       const autoCompleted = results.filter(
         (r) => r.value?.data?.auto_complete?.auto_completed
       ).length;
@@ -246,7 +246,7 @@ export default function MarkAttendance() {
             ))}
           </div>
 
-          {/* Batch + session selectors — a multi-day training has one pass per session */}
+          {/* Batch + session selectors - a multi-day training has one pass per session */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="qc-label" htmlFor="attendance-cohort">Batch</label>

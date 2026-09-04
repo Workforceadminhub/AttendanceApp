@@ -11,6 +11,6 @@ export const checkAdminStatus = (pathname) => {
   // Treat that state as a normal non-admin route instead of crashing the page.
   const isChurchDept = team?.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
   const isSuperDept = team?.department === "Super Admin";
-  const isAdmin = pathname.includes("/admin/") ? true : false;
-  return isChurchDept || isSuperDept || isAdmin;
+  // Admin status comes from the session user only; the URL is never trusted.
+  return isChurchDept || isSuperDept;
 };

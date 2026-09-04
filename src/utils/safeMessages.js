@@ -1,7 +1,7 @@
-/** Generic auth failure — never surface backend wording for sign-in. */
+/** Generic auth failure - never surface backend wording for sign-in. */
 export const AUTH_ERROR_MESSAGE = "Invalid credentials. Please try again.";
 
-/** Public form submission — avoids confirming whether an account/record exists. */
+/** Public form submission - avoids confirming whether an account/record exists. */
 export const PUBLIC_SUBMIT_SUCCESS =
   "If the details provided are correct, further instructions will be sent.";
 

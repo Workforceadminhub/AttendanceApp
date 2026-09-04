@@ -10,9 +10,7 @@ const BACKEND_API_URL =
   process.env.BACKEND_API_URL || process.env.REACT_APP_BASE_URL || "";
 const ADMIN_VERIFY_PATH = process.env.AUTH_VERIFY_PATH || "/api/super/admin/admins";
 
-const SENDCHAMP_API_KEY =
-  process.env.SENDCHAMP_API_KEY ||
-  "sendchamp_live_$2a$10$V6/v3eAzTAUH07GCoBe.SuIaHd1IGwArDP3h52kvP1DpSzpIpHfb.";
+const SENDCHAMP_API_KEY = process.env.SENDCHAMP_API_KEY || "";
 const SENDCHAMP_WALLET_URL = "https://api.sendchamp.com/api/v1/wallet/wallet_balance";
 
 const SMARTSMS_API_TOKEN = process.env.SMARTSMS_API_TOKEN || "";
@@ -79,14 +77,7 @@ export default async function handler(req, res) {
 
   if (provider === "smartsmssolutions") {
     if (!SMARTSMS_API_TOKEN) {
-      return res.status(200).json({
-        success: true,
-        data: {
-          wallet_balance: null,
-          status: "unconfigured",
-          message: "SMARTSMS_API_TOKEN is not set yet.",
-        },
-      });
+      return res.status(500).json({ error: "SMARTSMS_API_TOKEN is not configured." });
     }
 
     try {
@@ -104,8 +95,10 @@ export default async function handler(req, res) {
         });
       }
 
-      return res.status(response.status || 500).json({
+      // 502 so an upstream 401 is not mistaken for the caller's own auth failing.
+      return res.status(502).json({
         error: data?.comment || data?.message || "Failed to retrieve SmartSMS balance.",
+        providerStatus: response.status,
         details: data,
       });
     } catch (err) {
@@ -117,6 +110,10 @@ export default async function handler(req, res) {
   }
 
   // Default: Sendchamp balance
+  if (!SENDCHAMP_API_KEY) {
+    return res.status(500).json({ error: "SENDCHAMP_API_KEY is not configured." });
+  }
+
   try {
     const response = await fetch(SENDCHAMP_WALLET_URL, {
       method: "POST",
@@ -136,8 +133,10 @@ export default async function handler(req, res) {
       });
     }
 
-    return res.status(response.status || 500).json({
+    // 502 so an upstream 401 is not mistaken for the caller's own auth failing.
+    return res.status(502).json({
       error: data?.message || "Failed to retrieve Sendchamp wallet balance.",
+      providerStatus: response.status,
       details: data,
     });
   } catch (err) {

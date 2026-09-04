@@ -118,7 +118,7 @@ export default function CertificateTemplates() {
             )}
           </div>
 
-          {/* Builder — fields on the left, live preview on the right */}
+          {/* Builder - fields on the left, live preview on the right */}
           {showForm && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               <div className="qc-card p-5 space-y-4">

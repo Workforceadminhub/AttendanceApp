@@ -15,6 +15,27 @@ import { authorize } from "./_lib/auth.js";
 
 const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 
+/** Detect image type from magic bytes. Returns { contentType, ext } or null. */
+function detectImage(buf) {
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+    return { contentType: "image/jpeg", ext: "jpg" };
+  }
+  if (buf.length >= 4 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
+    return { contentType: "image/png", ext: "png" };
+  }
+  if (buf.length >= 4 && buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x38) {
+    return { contentType: "image/gif", ext: "gif" };
+  }
+  if (
+    buf.length >= 12 &&
+    buf.toString("ascii", 0, 4) === "RIFF" &&
+    buf.toString("ascii", 8, 12) === "WEBP"
+  ) {
+    return { contentType: "image/webp", ext: "webp" };
+  }
+  return null;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -45,7 +66,7 @@ export default async function handler(req, res) {
   }
   body = body || {};
 
-  const auth = await authorize(req.headers.authorization, body.requesterCode);
+  const auth = await authorize(req.headers.authorization);
   if (!auth.ok) {
     return res.status(auth.status).json({ error: "Unauthorized." });
   }
@@ -55,8 +76,13 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "data, filename, and contentType are required." });
   }
 
-  if (!contentType.startsWith("image/")) {
+  if (typeof contentType !== "string" || !contentType.startsWith("image/")) {
     return res.status(400).json({ error: "Only image files are allowed." });
+  }
+
+  // Check the encoded size before decoding so oversized payloads never get buffered.
+  if (typeof data !== "string" || Math.floor((data.length * 3) / 4) > MAX_SIZE) {
+    return res.status(400).json({ error: "Image must be under 5 MB." });
   }
 
   const buffer = Buffer.from(data, "base64");
@@ -64,7 +90,16 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Image must be under 5 MB." });
   }
 
-  const key = `email-images/${Date.now()}-${filename.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+  // Trust the bytes, not the caller's contentType (rejects SVG and non-images).
+  const detected = detectImage(buffer);
+  if (!detected) {
+    return res.status(400).json({ error: "Only JPEG, PNG, GIF, or WEBP images are allowed." });
+  }
+
+  const baseName = String(filename)
+    .replace(/\.[^.]*$/, "")
+    .replace(/[^a-zA-Z0-9._-]/g, "_") || "image";
+  const key = `email-images/${Date.now()}-${baseName}.${detected.ext}`;
 
   const s3 = new S3Client({
     region,
@@ -77,7 +112,7 @@ export default async function handler(req, res) {
         Bucket: bucket,
         Key: key,
         Body: buffer,
-        ContentType: contentType,
+        ContentType: detected.contentType,
       })
     );
   } catch (e) {

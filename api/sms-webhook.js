@@ -4,6 +4,10 @@
  * Receives SMS delivery event callbacks from Sendchamp and responds
  * with HTTP 200 OK. Logs delivery events to Supabase if configured.
  *
+ * Security: the provider must call the URL with the shared secret, either as a
+ * `?token=...` query param or an `x-webhook-secret` header, matching
+ * SMS_WEBHOOK_SECRET.
+ *
  * Sendchamp webhook payload sample:
  * {
  *   "service": "sms",
@@ -31,10 +35,27 @@ function normalizeSmsEvent(payload) {
   };
 }
 
+function safeEqual(a, b) {
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST" && req.method !== "GET") {
     res.setHeader("Allow", "POST, GET");
     return res.status(405).json({ error: "Method not allowed." });
+  }
+
+  const secret = process.env.SMS_WEBHOOK_SECRET;
+  if (!secret) {
+    return res.status(500).json({ error: "SMS_WEBHOOK_SECRET is not configured." });
+  }
+  const provided =
+    (req.query && (req.query.token || req.query.secret)) || req.headers["x-webhook-secret"];
+  if (!safeEqual(String(provided || ""), secret)) {
+    return res.status(401).json({ error: "Unauthorized." });
   }
 
   // Health check / verification ping
@@ -69,11 +90,11 @@ export default async function handler(req, res) {
     try {
       await insertRows("sms_events", rows);
     } catch (e) {
-      console.warn("sms-webhook insert warning (non-fatal):", e?.message || e);
+      console.error("sms-webhook insert error:", e?.message || e);
+      return res.status(500).json({ error: "Failed to store events." }); // provider will retry
     }
   }
 
-  // Always return 200 OK to acknowledge receipt to Sendchamp
   return res.status(200).json({
     received: true,
     count: rows.length,

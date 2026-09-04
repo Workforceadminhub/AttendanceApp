@@ -351,7 +351,7 @@ function RegistrationForm() {
         <FieldError message={errors.foundation_course_status?.message} />
       </div>
 
-      {/* Attendance days — everyone attends */}
+      {/* Attendance days - everyone attends */}
       <div>
         <Label required>Days Attending</Label>
         <p className="text-xs text-ink-500 mb-2">Select all that apply.</p>
@@ -486,7 +486,7 @@ export default function AwakeningRegistration() {
               Awakening Conference Registration
             </h1>
             <p className="mt-2 text-sm text-ink-500">
-              Secure your spot — fill in your details below to register.
+              Secure your spot - fill in your details below to register.
             </p>
           </div>
 

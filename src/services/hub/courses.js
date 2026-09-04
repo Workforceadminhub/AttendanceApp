@@ -1,4 +1,4 @@
-import { hubGet, hubPost, hubPut } from "./client";
+import { hubGet, hubPost } from "./client";
 
 export function fetchCourses(params) {
   return hubGet("/courses", params);
@@ -12,20 +12,8 @@ export function fetchCourse(id) {
   return hubGet(`/courses/${id}`);
 }
 
-export function updateCourse(id, data) {
-  return hubPut(`/courses/${id}`, data);
-}
-
 export function fetchCourseCurriculum(id) {
   return hubGet(`/courses/${id}/curriculum`);
-}
-
-export function addSection(id, title, sortOrder) {
-  return hubPost(`/courses/${id}/sections`, { title, sort_order: sortOrder });
-}
-
-export function addLecture(sectionId, data) {
-  return hubPost(`/courses/sections/${sectionId}/lectures`, data);
 }
 
 export function enrollInCourse(id, workerId) {
@@ -39,8 +27,4 @@ export function fetchEnrollments(id) {
 
 export function completeLecture(enrollmentId, lectureId) {
   return hubPost(`/courses/enrollments/${enrollmentId}/lectures/${lectureId}/complete`);
-}
-
-export function fetchWorkerCourses(workerId) {
-  return hubGet(`/users/${workerId}/courses`);
 }

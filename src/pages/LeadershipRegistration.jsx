@@ -200,7 +200,7 @@ function RegistrationForm({ prefilled, rawPhone, onReset }) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
-      {/* Back link — always visible */}
+      {/* Back link - always visible */}
       <button
         type="button"
         onClick={onReset}
@@ -296,7 +296,7 @@ function RegistrationForm({ prefilled, rawPhone, onReset }) {
         </div>
       </div>
 
-      {/* Leadership Role — existing leaders only */}
+      {/* Leadership Role - existing leaders only */}
       {isExisting && (
         <div>
           <Label htmlFor="leadershipRole" required>Current Leadership Role</Label>

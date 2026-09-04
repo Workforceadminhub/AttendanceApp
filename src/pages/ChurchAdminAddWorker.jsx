@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
@@ -28,7 +28,12 @@ export default function ChurchAdminAddWorker() {
  const [mode, setMode] = useState("single"); // 'single' or 'bulk'
  const [isLoading, setIsLoading] = useState(false);
  const [formErrors, setFormErrors] = useState({});
- const [submitError, setSubmitError] = useState("");
+ // Submit error is tied to the form values it was raised for, so editing hides it.
+ const [submitErrorState, setSubmitErrorState] = useState(null);
+ const submitError =
+ submitErrorState && submitErrorState.worker === newWorker ? submitErrorState.message : "";
+ const setSubmitError = (message) =>
+ setSubmitErrorState(message ? { message, worker: newWorker } : null);
 
  // Single worker form state for Church Admin
  const [newWorker, setNewWorker] = useState({
@@ -86,14 +91,16 @@ export default function ChurchAdminAddWorker() {
           departments,
         });
       }
+    }).catch((error) => {
+      if (import.meta.env.DEV) console.error("Failed to load teams/departments", error);
     });
     return () => {
       isMounted = false;
     };
   }, []);
 
-  // Update departments when team / district sub-team changes
-  useEffect(() => {
+  // Department options derived from team / district sub-team (handlers reset department on change)
+  const departmentOptions = useMemo(() => {
     if (newWorker.team) {
       const depts =
         filterData.departmentsByTeam[newWorker.team] ||
@@ -118,34 +125,20 @@ export default function ChurchAdminAddWorker() {
         newWorker.team,
         newWorker.district_sub_team
       );
-
-      setFilterOptions((prev) => ({
-        ...prev,
-        departments: filtered.map((dept) => ({ value: dept, label: dept })),
-      }));
-
-      if (newWorker.department && !filtered.includes(newWorker.department)) {
-        setNewWorker((prev) => ({ ...prev, department: "" }));
-      }
+      return filtered.map((dept) => ({ value: dept, label: dept }));
     } else {
-      const departments = filterData.departments.filter((d) => d.value !== "All");
-      setFilterOptions((prev) => ({
-        ...prev,
-        departments,
-      }));
+      return filterData.departments.filter((d) => d.value !== "All");
     }
-  }, [newWorker.team, newWorker.district_sub_team, newWorker.department, filterData]);
+  }, [newWorker.team, newWorker.district_sub_team, filterData]);
 
- useEffect(() => {
- setFormErrors((current) => {
- if (Object.keys(current).length === 0) return current;
+ // Only show errors still present for the current form values.
+ const visibleErrors = useMemo(() => {
+ if (Object.keys(formErrors).length === 0) return formErrors;
  const latestErrors = validateAuthenticatedWorker(newWorker);
  return Object.fromEntries(
- Object.entries(current).filter(([field]) => latestErrors[field])
+ Object.entries(formErrors).filter(([field]) => latestErrors[field])
  );
- });
- setSubmitError("");
- }, [newWorker]);
+ }, [formErrors, newWorker]);
 
  // Handle single worker form submission
  const handleSingleSubmit = async (e) => {
@@ -235,7 +228,7 @@ export default function ChurchAdminAddWorker() {
  // Convert to worker objects
  const workers = convertToWorkerObjects(jsonData);
  setParsedWorkers(workers);
- } catch (error) {
+ } catch {
  toast.error("Error parsing file. Please check the format.");
  }
  };
@@ -248,6 +241,7 @@ export default function ChurchAdminAddWorker() {
  .map((row, index) => {
  // Map common column names
  const worker = {
+ _id: crypto.randomUUID(),
  firstname: row["First Name"] || row["firstname"] || row["First Name"] || "",
  lastname: row["Last Name"] || row["lastname"] || row["Last Name"] || "",
  othername: row["Other Name"] || row["othername"] || row["Other Name"] || "",
@@ -303,7 +297,7 @@ export default function ChurchAdminAddWorker() {
 
  for (let i = 0; i < validWorkers.length; i++) {
  try {
- const worker = { ...validWorkers[i] };
+ const { _id, ...worker } = validWorkers[i];
 
  worker.workerrole = normalizeWorkerRole(worker.workerrole);
 
@@ -419,7 +413,7 @@ export default function ChurchAdminAddWorker() {
  <h2 className="text-xl font-semibold text-ink-900 mb-6">Add Single Worker</h2>
  
  <form onSubmit={handleSingleSubmit} noValidate className="worker-form space-y-6">
- <WorkerFormErrorSummary errors={formErrors} submitError={submitError} />
+ <WorkerFormErrorSummary errors={visibleErrors} submitError={submitError} />
  <div className="space-y-6">
  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
  {/* First Name */}
@@ -428,7 +422,7 @@ export default function ChurchAdminAddWorker() {
  First Name <span className="text-brick">*</span>
  </label>
  <input
- {...workerErrorProps(formErrors, "firstname")}
+ {...workerErrorProps(visibleErrors, "firstname")}
  type="text"
  value={newWorker.firstname}
  onChange={(e) =>
@@ -448,7 +442,7 @@ export default function ChurchAdminAddWorker() {
  Last Name <span className="text-brick">*</span>
  </label>
  <input
- {...workerErrorProps(formErrors, "lastname")}
+ {...workerErrorProps(visibleErrors, "lastname")}
  type="text"
  value={newWorker.lastname}
  onChange={(e) =>
@@ -487,7 +481,7 @@ export default function ChurchAdminAddWorker() {
  Gender <span className="text-brick">*</span>
  </label>
  <select
- {...workerErrorProps(formErrors, "gender")}
+ {...workerErrorProps(visibleErrors, "gender")}
  value={newWorker.gender}
  onChange={(e) =>
  setNewWorker({ ...newWorker, gender: e.target.value })
@@ -506,7 +500,7 @@ export default function ChurchAdminAddWorker() {
  Phone Number <span className="text-brick">*</span>
  </label>
  <input
- {...workerErrorProps(formErrors, "phonenumber")}
+ {...workerErrorProps(visibleErrors, "phonenumber")}
  type="tel"
  value={newWorker.phonenumber}
  onChange={(e) =>
@@ -527,7 +521,7 @@ export default function ChurchAdminAddWorker() {
  Email Address <span className="text-brick">*</span>
  </label>
  <input
- {...workerErrorProps(formErrors, "email")}
+ {...workerErrorProps(visibleErrors, "email")}
  type="email"
  value={newWorker.email}
  onChange={(e) =>
@@ -544,7 +538,7 @@ export default function ChurchAdminAddWorker() {
  Team <span className="text-brick">*</span>
  </label>
  <select
- {...workerErrorProps(formErrors, "team")}
+ {...workerErrorProps(visibleErrors, "team")}
  value={newWorker.team}
  onChange={(e) =>
  setNewWorker({
@@ -564,14 +558,14 @@ export default function ChurchAdminAddWorker() {
  </select>
  </div>
 
- {/* District/Sub-team — always before Department when Districts */}
+ {/* District/Sub-team - always before Department when Districts */}
  {(newWorker.team === "Districts" || newWorker.team === "District") && (
  <div>
  <label className="block text-sm font-medium text-ink-700 mb-2">
  District/Sub-team <span className="text-brick">*</span>
  </label>
  <select
- {...workerErrorProps(formErrors, "district_sub_team")}
+ {...workerErrorProps(visibleErrors, "district_sub_team")}
  value={newWorker.district_sub_team}
  onChange={(e) =>
  setNewWorker({
@@ -595,7 +589,7 @@ export default function ChurchAdminAddWorker() {
  Department <span className="text-brick">*</span>
  </label>
  <select
- {...workerErrorProps(formErrors, "department")}
+ {...workerErrorProps(visibleErrors, "department")}
  value={newWorker.department}
  onChange={(e) => {
  const selectedDept = e.target.value;
@@ -622,7 +616,7 @@ export default function ChurchAdminAddWorker() {
  ? "Select District/Sub-team first"
  : "Select Department"}
  </option>
- {filterOptions.departments.map((dept) => (
+ {departmentOptions.map((dept) => (
  <option key={dept.value} value={dept.value}>
  {dept.label}
  </option>
@@ -636,7 +630,7 @@ export default function ChurchAdminAddWorker() {
  Worker Role <span className="text-brick">*</span>
  </label>
  <select
- {...workerErrorProps(formErrors, "workerrole")}
+ {...workerErrorProps(visibleErrors, "workerrole")}
  value={newWorker.workerrole}
  onChange={(e) =>
  setNewWorker({
@@ -675,8 +669,8 @@ export default function ChurchAdminAddWorker() {
  </label>
  <BirthDatePicker
  id="birthdate"
- ariaInvalid={Boolean(formErrors.birthdate)}
- ariaDescribedBy={formErrors.birthdate ? "birthdate-error" : undefined}
+ ariaInvalid={Boolean(visibleErrors.birthdate)}
+ ariaDescribedBy={visibleErrors.birthdate ? "birthdate-error" : undefined}
  value={newWorker.birthdate}
  onChange={(value) =>
  setNewWorker({
@@ -694,7 +688,7 @@ export default function ChurchAdminAddWorker() {
  Marital Status <span className="text-brick">*</span>
  </label>
  <select
- {...workerErrorProps(formErrors, "maritalstatus")}
+ {...workerErrorProps(visibleErrors, "maritalstatus")}
  value={newWorker.maritalstatus}
  onChange={(e) =>
  setNewWorker({
@@ -719,7 +713,7 @@ export default function ChurchAdminAddWorker() {
  Age Range <span className="text-brick">*</span>
  </label>
  <select
- {...workerErrorProps(formErrors, "agerange")}
+ {...workerErrorProps(visibleErrors, "agerange")}
  value={newWorker.agerange}
  onChange={(e) =>
  setNewWorker({
@@ -746,7 +740,7 @@ export default function ChurchAdminAddWorker() {
  Employment Status <span className="text-brick">*</span>
  </label>
  <select
- {...workerErrorProps(formErrors, "employment")}
+ {...workerErrorProps(visibleErrors, "employment")}
  value={newWorker.employment}
  onChange={(e) =>
  setNewWorker({
@@ -789,7 +783,7 @@ export default function ChurchAdminAddWorker() {
  Address <span className="text-brick">*</span>
  </label>
  <textarea
- {...workerErrorProps(formErrors, "address")}
+ {...workerErrorProps(visibleErrors, "address")}
  value={newWorker.address}
  onChange={(e) =>
  setNewWorker({
@@ -895,8 +889,8 @@ export default function ChurchAdminAddWorker() {
  </tr>
  </thead>
  <tbody className="bg-white divide-y divide-ink-200">
- {parsedWorkers.slice(0, 10).map((worker, index) => (
- <tr key={index} className={worker._error ? "bg-brick/10" : ""}>
+ {parsedWorkers.slice(0, 10).map((worker) => (
+ <tr key={worker._id} className={worker._error ? "bg-brick/10" : ""}>
  <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-900">
  {worker.firstname} {worker.lastname}
  </td>
@@ -951,7 +945,7 @@ export default function ChurchAdminAddWorker() {
  <h4 className="text-sm font-medium text-brick mb-2">Errors:</h4>
  <div className="space-y-1">
  {bulkUploadProgress.errors.slice(0, 5).map((error, index) => (
- <p key={index} className="text-xs text-brick">
+ <p key={`${error.worker}-${index}`} className="text-xs text-brick">
  {error.worker}: {error.error}
  </p>
  ))}

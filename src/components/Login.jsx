@@ -89,7 +89,7 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-cream flex flex-col">
-      {/* Top brand bar — hairline, mono "session" tag */}
+      {/* Top brand bar - hairline, mono "session" tag */}
       <header className="border-b border-ink-200 bg-cream">
         <div className="max-w-6xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -113,7 +113,7 @@ const Login = () => {
       {/* Main split: left identity panel (lg+) / form on the right.
           Mobile: stacked, full-bleed form. */}
       <main className="flex-1 grid lg:grid-cols-[1fr_minmax(420px,520px)]">
-        {/* Identity panel — desktop only */}
+        {/* Identity panel - desktop only */}
         <section className="hidden lg:flex flex-col justify-between p-12 xl:p-16 bg-cream-200 border-r border-ink-200 relative overflow-hidden">
           {/* Hairline grid background */}
           <div

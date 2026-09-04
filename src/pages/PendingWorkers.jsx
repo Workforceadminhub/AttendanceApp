@@ -5,6 +5,7 @@ import Layout from "../components/Layout";
 import { toast } from "react-toastify";
 import { fetchPendingAdd, fetchPendingRemove } from "../services/workers";
 import LoadingState from "../components/LoadingState";
+import GenericModal from "../components/GenericModal";
 import { saveAs } from "file-saver";
 import ExcelJS from "exceljs";
 import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
@@ -24,6 +25,9 @@ export default function PendingWorkers() {
  const [allPendingAddWorkers, setAllPendingAddWorkers] = useState([]);
  const [allPendingRemoveWorkers, setAllPendingRemoveWorkers] = useState([]);
  const [isLoading, setIsLoading] = useState(false);
+ const [isProcessing, setIsProcessing] = useState(false);
+ const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
+ const [bulkDeleteConfirmText, setBulkDeleteConfirmText] = useState("");
  const [activeTab, setActiveTab] = useState("add");
  const [selectedWorkers, setSelectedWorkers] = useState(new Set());
  const [isSelectAll, setIsSelectAll] = useState(false);
@@ -43,7 +47,7 @@ export default function PendingWorkers() {
  hasPrev: false,
  });
 
- const { isAdmin, user: authUser } = getUserRole();
+ const { isAdmin, isSuperAdmin, isChurchAdmin, user: authUser } = getUserRole();
  const canAccessPendingWorkers = isAdmin;
  // Filter out team/department name (e.g. "Ministry") from permissions.
  // Team name is already implied by the admin context; backend expects only departments here.
@@ -55,22 +59,12 @@ export default function PendingWorkers() {
  return raw.filter((perm) => perm !== teamName && perm !== deptName);
  }, [authUser?.permissions, authUser?.team, authUser?.department]);
 
- // Some deployments still use "super/admin" paths for all admin levels.
- // For sub-team-admin approvals, try a couple of likely base paths.
- const adminBasePaths = useMemo(() => ["/api/super/admin", "/api/admin"], []);
+ // Campus-wide admins use the super-admin path; team and sub-team admins
+ // use the generic admin path. Errors surface directly to the caller.
+ const adminBasePath = isSuperAdmin || isChurchAdmin ? "/api/super/admin" : "/api/admin";
 
- const adminActionRequest = async (method, pathSuffix, data, config) => {
- let lastError = null;
- for (const base of adminBasePaths) {
- try {
- // eslint-disable-next-line no-await-in-loop
- return await apiRequest(method, `${base}${pathSuffix}`, data, config);
- } catch (e) {
- lastError = e;
- }
- }
- throw lastError || new Error("Request failed");
- };
+ const adminActionRequest = (method, pathSuffix, data, config) =>
+ apiRequest(method, `${adminBasePath}${pathSuffix}`, data, config);
 
  useEffect(() => {
  if (!canAccessPendingWorkers) {
@@ -114,8 +108,10 @@ export default function PendingWorkers() {
  [pagination.limit]
  );
 
+ const loadingRef = useRef(false);
  const fetchAllPendingWorkers = useCallback(async () => {
- if (isLoading) return;
+ if (loadingRef.current) return;
+ loadingRef.current = true;
  setIsLoading(true);
  try {
  const [addWorkers, removeWorkers] = await Promise.all([
@@ -130,12 +126,13 @@ export default function PendingWorkers() {
  setAllPendingRemoveWorkers(allRemoveWorkers);
 
  updatePaginationForTab(activeTab, allAddWorkers, allRemoveWorkers);
- } catch (error) {
+ } catch {
  toast.error("Failed to fetch pending workers");
  } finally {
+ loadingRef.current = false;
  setIsLoading(false);
  }
- }, [isLoading, activeTab, permissions, updatePaginationForTab, filterByAccess]);
+ }, [activeTab, permissions, updatePaginationForTab, filterByAccess]);
 
  useEffect(() => {
  if (hasFetched.current) {
@@ -152,7 +149,7 @@ export default function PendingWorkers() {
  );
  if (!confirmDelete) return;
 
- setIsLoading(true);
+ setIsProcessing(true);
  try {
  await adminActionRequest(
  "DELETE",
@@ -164,12 +161,12 @@ export default function PendingWorkers() {
  );
 
  toast.success("Worker deleted successfully");
- fetchAllPendingWorkers();
  clearSelection();
+ await fetchAllPendingWorkers();
  } catch (error) {
  toast.error(`Failed to delete worker: ${error.message}`);
  } finally {
- setIsLoading(false);
+ setIsProcessing(false);
  }
  };
 
@@ -277,7 +274,7 @@ export default function PendingWorkers() {
 
  // Approve worker
  const approveWorker = async (workerId) => {
- setIsLoading(true);
+ setIsProcessing(true);
  try {
  await adminActionRequest(
  "PUT",
@@ -289,45 +286,61 @@ export default function PendingWorkers() {
  );
 
  toast.success("Worker approved successfully");
- fetchAllPendingWorkers();
  clearSelection();
+ await fetchAllPendingWorkers();
  } catch (error) {
  toast.error(`Failed to approve worker: ${error.message}`);
  } finally {
- setIsLoading(false);
+ setIsProcessing(false);
  }
  };
 
+ const workerLabel = (workerId) => {
+ const all = [...allPendingAddWorkers, ...allPendingRemoveWorkers];
+ const w = all.find((item) => item.id === workerId);
+ const name = w ? `${w.firstname || ""} ${w.lastname || ""}`.trim() : "";
+ return name || `#${workerId}`;
+ };
+
+ const summarizeFailures = (failures) => {
+ const preview = failures
+ .slice(0, 3)
+ .map((f) => `${f.label}: ${f.error}`)
+ .join("; ");
+ const more = failures.length > 3 ? ` (and ${failures.length - 3} more)` : "";
+ return `${preview}${more}`;
+ };
+
  // Bulk delete (permanently deletes workers)
- const bulkDelete = async () => {
+ const bulkDelete = () => {
  if (selectedWorkers.size === 0) {
  toast.error("No workers selected for deletion");
  return;
  }
+ setBulkDeleteConfirmText("");
+ setBulkDeleteConfirmOpen(true);
+ };
 
- const confirmMessage = `⚠️ WARNING: This will permanently delete ${selectedWorkers.size} worker(s). This action cannot be undone.
+ const closeBulkDeleteConfirm = () => {
+ setBulkDeleteConfirmOpen(false);
+ setBulkDeleteConfirmText("");
+ };
 
-Are you absolutely certain you want to proceed with this permanent bulk deletion?
-
-Type "DELETE ALL" to confirm (case-sensitive):`;
-
- const userInput = window.prompt(confirmMessage);
- 
- if (userInput !== "DELETE ALL") {
- if (userInput !== null) {
- toast.error("Bulk deletion cancelled. You must type 'DELETE ALL' exactly to confirm.");
- }
+ const confirmBulkDelete = async () => {
+ if (bulkDeleteConfirmText !== "DELETE ALL") {
+ toast.error("You must type DELETE ALL exactly to confirm.");
  return;
  }
+ closeBulkDeleteConfirm();
 
- setIsLoading(true);
+ setIsProcessing(true);
  try {
  let successCount = 0;
- let errorCount = 0;
+ const failures = [];
 
+ // Sequential: the API handles one worker per request.
  for (const workerId of selectedWorkers) {
  try {
- // eslint-disable-next-line no-await-in-loop
  await adminActionRequest(
  "DELETE",
  `/${workerId}/workers`,
@@ -338,23 +351,23 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  );
  successCount++;
  } catch (error) {
- errorCount++;
+ failures.push({ label: workerLabel(workerId), error: error?.message || "Unknown error" });
  }
  }
 
  if (successCount > 0) {
  toast.success(`${successCount} worker(s) deleted successfully`);
  }
- if (errorCount > 0) {
- toast.error(`Failed to delete ${errorCount} worker(s).`);
+ if (failures.length > 0) {
+ toast.error(`Failed to delete ${failures.length} worker(s). ${summarizeFailures(failures)}`);
  }
 
- fetchAllPendingWorkers();
  clearSelection();
+ await fetchAllPendingWorkers();
  } catch (error) {
  toast.error(`Failed to delete workers: ${error.message}`);
  } finally {
- setIsLoading(false);
+ setIsProcessing(false);
  }
  };
 
@@ -368,14 +381,14 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  const confirmMessage = `Are you sure you want to approve ${selectedWorkers.size} worker(s)? This will change their status to active.`;
  if (!window.confirm(confirmMessage)) return;
 
- setIsLoading(true);
+ setIsProcessing(true);
  try {
  let successCount = 0;
- let errorCount = 0;
+ const failures = [];
 
+ // Sequential: the API handles one worker per request.
  for (const workerId of selectedWorkers) {
  try {
- // eslint-disable-next-line no-await-in-loop
  await adminActionRequest(
  "PUT",
  `/${workerId}/workers/approve`,
@@ -386,25 +399,27 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  );
  successCount++;
  } catch (error) {
- errorCount++;
+ failures.push({ label: workerLabel(workerId), error: error?.message || "Unknown error" });
  }
  }
 
  if (successCount > 0) {
  toast.success(`${successCount} worker(s) approved successfully`);
  }
- if (errorCount > 0) {
- toast.error(`Failed to approve ${errorCount} worker(s)`);
+ if (failures.length > 0) {
+ toast.error(`Failed to approve ${failures.length} worker(s). ${summarizeFailures(failures)}`);
  }
 
- fetchAllPendingWorkers();
  clearSelection();
+ await fetchAllPendingWorkers();
  } catch (error) {
  toast.error(`Failed to approve workers: ${error.message}`);
  } finally {
- setIsLoading(false);
+ setIsProcessing(false);
  }
  };
+
+ const isBusy = isLoading || isProcessing;
 
  const currentWorkers = activeTab === "add" ? pendingAddWorkers : pendingRemoveWorkers;
 
@@ -510,7 +525,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  saveAs(blob, fileName);
  
  toast.success(`Exported ${workersToExport.length} worker(s) to CSV`);
- } catch (error) {
+ } catch {
  toast.error("Failed to export workers to CSV");
  }
  };
@@ -634,7 +649,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  departments.length
  } department(s) to Excel`
  );
- } catch (error) {
+ } catch {
  toast.error("Failed to export workers to Excel");
  }
  };
@@ -660,7 +675,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  type="button"
  className="qc-btn-secondary"
  onClick={exportToExcelByDepartment}
- disabled={isLoading}
+ disabled={isBusy}
  >
  Export Excel
  </button>
@@ -668,7 +683,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  type="button"
  className="qc-btn-secondary"
  onClick={exportToCSV}
- disabled={isLoading}
+ disabled={isBusy}
  >
  Export CSV
  </button>
@@ -676,14 +691,14 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  type="button"
  className="qc-btn-ghost"
  onClick={fetchAllPendingWorkers}
- disabled={isLoading}
+ disabled={isBusy}
  >
  Refresh
  </button>
  </div>
  </div>
 
- {/* Tabs — sliding ink underline */}
+ {/* Tabs - sliding ink underline */}
  <div className="mb-4 border-b border-ink-200">
  <nav className="flex gap-1" aria-label="Approvals">
  <button
@@ -747,17 +762,17 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  <>
  <button
  onClick={bulkApprove}
- disabled={isLoading}
+ disabled={isBusy}
  className="bg-forest px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-forest/80 disabled:opacity-50 disabled:cursor-not-allowed"
  >
- {isLoading ? "Processing..." : `Approve Selected (${selectedWorkers.size})`}
+ {isProcessing ? "Processing..." : `Approve Selected (${selectedWorkers.size})`}
  </button>
  <button
  onClick={bulkDelete}
- disabled={isLoading}
+ disabled={isBusy}
  className="bg-brick px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-brick/80 disabled:opacity-50 disabled:cursor-not-allowed"
  >
- {isLoading ? "Processing..." : `Delete Selected (${selectedWorkers.size})`}
+ {isProcessing ? "Processing..." : `Delete Selected (${selectedWorkers.size})`}
  </button>
  </>
  )}
@@ -767,10 +782,10 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  <>
  <button
  onClick={bulkDelete}
- disabled={isLoading}
+ disabled={isBusy}
  className="bg-brick px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-brick/80 disabled:opacity-50 disabled:cursor-not-allowed"
  >
- {isLoading ? "Processing..." : `Delete Selected (${selectedWorkers.size})`}
+ {isProcessing ? "Processing..." : `Delete Selected (${selectedWorkers.size})`}
  </button>
  </>
  )}
@@ -919,7 +934,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  {activeTab === "add" && (
  <button
  onClick={() => approveWorker(worker.id)}
- disabled={isLoading}
+ disabled={isBusy}
  className="text-forest hover:text-forest/80 disabled:opacity-50"
  title="Approve"
  >
@@ -928,7 +943,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  )}
  <button
  onClick={() => deleteWorker(worker.id)}
- disabled={isLoading}
+ disabled={isBusy}
  className="text-brick hover:text-brick/80 disabled:opacity-50"
  title="Delete"
  >
@@ -992,7 +1007,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  <div className="flex items-center space-x-2">
  <button
  onClick={() => handlePagination(pagination.page - 1)}
- disabled={!pagination.hasPrev || isLoading}
+ disabled={!pagination.hasPrev || isBusy}
  className="px-3 py-2 text-sm font-medium text-ink-500 bg-white border border-ink-300 rounded-md hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed"
  >
  Previous
@@ -1016,7 +1031,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  <button
  key={pageNum}
  onClick={() => handlePagination(pageNum)}
- disabled={isLoading}
+ disabled={isBusy}
  className={`px-3 py-2 text-sm font-medium rounded-md ${
  pageNum === pagination.page
  ? "bg-ink-900 text-white"
@@ -1031,7 +1046,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  
  <button
  onClick={() => handlePagination(pagination.page + 1)}
- disabled={!pagination.hasNext || isLoading}
+ disabled={!pagination.hasNext || isBusy}
  className="px-3 py-2 text-sm font-medium text-ink-500 bg-white border border-ink-300 rounded-md hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed"
  >
  Next
@@ -1040,6 +1055,49 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  </div>
  )}
  </div>
+
+ <GenericModal
+ isOpen={bulkDeleteConfirmOpen}
+ onClose={closeBulkDeleteConfirm}
+ title="Permanently delete workers"
+ size="small"
+ >
+ <p className="text-sm text-ink-600">
+ This will permanently delete {selectedWorkers.size} worker(s). This action cannot be undone.
+ </p>
+ <div>
+ <label htmlFor="bulk-delete-confirm" className="qc-label text-ink-700">
+ Type <span className="font-mono">DELETE ALL</span> to confirm (case-sensitive)
+ </label>
+ <input
+ id="bulk-delete-confirm"
+ type="text"
+ autoComplete="off"
+ value={bulkDeleteConfirmText}
+ onChange={(e) => setBulkDeleteConfirmText(e.target.value)}
+ onKeyDown={(e) => {
+ if (e.key === "Enter") {
+ e.preventDefault();
+ confirmBulkDelete();
+ }
+ }}
+ className="qc-input"
+ />
+ </div>
+ <div className="flex flex-col-reverse gap-3 border-t border-ink-200 pt-4 sm:flex-row sm:justify-end">
+ <button type="button" className="qc-btn-secondary sm:min-w-24" onClick={closeBulkDeleteConfirm}>
+ Cancel
+ </button>
+ <button
+ type="button"
+ className="qc-btn-danger sm:min-w-36"
+ disabled={bulkDeleteConfirmText !== "DELETE ALL" || isProcessing}
+ onClick={confirmBulkDelete}
+ >
+ Delete {selectedWorkers.size} worker(s)
+ </button>
+ </div>
+ </GenericModal>
  </Layout>
  </div>
  );

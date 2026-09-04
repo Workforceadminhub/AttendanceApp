@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { TRAINING_KIND } from "../../../utils/training";
 
 /**
- * FE-T2 Classification — Standalone vs Progressive.
+ * FE-T2 Classification - Standalone vs Progressive.
  *
  * This is deliberately the loudest block on the create/edit form: the choice
  * changes how the training behaves everywhere else (progression lock/unlock,

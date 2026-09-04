@@ -16,9 +16,7 @@ const BACKEND_API_URL =
 const ADMIN_VERIFY_PATH = process.env.AUTH_VERIFY_PATH || "/api/super/admin/admins";
 
 // Sendchamp Config
-const SENDCHAMP_API_KEY =
-  process.env.SENDCHAMP_API_KEY ||
-  "sendchamp_live_$2a$10$V6/v3eAzTAUH07GCoBe.SuIaHd1IGwArDP3h52kvP1DpSzpIpHfb.";
+const SENDCHAMP_API_KEY = process.env.SENDCHAMP_API_KEY || "";
 const SENDCHAMP_SEND_URL = "https://api.sendchamp.com/api/v1/sms/send";
 
 // SmartSMSSolutions Config
@@ -26,6 +24,9 @@ const SMARTSMS_API_TOKEN = process.env.SMARTSMS_API_TOKEN || "";
 const SMARTSMS_SEND_URL = "https://app.smartsmssolutions.com/io/api/client/v1/sms/";
 
 const BATCH_SIZE = 100;
+// Hard cap on recipients per request. Real per-user rate limiting needs a
+// shared store (e.g. Supabase/Redis); serverless in-memory counters do not work.
+const MAX_BULK_RECIPIENTS = Number(process.env.MAX_BULK_RECIPIENTS) || 2000;
 
 function isSuperAdminFromClaims(claims) {
   if (!claims) return false;
@@ -114,11 +115,16 @@ export default async function handler(req, res) {
   if (!Array.isArray(recipients) || recipients.length === 0) {
     return res.status(400).json({ error: "At least one recipient phone number is required." });
   }
+  if (recipients.length > MAX_BULK_RECIPIENTS) {
+    return res.status(400).json({
+      error: `Too many recipients. Maximum is ${MAX_BULK_RECIPIENTS} per request.`,
+    });
+  }
 
-  // Ensure all recipients are cleaned phone strings without leading +
-  const cleanRecipients = recipients
-    .map((p) => String(p).replace(/\D/g, ""))
-    .filter((p) => p.length >= 10);
+  // Ensure all recipients are cleaned, deduped phone strings without leading +
+  const cleanRecipients = [
+    ...new Set(recipients.map((p) => String(p).replace(/\D/g, "")).filter((p) => p.length >= 10)),
+  ];
 
   if (cleanRecipients.length === 0) {
     return res.status(400).json({ error: "No valid recipient phone numbers provided." });
@@ -134,7 +140,7 @@ export default async function handler(req, res) {
 
   if (provider === "smartsmssolutions") {
     if (!SMARTSMS_API_TOKEN) {
-      return res.status(400).json({
+      return res.status(500).json({
         error: "SmartSMSSolutions API Token is not configured. Please set SMARTSMS_API_TOKEN in environment variables.",
       });
     }
@@ -184,6 +190,12 @@ export default async function handler(req, res) {
       }
     }
   } else {
+    if (!SENDCHAMP_API_KEY) {
+      return res.status(500).json({
+        error: "Sendchamp API key is not configured. Please set SENDCHAMP_API_KEY in environment variables.",
+      });
+    }
+
     // Sendchamp Dispatch
     for (const batch of batches) {
       try {
@@ -253,7 +265,7 @@ export default async function handler(req, res) {
   // Return error response if no messages could be sent
   if (sent === 0) {
     const mainError = errors[0] || `Failed to send SMS via ${provider}.`;
-    return res.status(400).json({
+    return res.status(502).json({
       error: `${provider === "smartsmssolutions" ? "SmartSMSSolutions" : "Sendchamp"} error: ${mainError}`,
       errors,
       campaignId,

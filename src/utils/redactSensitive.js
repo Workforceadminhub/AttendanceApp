@@ -12,9 +12,17 @@ const SENSITIVE_KEYS = new Set([
   "apikey",
   "api_key",
   "phonenumber",
+  "phone_number",
   "phone",
   "email",
   "bvn",
+  "firstname",
+  "lastname",
+  "fullname",
+  "name",
+  "address",
+  "birthdate",
+  "dob",
 ]);
 
 /**

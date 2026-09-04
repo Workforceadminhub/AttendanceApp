@@ -45,10 +45,42 @@ describe("awakeningRegistrationSchema", () => {
 
   it("offers only backend-accepted Awakening service teams", () => {
     expect(AWAKENING_SERVICE_TEAMS).toEqual(
-      expect.arrayContaining(["Photography", "Streaming", "Videography", "Venue Set up"])
+      expect.arrayContaining(["Photography", "Streaming", "Videography", "Venue Set up", "NextGen"])
     );
+    expect(AWAKENING_SERVICE_TEAMS).toContain("NextGen");
     expect(AWAKENING_SERVICE_TEAMS).not.toContain("Media");
     expect(AWAKENING_SERVICE_TEAMS).not.toContain("Venue Management");
+  });
+
+  it("accepts NextGen and normalizes Next Gen as preferred service team", () => {
+    const workerBase = {
+      first_name: "Tolu",
+      last_name: "Alabi",
+      phone: "08012345678",
+      email: "tolu@example.com",
+      campus: "Gbagada",
+      registration_type: "worker",
+      belongs_to_cell: "no",
+      foundation_course_status: "yes",
+      attendance_day: ["all_days"],
+      worker_team: "Next Gen",
+      department: "Kidszone",
+      worker_designation: "Worker",
+      preferred_service_team: "NextGen",
+      serving_day: ["all_days"],
+      join_prayer_team: "no",
+      lead_prayer_team: "no",
+    };
+    const parsedNextGen = awakeningRegistrationSchema.safeParse(workerBase);
+    expect(parsedNextGen.success).toBe(true);
+    expect(parsedNextGen.data.preferred_service_team).toBe("NextGen");
+
+    const parsedWithSpace = awakeningRegistrationSchema.safeParse({
+      ...workerBase,
+      preferred_service_team: "Next Gen",
+    });
+    expect(parsedWithSpace.success).toBe(true);
+    expect(parsedWithSpace.data.preferred_service_team).toBe("NextGen");
   });
 
   it("groups every specialist department variant for Awakening", () => {

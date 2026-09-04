@@ -20,6 +20,7 @@ const LEGACY_DAY_ALIASES = {
 const SERVICE_TEAM_GROUPS = {
   Media: ["Media", "Photography", "Streaming", "Videography"],
   "Venue Management": ["Venue Management", "Venue Set up"],
+  NextGen: ["NextGen", "Next Gen"],
 };
 
 const SERVICE_TEAM_ALIASES = Object.fromEntries(

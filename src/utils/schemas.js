@@ -149,7 +149,7 @@ export const AWAKENING_SERVING_DAYS = AWAKENING_ATTENDANCE_DAYS;
 export const AWAKENING_SERVICE_TEAMS = [
   "Bus Mobilization", "Content Creation", "Crowd Control", "Event Experience",
   "Event Planning", "Facility & Maintenance", "Greeters", "Guest Welcome",
-  "HIU", "Hospitality", "Medical Team", "Music", "Parking Hospitality",
+  "HIU", "Hospitality", "Medical Team", "Music", "NextGen", "Parking Hospitality",
   "Parking", "Photography", "Publicity", "Quality Assurance", "Registration",
   "Restrooms", "Shuttle Service", "Stage Management", "Streaming", "Testimonies",
   "Traffic", "Ushering", "Venue Set up", "Videography",
@@ -187,7 +187,15 @@ export const awakeningRegistrationSchema = z
     worker_team: z.string().trim().optional(),
     department: z.string().trim().optional(),
     worker_designation: z.string().trim().optional(),
-    preferred_service_team: optionalWhenBlank(z.enum(AWAKENING_SERVICE_TEAMS)),
+    preferred_service_team: optionalWhenBlank(
+      z.preprocess(
+        (v) =>
+          typeof v === "string" && v.replace(/\s+/g, "").toLowerCase() === "nextgen"
+            ? "NextGen"
+            : v,
+        z.enum(AWAKENING_SERVICE_TEAMS)
+      )
+    ),
     serving_day: z.preprocess(
       (value) => (value === "" ? undefined : value),
       z.array(z.enum(servingDayValues)).optional()

@@ -35,6 +35,9 @@ describe("Awakening registration helpers", () => {
     expect(normalizeAwakeningDepartment("Reach and Partnership - Stirhouse")).toBe("Stirhouse");
     expect(normalizeAwakeningServiceTeam("Photography")).toBe("Media");
     expect(normalizeAwakeningServiceTeam("Venue Set up")).toBe("Venue Management");
+    expect(normalizeAwakeningServiceTeam("Next Gen")).toBe("NextGen");
+    expect(normalizeAwakeningServiceTeam("NextGen")).toBe("NextGen");
+    expect(normalizeAwakeningServiceTeam("next gen")).toBe("NextGen");
   });
 
   it("includes historical values when filtering a normalized service team", () => {
@@ -43,6 +46,9 @@ describe("Awakening registration helpers", () => {
     ]);
     expect(getAwakeningServiceTeamQueryValues("Venue Management")).toEqual([
       "Venue Management", "Venue Set up",
+    ]);
+    expect(getAwakeningServiceTeamQueryValues("NextGen")).toEqual([
+      "NextGen", "Next Gen",
     ]);
   });
 

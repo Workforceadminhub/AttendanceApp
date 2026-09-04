@@ -64,7 +64,10 @@ const clean = (v) => (v ?? "").toString().trim();
 
 function canonical(value, options) {
   const v = clean(value).toLowerCase();
-  return options.find((o) => o.toLowerCase() === v) ?? value;
+  const direct = options.find((o) => o.toLowerCase() === v);
+  if (direct) return direct;
+  const collapsed = v.replace(/[\s\-_]/g, "");
+  return options.find((o) => o.toLowerCase().replace(/[\s\-_]/g, "") === collapsed) ?? value;
 }
 
 const yesNo = (v) => {

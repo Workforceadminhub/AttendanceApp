@@ -89,7 +89,6 @@ export default function TrainingList() {
                   <Link to="/hub/trainings/pathways" className="qc-btn-secondary">
                     Progression Pathways
                   </Link>
-                  <Link to="/hub/trainings/cohorts" className="qc-btn-secondary">Cohorts</Link>
                   <Link to="/hub/certificates/inventory" className="qc-btn-secondary">
                     Certificate Inventory
                   </Link>
@@ -402,7 +401,7 @@ function TrainingRow({ training, activeRoleView, onManage, onOpen }) {
             to={`/hub/trainings/${training.id}`}
             className="text-xs font-semibold text-ink-900 hover:text-ink-700 underline underline-offset-2"
           >
-            View Details
+            View &amp; Enrol
           </Link>
         ) : (
           <button

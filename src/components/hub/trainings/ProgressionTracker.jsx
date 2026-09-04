@@ -5,6 +5,7 @@ import {
   PROGRESSION_STATE_TONE,
   completionFor,
   progressTone,
+  resolveProgressionStates,
 } from "../../../utils/training";
 
 /**
@@ -23,18 +24,22 @@ export default function ProgressionTracker({
   currentTrainingId,
   sessions = [],
   participation = [],
+  workerTrainings = [],
   workerId = null,
   assignment = null,
+  isCurrentEnrolled = false,
 }) {
   if (chain.length === 0) return null;
 
-  const states = resolveStates({
+  const states = resolveProgressionStates({
     chain,
     currentTrainingId,
     sessions,
     participation,
+    workerTrainings,
     workerId,
     assignment,
+    isCurrentEnrolled,
   });
 
   // The furthest level the worker has actually reached.
@@ -182,52 +187,4 @@ function ServiceProgress({ assignment }) {
       </div>
     </div>
   );
-}
-
-/**
- * Derives each level's state for this worker.
- *
- * A level is complete once the worker attended every session. The level after a
- * completed one is only unlocked when the service period and participation
- * threshold are also met — until then the worker sits in "completed - serving".
- */
-function resolveStates({ chain, currentTrainingId, sessions, participation, workerId, assignment }) {
-  if (!workerId) {
-    // This is a pathway map, not an individual's record. Never imply that a
-    // later level is underway while its prerequisite is still not started.
-    return chain.map(() => PROGRESSION_STATE.NOT_STARTED);
-  }
-
-  const completed = chain.map((step) => {
-    const stepSessions = String(step.id) === String(currentTrainingId) ? sessions : [];
-    if (stepSessions.length > 0) {
-      return completionFor(workerId, stepSessions, participation).complete;
-    }
-    return String(step.status ?? "").toLowerCase() === "completed" && Boolean(step.is_completed);
-  });
-
-  const lastCompleted = completed.lastIndexOf(true);
-  const servingCleared = assignment
-    ? Number(assignment.served_days ?? 0) >= Number(assignment.required_duration_days ?? 0)
-    : false;
-
-  return chain.map((step, index) => {
-    if (completed[index]) {
-      const isFinalLevel = index === chain.length - 1;
-      if (isFinalLevel) return PROGRESSION_STATE.COMPLETE;
-      // Cleared this level — eligible only once the service period is served.
-      if (index === lastCompleted) {
-        return servingCleared ? PROGRESSION_STATE.ELIGIBLE : PROGRESSION_STATE.COMPLETED_SERVING;
-      }
-      return PROGRESSION_STATE.COMPLETE;
-    }
-    if (String(step.id) === String(currentTrainingId)) {
-      // A later level cannot be in progress until every preceding level has
-      // a recorded completion. This prevents contradictory pathway states.
-      return completed.slice(0, index).every(Boolean)
-        ? PROGRESSION_STATE.IN_PROGRESS
-        : PROGRESSION_STATE.NOT_STARTED;
-    }
-    return PROGRESSION_STATE.NOT_STARTED;
-  });
 }

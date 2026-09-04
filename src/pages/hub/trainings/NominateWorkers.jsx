@@ -21,11 +21,12 @@ import {
   initials,
   unwrapData,
   unwrapTrainingDetail,
+  successfulNominationRecipients,
   workerIdOf,
   workerNameOf,
 } from "../../../utils/training";
 
-/** FE-T4 — a nomination lives through four states after it is sent. */
+/** FE-T4 - a nomination lives through four states after it is sent. */
 const NOMINATION_TONE = {
   pending: "warning",
   accepted: "success",
@@ -115,26 +116,43 @@ export default function NominateWorkers() {
       const failed = Array.isArray(results) && results.length > 0
         ? results.length - succeeded
         : Number(payload?.failed_count ?? payload?.failed ?? 0);
-      toast.success(`${succeeded} worker${succeeded !== 1 ? "s" : ""} nominated`);
-      if (failed > 0) toast.warn(`${failed} worker${failed !== 1 ? "s" : ""} could not be nominated`);
-
-      const recipients = selected
-        .map((worker) => worker.email ?? worker.email_address ?? worker.emailAddress)
-        .filter(Boolean);
+      const recipients = successfulNominationRecipients(selected, results, failed);
+      let emailStatus = recipients.length > 0 ? "pending" : "not_sent";
       if (succeeded > 0 && recipients.length > 0) {
         try {
-          await sendBulkEmail({
+          const delivery = await sendBulkEmail({
             subject: `You have been nominated for ${training?.name ?? "a training"}`,
             recipients,
             html: `<p>Hello,</p><p>You have been nominated for <strong>${escapeHtml(training?.name ?? "a training")}</strong>.</p><p>Please sign in to the Workers System to accept or decline the nomination.</p><p>Harvesters International Christian Centre, Gbagada</p>`,
           });
-          toast.success(`Nomination email${recipients.length === 1 ? "" : "s"} sent`);
-        } catch (emailError) {
-          toast.warn(emailError.message || "Nominations were saved, but notification email could not be sent.");
+          const undelivered = (delivery.failed?.length ?? 0) + (delivery.remaining?.length ?? 0);
+          emailStatus = Number(delivery.sent ?? 0) === recipients.length && undelivered === 0
+            ? "sent"
+            : "partial";
+        } catch {
+          emailStatus = "failed";
         }
-      } else if (succeeded > 0) {
-        toast.info("Nominations were saved. No email address was available for the selected worker.");
       }
+
+      const parts = [
+        `${succeeded} worker${succeeded !== 1 ? "s" : ""} nominated`,
+      ];
+      if (failed > 0) parts.push(`${failed} could not be nominated`);
+      if (emailStatus === "sent") {
+        parts.push(`email notification${recipients.length === 1 ? "" : "s"} sent`);
+      } else if (emailStatus === "partial") {
+        parts.push("some email notifications could not be delivered");
+      } else if (emailStatus === "failed") {
+        parts.push("email notifications were not delivered");
+      } else if (succeeded > 0 && failed > 0) {
+        parts.push("email was skipped because successful recipients could not be confirmed");
+      } else if (succeeded > 0) {
+        parts.push("no email address was available");
+      }
+
+      const message = parts.join("; ");
+      const hasWarning = failed > 0 || emailStatus === "partial" || emailStatus === "failed";
+      toast[hasWarning ? "warn" : "success"](message);
       setSelected([]);
       queryClient.invalidateQueries({ queryKey: ["hub-training-nominations", id] });
     },

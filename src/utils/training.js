@@ -32,7 +32,7 @@ export function unwrapTrainingDetail(response) {
   };
 }
 
-/** Classification — drives progression locks and tracker visibility everywhere. */
+/** Classification - drives progression locks and tracker visibility everywhere. */
 export const TRAINING_KIND = {
   STANDALONE: "standalone",
   PROGRESSIVE: "progressive",
@@ -143,6 +143,51 @@ export function workerNameOf(record) {
   );
 }
 
+/** Locate a worker's own record for a training in their training history. */
+export function findWorkerTrainingRecord(workerTrainings = [], trainingId) {
+  return (workerTrainings ?? []).find(
+    (record) => String(record?.training_id ?? record?.training?.id ?? record?.id) === String(trainingId)
+  );
+}
+
+/** A personal training record counts as completed by status or by a recorded completion date. */
+export function isWorkerTrainingCompleted(record) {
+  return Boolean(
+    record &&
+      (String(record.status ?? "").toLowerCase() === "completed" ||
+        record.completed_at ||
+        record.completion_date)
+  );
+}
+
+/**
+ * Return email addresses only for workers whose nomination was persisted.
+ * When a partial response cannot identify successful workers, fail closed and
+ * send no email rather than notifying somebody who has nothing to accept.
+ */
+export function successfulNominationRecipients(selected = [], results = [], failedCount = 0) {
+  const emailOf = (worker) => worker?.email ?? worker?.email_address ?? worker?.emailAddress;
+  const eligible = selected.filter(emailOf);
+  if (failedCount === 0) return [...new Set(eligible.map(emailOf))];
+
+  const successfulWorkerIds = new Set(
+    results
+      .filter((result) => result?.success !== false && !result?.error)
+      .map((result) => result?.worker_id ?? result?.workerId ?? result?.worker?.id ?? result?.nominee_id)
+      .filter((id) => id !== undefined && id !== null)
+      .map(String)
+  );
+
+  if (successfulWorkerIds.size === 0) return [];
+  return [
+    ...new Set(
+      eligible
+        .filter((worker) => successfulWorkerIds.has(String(workerIdOf(worker))))
+        .map(emailOf)
+    ),
+  ];
+}
+
 /**
  * The next session on or after today, used by the training list.
  * Sessions arrive unsorted, so pick the minimum future date rather than [0].
@@ -159,7 +204,7 @@ export function nextSessionDate(sessions, { from = new Date() } = {}) {
 
 /**
  * Completion rule (BE-T7): a worker completes only when present for 100% of
- * sessions. Anything less — including unmarked sessions — is in progress.
+ * sessions. Anything less - including unmarked sessions - is in progress.
  */
 export function completionFor(workerId, sessions, participation) {
   const sessionDates = (sessions ?? [])
@@ -226,6 +271,52 @@ export const PROGRESSION_STATE_TONE = {
   [PROGRESSION_STATE.ELIGIBLE]: "success",
   [PROGRESSION_STATE.COMPLETE]: "success",
 };
+
+/**
+ * Derive a worker's state on every level without treating the page currently
+ * being viewed as proof that the worker has enrolled in it.
+ */
+export function resolveProgressionStates({
+  chain = [],
+  currentTrainingId,
+  sessions = [],
+  participation = [],
+  workerTrainings = [],
+  workerId,
+  assignment = null,
+  isCurrentEnrolled = false,
+}) {
+  if (!workerId) return chain.map(() => PROGRESSION_STATE.NOT_STARTED);
+
+  const completed = chain.map((step) => {
+    if (isWorkerTrainingCompleted(findWorkerTrainingRecord(workerTrainings, step.id))) return true;
+
+    const stepSessions = String(step.id) === String(currentTrainingId) ? sessions : [];
+    if (stepSessions.length > 0) {
+      return completionFor(workerId, stepSessions, participation).complete;
+    }
+    return String(step.status ?? "").toLowerCase() === "completed" && Boolean(step.is_completed);
+  });
+
+  const lastCompleted = completed.lastIndexOf(true);
+  const servingCleared = assignment ? isEligibleForNextLevel(assignment) : false;
+
+  return chain.map((step, index) => {
+    if (completed[index]) {
+      if (index === chain.length - 1) return PROGRESSION_STATE.COMPLETE;
+      if (index === lastCompleted) {
+        return servingCleared ? PROGRESSION_STATE.ELIGIBLE : PROGRESSION_STATE.COMPLETED_SERVING;
+      }
+      return PROGRESSION_STATE.COMPLETE;
+    }
+    if (String(step.id) === String(currentTrainingId) && isCurrentEnrolled) {
+      return completed.slice(0, index).every(Boolean)
+        ? PROGRESSION_STATE.IN_PROGRESS
+        : PROGRESSION_STATE.NOT_STARTED;
+    }
+    return PROGRESSION_STATE.NOT_STARTED;
+  });
+}
 
 /** Participation threshold a worker must hold to unlock the next level. */
 export const PARTICIPATION_THRESHOLD = 80;

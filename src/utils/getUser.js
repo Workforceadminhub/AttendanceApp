@@ -1,3 +1,1 @@
-import { getSessionUser } from "./authSession";
-
-export const getUser = () => getSessionUser();
+export { getSessionUser as getUser } from "./authSession";

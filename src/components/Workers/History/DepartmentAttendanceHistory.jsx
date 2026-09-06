@@ -5,7 +5,8 @@ import { toast } from "react-toastify";
 import { getNextSunday } from "../../../utils/getDate";
 import { getDepartmentByUser } from "../../../utils/getDepartment";
 import { checkAdminStatus } from "../../../utils/checkAdminStatus";
-import { getAdminSelectOptions, filterPermissionsByTeam } from "../../../utils/routeObject";
+import { filterPermissionsByTeam } from "../../../utils/routeObject";
+import { useAdminSelectOptions } from "../../../contexts/DepartmentsContext";
 import { fetchAdminWorkers, fetchWorkers } from "../../../services/workers";
 import { getUser } from "../../../utils/getUser";
 import { expandPermissions } from "../../../utils/expandPermissions";
@@ -37,7 +38,7 @@ export default function DepartmentAttendanceHistory() {
   const { isChurchAdmin, isSuperAdmin } = getUserRole();
   const isAdminMember = checkAdminStatus(location.pathname);
   const authUser = useMemo(() => getUser(), []);
-  const optionsAdmin = getAdminSelectOptions(isChurchAdmin, team, authUser);
+  const optionsAdmin = useAdminSelectOptions(isChurchAdmin, team, authUser);
   const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
   const [historyOptions, setHistoryOptions] = useState([]);
   const [sortConfig, setSortConfig] = useState({

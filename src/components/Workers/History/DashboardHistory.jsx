@@ -7,7 +7,7 @@ import { getDepartmentByUser } from "../../../utils/getDepartment";
 import { ADMIN_ENUMS } from "../../../utils/enums";
 import { checkAdminStatus } from "../../../utils/checkAdminStatus";
 import { getUserRole } from "../../../utils/getUserRole";
-import { getAdminSelectOptions } from "../../../utils/routeObject";
+import { useAdminSelectOptions } from "../../../contexts/DepartmentsContext";
 
 import {
   calculateTotals,
@@ -36,7 +36,7 @@ export default function DashboardHistory() {
   const isAdminMember = checkAdminStatus(location.pathname);
 
   const authUser = useMemo(() => getUser(), []);
-  const options = getAdminSelectOptions(isChurchAdmin, team, authUser);
+  const options = useAdminSelectOptions(isChurchAdmin, team, authUser);
   const [activeHistory, setActiveHistory] = useState(dateForAttendance);
   const [historyOptions, setHistoryOptions] = useState([]);
 

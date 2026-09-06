@@ -5,7 +5,8 @@ import { useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { debounce } from "lodash";
 import getDefaultSummary from "../../../utils/getDefaultSummary";
-import { getAdminSelectOptions, getEffectiveRouteList } from "../../../utils/routeObject";
+import { getEffectiveRouteList } from "../../../utils/routeObject";
+import { useAdminSelectOptions } from "../../../contexts/DepartmentsContext";
 import { getNextSunday } from "../../../utils/getDate";
 import { getDepartmentByUser } from "../../../utils/getDepartment";
 import { ADMIN_ENUMS } from "../../../utils/enums";
@@ -39,7 +40,7 @@ export default function DepartmentSummaryHistory() {
   const isAdminMember = isAdmin || checkAdminStatus(location.pathname);
 
   const authUser = useMemo(() => getUser(), []);
-  const options = getAdminSelectOptions(isChurchAdmin, team, authUser);
+  const options = useAdminSelectOptions(isChurchAdmin, team, authUser);
   const [activeHistory, setActiveHistory] = useState(dateForAttendance);
   const [historyOptions, setHistoryOptions] = useState([]);
 

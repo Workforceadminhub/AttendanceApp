@@ -15,7 +15,8 @@ import { toast } from "react-toastify";
 import { ADMIN_ENUMS } from "../../utils/enums";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
 import ReactSelectDropdown from "../ReactSelect";
-import { getAdminSelectOptions, getRouteContext } from "../../utils/routeObject";
+import { getRouteContext } from "../../utils/routeObject";
+import { useAdminSelectOptions } from "../../contexts/DepartmentsContext";
 import { filterByUserPermissions } from "../../utils/filterByPermissions";
 import { expandPermissions } from "../../utils/expandPermissions";
 import { getUser } from "../../utils/getUser";
@@ -97,7 +98,7 @@ export default function Dashboard() {
   const isChurchAdmin = isChurchAdminRole || isSuperAdmin;
   const isAdminMember = isChurchAdmin || checkAdminStatus(pathname);
   const authUser = useMemo(() => getUser(), []);
-  const options = getAdminSelectOptions(isChurchAdmin, team, authUser);
+  const options = useAdminSelectOptions(isChurchAdmin, team, authUser);
 
   const departmentInfo = useMemo(
     () => getRouteContext(pathname, authUser),

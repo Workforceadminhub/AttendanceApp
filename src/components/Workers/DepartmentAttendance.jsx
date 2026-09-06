@@ -16,7 +16,8 @@ import ReactSelectDropdown from "../ReactSelect";
 // import TableLoadingState from "../TableLoadingState";
 import Layout from "../Layout";
 import { switchOffAttendance } from "../../utils/switchOffAttendance";
-import { getAdminSelectOptions, filterPermissionsByTeam } from "../../utils/routeObject";
+import { filterPermissionsByTeam } from "../../utils/routeObject";
+import { useAdminSelectOptions } from "../../contexts/DepartmentsContext";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
 import { getUserRole, filterTeamFromPermissions } from "../../utils/getUserRole";
 import { fetchDepartments } from "../../services/departments";
@@ -111,7 +112,7 @@ export default function DepartmentAttendance() {
  );
  const isAdminMember = checkAdminStatus(location.pathname);
  const authUser = useMemo(() => getUser(), []);
- const optionsAdmin = getAdminSelectOptions(isChurchAdmin, team, authUser);
+ const optionsAdmin = useAdminSelectOptions(isChurchAdmin, team, authUser);
  const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
  const [modalOpen, setModalOpen] = useState(false);
  const [workerId, setWorkerId] = useState(0);

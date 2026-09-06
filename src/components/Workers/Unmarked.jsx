@@ -16,7 +16,7 @@ import Layout from "../Layout";
 import { getUserRole } from "../../utils/getUserRole";
 
 import { switchOffAttendance } from "../../utils/switchOffAttendance";
-import { getAdminSelectOptions } from "../../utils/routeObject";
+import { useAdminSelectOptions } from "../../contexts/DepartmentsContext";
 import { ADMIN_ENUMS } from "../../utils/enums";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
@@ -70,7 +70,7 @@ export default function UnmarkedAttendance() {
  const { isChurchAdmin: isChurchAdminRole, isSuperAdmin } = getUserRole();
  const isChurchAdmin = isChurchAdminRole || isSuperAdmin || team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
  const isAdminMember = checkAdminStatus(location.pathname);
- const optionsAdmin = getAdminSelectOptions(true, team);
+ const optionsAdmin = useAdminSelectOptions(true, team);
  const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
  const [modalOpen, setModalOpen] = useState(false);
  const [workerId, setWorkerId] = useState(0);

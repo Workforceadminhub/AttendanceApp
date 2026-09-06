@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchDepartments } from "../services/departments";
 import {
   setDynamicDepartments,
+  getAdminSelectOptions,
   getEffectiveRouteList,
   ensureSessionRoute,
 } from "../utils/routeObject";
@@ -144,4 +145,10 @@ export function useDepartmentRoutes() {
     const historyRoutes = teamSlugs.map((s) => `history/${s}`);
     return { attendanceRoutes, summaryRoutes, dashboardRoutes, adminRoutes, historyRoutes };
   }, [list]);
+}
+
+/** Subscribe filters to department updates instead of only reading the mutable cache. */
+export function useAdminSelectOptions(isChurchAdmin, team, authUser) {
+  useEffectiveRouteList();
+  return getAdminSelectOptions(isChurchAdmin, team, authUser);
 }

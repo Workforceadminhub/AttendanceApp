@@ -469,19 +469,24 @@ export const filterPermissionsByTeam = (permissions, teamName) => {
  * @param {object} [authUser] - Optional. If has permissions array, options are filtered to those departments only (for non-Super Admin).
  */
 export const getAdminSelectOptions = (isChurchAdmin, team, authUser) => {
-  const isSuperAdmin = team.department === "Super Admin";
+  const isSuperAdmin = team?.department === "Super Admin";
   const permissions = authUser?.permissions;
   const filterByPermissions = Array.isArray(permissions) && permissions.length > 0 && !isSuperAdmin && !isChurchAdmin;
 
 
   const list = getEffectiveRouteList();
+  // Legacy team admins store the team in `department`; newer accounts
+  // store their actual department there and the parent team in `team`.
+  const teamName = [team?.department, team?.team, authUser?.team]
+    .map((value) => typeof value === "string" ? value : value?.name)
+    .find((name) => name && list.some((item) => isSameDepartment(item.team, name)));
   let options = (isChurchAdmin || isSuperAdmin)
     ? Array.from(new Set(list.map((item) => item.team))).map((t) => ({
         value: t,
         label: t,
       }))
     : list
-        .filter((item) => item.team === team.department)
+        .filter((item) => teamName && isSameDepartment(item.team, teamName))
         .map((item) => ({ value: item.department, label: item.department }));
 
   if (filterByPermissions) {
@@ -491,7 +496,7 @@ export const getAdminSelectOptions = (isChurchAdmin, team, authUser) => {
           const deptsInTeam = list.filter((item) => item.team === opt.value).map((d) => d.department);
           return deptsInTeam.some((d) => allowed.has(d));
         })
-      : options.filter((opt) => allowed.has(opt.value));
+      : options.filter((opt) => permissions.some((permission) => isSameDepartment(permission, opt.value)));
   }
 
   return options;

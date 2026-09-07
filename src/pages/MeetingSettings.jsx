@@ -89,7 +89,7 @@ export default function MeetingSettings() {
 
   const handleSetActive = (id) => {
     setActiveMeeting(id);
-    toast.success("Active meeting updated in this browser. Use Copy Link to share this date.");
+    toast.success("Active meeting updated in this browser.");
     refreshMeetings();
   };
 

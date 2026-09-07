@@ -9,7 +9,7 @@ vi.mock("../utils/getUserRole", () => ({ getUserRole: () => ({ isSuperAdmin: tru
 vi.mock("react-toastify", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 beforeEach(() => localStorage.clear());
 afterEach(cleanup);
-it("counts saved meetings and copies a dated confirmation link", async () => {
+it("counts saved meetings and copies a plain confirmation link", async () => {
   createMeeting({ date: "2026-09-19", title: "September Leaders" });
   const writeText = vi.fn().mockResolvedValue();
   Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
@@ -17,13 +17,13 @@ it("counts saved meetings and copies a dated confirmation link", async () => {
   expect(await screen.findByText("Leaders (2 total)")).toBeInTheDocument();
   expect(getAllMeetings("leaders").filter(m => m.isActive)).toHaveLength(1);
   fireEvent.click(screen.getByRole("button", { name: "Copy link for September Leaders" }));
-  await waitFor(() => expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/leadersmeeting/confirm?meeting_date=2026-09-19`));
+  await waitFor(() => expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/leadersmeeting/confirm`));
 });
 it("provides a selectable link when clipboard access fails", async () => {
   Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: vi.fn().mockRejectedValue(new Error()) } });
   render(<MemoryRouter><MeetingSettings /></MemoryRouter>);
   fireEvent.click(await screen.findByRole("button", { name: /Copy link for August 2026 Leaders/ }));
-  expect(await screen.findByLabelText("Select and copy this meeting link")).toHaveValue(`${window.location.origin}/leadersmeeting/confirm?meeting_date=2026-08-15`);
+  expect(await screen.findByLabelText("Select and copy this meeting link")).toHaveValue(`${window.location.origin}/leadersmeeting/confirm`);
 });
 function DateProbe() {
   const { meetingDate } = useMeetingDate("workers");
@@ -42,7 +42,7 @@ it("ignores an impossible date in a link", async () => {
 });
 
 
-it("creates dated links for confirmation, attendance, and both reports", async () => {
+it("creates plain attendance links and dated report links", async () => {
   const writeText = vi.fn().mockResolvedValue();
   Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
   render(<MemoryRouter><MeetingSettings /></MemoryRouter>);
@@ -50,7 +50,7 @@ it("creates dated links for confirmation, attendance, and both reports", async (
   fireEvent.change(screen.getByLabelText(/Meeting Title/), { target: { value: "September" } });
   fireEvent.click(screen.getByRole("button", { name: "Create Meeting" }));
   fireEvent.click(screen.getByRole("button", { name: "Copy attendance link for September" }));
-  await waitFor(() => expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/leaders-meeting?meeting_date=2026-09-19`));
+  await waitFor(() => expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/leaders-meeting`));
   expect(screen.getAllByRole("link", { name: "Confirmation Report" }).some(link => link.getAttribute("href") === "/report/confirmation-leaders-meeting?meeting_date=2026-09-19")).toBe(true);
   expect(screen.getAllByRole("link", { name: "Attendance Report" }).some(link => link.getAttribute("href") === "/report/leaders-meeting?meeting_date=2026-09-19")).toBe(true);
 });

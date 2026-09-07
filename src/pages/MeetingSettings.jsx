@@ -181,10 +181,11 @@ export default function MeetingSettings() {
 
                 {/* Date Picker */}
                 <div>
-                  <label className="block text-xs font-medium text-ink-700 mb-1">
+                  <label htmlFor="meeting-date" className="block text-xs font-medium text-ink-700 mb-1">
                     Meeting Date <span className="text-sienna">*</span>
                   </label>
                   <input
+                    id="meeting-date"
                     type="date"
                     required
                     value={date}
@@ -200,10 +201,11 @@ export default function MeetingSettings() {
 
                 {/* Title / Description */}
                 <div>
-                  <label className="block text-xs font-medium text-ink-700 mb-1">
+                  <label htmlFor="meeting-title" className="block text-xs font-medium text-ink-700 mb-1">
                     Meeting Title / Label (Optional)
                   </label>
                   <input
+                    id="meeting-title"
                     type="text"
                     placeholder={`e.g. ${meetingType === "leaders" ? "September Leaders Meeting" : "September Workers Meeting"}`}
                     value={title}

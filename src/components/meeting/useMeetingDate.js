@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { formatMeetingDisplayDate, getMeetingDate } from "../../utils/meetingConfig";
+import { formatMeetingDisplayDate, getMeetingDate, MEETINGS_CHANGED_EVENT } from "../../utils/meetingConfig";
 
 /**
  * Active meeting date for a meeting type, resolved inside the component rather than
@@ -23,10 +23,12 @@ export default function useMeetingDate(meetingType) {
   useEffect(() => {
     const refresh = () => setMeetingDate(getMeetingDate(meetingType));
     refresh();
+    window.addEventListener(MEETINGS_CHANGED_EVENT, refresh);
     window.addEventListener("focus", refresh);
     window.addEventListener("storage", refresh);
     document.addEventListener("visibilitychange", refresh);
     return () => {
+      window.removeEventListener(MEETINGS_CHANGED_EVENT, refresh);
       window.removeEventListener("focus", refresh);
       window.removeEventListener("storage", refresh);
       document.removeEventListener("visibilitychange", refresh);

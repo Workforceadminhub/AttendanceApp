@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, cleanup, fireEvent, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 vi.mock("../Header", () => ({ default: () => <header data-testid="header" /> }));
@@ -34,12 +34,15 @@ import LeadersMeetingReport from "../../pages/LeadersMeetingReport";
 import WorkersMeetingReport from "../../pages/WorkersMeetingReport";
 import LeadersMeetingPresentReport from "../../pages/LeadersMeetingPresentReport";
 import WorkersMeetingPresentReport from "../../pages/WorkersMeetingPresentReport";
-import { getMeetingRegistrations } from "../../services/meeting";
+import MeetingSettings from "../../pages/MeetingSettings";
+import { createMeeting } from "../../utils/meetingConfig";
+import { getMeetingRegistrations, searchMeetingWorkers } from "../../services/meeting";
 
 const renderPage = (Page) => render(<MemoryRouter><Page /></MemoryRouter>);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
 });
 
 afterEach(cleanup);
@@ -91,4 +94,41 @@ describe("admin report pages", () => {
     expect(screen.getByText(/3 of 3 registrations/)).toBeInTheDocument();
     expect(screen.getAllByText("Absent").length).toBeGreaterThan(0);
   });
+});
+
+it("creating an active meeting through Settings updates open meeting and report requests", async () => {
+  render(<MemoryRouter><MeetingSettings /><LeadersMeetingConfirm /><LeadersMeetingReport /></MemoryRouter>);
+  await waitFor(() => expect(getMeetingRegistrations).toHaveBeenCalledWith("2026-08-15", "all", "leaders"));
+  fireEvent.change(screen.getByLabelText(/Meeting Date/), { target: { value: "2026-09-19" } });
+  fireEvent.click(screen.getByRole("button", { name: "Create Meeting" }));
+  await waitFor(() => expect(getMeetingRegistrations).toHaveBeenLastCalledWith("2026-09-19", "all", "leaders"));
+  expect(screen.getByLabelText("Select Meeting:")).toHaveValue("2026-09-19");
+  fireEvent.change(screen.getByLabelText(/Your Full Name/), { target: { value: "Ada Obi" } });
+  fireEvent.click(screen.getByRole("button", { name: "Find Me" }));
+  await waitFor(() => expect(searchMeetingWorkers).toHaveBeenCalledWith("Ada Obi", null, "2026-09-19", "leaders"));
+});
+
+it("an open report refreshes after another tab changes the active meeting", async () => {
+  renderPage(LeadersMeetingReport);
+  await waitFor(() => expect(getMeetingRegistrations).toHaveBeenCalledWith("2026-08-15", "all", "leaders"));
+  localStorage.setItem("harvesters_meetings_config", JSON.stringify([
+    { id: "september", meetingType: "leaders", date: "2026-09-19", title: "September Leaders", isActive: true },
+  ]));
+  fireEvent(window, new Event("storage"));
+  await waitFor(() => expect(getMeetingRegistrations).toHaveBeenLastCalledWith("2026-09-19", "all", "leaders"));
+});
+
+it("allows historical reports, then follows a newly activated meeting", async () => {
+  createMeeting({ date: "2026-09-19" });
+  renderPage(LeadersMeetingReport);
+  fireEvent.change(screen.getByLabelText("Select Meeting:"), { target: { value: "2026-08-15" } });
+  await waitFor(() => expect(getMeetingRegistrations).toHaveBeenLastCalledWith("2026-08-15", "all", "leaders"));
+  act(() => createMeeting({ date: "2026-10-17" }));
+  await waitFor(() => expect(getMeetingRegistrations).toHaveBeenLastCalledWith("2026-10-17", "all", "leaders"));
+});
+
+it("honors a report's explicit meeting date in a fresh browser", async () => {
+  render(<MemoryRouter initialEntries={["/report/confirmation-leaders-meeting?meeting_date=2026-09-19"]}><LeadersMeetingReport /></MemoryRouter>);
+  await waitFor(() => expect(getMeetingRegistrations).toHaveBeenCalledWith("2026-09-19", "all", "leaders"));
+  expect(screen.getByLabelText("Select Meeting:")).toHaveValue("2026-09-19");
 });

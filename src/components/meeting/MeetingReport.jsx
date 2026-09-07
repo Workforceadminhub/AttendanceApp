@@ -13,7 +13,8 @@ import { getMeetingRegistrations } from "../../services/meeting";
 import { getUserRole } from "../../utils/getUserRole";
 import { getUser } from "../../utils/getUser";
 import { teamsAndDepartments, getDistrictClusterName } from "../../utils/teams";
-import { getMeetingDate, getAllMeetings, formatMeetingDisplayDate } from "../../utils/meetingConfig";
+import { getAllMeetings, formatMeetingDisplayDate } from "../../utils/meetingConfig";
+import useMeetingDate from "./useMeetingDate";
 import { getStoredTeamStrengths } from "../../utils/teamStrengthConfig";
 import { TEAM_STRUCTURE, EXCEL_COLORS, buildTeamNameLookup } from "../../utils/meeting/teamStructure";
 import { formatDate } from "../../utils/meeting/formatDate";
@@ -118,7 +119,11 @@ export default function MeetingReport({ meetingType, metric }) {
 
   const navigate = useNavigate();
   const [teamStrength] = useState(() => getStoredTeamStrengths());
-  const [meetingDate, setMeetingDate] = useState(() => getMeetingDate(meetingType));
+  const { meetingDate: activeMeetingDate } = useMeetingDate(meetingType);
+  const [selectedMeeting, setSelectedMeeting] = useState(null);
+  // A newly active meeting becomes the default even when this report is already open.
+  const meetingDate = selectedMeeting?.activeDate === activeMeetingDate
+    ? selectedMeeting.date : activeMeetingDate;
   const [reloadKey, setReloadKey] = useState(0);
   const [loaded, setLoaded] = useState(null); // { meetingDate, reloadKey, registrations }
   const [view, setView] = useState("summary"); // summary | list
@@ -162,14 +167,14 @@ export default function MeetingReport({ meetingType, metric }) {
       .catch((err) => {
         if (!active) return;
         toast.error(err.message || "Failed to load meeting data.");
-        setLoaded((prev) => ({ meetingDate, reloadKey, registrations: prev?.registrations ?? [] }));
+        setLoaded({ meetingDate, reloadKey, registrations: [] });
       });
     return () => {
       active = false;
     };
   }, [meetingDate, reloadKey, meetingType, config.respondedOnly]);
 
-  const registrations = loaded?.registrations ?? EMPTY;
+  const registrations = loaded?.meetingDate === meetingDate ? loaded.registrations : EMPTY;
   const count = registrations.length;
 
   const handleSummaryClick = (directorate, teamName) => {
@@ -720,9 +725,12 @@ export default function MeetingReport({ meetingType, metric }) {
               <select
                 id="report-meeting"
                 value={meetingDate}
-                onChange={(e) => setMeetingDate(e.target.value)}
+                onChange={(e) => setSelectedMeeting({ date: e.target.value, activeDate: activeMeetingDate })}
                 className="bg-transparent text-xs font-semibold text-ink-900 focus:outline-none cursor-pointer"
               >
+                {!getAllMeetings(meetingType).some((m) => m.date === meetingDate) && (
+                  <option value={meetingDate}>{formatMeetingDisplayDate(meetingDate)}</option>
+                )}
                 {getAllMeetings(meetingType).map((m) => (
                   <option key={m.id} value={m.date}>
                     {m.title} ({m.date}){m.isActive ? " ★ Active" : ""}

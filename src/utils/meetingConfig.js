@@ -1,3 +1,5 @@
+export const MEETINGS_CHANGED_EVENT = "harvesters:meetings-changed";
+
 const MEETINGS_STORAGE_KEY = "harvesters_meetings_config";
 
 export const DEFAULT_LEADERS_MEETING_DATE = "2026-08-15";
@@ -118,6 +120,7 @@ export function createMeeting({ meetingType = "leaders", date, title, setAsActiv
 
   updated.unshift(newMeeting);
   saveStoredMeetings(updated);
+  window.dispatchEvent(new Event(MEETINGS_CHANGED_EVENT));
   return newMeeting;
 }
 
@@ -137,6 +140,7 @@ export function setActiveMeeting(meetingId) {
   });
 
   saveStoredMeetings(updated);
+  window.dispatchEvent(new Event(MEETINGS_CHANGED_EVENT));
 }
 
 /**
@@ -167,6 +171,7 @@ export function deleteMeeting(meetingId) {
   }
 
   saveStoredMeetings(updated);
+  window.dispatchEvent(new Event(MEETINGS_CHANGED_EVENT));
 }
 
 /**

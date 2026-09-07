@@ -1,3 +1,5 @@
+import { isMeetingDate } from "./meetingLinks";
+
 export const MEETINGS_CHANGED_EVENT = "harvesters:meetings-changed";
 
 const MEETINGS_STORAGE_KEY = "harvesters_meetings_config";
@@ -94,7 +96,7 @@ export function getMeetingDate(meetingType = "leaders") {
  * Creates a new meeting and optionally sets it as active
  */
 export function createMeeting({ meetingType = "leaders", date, title, setAsActive = true }) {
-  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
+  if (!isMeetingDate(date?.trim())) {
     throw new Error("A valid meeting date (YYYY-MM-DD) is required.");
   }
 

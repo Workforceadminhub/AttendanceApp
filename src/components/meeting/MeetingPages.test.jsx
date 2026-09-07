@@ -99,7 +99,7 @@ describe("admin report pages", () => {
 it("creating an active meeting through Settings updates open meeting and report requests", async () => {
   render(<MemoryRouter><MeetingSettings /><LeadersMeetingConfirm /><LeadersMeetingReport /></MemoryRouter>);
   await waitFor(() => expect(getMeetingRegistrations).toHaveBeenCalledWith("2026-08-15", "all", "leaders"));
-  fireEvent.change(screen.getByLabelText(/Meeting Date/), { target: { value: "2026-09-19" } });
+  fireEvent.change(screen.getByLabelText(/^Meeting Date/), { target: { value: "2026-09-19" } });
   fireEvent.click(screen.getByRole("button", { name: "Create Meeting" }));
   await waitFor(() => expect(getMeetingRegistrations).toHaveBeenLastCalledWith("2026-09-19", "all", "leaders"));
   expect(screen.getByLabelText("Select Meeting:")).toHaveValue("2026-09-19");
@@ -118,17 +118,23 @@ it("an open report refreshes after another tab changes the active meeting", asyn
   await waitFor(() => expect(getMeetingRegistrations).toHaveBeenLastCalledWith("2026-09-19", "all", "leaders"));
 });
 
-it("allows historical reports, then follows a newly activated meeting", async () => {
+it("keeps an explicitly selected historical report when the active meeting changes", async () => {
   createMeeting({ date: "2026-09-19" });
   renderPage(LeadersMeetingReport);
   fireEvent.change(screen.getByLabelText("Select Meeting:"), { target: { value: "2026-08-15" } });
   await waitFor(() => expect(getMeetingRegistrations).toHaveBeenLastCalledWith("2026-08-15", "all", "leaders"));
   act(() => createMeeting({ date: "2026-10-17" }));
-  await waitFor(() => expect(getMeetingRegistrations).toHaveBeenLastCalledWith("2026-10-17", "all", "leaders"));
+  await waitFor(() => expect(getMeetingRegistrations).toHaveBeenLastCalledWith("2026-08-15", "all", "leaders"));
 });
 
 it("honors a report's explicit meeting date in a fresh browser", async () => {
   render(<MemoryRouter initialEntries={["/report/confirmation-leaders-meeting?meeting_date=2026-09-19"]}><LeadersMeetingReport /></MemoryRouter>);
   await waitFor(() => expect(getMeetingRegistrations).toHaveBeenCalledWith("2026-09-19", "all", "leaders"));
   expect(screen.getByLabelText("Select Meeting:")).toHaveValue("2026-09-19");
+});
+
+it("loads an unsaved report date selected in a fresh browser", async () => {
+  renderPage(LeadersMeetingReport);
+  fireEvent.change(screen.getByLabelText("Meeting date"), { target: { value: "2026-09-19" } });
+  await waitFor(() => expect(getMeetingRegistrations).toHaveBeenLastCalledWith("2026-09-19", "all", "leaders"));
 });

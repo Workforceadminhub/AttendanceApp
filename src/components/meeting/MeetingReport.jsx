@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
@@ -14,6 +14,7 @@ import { getUserRole } from "../../utils/getUserRole";
 import { getUser } from "../../utils/getUser";
 import { teamsAndDepartments, getDistrictClusterName } from "../../utils/teams";
 import { getAllMeetings, formatMeetingDisplayDate } from "../../utils/meetingConfig";
+import { isMeetingDate } from "../../utils/meetingLinks";
 import useMeetingDate from "./useMeetingDate";
 import { getStoredTeamStrengths } from "../../utils/teamStrengthConfig";
 import { TEAM_STRUCTURE, EXCEL_COLORS, buildTeamNameLookup } from "../../utils/meeting/teamStructure";
@@ -120,10 +121,15 @@ export default function MeetingReport({ meetingType, metric }) {
   const navigate = useNavigate();
   const [teamStrength] = useState(() => getStoredTeamStrengths());
   const { meetingDate: activeMeetingDate } = useMeetingDate(meetingType);
-  const [selectedMeeting, setSelectedMeeting] = useState(null);
-  // A newly active meeting becomes the default even when this report is already open.
-  const meetingDate = selectedMeeting?.activeDate === activeMeetingDate
-    ? selectedMeeting.date : activeMeetingDate;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const meetingDate = activeMeetingDate;
+  const selectMeetingDate = (date) => {
+    if (!isMeetingDate(date)) return;
+    const params = new URLSearchParams(searchParams);
+    params.set("meeting_date", date);
+    params.delete("date");
+    setSearchParams(params, { replace: true });
+  };
   const [reloadKey, setReloadKey] = useState(0);
   const [loaded, setLoaded] = useState(null); // { meetingDate, reloadKey, registrations }
   const [view, setView] = useState("summary"); // summary | list
@@ -717,7 +723,7 @@ export default function MeetingReport({ meetingType, metric }) {
               {formatMeetingDisplayDate(meetingDate)}
             </h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2 bg-white border border-ink-200 rounded-lg px-3 py-1.5 shadow-sm">
               <label htmlFor="report-meeting" className="text-xs font-medium text-ink-500">
                 Select Meeting:
@@ -725,7 +731,7 @@ export default function MeetingReport({ meetingType, metric }) {
               <select
                 id="report-meeting"
                 value={meetingDate}
-                onChange={(e) => setSelectedMeeting({ date: e.target.value, activeDate: activeMeetingDate })}
+                onChange={(e) => selectMeetingDate(e.target.value)}
                 className="bg-transparent text-xs font-semibold text-ink-900 focus:outline-none cursor-pointer"
               >
                 {!getAllMeetings(meetingType).some((m) => m.date === meetingDate) && (
@@ -737,6 +743,12 @@ export default function MeetingReport({ meetingType, metric }) {
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <label htmlFor="report-date" className="text-xs font-medium text-ink-700">Meeting date</label>
+              <input id="report-date" type="date" value={meetingDate}
+                onChange={(event) => selectMeetingDate(event.target.value)}
+                className="rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-sm text-ink-900" />
             </div>
             <Button variant="secondary" onClick={() => setReloadKey((k) => k + 1)} disabled={loading}>
               {loading ? "Loading..." : "Refresh"}

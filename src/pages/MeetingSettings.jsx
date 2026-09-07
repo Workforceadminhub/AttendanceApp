@@ -7,6 +7,7 @@ import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import Tag from "../components/ui/Tag";
 import Stat from "../components/ui/Stat";
+import { meetingPath } from "../utils/meetingLinks";
 import { getUserRole } from "../utils/getUserRole";
 import {
   getAllMeetings,
@@ -61,7 +62,7 @@ export default function MeetingSettings() {
         setAsActive,
       });
       toast.success(
-        `Created ${meetingType === "leaders" ? "Leaders" : "Workers"} Meeting for ${formatMeetingDisplayDate(created.date)}!`
+        `Created ${meetingType === "leaders" ? "Leaders" : "Workers"} Meeting for ${formatMeetingDisplayDate(created.date)}. Share its link below.`
       );
       // Reset form
       setDate("");
@@ -74,13 +75,12 @@ export default function MeetingSettings() {
     }
   };
 
-  const handleCopyLink = async (meeting) => {
-    const link = new URL(`/${meeting.meetingType}meeting/confirm`, window.location.origin);
-    link.searchParams.set("meeting_date", meeting.date);
+  const handleCopyLink = async (meeting, destination = "confirm") => {
+    const link = new URL(meetingPath(meeting.meetingType, meeting.date, destination), window.location.origin);
     try {
       await navigator.clipboard.writeText(link.href);
       setManualCopyLink("");
-      toast.success("Meeting confirmation link copied!");
+      toast.success(`Meeting ${destination === "present" ? "attendance" : "confirmation"} link copied!`);
     } catch {
       setManualCopyLink(link.href);
       toast.error("Could not copy automatically. Select and copy the link below.");
@@ -278,7 +278,7 @@ export default function MeetingSettings() {
               {manualCopyLink && (
                 <div className="mb-4">
                   <label htmlFor="meeting-copy-link" className="block text-xs font-medium text-ink-700 mb-1">
-                    Select and copy this confirmation link
+                    Select and copy this meeting link
                   </label>
                   <input id="meeting-copy-link" readOnly value={manualCopyLink}
                     onFocus={(event) => event.target.select()}
@@ -319,8 +319,20 @@ export default function MeetingSettings() {
                       <div className="flex flex-wrap items-center gap-2">
                         <Button variant="secondary" size="sm" onClick={() => handleCopyLink(m)}
                           aria-label={`Copy link for ${m.title}`}>
-                          Copy Link
+                          Copy Confirmation Link
                         </Button>
+                        <Button variant="secondary" size="sm" onClick={() => handleCopyLink(m, "present")}
+                          aria-label={`Copy attendance link for ${m.title}`}>
+                          Copy Attendance Link
+                        </Button>
+                        <Link to={meetingPath(m.meetingType, m.date, "confirmationReport")}
+                          className="rounded-md px-3 py-1.5 text-sm font-medium text-ink-700 underline underline-offset-4 hover:text-ink-900">
+                          Confirmation Report
+                        </Link>
+                        <Link to={meetingPath(m.meetingType, m.date, "attendanceReport")}
+                          className="rounded-md px-3 py-1.5 text-sm font-medium text-ink-700 underline underline-offset-4 hover:text-ink-900">
+                          Attendance Report
+                        </Link>
                         {!m.isActive && (
                           <Button
                             variant="outline"

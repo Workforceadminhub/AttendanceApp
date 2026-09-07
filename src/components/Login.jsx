@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import loginService from "../services/login";
 import { hubSignIn } from "../services/hub/auth";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { getPostLoginPath, resolveAdminRoute, ensureSessionRoute } from "../utils/routeObject";
 import { persistSession } from "../utils/authSession";
@@ -16,6 +16,10 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const loginInFlight = useRef(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const requestedPath = location.state?.from;
+  const returnPath = typeof requestedPath === "string" && /^\/report\/(?:confirmation-)?(?:leaders|workers)-meeting(?:\?|$)/.test(requestedPath)
+    ? requestedPath : null;
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
@@ -59,14 +63,14 @@ const Login = () => {
           }
           ensureSessionRoute(authUser);
           sessionStorage.setItem("authUser", JSON.stringify(authUser));
-          navigate(getPostLoginPath(authUser));
+          navigate(returnPath || getPostLoginPath(authUser), { replace: true });
         } else {
           toast.error(AUTH_ERROR_MESSAGE);
         }
       } else {
         const data = await loginService(code.trim());
         if (data?.accessToken && data?.authUser) {
-          navigate(getPostLoginPath(data.authUser));
+          navigate(returnPath || getPostLoginPath(data.authUser), { replace: true });
         } else if (data?.accessToken) {
           toast.error(AUTH_ERROR_MESSAGE);
         }

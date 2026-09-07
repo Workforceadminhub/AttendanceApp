@@ -4,15 +4,15 @@ export const MEETINGS_CHANGED_EVENT = "harvesters:meetings-changed";
 
 const MEETINGS_STORAGE_KEY = "harvesters_meetings_config";
 
-export const DEFAULT_LEADERS_MEETING_DATE = "2026-08-15";
+export const DEFAULT_LEADERS_MEETING_DATE = "2026-09-19";
 export const DEFAULT_WORKERS_MEETING_DATE = "2026-08-15";
 
 const INITIAL_MEETINGS = [
   {
-    id: "leaders-default-1",
+    id: "leaders-default-2",
     meetingType: "leaders",
     date: DEFAULT_LEADERS_MEETING_DATE,
-    title: "August 2026 Leaders Meeting",
+    title: "September 2026 Leaders Meeting",
     isActive: true,
     createdAt: new Date().toISOString(),
   },
@@ -35,7 +35,7 @@ function getStoredMeetings() {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        return withCurrentDefaults(parsed);
       }
     }
   } catch (err) {
@@ -44,6 +44,23 @@ function getStoredMeetings() {
   const defaults = INITIAL_MEETINGS.map((m) => ({ ...m }));
   saveStoredMeetings(defaults);
   return defaults;
+}
+
+/**
+ * Ensures every built-in default meeting exists in a previously stored list and is
+ * the active one for its type, so a new default date takes effect on devices that
+ * already have older meetings saved.
+ */
+function withCurrentDefaults(meetings) {
+  const missing = INITIAL_MEETINGS.filter((d) => !meetings.some((m) => m.id === d.id));
+  if (missing.length === 0) return meetings;
+  const types = new Set(missing.map((d) => d.meetingType));
+  const updated = [
+    ...missing.map((d) => ({ ...d })),
+    ...meetings.map((m) => (types.has(m.meetingType) ? { ...m, isActive: false } : m)),
+  ];
+  saveStoredMeetings(updated);
+  return updated;
 }
 
 /**

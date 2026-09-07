@@ -19,3 +19,12 @@ it.each(["leaders", "workers"])("passes the selected date on every %s meeting AP
   await getMeetingRegistrations(date, "all", type);
   expect(apiRequest).toHaveBeenLastCalledWith("GET", `/api/super/admin/meeting/${type}/registrations`, { meeting_date: date, status: "all" }, undefined, true);
 });
+
+it("activates a new default meeting on devices that stored an older one", async () => {
+  localStorage.setItem("harvesters_meetings_config", JSON.stringify([
+    { id: "leaders-default-1", meetingType: "leaders", date: "2026-08-15", title: "August", isActive: true },
+  ]));
+  const { getMeetingDate, getAllMeetings } = await import("../utils/meetingConfig");
+  expect(getMeetingDate("leaders")).toBe("2026-09-19");
+  expect(getAllMeetings("leaders").filter((m) => m.isActive).map((m) => m.date)).toEqual(["2026-09-19"]);
+});

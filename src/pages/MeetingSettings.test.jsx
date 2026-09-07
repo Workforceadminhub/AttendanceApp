@@ -22,7 +22,7 @@ it("counts saved meetings and copies a plain confirmation link", async () => {
 it("provides a selectable link when clipboard access fails", async () => {
   Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: vi.fn().mockRejectedValue(new Error()) } });
   render(<MemoryRouter><MeetingSettings /></MemoryRouter>);
-  fireEvent.click(await screen.findByRole("button", { name: /Copy link for August 2026 Leaders/ }));
+  fireEvent.click(await screen.findByRole("button", { name: /Copy link for September 2026 Leaders/ }));
   expect(await screen.findByLabelText("Select and copy this meeting link")).toHaveValue(`${window.location.origin}/leadersmeeting/confirm`);
 });
 function DateProbe() {

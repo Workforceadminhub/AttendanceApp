@@ -98,33 +98,34 @@ describe("admin report pages", () => {
 
 it("creating an active meeting through Settings updates open meeting and report requests", async () => {
   render(<MemoryRouter><MeetingSettings /><LeadersMeetingConfirm /><LeadersMeetingReport /></MemoryRouter>);
-  await waitFor(() => expect(getMeetingRegistrations).toHaveBeenCalledWith("2026-08-15", "all", "leaders"));
-  fireEvent.change(screen.getByLabelText(/^Meeting Date/), { target: { value: "2026-09-19" } });
+  await waitFor(() => expect(getMeetingRegistrations).toHaveBeenCalledWith("2026-09-19", "all", "leaders"));
+  fireEvent.change(screen.getByLabelText(/^Meeting Date/), { target: { value: "2026-10-17" } });
   fireEvent.click(screen.getByRole("button", { name: "Create Meeting" }));
-  await waitFor(() => expect(getMeetingRegistrations).toHaveBeenLastCalledWith("2026-09-19", "all", "leaders"));
-  expect(screen.getByLabelText("Select Meeting:")).toHaveValue("2026-09-19");
+  await waitFor(() => expect(getMeetingRegistrations).toHaveBeenLastCalledWith("2026-10-17", "all", "leaders"));
+  expect(screen.getByLabelText("Select Meeting:")).toHaveValue("2026-10-17");
   fireEvent.change(screen.getByLabelText(/Your Full Name/), { target: { value: "Ada Obi" } });
   fireEvent.click(screen.getByRole("button", { name: "Find Me" }));
-  await waitFor(() => expect(searchMeetingWorkers).toHaveBeenCalledWith("Ada Obi", null, "2026-09-19", "leaders"));
+  await waitFor(() => expect(searchMeetingWorkers).toHaveBeenCalledWith("Ada Obi", null, "2026-10-17", "leaders"));
 });
 
 it("an open report refreshes after another tab changes the active meeting", async () => {
   renderPage(LeadersMeetingReport);
-  await waitFor(() => expect(getMeetingRegistrations).toHaveBeenCalledWith("2026-08-15", "all", "leaders"));
+  await waitFor(() => expect(getMeetingRegistrations).toHaveBeenCalledWith("2026-09-19", "all", "leaders"));
   localStorage.setItem("harvesters_meetings_config", JSON.stringify([
-    { id: "september", meetingType: "leaders", date: "2026-09-19", title: "September Leaders", isActive: true },
+    { id: "leaders-default-2", meetingType: "leaders", date: "2026-09-19", title: "September 2026 Leaders Meeting", isActive: false },
+    { id: "october", meetingType: "leaders", date: "2026-10-17", title: "October Leaders", isActive: true },
   ]));
   fireEvent(window, new Event("storage"));
-  await waitFor(() => expect(getMeetingRegistrations).toHaveBeenLastCalledWith("2026-09-19", "all", "leaders"));
+  await waitFor(() => expect(getMeetingRegistrations).toHaveBeenLastCalledWith("2026-10-17", "all", "leaders"));
 });
 
 it("keeps an explicitly selected historical report when the active meeting changes", async () => {
   createMeeting({ date: "2026-09-19" });
   renderPage(LeadersMeetingReport);
-  fireEvent.change(screen.getByLabelText("Select Meeting:"), { target: { value: "2026-08-15" } });
-  await waitFor(() => expect(getMeetingRegistrations).toHaveBeenLastCalledWith("2026-08-15", "all", "leaders"));
+  fireEvent.change(screen.getByLabelText("Select Meeting:"), { target: { value: "2026-09-19" } });
+  await waitFor(() => expect(getMeetingRegistrations).toHaveBeenLastCalledWith("2026-09-19", "all", "leaders"));
   act(() => createMeeting({ date: "2026-10-17" }));
-  await waitFor(() => expect(getMeetingRegistrations).toHaveBeenLastCalledWith("2026-08-15", "all", "leaders"));
+  await waitFor(() => expect(getMeetingRegistrations).toHaveBeenLastCalledWith("2026-09-19", "all", "leaders"));
 });
 
 it("honors a report's explicit meeting date in a fresh browser", async () => {

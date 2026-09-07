@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { formatMeetingDisplayDate, getMeetingDate } from "../../utils/meetingConfig";
 
 /**
@@ -11,6 +12,12 @@ import { formatMeetingDisplayDate, getMeetingDate } from "../../utils/meetingCon
  * @returns {{ meetingDate: string, displayDate: string }}
  */
 export default function useMeetingDate(meetingType) {
+  const [searchParams] = useSearchParams();
+  const dateParam = searchParams.get("meeting_date");
+  const parsedDate = /^\d{4}-\d{2}-\d{2}$/.test(dateParam || "")
+    ? new Date(`${dateParam}T00:00:00Z`) : null;
+  const linkedDate = parsedDate && !Number.isNaN(parsedDate.getTime()) &&
+    parsedDate.toISOString().slice(0, 10) === dateParam ? dateParam : null;
   const [meetingDate, setMeetingDate] = useState(() => getMeetingDate(meetingType));
 
   useEffect(() => {
@@ -26,5 +33,6 @@ export default function useMeetingDate(meetingType) {
     };
   }, [meetingType]);
 
-  return { meetingDate, displayDate: formatMeetingDisplayDate(meetingDate) };
+  const resolvedDate = linkedDate || meetingDate;
+  return { meetingDate: resolvedDate, displayDate: formatMeetingDisplayDate(resolvedDate) };
 }

@@ -23,6 +23,7 @@ export default function MeetingSettings() {
 
   const [activeTab, setActiveTab] = useState("leaders"); // "leaders" | "workers"
   const [meetings, setMeetings] = useState([]);
+  const [manualCopyLink, setManualCopyLink] = useState("");
 
   // Form State
   const [meetingType, setMeetingType] = useState("leaders");
@@ -73,9 +74,22 @@ export default function MeetingSettings() {
     }
   };
 
+  const handleCopyLink = async (meeting) => {
+    const link = new URL(`/${meeting.meetingType}meeting/confirm`, window.location.origin);
+    link.searchParams.set("meeting_date", meeting.date);
+    try {
+      await navigator.clipboard.writeText(link.href);
+      setManualCopyLink("");
+      toast.success("Meeting confirmation link copied!");
+    } catch {
+      setManualCopyLink(link.href);
+      toast.error("Could not copy automatically. Select and copy the link below.");
+    }
+  };
+
   const handleSetActive = (id) => {
     setActiveMeeting(id);
-    toast.success("Active meeting updated!");
+    toast.success("Active meeting updated in this browser. Use Copy Link to share this date.");
     refreshMeetings();
   };
 
@@ -96,7 +110,7 @@ export default function MeetingSettings() {
           <div>
             <h1 className="text-2xl font-bold text-ink-900">Meeting Management & Settings</h1>
             <p className="text-xs text-ink-500 mt-0.5">
-              Create and manage active Leaders and Workers meetings without code changes or URL parameters.
+              Meetings are saved in this browser. Use Copy Link to share the correct meeting date with Leaders or Workers.
             </p>
           </div>
 
@@ -208,7 +222,7 @@ export default function MeetingSettings() {
                     className="h-4 w-4 rounded border-ink-300 text-ink focus:ring-ink"
                   />
                   <label htmlFor="setAsActive" className="text-xs text-ink-700 cursor-pointer">
-                    Set as active meeting immediately
+                    Set as active meeting in this browser
                   </label>
                 </div>
 
@@ -222,13 +236,13 @@ export default function MeetingSettings() {
           {/* Manage Meetings List (7 cols) */}
           <div className="lg:col-span-7">
             <Card className="p-5 sm:p-6">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between mb-4">
                 <div>
                   <h2 className="text-base font-semibold text-ink-900">
                     Existing Meetings
                   </h2>
                   <p className="text-xs text-ink-500">
-                    Switch active meeting or manage past meeting records.
+                    Counts include active and inactive meetings. Only one meeting per category is active.
                   </p>
                 </div>
 
@@ -243,7 +257,7 @@ export default function MeetingSettings() {
                         : "text-ink-600 hover:text-ink-900"
                     }`}
                   >
-                    Leaders ({getAllMeetings("leaders").length})
+                    Leaders ({getAllMeetings("leaders").length} total)
                   </button>
                   <button
                     type="button"
@@ -254,11 +268,21 @@ export default function MeetingSettings() {
                         : "text-ink-600 hover:text-ink-900"
                     }`}
                   >
-                    Workers ({getAllMeetings("workers").length})
+                    Workers ({getAllMeetings("workers").length} total)
                   </button>
                 </div>
               </div>
 
+              {manualCopyLink && (
+                <div className="mb-4">
+                  <label htmlFor="meeting-copy-link" className="block text-xs font-medium text-ink-700 mb-1">
+                    Select and copy this confirmation link
+                  </label>
+                  <input id="meeting-copy-link" readOnly value={manualCopyLink}
+                    onFocus={(event) => event.target.select()}
+                    className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm" />
+                </div>
+              )}
               {meetings.length === 0 ? (
                 <div className="text-center py-10 text-xs text-ink-400">
                   No {activeTab === "leaders" ? "Leaders" : "Workers"} meetings found. Create one using the form on the left.
@@ -268,14 +292,14 @@ export default function MeetingSettings() {
                   {meetings.map((m) => (
                     <div
                       key={m.id}
-                      className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-xl border transition ${
+                      className={`flex flex-col gap-3 p-4 rounded-xl border transition ${
                         m.isActive
                           ? "border-forest/40 bg-forest/[0.04]"
                           : "border-ink-200 bg-white hover:bg-cream-100"
                       }`}
                     >
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="font-semibold text-sm text-ink-900">
                             {m.title}
                           </span>
@@ -290,7 +314,11 @@ export default function MeetingSettings() {
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button variant="secondary" size="sm" onClick={() => handleCopyLink(m)}
+                          aria-label={`Copy link for ${m.title}`}>
+                          Copy Link
+                        </Button>
                         {!m.isActive && (
                           <Button
                             variant="outline"

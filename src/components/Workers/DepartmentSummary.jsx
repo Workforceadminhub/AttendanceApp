@@ -15,7 +15,7 @@ import { ADMIN_ENUMS } from "../../utils/enums";
 import ReactSelectDropdown from "../ReactSelect";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
 import { filterByUserPermissions } from "../../utils/filterByPermissions";
-import { getUser } from "../../utils/getUser";
+import { getSessionUser } from "../../utils/authSession";
 import { expandPermissions } from "../../utils/expandPermissions";
 import { toast } from "react-toastify";
 import { debounce } from "lodash";
@@ -40,7 +40,7 @@ export default function DepartmentSummary() {
   const isChurchAdmin = isChurchAdminRole || isSuperAdmin || team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
   const isAdminMember = isAdmin || checkAdminStatus(pathname);
 
-  const authUser = useMemo(() => getUser(), []);
+  const authUser = useMemo(() => getSessionUser(), []);
   const options = useAdminSelectOptions(isChurchAdmin, team, authUser);
 
   const startDateStr = dateRange.startDate

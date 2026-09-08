@@ -16,7 +16,7 @@ import Layout from "../components/Layout";
 import AttendanceLeaderboard from "../components/AttendanceLeaderboard";
 import LoadingState from "../components/LoadingState";
 import { getEffectiveRouteList, getDepartmentRoute, getDepartmentNameFromRoute, isSameDepartment } from "../utils/routeObject";
-import { getUser } from "../utils/getUser";
+import { getSessionUser } from "../utils/authSession";
 import { expandPermissions } from "../utils/expandPermissions";
 import { getNextSunday, getSundaysInYear } from "../utils/getDate";
 import { fetchAttendance } from "../services/attendance";
@@ -50,7 +50,7 @@ export default function DepartmentDetail() {
  const team = departmentInfo?.team || "Unknown Team";
  const departmentRoute = getDepartmentRoute(decodedDepartment) || decodedParam;
 
- const authUser = getUser();
+ const authUser = getSessionUser();
 
  // Role information (to detect sub-team-admin)
  const { isSubTeamAdmin, assignedDepartments, user: roleUser } = getUserRole();
@@ -124,7 +124,7 @@ export default function DepartmentDetail() {
  const d = sundayToYYYYMMDD(s);
  return d && d <= cutoffDate;
  });
- const authUser = getUser();
+ const authUser = getSessionUser();
  const permissions = expandPermissions(authUser);
  // Throttle to 4 concurrent /api/attendance calls - firing all 50+ in
  // parallel saturates Lambda concurrency and makes most requests 503.
@@ -181,7 +181,7 @@ export default function DepartmentDetail() {
  } = useQuery({
  queryKey: ["departmentWorkers", decodedDepartment],
  queryFn: () => {
- const authUser = getUser();
+ const authUser = getSessionUser();
  const permissions = expandPermissions(authUser);
  return fetchWorkers(decodedDepartment, undefined, permissions);
  },

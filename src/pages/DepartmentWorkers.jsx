@@ -10,7 +10,7 @@ import LoadingState from "../components/LoadingState";
 import { getDepartmentRoute, getDepartmentNameFromRoute, isSameDepartment } from "../utils/routeObject";
 import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
 import { fetchWorkers, removeWorker } from "../services/workers";
-import { getUser } from "../utils/getUser";
+import { getSessionUser } from "../utils/authSession";
 import { expandPermissions } from "../utils/expandPermissions";
 import Modal from "../components/Modal";
 import { PencilIcon, EyeIcon, ChevronDownIcon, ChevronUpIcon, TrashIcon } from "@heroicons/react/24/outline";
@@ -35,7 +35,7 @@ export default function DepartmentWorkers() {
  const departmentRoute = getDepartmentRoute(decodedDepartment) || routeParam;
 
  // Read auth once (avoid refetch loops due to new array references)
- const auth = useMemo(() => getUser(), []);
+ const auth = useMemo(() => getSessionUser(), []);
  const permissions = useMemo(() => expandPermissions(auth), [auth]);
  const permissionsKey = useMemo(
  () => (Array.isArray(permissions) ? permissions.join(",") : ""),

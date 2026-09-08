@@ -19,7 +19,7 @@ import { getRouteContext } from "../../utils/routeObject";
 import { useAdminSelectOptions } from "../../contexts/DepartmentsContext";
 import { filterByUserPermissions } from "../../utils/filterByPermissions";
 import { expandPermissions } from "../../utils/expandPermissions";
-import { getUser } from "../../utils/getUser";
+import { getSessionUser } from "../../utils/authSession";
 import { getUserRole } from "../../utils/getUserRole";
 import { debounce } from "lodash";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
@@ -97,7 +97,7 @@ export default function Dashboard() {
   // Super Admin gets the campus-wide (Church Admin) dashboard: same data, same layout.
   const isChurchAdmin = isChurchAdminRole || isSuperAdmin;
   const isAdminMember = isChurchAdmin || checkAdminStatus(pathname);
-  const authUser = useMemo(() => getUser(), []);
+  const authUser = useMemo(() => getSessionUser(), []);
   const options = useAdminSelectOptions(isChurchAdmin, team, authUser);
 
   const departmentInfo = useMemo(

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Navigate } from "react-router-dom";
-import { getUser } from "../../utils/getUser";
+import { getSessionUser } from "../../utils/authSession";
 import { useRBAC } from "../../contexts/RBACContext";
 
 /**
@@ -12,7 +12,7 @@ import { useRBAC } from "../../contexts/RBACContext";
  *    the API enforce permissions server-side (graceful degradation)
  */
 export default function HubRoute({ requiredNav, children }) {
-  const user = useMemo(() => getUser(), []);
+  const user = useMemo(() => getSessionUser(), []);
   const { rbac, loading } = useRBAC();
 
   if (!user) {

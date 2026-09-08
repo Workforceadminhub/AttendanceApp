@@ -8,7 +8,7 @@ import { checkAdminStatus } from "../../../utils/checkAdminStatus";
 import { filterPermissionsByTeam } from "../../../utils/routeObject";
 import { useAdminSelectOptions } from "../../../contexts/DepartmentsContext";
 import { fetchAdminWorkers, fetchWorkers } from "../../../services/workers";
-import { getUser } from "../../../utils/getUser";
+import { getSessionUser } from "../../../utils/authSession";
 import { expandPermissions } from "../../../utils/expandPermissions";
 import { switchOffAttendance } from "../../../utils/switchOffAttendance";
 import { addAttendance } from "../../../services/attendance";
@@ -37,7 +37,7 @@ export default function DepartmentAttendanceHistory() {
   const team = getDepartmentByUser(location.pathname);
   const { isChurchAdmin, isSuperAdmin } = getUserRole();
   const isAdminMember = checkAdminStatus(location.pathname);
-  const authUser = useMemo(() => getUser(), []);
+  const authUser = useMemo(() => getSessionUser(), []);
   const optionsAdmin = useAdminSelectOptions(isChurchAdmin, team, authUser);
   const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
   const [historyOptions, setHistoryOptions] = useState([]);

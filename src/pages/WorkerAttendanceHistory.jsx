@@ -17,7 +17,7 @@ import Stat from "../components/ui/Stat";
 import { fetchWorkers } from "../services/workers";
 import { getSundaysInYear } from "../utils/getDate";
 import { getDepartmentRoute } from "../utils/routeObject";
-import { getUser } from "../utils/getUser";
+import { getSessionUser } from "../utils/authSession";
 
 /** Parse "Sunday - d/m/y" → "d/m" short label for chart axis */
 function sundayToShortLabel(dateStr) {
@@ -62,7 +62,7 @@ export default function WorkerAttendanceHistory() {
  const department = searchParams.get("department") || "";
  const team = searchParams.get("team") || "";
 
- const authUser = getUser();
+ const authUser = getSessionUser();
  const permissions = authUser?.permissions ?? [];
 
  // All Sundays from Jan 1 of the current year up to today (chronological)

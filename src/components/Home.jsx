@@ -1,11 +1,11 @@
 import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { getUser } from "../utils/getUser";
+import { getSessionUser } from "../utils/authSession";
 import { getPostLoginPath } from "../utils/routeObject";
 
 export default function Home() {
   const navigate = useNavigate();
-  const authUser = useMemo(() => getUser(), []);
+  const authUser = useMemo(() => getSessionUser(), []);
 
   useEffect(() => {
     if (authUser) {

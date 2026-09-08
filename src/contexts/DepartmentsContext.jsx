@@ -7,7 +7,7 @@ import {
   getEffectiveRouteList,
   ensureSessionRoute,
 } from "../utils/routeObject";
-import { getUser } from "../utils/getUser";
+import { getSessionUser } from "../utils/authSession";
 
 const DepartmentsContext = createContext({
   departments: [],
@@ -97,7 +97,7 @@ export function useDepartmentsContext() {
 
 export function useEffectiveRouteList() {
   const { departments } = useDepartmentsContext();
-  const authUser = getUser();
+  const authUser = getSessionUser();
   const authSessionKey = authUser
     ? [
         authUser.route ?? "",
@@ -111,7 +111,7 @@ export function useEffectiveRouteList() {
       setDynamicDepartments(departments);
     }
     if (authSessionKey) {
-      const user = getUser();
+      const user = getSessionUser();
       if (user) {
         ensureSessionRoute(user);
       }

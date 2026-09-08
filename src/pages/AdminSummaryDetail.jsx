@@ -16,7 +16,7 @@ import Layout from "../components/Layout";
 import AttendanceLeaderboard from "../components/AttendanceLeaderboard";
 import LoadingState from "../components/LoadingState";
 import { getDepartmentByUser } from "../utils/getDepartment";
-import { getUser } from "../utils/getUser";
+import { getSessionUser } from "../utils/authSession";
 import { expandPermissions } from "../utils/expandPermissions";
 import { getUserRole } from "../utils/getUserRole";
 import {
@@ -33,7 +33,7 @@ export default function AdminSummaryDetail() {
   const location = useLocation();
   const teamInfo = getDepartmentByUser(location.pathname) || {};
 
-  const authUser = getUser();
+  const authUser = getSessionUser();
   const {
     isSuperAdmin,
     isChurchAdmin,

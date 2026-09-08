@@ -8,7 +8,7 @@ import { getEffectiveRouteList, getDepartmentNameFromRoute, getDepartmentRoute }
 import { normalizeWorkerRole } from "../utils/teams";
 import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
 import { addNewWorker } from "../services/workers";
-import { getUser } from "../utils/getUser";
+import { getSessionUser } from "../utils/authSession";
 import { DROPDOWN_OPTIONS } from "../utils/sampleWorkersExcel";
 import WorkerFormErrorSummary from "../components/WorkerFormErrorSummary";
 import {
@@ -93,7 +93,7 @@ export default function HODAddWorker() {
 
  setIsLoading(true);
  try {
- const authUser = getUser();
+ const authUser = getSessionUser();
  const payload = {
  ...worker,
  email: worker.email.trim(),

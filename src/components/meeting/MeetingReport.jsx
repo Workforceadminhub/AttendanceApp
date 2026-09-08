@@ -11,7 +11,7 @@ import Tag from "../ui/Tag";
 import Button from "../ui/Button";
 import { getMeetingRegistrations } from "../../services/meeting";
 import { getUserRole } from "../../utils/getUserRole";
-import { getUser } from "../../utils/getUser";
+import { getSessionUser } from "../../utils/authSession";
 import { teamsAndDepartments, getDistrictClusterName } from "../../utils/teams";
 import { getAllMeetings, formatMeetingDisplayDate } from "../../utils/meetingConfig";
 import { isMeetingDate } from "../../utils/meetingLinks";
@@ -141,7 +141,7 @@ export default function MeetingReport({ meetingType, metric }) {
   const [filterDept, setFilterDept] = useState("");
 
   const { isSuperAdmin, isChurchAdmin, isTeamAdmin } = getUserRole();
-  const authUser = getUser();
+  const authUser = getSessionUser();
   const myTeam =
     isTeamAdmin && !isSuperAdmin && !isChurchAdmin
       ? typeof authUser?.team === "string"

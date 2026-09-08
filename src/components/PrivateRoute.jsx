@@ -1,10 +1,10 @@
 import React, { useMemo } from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { getUser } from "../utils/getUser";
+import { getSessionUser } from "../utils/authSession";
 
 const PrivateRoute = ({ children }) => {
   const location = useLocation();
-  const authUser = useMemo(() => getUser(), []);
+  const authUser = useMemo(() => getSessionUser(), []);
 
   if (!authUser) {
     return <Navigate to="/login" state={{ from: `${location.pathname}${location.search}${location.hash}` }} replace />;

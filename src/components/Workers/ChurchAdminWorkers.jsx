@@ -22,7 +22,7 @@ import {
 } from "@heroicons/react/24/outline";
 import GenericModal from "../GenericModal";
 import LoadingState from "../LoadingState";
-import { getUser } from "../../utils/getUser";
+import { getSessionUser } from "../../utils/authSession";
 import { getUserRole } from "../../utils/getUserRole";
 import { filterWorkersByPlacement } from "../../utils/filterWorkers";
 
@@ -190,7 +190,7 @@ export default function ChurchAdminWorkers() {
  const queryAdminWorkers = useCallback(async (search = "") => {
  setIsLoading(true);
  try {
- const user = getUser();
+ const user = getSessionUser();
  const rawPermissions = user?.permissions ?? [];
  // Filter out team name from permissions (team name shouldn't be in permissions array)
  const permissions = rawPermissions.filter((perm) => perm !== user?.team);
@@ -211,7 +211,7 @@ export default function ChurchAdminWorkers() {
  }, [filters, dateForAttendance]);
 
  const queryWorkers = useCallback(async (search = "") => {
- const user = getUser();
+ const user = getSessionUser();
  const rawPermissions = user?.permissions ?? [];
  // Filter out team name from permissions (team name shouldn't be in permissions array)
  const permissions = rawPermissions.filter((perm) => perm !== user?.team);

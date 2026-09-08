@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Bars3Icon, XMarkIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 import { useNavigate, Link } from "react-router-dom";
-import { getUser } from "../utils/getUser";
+import { getSessionUser } from "../utils/authSession";
 import { logoutSession } from "../utils/authSession";
 import { getUserRole } from "../utils/getUserRole";
 import { getDepartmentRoute } from "../utils/routeObject";
@@ -140,7 +140,7 @@ function NavLink({ href, children }) {
 
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const authUser = useMemo(() => getUser(), []);
+  const authUser = useMemo(() => getSessionUser(), []);
   const navigate = useNavigate();
 
   // Fix: redirect side-effect must not run during render

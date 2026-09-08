@@ -24,7 +24,7 @@ vi.mock("../../services/departments", () => ({
 vi.mock("../../utils/getUserRole", () => ({
   getUserRole: () => ({ isSuperAdmin: true, isChurchAdmin: false, isTeamAdmin: false }),
 }));
-vi.mock("../../utils/getUser", () => ({ getUser: () => ({ team: "" }) }));
+vi.mock("../../utils/authSession", () => ({ getSessionUser: () => ({ team: "" }) }));
 
 import LeadersMeetingConfirm from "../../pages/LeadersMeetingConfirm";
 import WorkersMeetingConfirm from "../../pages/WorkersMeetingConfirm";

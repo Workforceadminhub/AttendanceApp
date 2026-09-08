@@ -8,7 +8,7 @@ import { getEffectiveRouteList, getDepartmentNameFromRoute, getDepartmentRoute, 
 import { normalizeWorkerRole } from "../utils/teams";
 import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
 import { addNewWorker } from "../services/workers";
-import { getUser } from "../utils/getUser";
+import { getSessionUser } from "../utils/authSession";
 import { downloadSampleWorkersExcel, DROPDOWN_OPTIONS } from "../utils/sampleWorkersExcel";
 
 export default function HODBulkAddWorker() {
@@ -225,7 +225,7 @@ export default function HODBulkAddWorker() {
  setIsLoading(true);
  setBulkUploadProgress({ total: validWorkers.length, completed: 0, errors: [] });
  const errors = [];
- const authUser = getUser();
+ const authUser = getSessionUser();
  const nameofrequester = authUser?.fullname || authUser?.name || authUser?.code || "Requester";
 
  const backendKeys = [

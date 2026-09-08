@@ -16,7 +16,7 @@ import {
   fetchAdminAttendance,
   fetchAttendance,
 } from "../../../services/attendance";
-import { getUser } from "../../../utils/getUser";
+import { getSessionUser } from "../../../utils/authSession";
 import { expandPermissions } from "../../../utils/expandPermissions";
 import { fetchHistoryOptions } from "../../../services/history";
 import { DEBOUNCE_INTERVAL } from "../../../utils/constants";
@@ -39,7 +39,7 @@ export default function DepartmentSummaryHistory() {
   const isChurchAdmin = isChurchAdminRole || isSuperAdmin || team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
   const isAdminMember = isAdmin || checkAdminStatus(location.pathname);
 
-  const authUser = useMemo(() => getUser(), []);
+  const authUser = useMemo(() => getSessionUser(), []);
   const options = useAdminSelectOptions(isChurchAdmin, team, authUser);
   const [activeHistory, setActiveHistory] = useState(dateForAttendance);
   const [historyOptions, setHistoryOptions] = useState([]);

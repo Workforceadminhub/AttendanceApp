@@ -6,11 +6,11 @@ import { Tag } from "../../../components/ui";
 import CertificatePreview from "../../../components/hub/certificates/CertificatePreview";
 import { hubGet } from "../../../services/hub/client";
 import { downloadCertificate } from "../../../services/hub/certificates";
-import { getUser } from "../../../utils/getUser";
+import { getSessionUser } from "../../../utils/authSession";
 import { getLinkedWorkerId } from "../../../utils/authSession";
 
 export default function WorkerCertificates() {
-  const user = getUser();
+  const user = getSessionUser();
   const [preview, setPreview] = useState(null);
   const workerId = getLinkedWorkerId(user);
 

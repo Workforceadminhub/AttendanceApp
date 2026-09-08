@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchWorkers } from "../services/workers";
-import { getUser } from "../utils/getUser";
+import { getSessionUser } from "../utils/authSession";
 import { splitWorkersByBirthday, parseBirthdateMonthDay } from "../utils/birthdayUtils";
 import { format } from "date-fns";
 
@@ -32,7 +32,7 @@ export default function BirthdayWidget({ department }) {
  const { data: workers, isLoading } = useQuery({
  queryKey: ["workersForBirthdays", department],
  queryFn: () => {
- const auth = getUser();
+ const auth = getSessionUser();
  const permissions = expandPermissions(auth);
  return fetchWorkers(department || "All", null, permissions);
  },

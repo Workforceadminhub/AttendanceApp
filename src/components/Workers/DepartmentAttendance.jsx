@@ -26,7 +26,7 @@ import { debounce } from "lodash";
 import ViewHistoryButton from "../ViewHistoryButton";
 import { TrashIcon, ArrowUpIcon, ArrowDownIcon } from "@heroicons/react/24/outline";
 import Modal from "../Modal";
-import { getUser } from "../../utils/getUser";
+import { getSessionUser } from "../../utils/authSession";
 import { expandPermissions } from "../../utils/expandPermissions";
 import LoadingState from "../LoadingState";
 
@@ -111,7 +111,7 @@ export default function DepartmentAttendance() {
  (assignedDepartments ?? []).map((r) => String(r || "")).sort()
  );
  const isAdminMember = checkAdminStatus(location.pathname);
- const authUser = useMemo(() => getUser(), []);
+ const authUser = useMemo(() => getSessionUser(), []);
  const optionsAdmin = useAdminSelectOptions(isChurchAdmin, team, authUser);
  const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
  const [modalOpen, setModalOpen] = useState(false);

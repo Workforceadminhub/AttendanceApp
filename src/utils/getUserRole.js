@@ -1,4 +1,4 @@
-import { getUser } from "./getUser";
+import { getSessionUser } from "./authSession";
 import { ADMIN_ENUMS } from "./enums";
 import { getEffectiveRouteList } from "./routeObject";
 
@@ -21,7 +21,7 @@ export const PERMISSION_LEVELS = {
  * @returns {Object} Role information object
  */
 export function getUserRole() {
-  const user = getUser();
+  const user = getSessionUser();
 
   if (!user) {
     return {
@@ -243,11 +243,11 @@ export function canAccessDepartment(departmentName) {
 
 /**
  * Phase 7 spec-compliant: Returns user's permission level as a string.
- * @param {Object} [user] - User object (defaults to getUser())
+ * @param {Object} [user] - User object (defaults to getSessionUser())
  * @returns {string|null} "SUPER_ADMIN" | "CHURCH_ADMIN" | "TEAM_ADMIN" | "SUB_TEAM_ADMIN" | "HOD" | null
  */
 export function getUserRoleString(userParam) {
-  const user = userParam ?? getUser();
+  const user = userParam ?? getSessionUser();
   if (!user) return null;
 
   if (user.permissionLevel) return user.permissionLevel;
@@ -291,12 +291,12 @@ export function getUserRoleString(userParam) {
 
 /**
  * Phase 7 spec-compliant: Check if user can access a specific department by route.
- * @param {Object} [user] - User object (defaults to getUser())
+ * @param {Object} [user] - User object (defaults to getSessionUser())
  * @param {string} departmentRoute - Department route (e.g. "mincc" or "/mincc") or department name
  * @returns {boolean} Whether the user can access the department
  */
 export function canAccessDepartmentByRoute(userParam, departmentRoute) {
-  const user = userParam ?? getUser();
+  const user = userParam ?? getSessionUser();
   const role = getUserRoleString(user);
 
   if (role === "SUPER_ADMIN" || role === "CHURCH_ADMIN") return true;

@@ -12,7 +12,7 @@ import ProgressionTracker from "../../../components/hub/trainings/ProgressionTra
 import CertificatePreview from "../../../components/hub/certificates/CertificatePreview";
 import {
   fetchTraining,
-  fetchTrainings,
+  fetchAllTrainings,
   fetchEnrollees,
   fetchSessions,
   fetchCurriculum,
@@ -127,7 +127,7 @@ export default function TrainingDetail() {
 
   const { data: pathTrainingsData } = useQuery({
     queryKey: ["hub-trainings", "all-for-pathway"],
-    queryFn: () => fetchTrainings({ per_page: 100 }),
+    queryFn: () => fetchAllTrainings(),
     enabled: Boolean(training?.progression_path_id),
   });
 

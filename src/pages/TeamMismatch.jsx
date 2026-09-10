@@ -1,3 +1,4 @@
+import { fetchAllSuperAdminWorkers } from "../services/workers";
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
@@ -78,19 +79,7 @@ export default function TeamMismatch() {
  const fetchAllWorkers = async () => {
  setIsLoading(true);
  try {
- const result = await apiRequest("GET", "/api/super/admin/workers", {
- limit: 10000,
- });
-
- // Handle different response structures
- let workersData = [];
- if (result.data && result.data.data && Array.isArray(result.data.data)) {
- workersData = result.data.data;
- } else if (result.data && Array.isArray(result.data)) {
- workersData = result.data;
- } else if (Array.isArray(result)) {
- workersData = result;
- }
+ const workersData = await fetchAllSuperAdminWorkers();
 
  setAllWorkers(workersData);
 

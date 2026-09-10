@@ -14,7 +14,7 @@ import {
   fetchSessions,
   createDeptAssignment,
 } from "../../../services/hub/trainings";
-import { hubGet } from "../../../services/hub/client";
+import { hubGetAll } from "../../../services/hub/client";
 import {
   PARTICIPATION_THRESHOLD,
   asDate,
@@ -85,7 +85,7 @@ export default function DepartmentAssignments() {
   const { data: workersData } = useQuery({
     queryKey: ["hub-workers-directory", form.department_name],
     queryFn: () =>
-      hubGet("/workers", {
+      hubGetAll("/workers", {
         department: form.department_name,
         activeDate: getNextSunday(),
         isAdmin: false,

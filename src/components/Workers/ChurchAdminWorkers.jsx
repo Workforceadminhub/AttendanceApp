@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
-import { fetchAdminWorkers, fetchWorkers } from "../../services/workers";
+import { fetchAdminWorkers, fetchWorkers, listSuperAdminWorkers } from "../../services/workers";
 import { toast } from "react-toastify";
 import { getNextSunday } from "../../utils/getDate";
 import ReactSelectDropdown from "../ReactSelect";
@@ -24,7 +24,6 @@ import GenericModal from "../GenericModal";
 import LoadingState from "../LoadingState";
 import { getUser } from "../../utils/getUser";
 import { getUserRole } from "../../utils/getUserRole";
-import { filterWorkersByPlacement } from "../../utils/filterWorkers";
 
 
 export default function ChurchAdminWorkers() {
@@ -119,40 +118,9 @@ export default function ChurchAdminWorkers() {
  const queryChurchAdminWorkers = useCallback(async (page = 1, limit = 20, search = "") => {
  setIsLoading(true);
  try {
- const params = { page, limit, sortBy: "team" };
- if (search && search.trim()) {
- params.search = search.trim();
- }
- Object.entries(filters).forEach(([key, value]) => {
- if (value !== "All") {
- params[key] = value;
- }
- });
-
- const result = await apiRequest("GET", "/api/super/admin/workers", params);
- // Handle nested data structure: result.data.data contains the workers array
- const workers = result.data?.data || result.workers || [];
- setData(filterWorkersByPlacement(workers, filters));
- 
- // Handle pagination info if available
- let paginationInfo = null;
- if (result.data?.pagination) {
- paginationInfo = result.data.pagination;
- } else if (result.pagination) {
- paginationInfo = result.pagination;
- }
- 
- // Set pagination info if available
- if (paginationInfo) {
- setPagination({
- page: paginationInfo.page || page,
- limit: paginationInfo.limit || limit,
- total: paginationInfo.total || 0,
- totalPages: paginationInfo.totalPages || 0,
- hasNext: paginationInfo.hasNext || false,
- hasPrev: paginationInfo.hasPrev || false,
- });
- }
+ const result = await listSuperAdminWorkers({ page, limit, search, team: filters.team, department: filters.department });
+ setData(result.data);
+ setPagination(result.pagination);
  } catch {
  toast.error("Failed to fetch workers");
  setData([]);
@@ -165,20 +133,9 @@ export default function ChurchAdminWorkers() {
  const querySuperAdminWorkers = useCallback(async (page = 1, limit = 20, search = "") => {
  setIsLoading(true);
  try {
- const params = { page, limit, sortBy: "team" };
- if (search && search.trim()) {
- params.search = search.trim();
- }
- Object.entries(filters).forEach(([key, value]) => {
- if (value !== "All") {
- params[key] = value;
- }
- });
-
- const result = await apiRequest("GET", "/api/super/admin/workers", params);
- // Handle nested data structure: result.data.data contains the workers array
- const workers = result.data?.data || result.workers || [];
- setData(filterWorkersByPlacement(workers, filters));
+ const result = await listSuperAdminWorkers({ page, limit, search, team: filters.team, department: filters.department });
+ setData(result.data);
+ setPagination(result.pagination);
  } catch {
  toast.error("Failed to fetch workers");
  setData([]);

@@ -1,6 +1,6 @@
 // No longer needed
 
-import apiRequest from "./apiClient";
+import { fetchAllSuperAdminWorkers } from "../services/workers";
 
 const FILTER_CACHE_KEY = 'workers_filter_cache';
 const CACHE_TIMESTAMP_KEY = 'filter_cache_timestamp';
@@ -40,20 +40,7 @@ const extractFilterData = (workers) => {
  */
 const fetchWorkersForFilters = async () => {
   try {
-    const result = await apiRequest("GET", "/api/super/admin/workers", {
-      limit: 4000,
-    });
-
-    // Handle the API response structure based on your curl example
-    let workersData = [];
-    
-    if (result?.data?.data && Array.isArray(result.data.data)) {
-      workersData = result.data.data;
-    } else if (result?.data && Array.isArray(result.data)) {
-      workersData = result.data;
-    } else if (Array.isArray(result)) {
-      workersData = result;
-    }
+    const workersData = await fetchAllSuperAdminWorkers();
 
     return workersData;
   } catch (error) {

@@ -1,13 +1,17 @@
-import { hubGet, hubPost, hubPatch, hubDelete } from "./client";
+import { unwrapPaginated } from "../../utils/pagination.js";
+import { hubGetPaged, hubGet, hubPost, hubPatch, hubDelete } from "./client";
 import { sortById } from "./sortById";
 
 export async function fetchTrainings(params) {
   const res = await hubGet("/trainings", params);
-  if (Array.isArray(res)) return sortById(res);
-  if (Array.isArray(res?.data)) {
-    return { ...res, data: sortById(res.data) };
-  }
-  return res;
+  const { data, pagination } = unwrapPaginated(res, { page: params?.page, limit: params?.limit ?? params?.per_page });
+  return { ...res, data: sortById(data), pagination, total: pagination.total };
+}
+
+/** Fetch all trainings for pickers. */
+export async function fetchAllTrainings(params) {
+  const res = await hubGetPaged("/trainings", params);
+  return { data: sortById(unwrapPaginated(res).data) };
 }
 
 
@@ -24,7 +28,7 @@ export function fetchTraining(id) {
 }
 
 export function fetchEnrollees(id, params) {
-  return hubGet(`/trainings/${id}/enrollees`, params);
+  return hubGetPaged(`/trainings/${id}/enrollees`, params);
 }
 
 export function registerForTraining(id, workerId, options = {}) {
@@ -41,11 +45,11 @@ export function nominateWorkers(id, workerIds, expiresInDays) {
 }
 
 export function fetchNominations(id) {
-  return hubGet(`/trainings/${id}/nominations`);
+  return hubGetPaged(`/trainings/${id}/nominations`);
 }
 
 export function fetchMyNominations() {
-  return hubGet("/trainings/nominations/me");
+  return hubGetPaged("/trainings/nominations/me");
 }
 
 export function acceptNomination(nominationId) {
@@ -57,7 +61,7 @@ export function declineNomination(nominationId) {
 }
 
 export function fetchRegistrationRequests(id) {
-  return hubGet(`/trainings/${id}/registration-requests`);
+  return hubGetPaged(`/trainings/${id}/registration-requests`);
 }
 
 export function reviewRegistrationRequest(requestId, approved) {
@@ -65,7 +69,7 @@ export function reviewRegistrationRequest(requestId, approved) {
 }
 
 export function fetchSessions(id) {
-  return hubGet(`/trainings/${id}/sessions`);
+  return hubGetPaged(`/trainings/${id}/sessions`);
 }
 
 export function addSession(id, sessionDate, label) {
@@ -83,7 +87,7 @@ export function markParticipation(id, workerId, sessionDate, status) {
 }
 
 export function fetchCurriculum(id) {
-  return hubGet(`/trainings/${id}/curriculum`);
+  return hubGetPaged(`/trainings/${id}/curriculum`);
 }
 
 export function completeEnrollment(id, enrollmentId) {
@@ -91,11 +95,11 @@ export function completeEnrollment(id, enrollmentId) {
 }
 
 export function fetchTrainingCertificates(id) {
-  return hubGet(`/trainings/${id}/certificates`);
+  return hubGetPaged(`/trainings/${id}/certificates`);
 }
 
 export function fetchDeptAssignments(id) {
-  return hubGet(`/trainings/${id}/department-assignments`);
+  return hubGetPaged(`/trainings/${id}/department-assignments`);
 }
 
 export function createDeptAssignment(id, data) {
@@ -103,7 +107,7 @@ export function createDeptAssignment(id, data) {
 }
 
 export function fetchWorkerTrainings(workerId) {
-  return hubGet(`/users/${workerId}/trainings`);
+  return hubGetPaged(`/users/${workerId}/trainings`);
 }
 
 export function fetchWorkerTrainingMetrics(workerId) {
@@ -112,7 +116,7 @@ export function fetchWorkerTrainingMetrics(workerId) {
 
 // Progression Path Endpoints - the ordered chain a progressive training sits in.
 export function fetchProgressionPaths() {
-  return hubGet("/progression-paths");
+  return hubGetPaged("/progression-paths");
 }
 
 export function createProgressionPath(data) {

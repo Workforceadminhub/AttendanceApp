@@ -56,13 +56,14 @@ export default function TrainingList() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["hub-trainings", { status, category, search, page }],
-    queryFn: () => fetchTrainings({ status, category, search, page, per_page: PER_PAGE }),
+    queryFn: () => fetchTrainings({ status, category, search, page, limit: PER_PAGE, per_page: PER_PAGE }),
   });
 
   const trainings = data?.data ?? [];
   const metrics = data?.metrics ?? {};
-  const total = data?.total ?? 0;
-  const totalPages = Math.ceil(total / PER_PAGE);
+  const pagination = data?.pagination;
+  const total = pagination?.total ?? data?.total ?? 0;
+  const totalPages = pagination?.totalPages ?? Math.max(1, Math.ceil(total / PER_PAGE));
 
   // User Department for HOD view filtering
   const userDepartment = user?.department || "Department";
@@ -289,7 +290,7 @@ export default function TrainingList() {
                 </button>
                 <button
                   type="button"
-                  disabled={page >= totalPages}
+                  disabled={pagination?.hasNext != null ? !pagination.hasNext : page >= totalPages}
                   onClick={() => setPage((p) => p + 1)}
                   className="qc-btn-secondary"
                 >

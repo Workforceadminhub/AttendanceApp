@@ -1,7 +1,7 @@
-import { hubGet, hubPost, hubRequest } from "./client";
+import { hubGetPaged, hubPost, hubRequest } from "./client";
 
 export function fetchTemplates() {
-  return hubGet("/certificate-templates");
+  return hubGetPaged("/certificate-templates");
 }
 
 export function createTemplate(data) {

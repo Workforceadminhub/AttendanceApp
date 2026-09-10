@@ -11,7 +11,7 @@ import {
   fetchProgressionPaths,
   fetchSessions,
   fetchTraining,
-  fetchTrainings,
+  fetchAllTrainings,
   updateTraining,
 } from "../../../services/hub/trainings";
 import { createCohort, fetchCohorts } from "../../../services/hub/cohorts";
@@ -132,7 +132,7 @@ export function TrainingDetailDrawer({ trainingId, fallbackTraining, onClose, on
   // Chain view: what sits before and after this training on its pathway.
   const { data: pathTrainingsData } = useQuery({
     queryKey: ["hub-trainings", "pathway", training.progression_path_id],
-    queryFn: () => fetchTrainings({ per_page: 100 }),
+    queryFn: () => fetchAllTrainings(),
     enabled: Boolean(training.progression_path_id),
   });
   const chain = useMemo(
@@ -338,7 +338,7 @@ export function TrainingFormDrawer({ mode = "create", initialTraining, onClose, 
 
   const { data: allTrainingsData } = useQuery({
     queryKey: ["hub-trainings", "all-for-pathway"],
-    queryFn: () => fetchTrainings({ per_page: 100 }),
+    queryFn: () => fetchAllTrainings(),
   });
   const allTrainings = allTrainingsData?.data ?? [];
 

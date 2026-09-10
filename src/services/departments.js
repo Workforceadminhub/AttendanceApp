@@ -1,3 +1,4 @@
+import { fetchAllPages } from "../utils/pagination.js";
 import apiRequest from "../utils/apiClient";
 import { setDynamicDepartments, getEffectiveRouteList, isDepartmentActive } from "../utils/routeObject";
 import { DISTRICT_CLUSTER_LABELS } from "../utils/teams";
@@ -8,12 +9,11 @@ import { fetchHubTeams } from "./hub/teams";
  * @returns {Promise<Array>} List of departments
  */
 export const fetchDepartments = async () => {
-  const response = await apiRequest("GET", "/api/departments");
-  if (!response || response.error) {
-    throw new Error(response?.error || "Failed to fetch departments");
-  }
-  const raw = response.data || response;
-  const items = Array.isArray(raw) ? raw : [];
+  const items = await fetchAllPages(async ({ page, limit }) => {
+    const response = await apiRequest("GET", "/api/departments", { page, limit });
+    if (!response || response.error) throw new Error(response?.error || "Failed to fetch departments");
+    return response;
+  });
   const sorted = [...items].sort((a, b) => {
     const numA = Number(a?.id);
     const numB = Number(b?.id);

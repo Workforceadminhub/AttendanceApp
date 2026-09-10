@@ -29,12 +29,13 @@ export default function CourseList() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["hub-courses", { status, search, page }],
-    queryFn: () => fetchCourses({ status, search, page, per_page: 20 }),
+    queryFn: () => fetchCourses({ status, search, page, limit: 20, per_page: 20 }),
   });
 
   const courses = data?.data ?? [];
-  const total = data?.total ?? 0;
-  const totalPages = Math.ceil(total / 20);
+  const pagination = data?.pagination;
+  const total = pagination?.total ?? data?.total ?? 0;
+  const totalPages = pagination?.totalPages ?? Math.max(1, Math.ceil(total / 20));
 
   return (
     <>
@@ -137,7 +138,7 @@ export default function CourseList() {
                 </button>
                 <button
                   type="button"
-                  disabled={page >= totalPages}
+                  disabled={pagination?.hasNext != null ? !pagination.hasNext : page >= totalPages}
                   onClick={() => setPage((p) => p + 1)}
                   className="qc-btn-secondary"
                 >

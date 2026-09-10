@@ -1,3 +1,4 @@
+import { fetchAllPages, hasPaginationMeta, extractPaginationMeta, FETCH_ALL_PAGE_LIMIT } from "../../utils/pagination.js";
 import { apiRequest } from "../../utils/apiClient";
 
 /**
@@ -36,4 +37,22 @@ export function hubPatch(endpoint, data, config, requireAuth = true) {
 
 export function hubDelete(endpoint, params, config, requireAuth = true) {
   return hubRequest("DELETE", endpoint, params, config, requireAuth);
+}
+
+/** Fetch a complete Hub list as an array. */
+export async function hubGetAll(endpoint, params, config, requireAuth = true) {
+  return fetchAllPages(({ page, limit }) => hubGet(endpoint, { ...params, page, limit, per_page: limit }, config, requireAuth));
+}
+
+/** Collect paginated Hub lists while preserving non-paginated envelopes. */
+export async function hubGetPaged(endpoint, params, config, requireAuth = true) {
+  const first = await hubGet(endpoint, params, config, requireAuth);
+  if (!hasPaginationMeta(first)) return first;
+  const meta = extractPaginationMeta(first);
+  const pageSize = params?.limit ?? params?.per_page ?? meta.limit ?? meta.per_page ?? FETCH_ALL_PAGE_LIMIT;
+  const data = await fetchAllPages(
+    ({ page, limit }) => hubGet(endpoint, { ...params, page, limit, per_page: limit }, config, requireAuth),
+    { first, pageSize }
+  );
+  return Array.isArray(first) ? data : { ...first, data };
 }

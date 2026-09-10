@@ -1,6 +1,33 @@
+import { fetchAllPages, hasPaginationMeta, unwrapPaginated, extractPaginationMeta, FETCH_ALL_PAGE_LIMIT } from "../utils/pagination.js";
 import { ulid } from "ulid";
 import apiRequest from "../utils/apiClient";
 import { getNextSunday } from "../utils/getDate";
+
+
+async function requestAttendancePages(endpoint, params, history = false) {
+  const request = async (paging = {}) => {
+    const response = await apiRequest("GET", endpoint, { ...params, ...paging });
+    if (!response || response.error) throw new Error(response?.error || "Failed to fetch attendance");
+    return response;
+  };
+  const first = await request();
+  const objectData = first.data && !Array.isArray(first.data) && typeof first.data === "object" ? first.data : null;
+  const arrayKey = objectData && ['data', 'departments', 'items', 'history'].find(key => Array.isArray(objectData[key]));
+  const asPage = response => {
+    const unwrapped = unwrapPaginated(response);
+    return arrayKey ? { ...unwrapped, data: response.data?.[arrayKey] || [] } : unwrapped;
+  };
+  if (!hasPaginationMeta(first)) {
+    if (!history) return Array.isArray(first) ? first : first.data;
+    return arrayKey ? objectData[arrayKey] : unwrapPaginated(first).data;
+  }
+  const meta = extractPaginationMeta(first);
+  const rows = await fetchAllPages(async paging => asPage(await request(paging)), {
+    first: asPage(first),
+    pageSize: meta.limit ?? meta.per_page ?? FETCH_ALL_PAGE_LIMIT,
+  });
+  return objectData && arrayKey && !history ? { ...objectData, [arrayKey]: rows } : rows;
+}
 
 // const table = "attendance2";
 export const addAttendance = async (attendance) => {
@@ -43,13 +70,7 @@ export const fetchAdminAttendance = async (
     if (startDate) params.startDate = startDate;
     if (endDate) params.endDate = endDate;
 
-    const response = await apiRequest("GET", "/api/attendance/admin", params);
-
-    if (!response || response.error) {
-      throw new Error(response?.error || "Failed to fetch admin attendance");
-    }
-
-    return response.data;
+    return await requestAttendancePages("/api/attendance/admin", params);
   } catch (error) {
     // Silent error handling
     return null;
@@ -67,13 +88,7 @@ export const fetchAttendance = async (activeDate, startDate, endDate, permission
     if (startDate) params.startDate = startDate;
     if (endDate) params.endDate = endDate;
 
-    const response = await apiRequest("GET", "/api/attendance", params);
-
-    if (!response || response.error) {
-      throw new Error(response?.error || "Failed to fetch attendance");
-    }
-
-    return response.data;
+    return await requestAttendancePages("/api/attendance", params);
   } catch (error) {
     // Silent error handling
     return null;
@@ -235,17 +250,7 @@ export const fetchAttendanceHistory = async (permissions, fromDate, toDate) => {
     if (fromDate) params.fromDate = fromDate;
     if (toDate) params.toDate = toDate;
 
-    const response = await apiRequest("GET", "/api/attendance/history", params);
-
-    if (!response || response.error) {
-      throw new Error(response?.error || "Failed to fetch attendance history");
-    }
-
-    const raw = response.data ?? response;
-    if (Array.isArray(raw)) return raw;
-    if (Array.isArray(raw?.data)) return raw.data;
-    if (Array.isArray(raw?.history)) return raw.history;
-    return [];
+    return await requestAttendancePages("/api/attendance/history", params, true);
   } catch (error) {
     return [];
   }

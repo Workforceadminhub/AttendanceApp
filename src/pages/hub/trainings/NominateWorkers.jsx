@@ -14,7 +14,7 @@ import {
   fetchNominations,
   nominateWorkers,
 } from "../../../services/hub/trainings";
-import { hubGet } from "../../../services/hub/client";
+import { hubGetAll } from "../../../services/hub/client";
 import { sendBulkEmail } from "../../../services/email";
 import {
   formatDate,
@@ -74,7 +74,7 @@ export default function NominateWorkers() {
   const { data: workersData, isLoading: workersLoading } = useQuery({
     queryKey: ["hub-workers-directory", department],
     queryFn: () =>
-      hubGet("/workers", {
+      hubGetAll("/workers", {
         department,
         activeDate: getNextSunday(),
         isAdmin: false,

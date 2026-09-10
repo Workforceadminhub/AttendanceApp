@@ -23,6 +23,13 @@ describe("admin service", () => {
     expect(apiRequestMock).toHaveBeenCalledWith("GET", "/api/hub/super/admin/admins");
   });
 
+  it("concatenates paginated admin lists", async () => {
+    apiRequestMock.mockResolvedValueOnce({ data: [{ id: 1 }], pagination: { page: 1, limit: 1, totalPages: 2, hasNext: true } })
+      .mockResolvedValueOnce({ data: [{ id: 2 }], pagination: { page: 2, limit: 1, totalPages: 2, hasNext: false } });
+    await expect(fetchAdmins()).resolves.toEqual([{ id: 1 }, { id: 2 }]);
+    expect(apiRequestMock).toHaveBeenCalledTimes(2);
+  });
+
   it("updates an admin's department and team through the Hub API", async () => {
     apiRequestMock.mockResolvedValue({ data: { id: 12 } });
 

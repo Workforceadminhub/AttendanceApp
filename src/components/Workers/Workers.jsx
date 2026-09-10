@@ -2,7 +2,7 @@ import { useLocation, useNavigate, Link } from "react-router-dom";
 import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { fetchAdminWorkers, fetchWorkers } from "../../services/workers";
+import { fetchAdminWorkers, fetchWorkers, listSuperAdminWorkers, fetchAllSuperAdminWorkers } from "../../services/workers";
 import { toast } from "react-toastify";
 import { getNextSunday } from "../../utils/getDate";
 import ReactSelectDropdown from "../ReactSelect";
@@ -29,7 +29,6 @@ import {
 import GenericModal from "../GenericModal";
 import LoadingState from "../LoadingState";
 import { saveAs } from "file-saver";
-import { filterWorkersByPlacement } from "../../utils/filterWorkers";
 
 export default function Workers() {
  const navigate = useNavigate();
@@ -67,7 +66,7 @@ export default function Workers() {
  const [searchTerm, setSearchTerm] = useState("");
  const [selectedWorkers, setSelectedWorkers] = useState(new Set());
  const [isSelectAll, setIsSelectAll] = useState(false);
- const [allWorkers, setAllWorkers] = useState([]);
+ const [isExporting, setIsExporting] = useState(false);
  const latestSuperAdminRequest = useRef(0);
 
  const [filterOptions, setFilterOptions] = useState({
@@ -105,69 +104,20 @@ export default function Workers() {
 
  const fallbackFilterOptions = useMemo(() => generateFallbackFilterOptions(), []);
 
- const querySuperAdminWorkers = useCallback(async (page = 1, limit = 50, search = "") => {
+ const querySuperAdminWorkers = useCallback(async (page = 1, limit = 50, search = "", fallbackIfEmpty = false) => {
  const requestId = ++latestSuperAdminRequest.current;
  setIsLoading(true);
  try {
- const params = { limit: 3478 };
- if (search && search.trim()) {
- params.search = search.trim();
- }
- Object.entries(filters).forEach(([key, value]) => {
- if (value !== "All") {
- params[key] = value;
- }
- });
-
- const result = await apiRequest("GET", "/api/super/admin/workers", params);
-
- // Filter/search requests can overlap. Ignore a response that belongs to an
- // earlier selection so it cannot overwrite the current table.
+ let result = await listSuperAdminWorkers({ page, limit, search, team: filters.team, department: filters.department });
  if (requestId !== latestSuperAdminRequest.current) return;
-
- // Handle the actual API response structure: result.data.data
- let workersData = [];
- if (result?.data?.data && Array.isArray(result.data.data)) {
- workersData = result.data.data;
- } else if (result?.data && Array.isArray(result.data)) {
- workersData = result.data;
- } else if (Array.isArray(result)) {
- workersData = result;
- } else {
- workersData = [];
+ if (fallbackIfEmpty && result.data.length === 0 && page > 1) {
+ result = await listSuperAdminWorkers({ page: page - 1, limit, search, team: filters.team, department: filters.department });
+ if (requestId !== latestSuperAdminRequest.current) return;
  }
-
- // Sort workers by ID on the client side since we fetched all data
- const filteredWorkers = filterWorkersByPlacement(workersData, filters);
- const sortedWorkers = filteredWorkers.sort((a, b) => {
- const idA = parseInt(a.id || a.workerid || 0);
- const idB = parseInt(b.id || b.workerid || 0);
- return idA - idB;
- });
-
- // Store all workers for client-side pagination
- setAllWorkers(sortedWorkers);
-
- // Implement client-side pagination
- const startIndex = (page - 1) * limit;
- const endIndex = startIndex + limit;
- const paginatedWorkers = sortedWorkers.slice(startIndex, endIndex);
-
- // Set the paginated data
- setData(paginatedWorkers);
-
- // Set pagination info for client-side pagination
- const totalWorkers = sortedWorkers.length;
- const totalPages = Math.ceil(totalWorkers / limit);
- 
- setPagination({
- page: page,
- limit: limit,
- total: totalWorkers,
- totalPages: totalPages,
- hasNext: page < totalPages,
- hasPrev: page > 1,
- });
+ setData(result.data);
+ setPagination(result.pagination);
+ setSelectedWorkers(new Set());
+ setIsSelectAll(false);
 
  setIsLoading(false);
  } catch (error) {
@@ -487,7 +437,7 @@ Type "DELETE" to confirm (case-sensitive):`;
 
  // Refresh the data
  if (isSuperAdmin) {
- querySuperAdminWorkers();
+ await querySuperAdminWorkers(pagination.page, pagination.limit, normalizeSearchTerm(searchTerm), true);
  } else if (isAdminMember) {
  queryAdminWorkers();
  } else {
@@ -528,21 +478,10 @@ Type "DELETE" to confirm (case-sensitive):`;
  }
  };
 
- // Handle pagination from stored data
+ // Request the selected server page.
  const handlePagination = (newPage) => {
- if (allWorkers.length === 0) return;
- 
- const startIndex = (newPage - 1) * pagination.limit;
- const endIndex = startIndex + pagination.limit;
- const paginatedWorkers = allWorkers.slice(startIndex, endIndex);
- 
- setData(paginatedWorkers);
- setPagination(prev => ({
- ...prev,
- page: newPage,
- hasNext: newPage < prev.totalPages,
- hasPrev: newPage > 1,
- }));
+ if (newPage < 1) return;
+ querySuperAdminWorkers(newPage, pagination.limit, normalizeSearchTerm(searchTerm));
  };
 
  const bulkDeleteWorkers = async () => {
@@ -599,7 +538,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
 
  // Refresh the data
  if (isSuperAdmin) {
- querySuperAdminWorkers();
+ await querySuperAdminWorkers(pagination.page, pagination.limit, normalizeSearchTerm(searchTerm), true);
  } else if (isAdminMember) {
  queryAdminWorkers();
  } else {
@@ -632,9 +571,12 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  };
 
  // Export teams to CSV
- const exportTeamsToCSV = () => {
+ const exportTeamsToCSV = async () => {
+ setIsExporting(true);
+ toast.info("Preparing export...");
  try {
- if (!allWorkers.length) {
+ const workers = await fetchAllSuperAdminWorkers({ search: normalizeSearchTerm(searchTerm), team: filters.team, department: filters.department });
+ if (!workers.length) {
  toast.error("No workers to export");
  return;
  }
@@ -659,7 +601,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
 
  // Group workers by team
  const workersByTeam = {};
- allWorkers.forEach((worker) => {
+ workers.forEach((worker) => {
  const team = worker.team || "Unassigned";
  if (!workersByTeam[team]) {
  workersByTeam[team] = [];
@@ -746,13 +688,15 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  const fileName = `${safe(deptNameForFile)}_workers_${ts}.csv`;
  saveAs(blob, fileName);
 
- const totalWorkers = allWorkers.length;
+ const totalWorkers = workers.length;
  const totalTeams = sortedTeams.length;
  toast.success(
  `Exported ${totalWorkers} worker(s) across ${totalTeams} team(s) to CSV`
  );
  } catch (error) {
  toast.error("Failed to export teams to CSV");
+ } finally {
+ setIsExporting(false);
  }
  };
 
@@ -784,7 +728,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  <button
  className="bg-purple-600 px-3 py-1.5 sm:px-4 sm:py-2 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-purple-700"
  onClick={exportTeamsToCSV}
- disabled={isLoading || !allWorkers.length}
+ disabled={isLoading || isExporting || pagination.total === 0}
  >
  Export
  </button>
@@ -1269,7 +1213,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  )}
 
  {/* Pagination Controls */}
- {isSuperAdmin && Array.isArray(data) && data.length > 0 && (
+ {isSuperAdmin && pagination.total > 0 && (
  <div className="px-6 py-4 border-t border-ink-200 bg-cream">
  <div className="flex items-center justify-between">
  <div className="flex items-center text-sm text-ink-700">

@@ -6,7 +6,7 @@ import {
   createProgressionPath,
   deleteProgressionPath,
   fetchProgressionPaths,
-  fetchTrainings,
+  fetchAllTrainings,
   updateProgressionPath,
 } from "../../../services/hub/trainings";
 import { unwrapData } from "../../../utils/training";
@@ -34,7 +34,7 @@ export default function ProgressionPaths() {
 
   const { data: trainingsData } = useQuery({
     queryKey: ["hub-trainings", "all-for-pathway"],
-    queryFn: () => fetchTrainings({ per_page: 100 }),
+    queryFn: () => fetchAllTrainings(),
   });
   const trainings = trainingsData?.data ?? [];
 

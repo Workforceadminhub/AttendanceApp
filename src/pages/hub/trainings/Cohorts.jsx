@@ -10,7 +10,7 @@ import {
   updateCohort,
   deleteCohort,
 } from "../../../services/hub/cohorts";
-import { fetchTrainings } from "../../../services/hub/trainings";
+import { fetchAllTrainings } from "../../../services/hub/trainings";
 import GenericModal from "../../../components/GenericModal";
 
 export default function Cohorts() {
@@ -34,7 +34,7 @@ export default function Cohorts() {
   });
   const { data: trainingsData } = useQuery({
     queryKey: ["hub-trainings", "cohort-picker"],
-    queryFn: () => fetchTrainings({ per_page: 100 }),
+    queryFn: () => fetchAllTrainings(),
   });
   const trainings = trainingsData?.data ?? [];
 

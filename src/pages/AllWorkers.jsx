@@ -1,3 +1,4 @@
+import { fetchAllSuperAdminWorkers } from "../services/workers";
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Header from "../components/Header";
@@ -6,12 +7,14 @@ import { toast } from "react-toastify";
 import LoadingState from "../components/LoadingState";
 import { EyeIcon, ArrowUpIcon, ArrowDownIcon } from "@heroicons/react/24/outline";
 import { saveAs } from "file-saver";
-import apiRequest from "../utils/apiClient";
 import { maskEmail, maskPhone } from "../utils/pii";
 import { getUserRole } from "../utils/getUserRole";
 
+const PAGE_SIZE = 50;
+
 export default function AllWorkers() {
  const navigate = useNavigate();
+ const [page, setPage] = useState(1);
  const [allWorkers, setAllWorkers] = useState([]);
  const [filteredWorkers, setFilteredWorkers] = useState([]);
  const [isLoading, setIsLoading] = useState(false);
@@ -48,19 +51,7 @@ export default function AllWorkers() {
  const fetchAllWorkers = async () => {
  setIsLoading(true);
  try {
- const result = await apiRequest("GET", "/api/super/admin/workers", {
- limit: 10000,
- });
-
- // Handle different response structures
- let workersData = [];
- if (result.data && result.data.data && Array.isArray(result.data.data)) {
- workersData = result.data.data;
- } else if (result.data && Array.isArray(result.data)) {
- workersData = result.data;
- } else if (Array.isArray(result)) {
- workersData = result;
- }
+ const workersData = await fetchAllSuperAdminWorkers();
 
  setAllWorkers(workersData);
  setFilteredWorkers(workersData);
@@ -128,6 +119,7 @@ export default function AllWorkers() {
  }
 
  setFilteredWorkers(filtered);
+ setPage(1);
  }, [columnFilters, sortConfig, allWorkers]);
 
  // Handle filter input change
@@ -246,6 +238,19 @@ export default function AllWorkers() {
  toast.error("Failed to export workers to CSV");
  }
  };
+
+ const totalPages = Math.max(1, Math.ceil(filteredWorkers.length / PAGE_SIZE));
+ const currentPage = Math.min(page, totalPages);
+ const pageRows = filteredWorkers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+ const pagination = {
+ page: currentPage,
+ limit: PAGE_SIZE,
+ total: filteredWorkers.length,
+ totalPages,
+ hasPrev: currentPage > 1,
+ hasNext: currentPage < totalPages,
+ };
+ const handlePagination = setPage;
 
  return (
  <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
@@ -456,7 +461,7 @@ export default function AllWorkers() {
  </thead>
  <tbody className="bg-white divide-y divide-ink-200">
  {Array.isArray(filteredWorkers) && filteredWorkers.length > 0 ? (
- filteredWorkers.map((worker, idx) => {
+ pageRows.map((worker, idx) => {
  const statsHref = `/worker/${worker.id}/attendance?department=${encodeURIComponent(worker.department || "")}&team=${encodeURIComponent(worker.team || "")}`;
  return (
  <tr
@@ -465,7 +470,7 @@ export default function AllWorkers() {
  className="cursor-pointer hover:bg-cream-200 transition-colors"
  >
  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-ink-900">
- {worker.id || worker.workerid || idx + 1}
+ {worker.id || worker.workerid || (currentPage - 1) * PAGE_SIZE + idx + 1}
  </td>
  <td className="px-4 py-3 whitespace-nowrap text-sm text-ink-900">
  <Link
@@ -561,6 +566,159 @@ export default function AllWorkers() {
  )}
  </tbody>
  </table>
+ </div>
+ )}
+
+ {/* Pagination Controls */}
+ {pagination.total > 0 && (
+ <div className="px-6 py-4 border-t border-ink-200 bg-cream">
+ <div className="flex items-center justify-between">
+ <div className="flex items-center text-sm text-ink-700">
+ <span>
+ Showing {(pagination.page - 1) * pagination.limit + 1}{" "}
+ to{" "}
+ {Math.min(
+ pagination.page * pagination.limit,
+ pagination.total
+ )}{" "}
+ of {pagination.total} results
+ </span>
+ </div>
+
+ <div className="flex items-center space-x-1">
+ {/* Previous Button */}
+ <button
+ onClick={() => handlePagination(pagination.page - 1)}
+ disabled={!pagination.hasPrev}
+ className={`px-3 py-1 text-sm font-medium rounded-md ${
+ pagination.hasPrev
+ ? "text-ink-700 bg-white border border-ink-300 hover:bg-cream"
+ : "text-ink-400 bg-cream-200 border border-ink-200 cursor-not-allowed"
+ }`}
+ >
+ ←
+ </button>
+
+ {/* Page Numbers - Always show first and last page */}
+ {(() => {
+ const currentPage = pagination.page;
+ const totalPages = pagination.totalPages;
+ const pages = [];
+
+ if (totalPages <= 7) {
+ // If 7 or fewer pages, show all
+ for (let i = 1; i <= totalPages; i++) {
+ pages.push(
+ <button
+ key={i}
+ onClick={() => handlePagination(i)}
+ className={`px-3 py-1 text-sm font-medium rounded-md ${
+ currentPage === i
+ ? "bg-ink-900 text-white"
+ : "text-ink-700 bg-white border border-ink-300 hover:bg-cream"
+ }`}
+ >
+ {i}
+ </button>
+ );
+ }
+ } else {
+ // Always show first page
+ pages.push(
+ <button
+ key={1}
+ onClick={() => handlePagination(1)}
+ className={`px-3 py-1 text-sm font-medium rounded-md ${
+ currentPage === 1
+ ? "bg-ink-900 text-white"
+ : "text-ink-700 bg-white border border-ink-300 hover:bg-cream"
+ }`}
+ >
+ 1
+ </button>
+ );
+
+ // Show ellipsis if current page is far from start
+ if (currentPage > 4) {
+ pages.push(
+ <span key="ellipsis1" className="px-2 py-1 text-sm text-ink-500">
+ ...
+ </span>
+ );
+ }
+
+ // Show pages around current page
+ let startPage = Math.max(2, currentPage - 1);
+ let endPage = Math.min(totalPages - 1, currentPage + 1);
+
+ // Adjust if we're near the beginning or end
+ if (currentPage <= 3) {
+ endPage = Math.min(5, totalPages - 1);
+ }
+ if (currentPage >= totalPages - 2) {
+ startPage = Math.max(2, totalPages - 4);
+ }
+
+ for (let i = startPage; i <= endPage; i++) {
+ if (i !== 1 && i !== totalPages) {
+ pages.push(
+ <button
+ key={i}
+ onClick={() => handlePagination(i)}
+ className={`px-3 py-1 text-sm font-medium rounded-md ${
+ currentPage === i
+ ? "bg-ink-900 text-white"
+ : "text-ink-700 bg-white border border-ink-300 hover:bg-cream"
+ }`}
+ >
+ {i}
+ </button>
+ );
+ }
+ }
+
+ // Show ellipsis if current page is far from end
+ if (currentPage < totalPages - 3) {
+ pages.push(
+ <span key="ellipsis2" className="px-2 py-1 text-sm text-ink-500">
+ ...
+ </span>
+ );
+ }
+
+ // Always show last page
+ pages.push(
+ <button
+ key={totalPages}
+ onClick={() => handlePagination(totalPages)}
+ className={`px-3 py-1 text-sm font-medium rounded-md ${
+ currentPage === totalPages
+ ? "bg-ink-900 text-white"
+ : "text-ink-700 bg-white border border-ink-300 hover:bg-cream"
+ }`}
+ >
+ {totalPages}
+ </button>
+ );
+ }
+
+ return pages;
+ })()}
+
+ {/* Next Button */}
+ <button
+ onClick={() => handlePagination(pagination.page + 1)}
+ disabled={!pagination.hasNext}
+ className={`px-3 py-1 text-sm font-medium rounded-md ${
+ pagination.hasNext
+ ? "text-ink-700 bg-white border border-ink-300 hover:bg-cream"
+ : "text-ink-400 bg-cream-200 border border-ink-200 cursor-not-allowed"
+ }`}
+ >
+ →
+ </button>
+ </div>
+ </div>
  </div>
  )}
  </div>

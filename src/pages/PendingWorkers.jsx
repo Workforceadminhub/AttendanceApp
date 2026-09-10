@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
 import { toast } from "react-toastify";
-import { fetchPendingAdd, fetchPendingRemove } from "../services/workers";
+import { fetchPendingAdd, fetchPendingRemove, fetchAllPending } from "../services/workers";
 import LoadingState from "../components/LoadingState";
 import GenericModal from "../components/GenericModal";
 import { saveAs } from "file-saver";
@@ -18,12 +18,17 @@ import {
  ArrowDownIcon,
 } from "@heroicons/react/24/outline";
 
+const PAGE_LIMIT = 50;
+const initialMeta = { page: 1, limit: PAGE_LIMIT, total: 0, totalPages: 1, hasNext: false, hasPrev: false };
+const badgeCount = meta => meta.total ?? (meta.hasNext ? `${meta.pageCount}+` : meta.filteredCount);
+
 export default function PendingWorkers() {
  const navigate = useNavigate();
  const [pendingAddWorkers, setPendingAddWorkers] = useState([]);
  const [pendingRemoveWorkers, setPendingRemoveWorkers] = useState([]);
- const [allPendingAddWorkers, setAllPendingAddWorkers] = useState([]);
- const [allPendingRemoveWorkers, setAllPendingRemoveWorkers] = useState([]);
+ const [addMeta, setAddMeta] = useState(initialMeta);
+ const [removeMeta, setRemoveMeta] = useState(initialMeta);
+ const [isExporting, setIsExporting] = useState(false);
  const [isLoading, setIsLoading] = useState(false);
  const [isProcessing, setIsProcessing] = useState(false);
  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
@@ -38,14 +43,7 @@ export default function PendingWorkers() {
  });
  
  // Pagination state
- const [pagination, setPagination] = useState({
- page: 1,
- limit: 100,
- total: 0,
- totalPages: 0,
- hasNext: false,
- hasPrev: false,
- });
+ const [pagination, setPagination] = useState(initialMeta);
 
  const { isAdmin, isSuperAdmin, isChurchAdmin, user: authUser } = getUserRole();
  const canAccessPendingWorkers = isAdmin;
@@ -78,35 +76,19 @@ export default function PendingWorkers() {
  return workers.filter((w) => canAccessDepartment(w.department || w.department_name));
  }, []);
 
- const updatePaginationForTab = useCallback(
- (tab, allAddWorkers, allRemoveWorkers) => {
- const currentWorkers = tab === "add" ? allAddWorkers : allRemoveWorkers;
- const total = currentWorkers.length;
- const totalPages = Math.ceil(total / pagination.limit);
-
- const newPagination = {
- page: 1,
- limit: pagination.limit,
- total: total,
- totalPages: totalPages,
- hasNext: totalPages > 1,
- hasPrev: false,
- };
-
- setPagination(newPagination);
-
- const startIndex = 0;
- const endIndex = pagination.limit;
- const currentPageData = currentWorkers.slice(startIndex, endIndex);
-
+ const fetchTab = useCallback(async (tab, page) => {
+ const fn = tab === "add" ? fetchPendingAdd : fetchPendingRemove;
+ const result = await fn(page, PAGE_LIMIT, permissions);
+ const rows = filterByAccess(result.data || []);
  if (tab === "add") {
- setPendingAddWorkers(currentPageData);
+ setPendingAddWorkers(rows);
+ setAddMeta(result.pagination);
  } else {
- setPendingRemoveWorkers(currentPageData);
+ setPendingRemoveWorkers(rows);
+ setRemoveMeta(result.pagination);
  }
- },
- [pagination.limit]
- );
+ return result.pagination;
+ }, [permissions, filterByAccess]);
 
  const loadingRef = useRef(false);
  const fetchAllPendingWorkers = useCallback(async () => {
@@ -114,25 +96,15 @@ export default function PendingWorkers() {
  loadingRef.current = true;
  setIsLoading(true);
  try {
- const [addWorkers, removeWorkers] = await Promise.all([
- fetchPendingAdd(1, 1000, permissions),
- fetchPendingRemove(1, 1000, permissions),
- ]);
-
- const allAddWorkers = filterByAccess(addWorkers?.data || []);
- const allRemoveWorkers = filterByAccess(removeWorkers?.data || []);
-
- setAllPendingAddWorkers(allAddWorkers);
- setAllPendingRemoveWorkers(allRemoveWorkers);
-
- updatePaginationForTab(activeTab, allAddWorkers, allRemoveWorkers);
+ const [add, remove] = await Promise.all([fetchTab("add", 1), fetchTab("remove", 1)]);
+ setPagination(activeTab === "add" ? add : remove);
  } catch {
  toast.error("Failed to fetch pending workers");
  } finally {
  loadingRef.current = false;
  setIsLoading(false);
  }
- }, [activeTab, permissions, updatePaginationForTab, filterByAccess]);
+ }, [activeTab, fetchTab]);
 
  useEffect(() => {
  if (hasFetched.current) {
@@ -170,34 +142,37 @@ export default function PendingWorkers() {
  }
  };
 
- // Handle client-side pagination
- const handlePagination = (newPage) => {
- const allWorkers = activeTab === "add" ? allPendingAddWorkers : allPendingRemoveWorkers;
- const startIndex = (newPage - 1) * pagination.limit;
- const endIndex = startIndex + pagination.limit;
- const currentPageData = allWorkers.slice(startIndex, endIndex);
- 
- // Update current page data
- if (activeTab === "add") {
- setPendingAddWorkers(currentPageData);
- } else {
- setPendingRemoveWorkers(currentPageData);
+ // Request a page of the active inbox.
+ const handlePagination = async (newPage) => {
+ if (newPage < 1 || isBusy) return;
+ clearSelection();
+ setIsLoading(true);
+ try {
+ setPagination(await fetchTab(activeTab, newPage));
+ } catch {
+ toast.error("Failed to fetch pending workers");
+ } finally {
+ setIsLoading(false);
  }
- 
- // Update pagination state
- setPagination(prev => ({
- ...prev,
- page: newPage,
- hasNext: newPage < prev.totalPages,
- hasPrev: newPage > 1,
- }));
  };
 
- // Handle tab change
- const handleTabChange = (tab) => {
+ const handleTabChange = async (tab) => {
+ if (isBusy) return;
  setActiveTab(tab);
  clearSelection();
- updatePaginationForTab(tab, allPendingAddWorkers, allPendingRemoveWorkers);
+ const meta = tab === "add" ? addMeta : removeMeta;
+ if (meta.page === 1) {
+ setPagination(meta);
+ return;
+ }
+ setIsLoading(true);
+ try {
+ setPagination(await fetchTab(tab, 1));
+ } catch {
+ toast.error("Failed to fetch pending workers");
+ } finally {
+ setIsLoading(false);
+ }
  };
 
  // Multi-select functionality
@@ -296,7 +271,7 @@ export default function PendingWorkers() {
  };
 
  const workerLabel = (workerId) => {
- const all = [...allPendingAddWorkers, ...allPendingRemoveWorkers];
+ const all = [...pendingAddWorkers, ...pendingRemoveWorkers];
  const w = all.find((item) => item.id === workerId);
  const name = w ? `${w.firstname || ""} ${w.lastname || ""}`.trim() : "";
  return name || `#${workerId}`;
@@ -419,7 +394,7 @@ export default function PendingWorkers() {
  }
  };
 
- const isBusy = isLoading || isProcessing;
+ const isBusy = isLoading || isProcessing || isExporting;
 
  const currentWorkers = activeTab === "add" ? pendingAddWorkers : pendingRemoveWorkers;
 
@@ -452,10 +427,15 @@ export default function PendingWorkers() {
  });
  }, [currentWorkers, sortConfig]);
 
+ const fetchExportWorkers = async () => {
+ return filterByAccess(await fetchAllPending(activeTab === "add" ? "PENDING_ADD" : "PENDING_DELETE", permissions));
+ };
+
  // Export to CSV function (single sheet)
- const exportToCSV = () => {
+ const exportToCSV = async () => {
+ setIsExporting(true);
  try {
- const workersToExport = activeTab === "add" ? allPendingAddWorkers : allPendingRemoveWorkers;
+ const workersToExport = await fetchExportWorkers();
  
  if (workersToExport.length === 0) {
  toast.error(`No pending ${activeTab === "add" ? "add" : "remove"} workers to export`);
@@ -527,14 +507,16 @@ export default function PendingWorkers() {
  toast.success(`Exported ${workersToExport.length} worker(s) to CSV`);
  } catch {
  toast.error("Failed to export workers to CSV");
+ } finally {
+ setIsExporting(false);
  }
  };
 
  // Export to Excel with one sheet per department
  const exportToExcelByDepartment = async () => {
+ setIsExporting(true);
  try {
- const workersToExport =
- activeTab === "add" ? allPendingAddWorkers : allPendingRemoveWorkers;
+ const workersToExport = await fetchExportWorkers();
 
  if (!workersToExport.length) {
  toast.error(
@@ -651,6 +633,8 @@ export default function PendingWorkers() {
  );
  } catch {
  toast.error("Failed to export workers to Excel");
+ } finally {
+ setIsExporting(false);
  }
  };
 
@@ -713,7 +697,7 @@ export default function PendingWorkers() {
  >
  Pending add
  <span className="qc-num text-2xs uppercase tracking-tag text-ink-400 ml-1.5">
- {allPendingAddWorkers.length}
+ {badgeCount(addMeta)}
  </span>
  {activeTab === "add" && (
  <span className="absolute left-2 right-2 -bottom-px h-0.5 bg-ink-900" aria-hidden="true" />
@@ -731,7 +715,7 @@ export default function PendingWorkers() {
  >
  Pending delete
  <span className="qc-num text-2xs uppercase tracking-tag text-ink-400 ml-1.5">
- {allPendingRemoveWorkers.length}
+ {badgeCount(removeMeta)}
  </span>
  {activeTab === "remove" && (
  <span className="absolute left-2 right-2 -bottom-px h-0.5 bg-ink-900" aria-hidden="true" />
@@ -994,13 +978,13 @@ export default function PendingWorkers() {
 
 
  {/* Pagination */}
- {pagination.total > 0 && (
+ {(pagination.total > 0 || pagination.hasNext || pagination.hasPrev) && (
  <div className="mt-6 flex items-center justify-between">
  <div className="flex items-center text-sm text-ink-700">
  <span>
  Showing {((pagination.page - 1) * pagination.limit) + 1} to{" "}
- {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
- {pagination.total} results
+ {pagination.total == null ? (pagination.page - 1) * pagination.limit + currentWorkers.length : Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
+ {badgeCount(pagination)} results
  </span>
  </div>
  

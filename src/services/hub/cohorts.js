@@ -1,8 +1,8 @@
-import { hubGet, hubPost, hubPatch, hubDelete } from "./client";
+import { hubGetPaged, hubPost, hubPatch, hubDelete } from "./client";
 import { sortById } from "./sortById";
 
 export async function fetchCohorts(params) {
-  const res = await hubGet("/cohorts", params);
+  const res = await hubGetPaged("/cohorts", params);
   if (Array.isArray(res)) return sortById(res);
   if (Array.isArray(res?.data)) {
     return { ...res, data: sortById(res.data) };

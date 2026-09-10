@@ -1,3 +1,4 @@
+import { fetchAllPages, extractPaginationMeta, FETCH_ALL_PAGE_LIMIT } from "../utils/pagination.js";
 import apiRequest from "../utils/apiClient";
 
 /**
@@ -5,11 +6,14 @@ import apiRequest from "../utils/apiClient";
  * @returns {Promise<Array>} List of admin users
  */
 export const fetchAdmins = async () => {
-  const response = await apiRequest("GET", "/api/hub/super/admin/admins");
-  if (!response || response.error) {
-    throw new Error(response?.error || "Failed to fetch admins");
-  }
-  return response.data || response;
+  const first = await apiRequest("GET", "/api/hub/super/admin/admins");
+  if (!first || first.error) throw new Error(first?.error || "Failed to fetch admins");
+  const items = await fetchAllPages(async ({ page, limit }) => {
+    const response = await apiRequest("GET", "/api/hub/super/admin/admins", { page, limit });
+    if (!response || response.error) throw new Error(response?.error || "Failed to fetch admins");
+    return response;
+  }, { first, pageSize: extractPaginationMeta(first)?.limit ?? extractPaginationMeta(first)?.per_page ?? FETCH_ALL_PAGE_LIMIT });
+  return items;
 };
 
 /**

@@ -1,7 +1,10 @@
-import { hubGet, hubPost } from "./client";
+import { unwrapPaginated } from "../../utils/pagination.js";
+import { hubGetPaged, hubGet, hubPost } from "./client";
 
-export function fetchCourses(params) {
-  return hubGet("/courses", params);
+export async function fetchCourses(params) {
+  const res = await hubGet("/courses", params);
+  const { data, pagination } = unwrapPaginated(res, { page: params?.page, limit: params?.limit ?? params?.per_page });
+  return { ...res, data, pagination, total: pagination.total };
 }
 
 export function createCourse(data) {
@@ -22,7 +25,7 @@ export function enrollInCourse(id, workerId) {
 }
 
 export function fetchEnrollments(id) {
-  return hubGet(`/courses/${id}/enrollments`);
+  return hubGetPaged(`/courses/${id}/enrollments`);
 }
 
 export function completeLecture(enrollmentId, lectureId) {

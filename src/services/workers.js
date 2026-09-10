@@ -1,3 +1,5 @@
+import { DEFAULT_PAGE_LIMIT, FETCH_ALL_PAGE_LIMIT, fetchAllPages, unwrapPaginated, extractPaginationMeta } from "../utils/pagination.js";
+import { filterWorkersByPlacement } from "../utils/filterWorkers";
 import { getNextSunday } from "../utils/getDate";
 import apiRequest from "../utils/apiClient";
 import { resolveDepartmentParams, departmentNameForApi } from "../utils/routeObject";
@@ -20,24 +22,15 @@ export const fetchWorkers = async (department, activeDate, permissions, search =
     params.search = search.trim();
   }
   
-  const response = await apiRequest("GET", "/api/workers", params);
-  if (!response || response.error) {
-    throw new Error(response?.error || "Failed to fetch workers");
-  }
-
-  return response.data;
+  return requestAllWorkerPages("/api/workers", params);
 };
 
 export const fetchUnmarkedWorkers = async (team, activeDate) => {
   const dateForAttendance = activeDate || getNextSunday();
-  const response = await apiRequest("GET", "/api/unmarked/workers", {
+  return requestAllWorkerPages("/api/unmarked/workers", {
     team,
     activeDate: dateForAttendance,
   });
-  if (!response || response.error) {
-    throw new Error(response?.error || "Failed to fetch unmarked workers");
-  }
-  return response.data;
 };
 
 /** Unmarked workers for a specific department (Dashboard). */
@@ -55,11 +48,7 @@ export const fetchAdminWorkers = async (team, activeGroup, activeDate, search = 
     params.search = search.trim();
   }
   
-  const response = await apiRequest("GET", "/api/workers", params);
-  if (!response || response.error) {
-    throw new Error(response?.error || "Failed to fetch admin workers");
-  }
-  return response.data;
+  return requestAllWorkerPages("/api/workers", params);
 };
 
 export const addNewWorker = async (worker) => {
@@ -98,7 +87,7 @@ const filterByStatus = (workers, status) => {
   );
 };
 
-const fetchPendingWorkers = async (status, page = 1, limit = 100, permissions = []) => {
+const requestPendingWorkers = async (status, page, limit, permissions) => {
   let result;
   try {
     // Some deployments use this path for all admin levels.
@@ -120,33 +109,26 @@ const fetchPendingWorkers = async (status, page = 1, limit = 100, permissions = 
     });
   }
 
-  let workers = [];
-  if (result?.data && Array.isArray(result.data)) {
-    workers = result.data;
-  } else if (Array.isArray(result)) {
-    workers = result;
-  } else if (result?.data?.data && Array.isArray(result.data.data)) {
-    workers = result.data.data;
-  }
+  if (!result || result.error) throw new Error(result?.error || "Failed to fetch pending workers");
+  return result;
+};
 
+const fetchPendingWorkers = async (status, page = 1, limit = 100, permissions = []) => {
+  const result = await requestPendingWorkers(status, page, limit, permissions);
+  const unwrapped = unwrapPaginated(result, { page, limit });
+  const workers = unwrapped.data;
   const pendingWorkers = filterByStatus(workers, status);
-  const serverPag = result?.pagination || {};
-  const hasServerTotals = serverPag.total != null || serverPag.totalPages != null || serverPag.hasNext != null;
-  // Without server totals we cannot know the real count: only infer whether
-  // another page likely exists from whether this page came back full.
-  const hasNext = hasServerTotals
-    ? (serverPag.hasNext ?? (serverPag.totalPages != null ? page < serverPag.totalPages : page * limit < serverPag.total))
-    : workers.length === limit;
+  const serverPag = extractPaginationMeta(result) || {};
+  const hasServerTotals = serverPag.total != null || serverPag.totalPages != null || serverPag.total_pages != null || serverPag.hasNext != null || serverPag.has_next != null;
+  const hasNext = hasServerTotals ? unwrapped.pagination.hasNext : workers.length === limit;
   return {
     data: pendingWorkers,
     pagination: {
-      ...serverPag,
-      page: serverPag.page ?? page,
-      limit: serverPag.limit ?? limit,
-      total: serverPag.total ?? null,
-      totalPages: serverPag.totalPages ?? (serverPag.total != null ? Math.ceil(serverPag.total / limit) : null),
+      ...unwrapped.pagination,
+      total: serverPag.total != null ? unwrapped.pagination.total : null,
+      totalPages: hasServerTotals ? unwrapped.pagination.totalPages : (hasNext ? page + 1 : page),
       hasNext,
-      hasPrev: serverPag.hasPrev ?? page > 1,
+      hasPrev: unwrapped.pagination.hasPrev,
       // Rows on this page after client-side status filtering (may be fewer than limit).
       filteredCount: pendingWorkers.length,
       pageCount: workers.length,
@@ -159,6 +141,13 @@ export const fetchPendingAdd = (page = 1, limit = 100, permissions = []) =>
 
 export const fetchPendingRemove = (page = 1, limit = 100, permissions = []) =>
   fetchPendingWorkers("PENDING_DELETE", page, limit, permissions);
+
+
+/** Collect the active pending inbox for export, filtering after the page walk. */
+export async function fetchAllPending(status, permissions = []) {
+  const rows = await fetchAllPages(({ page, limit }) => requestPendingWorkers(status, page, limit, permissions));
+  return filterByStatus(rows, status);
+}
 
 
 // ========== Phase 7 - New Worker Functions ==========
@@ -224,3 +213,40 @@ export const fetchTopPerformers = async (department, startDate, endDate, limit =
 };
 
 // ========== End Phase 7 - New Worker Functions ==========
+
+async function requestAllWorkerPages(endpoint, baseParams) {
+  return fetchAllPages(async ({ page, limit }) => {
+    const response = await apiRequest("GET", endpoint, { ...baseParams, page, limit });
+    if (!response || response.error) throw new Error(response?.error || "Failed to fetch workers");
+    return response;
+  });
+}
+
+async function requestSuperAdminWorkers({ page = 1, limit = DEFAULT_PAGE_LIMIT, search = "", team, department, status, sortBy = "team", permissions } = {}) {
+  const params = { page, limit, sortBy };
+  if (search && search.trim()) params.search = search.trim();
+  if (team && team !== "All") params.team = team;
+  if (department && department !== "All") params.department = department;
+  if (status) params.status = status;
+  if (Array.isArray(permissions) && permissions.length > 0) params.permissions = permissions;
+  const result = await apiRequest("GET", "/api/super/admin/workers", params);
+  if (!result || result.error) throw new Error(result?.error || "Failed to fetch workers");
+  return result;
+}
+
+/** Fetch one page of super-admin workers with intersection placement filtering. */
+export async function listSuperAdminWorkers({ page = 1, limit = DEFAULT_PAGE_LIMIT, ...options } = {}) {
+  const result = await requestSuperAdminWorkers({ ...options, page, limit });
+  const unwrapped = unwrapPaginated(result, { page, limit });
+  unwrapped.data = filterWorkersByPlacement(unwrapped.data, options);
+  return unwrapped;
+}
+
+/** Fetch the complete super-admin directory using the same filters as its pages. */
+export async function fetchAllSuperAdminWorkers(options = {}) {
+  // Filter after collection so an OR-filtered server page with no intersection
+  // matches cannot hide matching workers on a later page.
+  const rows = await fetchAllPages(({ page, limit }) => requestSuperAdminWorkers({ ...options, page, limit }),
+    { pageSize: options.limit || FETCH_ALL_PAGE_LIMIT });
+  return filterWorkersByPlacement(rows, options);
+}

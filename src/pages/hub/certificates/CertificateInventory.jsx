@@ -5,7 +5,7 @@ import Header from "../../../components/Header";
 import Layout from "../../../components/Layout";
 import { Stat, Tag } from "../../../components/ui";
 import CertificatePreview from "../../../components/hub/certificates/CertificatePreview";
-import { fetchTrainings, fetchTrainingCertificates } from "../../../services/hub/trainings";
+import { fetchAllTrainings, fetchTrainingCertificates } from "../../../services/hub/trainings";
 import { asDate, display, formatDate, unwrapData } from "../../../utils/training";
 
 /**
@@ -24,7 +24,7 @@ export default function CertificateInventory() {
 
   const { data: trainingsData, isLoading: trainingsLoading } = useQuery({
     queryKey: ["hub-trainings", "certificate-inventory"],
-    queryFn: () => fetchTrainings({ per_page: 100 }),
+    queryFn: () => fetchAllTrainings(),
   });
   const trainings = trainingsData?.data ?? [];
 

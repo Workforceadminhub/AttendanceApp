@@ -154,7 +154,9 @@ export default function DepartmentAttendanceHistory() {
       }
     }
 
-    fetchAdminWorkers(team.team, apiActiveGroup, activeHistory, "", permissionsForApi)
+    // The API filters on `team`; the scoped permissions list is ignored for admins.
+    const apiTeam = isTeamFilter ? activeGroup : team.team;
+    fetchAdminWorkers(apiTeam, apiActiveGroup, activeHistory, "", permissionsForApi)
       .then((res) => {
         setData(res);
         setIsLoading(false);

@@ -381,7 +381,9 @@ export default function DepartmentAttendance() {
  }
  }
 
- fetchAdminWorkers(team.team, apiActiveGroup, selectedSunday, "", permissionsForApi, { signal: controller.signal })
+ // The API filters on `team`; the scoped permissions list is ignored for admins.
+ const apiTeam = isTeamFilter ? activeGroup : team.team;
+ fetchAdminWorkers(apiTeam, apiActiveGroup, selectedSunday, "", permissionsForApi, { signal: controller.signal })
  .then((res) => {
  if (!isCurrent()) return;
  setData(sortWorkersById(res));

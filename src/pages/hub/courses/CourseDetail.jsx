@@ -259,7 +259,7 @@ function EnrollmentTable({ enrollments }) {
   }
 
   return (
-    <div className="qc-card overflow-hidden">
+    <div className="qc-card overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-ink-200 bg-cream-200">

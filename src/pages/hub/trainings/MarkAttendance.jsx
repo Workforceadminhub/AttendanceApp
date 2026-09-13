@@ -386,7 +386,7 @@ export default function MarkAttendance() {
                                   type="button"
                                   aria-pressed={active}
                                   onClick={() => toggleMark(wid, choice.value)}
-                                  className={`flex-1 px-2 py-1.5 text-xs font-medium rounded border transition-colors ${
+                                  className={`flex-1 px-2 py-1.5 min-h-touch min-w-touch text-xs font-medium rounded border transition-colors ${
                                     active
                                       ? choice.on
                                       : `bg-white text-ink-700 border-ink-200 ${choice.off}`

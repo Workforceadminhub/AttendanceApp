@@ -791,7 +791,7 @@ export function CohortManagementDrawer({ trainingId, trainingName, onClose }) {
                     key={cohort.id}
                     type="button"
                     onClick={() => setActiveCohortId(cohort.id)}
-                    className={`px-3 py-1.5 text-xs font-medium rounded border transition-colors ${
+                    className={`px-3 py-1.5 min-h-touch min-w-touch text-xs font-medium rounded border transition-colors ${
                       selected
                         ? "bg-ink-900 text-cream border-ink-900"
                         : "bg-white text-ink-700 border-ink-200 hover:bg-cream-200"

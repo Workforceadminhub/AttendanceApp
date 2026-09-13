@@ -532,17 +532,20 @@ function DeleteModal({ registration, onClose, onDeleted }) {
 export default function AwakeningRegistrationAdmin() {
   const navigate = useNavigate();
 
+  // Role guard - super-admin / church-admin only (canonical resolver), computed
+  // synchronously so rendering and data effects can gate on it immediately.
+  const { isSuperAdmin, isChurchAdmin } = getUserRole();
+  const hasAccess = isSuperAdmin || isChurchAdmin;
+
   const [registrations, setRegistrations] = useState([]);
   const [overviewRegistrations, setOverviewRegistrations] = useState([]);
 
-  // Role guard - super-admin / church-admin only (canonical resolver)
   useEffect(() => {
-    const { isSuperAdmin, isChurchAdmin } = getUserRole();
-    if (!isSuperAdmin && !isChurchAdmin) {
+    if (!hasAccess) {
       toast.error("Access denied.");
       navigate("/login");
     }
-  }, [navigate]);
+  }, [hasAccess, navigate]);
 
   const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 1, hasNext: false, hasPrev: false });
   const [isLoading, setIsLoading] = useState(true);
@@ -575,6 +578,7 @@ export default function AwakeningRegistrationAdmin() {
 
   // Fetch
   const load = useCallback(async () => {
+    if (!hasAccess) return;
     setIsLoading(true);
     try {
       const serviceTeamValues = getAwakeningServiceTeamQueryValues(team);
@@ -613,9 +617,10 @@ export default function AwakeningRegistrationAdmin() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, search, campus, regType, team]);
+  }, [page, search, campus, regType, team, hasAccess]);
 
   const loadOverview = useCallback(async () => {
+    if (!hasAccess) return;
     setIsOverviewLoading(true);
     try {
       const rows = await fetchAllAwakeningRegistrations({
@@ -630,7 +635,7 @@ export default function AwakeningRegistrationAdmin() {
     } finally {
       setIsOverviewLoading(false);
     }
-  }, [search, campus, regType, team]);
+  }, [search, campus, regType, team, hasAccess]);
 
   useEffect(() => { loadOverview(); }, [loadOverview]);
   useEffect(() => { if (view === "list") load(); }, [view, load]);
@@ -658,6 +663,7 @@ export default function AwakeningRegistrationAdmin() {
   const actionsColumn = {
     key: "actions",
     header: "Actions",
+    trailing: true,
     render: (r) => (
       <span className="flex items-center gap-1">
         <button
@@ -679,6 +685,22 @@ export default function AwakeningRegistrationAdmin() {
       </span>
     ),
   };
+
+  if (!hasAccess) {
+    return (
+      <Layout>
+        <Header />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+          <div className="qc-card p-12 text-center">
+            <div className="qc-eyebrow text-ink-400">Access denied</div>
+            <p className="mt-2 text-ink-700 text-base">
+              You do not have permission to view this page.
+            </p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

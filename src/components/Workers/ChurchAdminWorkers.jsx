@@ -382,15 +382,15 @@ Type "DELETE" to confirm (case-sensitive):`;
  Workers
  </h1>
  </div>
- <div className="self-start sm:self-center flex space-x-2">
+ <div className="self-start sm:self-center flex flex-wrap gap-2">
  <button
- className="bg-forest px-6 py-2 text-white rounded-lg text-sm font-medium min-w-[140px]"
+ className="bg-forest px-6 py-2 text-white rounded-lg text-sm font-medium min-w-[140px] min-h-touch"
  onClick={() => navigate("/church-admin/add-worker")}
  >
  Add New Worker
  </button>
  <button
- className="bg-ink-500 px-6 py-2 text-white rounded-lg text-sm font-medium min-w-[140px]"
+ className="bg-ink-500 px-6 py-2 text-white rounded-lg text-sm font-medium min-w-[140px] min-h-touch"
  onClick={() => {
  if (isSuperAdmin) {
  querySuperAdminWorkers(1, 20, searchTerm);
@@ -406,7 +406,7 @@ Type "DELETE" to confirm (case-sensitive):`;
  Refresh Workers
  </button>
  <button
- className="bg-ink-900 px-6 py-2 text-white rounded-lg text-sm font-medium min-w-[140px] hover:bg-ink-800"
+ className="bg-ink-900 px-6 py-2 text-white rounded-lg text-sm font-medium min-w-[140px] min-h-touch hover:bg-ink-800"
  onClick={() => navigate(`/workers/history/${team.department}`)}
  >
  View History
@@ -783,7 +783,7 @@ Type "DELETE" to confirm (case-sensitive):`;
  }
  }}
  disabled={!pagination.hasPrev}
- className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md ${
+ className={`relative inline-flex items-center px-4 py-2 min-h-touch min-w-touch border text-sm font-medium rounded-md ${
  pagination.hasPrev
  ? "bg-white border-ink-300 text-ink-700 hover:bg-cream"
  : "bg-cream-200 border-ink-300 text-ink-400 cursor-not-allowed"
@@ -806,7 +806,7 @@ Type "DELETE" to confirm (case-sensitive):`;
  }
  }}
  disabled={!pagination.hasNext}
- className={`ml-3 relative inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md ${
+ className={`ml-3 relative inline-flex items-center px-4 py-2 min-h-touch min-w-touch border text-sm font-medium rounded-md ${
  pagination.hasNext
  ? "bg-white border-ink-300 text-ink-700 hover:bg-cream"
  : "bg-cream-200 border-ink-300 text-ink-400 cursor-not-allowed"
@@ -853,7 +853,7 @@ Type "DELETE" to confirm (case-sensitive):`;
  }
  }}
  disabled={!pagination.hasPrev}
- className={`relative inline-flex items-center px-2 py-2 rounded-l-md border text-sm font-medium ${
+ className={`relative inline-flex items-center px-2 py-2 min-h-touch min-w-touch rounded-l-md border text-sm font-medium ${
  pagination.hasPrev
  ? "bg-white border-ink-300 text-ink-500 hover:bg-cream"
  : "bg-cream-200 border-ink-300 text-ink-400 cursor-not-allowed"
@@ -906,7 +906,7 @@ Type "DELETE" to confirm (case-sensitive):`;
  }
  }
  }}
- className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+ className={`relative inline-flex items-center px-4 py-2 min-h-touch min-w-touch border text-sm font-medium ${
  page === currentPage
  ? "z-10 bg-ink-100 border-ink-200 text-ink-900"
  : "bg-white border-ink-300 text-ink-500 hover:bg-cream"
@@ -937,7 +937,7 @@ Type "DELETE" to confirm (case-sensitive):`;
  }
  }}
  disabled={!pagination.hasNext}
- className={`relative inline-flex items-center px-2 py-2 rounded-r-md border text-sm font-medium ${
+ className={`relative inline-flex items-center px-2 py-2 min-h-touch min-w-touch rounded-r-md border text-sm font-medium ${
  pagination.hasNext
  ? "bg-white border-ink-300 text-ink-500 hover:bg-cream"
  : "bg-cream-200 border-ink-300 text-ink-400 cursor-not-allowed"

@@ -28,7 +28,7 @@ import Modal from "../Modal";
 // Separate component for the attendance dropdown to reduce duplication
 const AttendanceDropdown = ({
  person,
- isAdminMember,
+ disableForAdminRole,
  attendanceIsClosed,
  updateAttendance,
  options,
@@ -37,7 +37,7 @@ const AttendanceDropdown = ({
  return (
  <ReactSelectDropdown
  title="Mark attendance"
- disabled={isAdminMember || person.attendance || attendanceIsClosed}
+ disabled={disableForAdminRole || person.attendance || attendanceIsClosed}
  defaultValue={
  person?.attendance
  ? {
@@ -70,6 +70,7 @@ export default function UnmarkedAttendance() {
  const { isChurchAdmin: isChurchAdminRole, isSuperAdmin } = getUserRole();
  const isChurchAdmin = isChurchAdminRole || isSuperAdmin || team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
  const isAdminMember = checkAdminStatus(location.pathname);
+ const disableForAdminRole = isAdminMember && !isChurchAdmin;
  const optionsAdmin = useAdminSelectOptions(true, team);
  const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
  const [modalOpen, setModalOpen] = useState(false);
@@ -239,10 +240,11 @@ export default function UnmarkedAttendance() {
  }
  };
 
- const debouncedSetActiveGroup = debounce(
- (value) => setActiveGroup(value),
- DEBOUNCE_INTERVAL
+ const debouncedSetActiveGroup = useMemo(
+ () => debounce((value) => setActiveGroup(value), DEBOUNCE_INTERVAL),
+ []
  );
+ useEffect(() => () => debouncedSetActiveGroup.cancel(), [debouncedSetActiveGroup]);
 
  const handleChange = (selected) => {
  debouncedSetActiveGroup(selected?.value);
@@ -439,7 +441,7 @@ export default function UnmarkedAttendance() {
  <td className="whitespace-nowrap px-3 py-4 text-sm text-ink-500">
  <AttendanceDropdown
  person={person}
- isAdminMember={isAdminMember}
+ disableForAdminRole={disableForAdminRole}
  attendanceIsClosed={attendanceIsClosed}
  updateAttendance={updateAttendance}
  options={options}
@@ -504,7 +506,7 @@ export default function UnmarkedAttendance() {
  <div className="pt-2 flex space-x-3">
  <AttendanceDropdown
  person={person}
- isAdminMember={isAdminMember}
+ disableForAdminRole={disableForAdminRole}
  attendanceIsClosed={attendanceIsClosed}
  updateAttendance={updateAttendance}
  options={options}

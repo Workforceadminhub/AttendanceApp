@@ -1,3 +1,5 @@
+import { isSameDepartment } from "./routeObject";
+
 /**
  * Filter attendance/summary data to only departments in authUser.permissions.
  * Admin status is derived from the session user, never from the URL.
@@ -16,13 +18,19 @@ export const filterByUserPermissions = (list, authUser) => {
   // Super/Church admin role: see everything (skip the department-allowlist filter)
   if (
     authUser?.role === "super-admin" ||
+    authUser?.role === "church-admin" ||
     authUser?.department === "Super Admin" ||
-    authUser?.department === "Church Admin"
+    authUser?.department === "Church Admin" ||
+    authUser?.permissions?.includes?.("Super Admin") ||
+    authUser?.permissions?.includes?.("Church Admin")
   ) {
     return list;
   }
   const permissions = authUser?.permissions;
   if (!permissions?.length) return list;
-  const allowed = new Set(permissions);
-  return list.filter((item) => item.department && allowed.has(item.department));
+  return list.filter(
+    (item) =>
+      item.department &&
+      permissions.some((permission) => isSameDepartment(permission, item.department))
+  );
 };

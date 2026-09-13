@@ -12,11 +12,12 @@ import {
 export default function MyNominations() {
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["hub-my-nominations"],
     queryFn: fetchMyNominations,
+    retry: (failureCount, err) => err?.status !== 403 && failureCount < 3,
   });
-  const nominations = data?.data ?? [];
+  const nominations = error?.status === 403 ? [] : data?.data ?? [];
 
   const acceptMut = useMutation({
     mutationFn: (id) => acceptNomination(id),
@@ -66,15 +67,19 @@ export default function MyNominations() {
               {pending.length > 0 && (
                 <div className="space-y-3">
                   <h2 className="qc-section-title">Pending</h2>
-                  {pending.map((n) => (
-                    <NominationCard
-                      key={n.id}
-                      nomination={n}
-                      onAccept={() => acceptMut.mutate(n.id)}
-                      onDecline={() => declineMut.mutate(n.id)}
-                      loading={acceptMut.isPending || declineMut.isPending}
-                    />
-                  ))}
+                  {pending.map((n) => {
+                    const isThisAccepting = acceptMut.isPending && acceptMut.variables === n.id;
+                    const isThisDeclining = declineMut.isPending && declineMut.variables === n.id;
+                    return (
+                      <NominationCard
+                        key={n.id}
+                        nomination={n}
+                        onAccept={() => acceptMut.mutate(n.id)}
+                        onDecline={() => declineMut.mutate(n.id)}
+                        loading={isThisAccepting || isThisDeclining}
+                      />
+                    );
+                  })}
                 </div>
               )}
 

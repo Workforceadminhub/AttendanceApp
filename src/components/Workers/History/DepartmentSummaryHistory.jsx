@@ -47,7 +47,7 @@ export default function DepartmentSummaryHistory() {
   const queryAdminAttendance = useCallback(() => {
     setIsLoading(true);
     const permissions = expandPermissions(authUser);
-    fetchAdminAttendance(activeGroup, isChurchAdmin, activeHistory, permissions)
+    fetchAdminAttendance(activeGroup, isChurchAdmin, activeHistory, null, null, permissions)
       .then((attendance) => {
         setAttendanceSummary(attendance);
         setIsLoading(false);
@@ -61,7 +61,7 @@ export default function DepartmentSummaryHistory() {
   const queryAttendance = useCallback(() => {
     setIsLoading(true);
     const permissions = expandPermissions(authUser);
-    fetchAttendance(activeHistory, permissions)
+    fetchAttendance(activeHistory, null, null, permissions)
       .then((attendance) => {
         setAttendanceSummary(attendance);
         setIsLoading(false);

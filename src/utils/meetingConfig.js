@@ -5,7 +5,7 @@ export const MEETINGS_CHANGED_EVENT = "harvesters:meetings-changed";
 const MEETINGS_STORAGE_KEY = "harvesters_meetings_config";
 
 export const DEFAULT_LEADERS_MEETING_DATE = "2026-09-19";
-export const DEFAULT_WORKERS_MEETING_DATE = "2026-08-15";
+export const DEFAULT_WORKERS_MEETING_DATE = "2026-09-19";
 
 const INITIAL_MEETINGS = [
   {
@@ -17,10 +17,10 @@ const INITIAL_MEETINGS = [
     createdAt: new Date().toISOString(),
   },
   {
-    id: "workers-default-1",
+    id: "workers-default-2",
     meetingType: "workers",
     date: DEFAULT_WORKERS_MEETING_DATE,
-    title: "August 2026 Workers Meeting",
+    title: "September 2026 Workers Meeting",
     isActive: true,
     createdAt: new Date().toISOString(),
   },

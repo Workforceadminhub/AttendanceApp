@@ -564,15 +564,24 @@ export default function Header() {
         {/* Training & Course nav */}
         {hubDropdownItems.length > 0 && (
           <NavGroup label={hubDropdownLabel}>
-            {hubDropdownItems.map((item) => (
-              <SheetLink
-                key={item.name}
-                href={item.href}
-                onClick={() => setMobileOpen(false)}
-              >
-                {item.name}
-              </SheetLink>
-            ))}
+            {hubDropdownItems.map((item) =>
+              item.header ? (
+                <div
+                  key={`header-${item.header}`}
+                  className="qc-section-title px-1 mt-2 mb-1 text-ink-500"
+                >
+                  {item.header}
+                </div>
+              ) : (
+                <SheetLink
+                  key={item.name}
+                  href={item.href}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  {item.name}
+                </SheetLink>
+              )
+            )}
           </NavGroup>
         )}
 

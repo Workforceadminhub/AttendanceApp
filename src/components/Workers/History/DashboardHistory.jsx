@@ -43,7 +43,7 @@ export default function DashboardHistory() {
   const queryAdminAttendance = useCallback(() => {
     setIsLoading(true);
     const permissions = expandPermissions(authUser);
-    fetchAdminAttendance(activeGroup, isChurchAdmin, activeHistory, permissions)
+    fetchAdminAttendance(activeGroup, isChurchAdmin, activeHistory, null, null, permissions)
       .then((attendance) => {
         setAttendanceSummary(calculateTotals(attendance));
         setIsLoading(false);
@@ -57,7 +57,7 @@ export default function DashboardHistory() {
   const queryAttendance = useCallback(() => {
     setIsLoading(true);
     const permissions = expandPermissions(authUser);
-    fetchAttendance(activeHistory, permissions)
+    fetchAttendance(activeHistory, null, null, permissions)
       .then((attendance) => {
         setAttendanceSummary(calculateTotals(attendance));
         setIsLoading(false);
@@ -86,7 +86,7 @@ export default function DashboardHistory() {
   useEffect(() => {
     setIsLoading(true);
     const permissions = expandPermissions(authUser);
-    fetchAttendance(undefined, permissions).then((attendance) => {
+    fetchAttendance(undefined, null, null, permissions).then((attendance) => {
       setAttendanceSummary(calculateTotals(attendance));
       setIsLoading(false);
     });
@@ -96,19 +96,21 @@ export default function DashboardHistory() {
     );
   }, [authUser]);
 
-  const debouncedSetActiveGroup = debounce(
-    (value) => setActiveGroup(value),
-    DEBOUNCE_INTERVAL
+  const debouncedSetActiveGroup = useMemo(
+    () => debounce((value) => setActiveGroup(value), DEBOUNCE_INTERVAL),
+    []
   );
+  useEffect(() => () => debouncedSetActiveGroup.cancel(), [debouncedSetActiveGroup]);
 
   const handleChange = (selected) => {
     debouncedSetActiveGroup(selected?.value);
   };
 
-  const debouncedSetActiveHistory = debounce(
-    (value) => setActiveHistory(value),
-    DEBOUNCE_INTERVAL
+  const debouncedSetActiveHistory = useMemo(
+    () => debounce((value) => setActiveHistory(value), DEBOUNCE_INTERVAL),
+    []
   );
+  useEffect(() => () => debouncedSetActiveHistory.cancel(), [debouncedSetActiveHistory]);
 
   const handleHistoryChange = (selected) => {
     debouncedSetActiveHistory(selected?.value);

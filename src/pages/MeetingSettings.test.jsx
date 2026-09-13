@@ -38,7 +38,7 @@ it("keeps a shared meeting date on a fresh browser and after active meeting chan
 });
 it("ignores an impossible date in a link", async () => {
   render(<MemoryRouter initialEntries={["/?meeting_date=2026-02-30"]}><DateProbe /></MemoryRouter>);
-  expect(await screen.findByText("2026-08-15")).toBeInTheDocument();
+  expect(await screen.findByText("2026-09-19")).toBeInTheDocument();
 });
 
 

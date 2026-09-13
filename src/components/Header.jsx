@@ -355,6 +355,33 @@ export default function Header() {
   // Determine which top-level links to render
   const topLinks = isHOD && !isAdmin ? hodNav : null;
 
+  // Items from the desktop dropdowns that aren't already rendered in the
+  // mobile "Main" section, deduped by href (headers kept only if followed
+  // by at least one item).
+  const mainSheetExtraItems = (() => {
+    const seen = new Set(
+      [workersHref, approvalsItem?.href, attendanceItem.href].filter(Boolean)
+    );
+    const raw = [
+      ...summaryDropdownItems,
+      ...workersDropdownItems,
+      ...attendanceDropdownItems,
+    ];
+    const deduped = [];
+    raw.forEach((item) => {
+      if (item.header) {
+        deduped.push(item);
+        return;
+      }
+      if (seen.has(item.href)) return;
+      seen.add(item.href);
+      deduped.push(item);
+    });
+    return deduped.filter((item, idx) =>
+      item.header ? deduped[idx + 1] && !deduped[idx + 1].header : true
+    );
+  })();
+
   return (
     <header className="sticky top-0 z-40 bg-cream border-b border-ink-200">
       <nav
@@ -557,6 +584,24 @@ export default function Header() {
               >
                 {attendanceItem.name}
               </SheetLink>
+              {mainSheetExtraItems.map((item, idx) =>
+                item.header ? (
+                  <div
+                    key={`main-header-${idx}`}
+                    className="qc-section-title px-1 mt-2 mb-1 text-ink-500"
+                  >
+                    {item.header}
+                  </div>
+                ) : (
+                  <SheetLink
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    {item.name}
+                  </SheetLink>
+                )
+              )}
             </>
           )}
         </NavGroup>

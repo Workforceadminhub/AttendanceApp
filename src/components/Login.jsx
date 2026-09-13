@@ -18,8 +18,12 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const requestedPath = location.state?.from;
-  const returnPath = typeof requestedPath === "string" && /^\/report\/(?:confirmation-)?(?:leaders|workers)-meeting(?:\?|$)/.test(requestedPath)
-    ? requestedPath : null;
+  const isSafeInternalPath = (path) =>
+    typeof path === "string" &&
+    /^\/(?!\/)/.test(path) &&
+    !/^\/(login|logout)(?:\/|\?|$)/.test(path) &&
+    !/^\/[^/]*:/.test(path);
+  const returnPath = isSafeInternalPath(requestedPath) ? requestedPath : null;
   const [searchParams] = useSearchParams();
 
   useEffect(() => {

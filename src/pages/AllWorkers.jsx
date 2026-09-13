@@ -590,7 +590,7 @@ export default function AllWorkers() {
  <button
  onClick={() => handlePagination(pagination.page - 1)}
  disabled={!pagination.hasPrev}
- className={`px-3 py-1 text-sm font-medium rounded-md ${
+ className={`px-3 py-1 min-h-touch min-w-touch text-sm font-medium rounded-md ${
  pagination.hasPrev
  ? "text-ink-700 bg-white border border-ink-300 hover:bg-cream"
  : "text-ink-400 bg-cream-200 border border-ink-200 cursor-not-allowed"
@@ -612,7 +612,7 @@ export default function AllWorkers() {
  <button
  key={i}
  onClick={() => handlePagination(i)}
- className={`px-3 py-1 text-sm font-medium rounded-md ${
+ className={`px-3 py-1 min-h-touch min-w-touch text-sm font-medium rounded-md ${
  currentPage === i
  ? "bg-ink-900 text-white"
  : "text-ink-700 bg-white border border-ink-300 hover:bg-cream"
@@ -628,7 +628,7 @@ export default function AllWorkers() {
  <button
  key={1}
  onClick={() => handlePagination(1)}
- className={`px-3 py-1 text-sm font-medium rounded-md ${
+ className={`px-3 py-1 min-h-touch min-w-touch text-sm font-medium rounded-md ${
  currentPage === 1
  ? "bg-ink-900 text-white"
  : "text-ink-700 bg-white border border-ink-300 hover:bg-cream"
@@ -665,7 +665,7 @@ export default function AllWorkers() {
  <button
  key={i}
  onClick={() => handlePagination(i)}
- className={`px-3 py-1 text-sm font-medium rounded-md ${
+ className={`px-3 py-1 min-h-touch min-w-touch text-sm font-medium rounded-md ${
  currentPage === i
  ? "bg-ink-900 text-white"
  : "text-ink-700 bg-white border border-ink-300 hover:bg-cream"
@@ -691,7 +691,7 @@ export default function AllWorkers() {
  <button
  key={totalPages}
  onClick={() => handlePagination(totalPages)}
- className={`px-3 py-1 text-sm font-medium rounded-md ${
+ className={`px-3 py-1 min-h-touch min-w-touch text-sm font-medium rounded-md ${
  currentPage === totalPages
  ? "bg-ink-900 text-white"
  : "text-ink-700 bg-white border border-ink-300 hover:bg-cream"
@@ -709,7 +709,7 @@ export default function AllWorkers() {
  <button
  onClick={() => handlePagination(pagination.page + 1)}
  disabled={!pagination.hasNext}
- className={`px-3 py-1 text-sm font-medium rounded-md ${
+ className={`px-3 py-1 min-h-touch min-w-touch text-sm font-medium rounded-md ${
  pagination.hasNext
  ? "text-ink-700 bg-white border border-ink-300 hover:bg-cream"
  : "text-ink-400 bg-cream-200 border border-ink-200 cursor-not-allowed"

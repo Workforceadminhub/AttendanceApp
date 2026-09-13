@@ -212,7 +212,7 @@ export default function AdminDepartmentSummaryTable({ rows, showLinks = true }) 
         const sortedTeamRows = sortRows(teamRows, sortConfig, getSortableValue);
         return (
           <div key={teamName}>
-            <h3 className="text-sm font-semibold text-ink-900 mb-2">{teamName}</h3>
+            <h3 className="text-sm font-semibold text-ink-900 mb-2 px-4 sm:px-6 lg:px-8">{teamName}</h3>
             <table className="min-w-full divide-y divide-ink-300">
               {tableHeader}
               <tbody className="divide-y divide-ink-200">

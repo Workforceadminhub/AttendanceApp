@@ -200,7 +200,7 @@ export default function TrainingList() {
                   key={tab.key}
                   type="button"
                   onClick={() => { setStatus(tab.key); setPage(1); }}
-                  className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
+                  className={`px-3 py-1.5 min-h-touch min-w-touch text-sm font-medium rounded transition-colors ${
                     status === tab.key
                       ? "bg-ink-900 text-cream"
                       : "text-ink-600 hover:text-ink-900"

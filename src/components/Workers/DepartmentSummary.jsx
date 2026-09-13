@@ -100,10 +100,11 @@ export default function DepartmentSummary() {
     queryAttendance,
   ]);
 
-  const debouncedSetActiveGroup = debounce(
-    (value) => setActiveGroup(value),
-    DEBOUNCE_INTERVAL
+  const debouncedSetActiveGroup = useMemo(
+    () => debounce((value) => setActiveGroup(value), DEBOUNCE_INTERVAL),
+    []
   );
+  useEffect(() => () => debouncedSetActiveGroup.cancel(), [debouncedSetActiveGroup]);
 
   const handleChange = (selected) => {
     debouncedSetActiveGroup(selected?.value);

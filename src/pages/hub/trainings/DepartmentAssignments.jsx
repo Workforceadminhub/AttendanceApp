@@ -254,7 +254,7 @@ export default function DepartmentAssignments() {
           )}
 
           <div className="qc-card overflow-hidden">
-            <div className="hidden lg:grid grid-cols-[1.6fr_1fr_1fr_auto] gap-4 px-4 py-2.5 border-b border-ink-200 bg-cream-200">
+            <div className="hidden md:grid md:grid-cols-[1.6fr_1fr_1fr_auto] gap-4 px-4 py-2.5 border-b border-ink-200 bg-cream-200">
               <span className="qc-section-title">Worker</span>
               <span className="qc-section-title">Service progress</span>
               <span className="qc-section-title">Participation</span>
@@ -276,7 +276,7 @@ export default function DepartmentAssignments() {
                   return (
                     <div
                       key={assignment.id ?? index}
-                      className="grid lg:grid-cols-[1.6fr_1fr_1fr_auto] gap-4 items-center px-4 py-3.5"
+                      className="grid md:grid-cols-[1.6fr_1fr_1fr_auto] gap-4 items-center px-4 py-3.5"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-8 h-8 rounded-full bg-ink-200 flex items-center justify-center text-xs font-mono font-medium text-ink-700 shrink-0">

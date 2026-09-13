@@ -992,7 +992,7 @@ export default function PendingWorkers() {
  <button
  onClick={() => handlePagination(pagination.page - 1)}
  disabled={!pagination.hasPrev || isBusy}
- className="px-3 py-2 text-sm font-medium text-ink-500 bg-white border border-ink-300 rounded-md hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed"
+ className="px-3 py-2 min-h-touch min-w-touch text-sm font-medium text-ink-500 bg-white border border-ink-300 rounded-md hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed"
  >
  Previous
  </button>
@@ -1016,7 +1016,7 @@ export default function PendingWorkers() {
  key={pageNum}
  onClick={() => handlePagination(pageNum)}
  disabled={isBusy}
- className={`px-3 py-2 text-sm font-medium rounded-md ${
+ className={`px-3 py-2 min-h-touch min-w-touch text-sm font-medium rounded-md ${
  pageNum === pagination.page
  ? "bg-ink-900 text-white"
  : "text-ink-700 bg-white border border-ink-300 hover:bg-cream"
@@ -1031,7 +1031,7 @@ export default function PendingWorkers() {
  <button
  onClick={() => handlePagination(pagination.page + 1)}
  disabled={!pagination.hasNext || isBusy}
- className="px-3 py-2 text-sm font-medium text-ink-500 bg-white border border-ink-300 rounded-md hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed"
+ className="px-3 py-2 min-h-touch min-w-touch text-sm font-medium text-ink-500 bg-white border border-ink-300 rounded-md hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed"
  >
  Next
  </button>

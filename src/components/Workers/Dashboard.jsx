@@ -216,16 +216,18 @@ export default function Dashboard() {
     return 0;
   }, [filteredAttendance, departmentInfo]);
 
-  const debouncedSetActiveGroup = debounce(
-    (value) => setActiveGroup(value),
-    DEBOUNCE_INTERVAL
+  const debouncedSetActiveGroup = useMemo(
+    () => debounce((value) => setActiveGroup(value), DEBOUNCE_INTERVAL),
+    []
   );
+  useEffect(() => () => debouncedSetActiveGroup.cancel(), [debouncedSetActiveGroup]);
   const handleChange = (selected) => debouncedSetActiveGroup(selected?.value);
 
-  const debouncedSetSelectedDate = debounce(
-    (value) => setSelectedDate(value),
-    DEBOUNCE_INTERVAL
+  const debouncedSetSelectedDate = useMemo(
+    () => debounce((value) => setSelectedDate(value), DEBOUNCE_INTERVAL),
+    []
   );
+  useEffect(() => () => debouncedSetSelectedDate.cancel(), [debouncedSetSelectedDate]);
   const handleDateChange = (selected) => {
     if (selected?.value) {
       debouncedSetSelectedDate(selected.value);

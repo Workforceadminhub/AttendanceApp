@@ -740,25 +740,25 @@ export default function DepartmentAttendance() {
  <div className="overflow-hidden rounded-lg border bg-white px-4 py-5 shadow sm:p-6">
  <dt className="text-sm font-medium text-ink-500">Total</dt>
  <dd className="mt-1 text-2xl font-semibold text-ink-900">
- {attendanceSummary.total}
+ {isLoading ? "-" : attendanceSummary.total}
  </dd>
  </div>
  <div className="overflow-hidden rounded-lg border bg-white px-4 py-5 shadow sm:p-6">
  <dt className="text-sm font-medium text-ink-500">Present</dt>
  <dd className="mt-1 text-2xl font-semibold text-forest">
- {attendanceSummary.present}
+ {isLoading ? "-" : attendanceSummary.present}
  </dd>
  </div>
  <div className="overflow-hidden rounded-lg border bg-white px-4 py-5 shadow sm:p-6">
  <dt className="text-sm font-medium text-ink-500">Absent</dt>
  <dd className="mt-1 text-2xl font-semibold text-brick">
- {attendanceSummary.absent}
+ {isLoading ? "-" : attendanceSummary.absent}
  </dd>
  </div>
  <div className="overflow-hidden rounded-lg border bg-white px-4 py-5 shadow sm:p-6">
  <dt className="text-sm font-medium text-ink-500">Unfilled</dt>
  <dd className="mt-1 text-2xl font-semibold text-mustard">
- {attendanceSummary.unfilled}
+ {isLoading ? "-" : attendanceSummary.unfilled}
  </dd>
  </div>
  </dl>

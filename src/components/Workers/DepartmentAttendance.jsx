@@ -351,13 +351,18 @@ export default function DepartmentAttendance() {
  // Incremented per fetch; responses from an older request are ignored
  // (covers unmount and rapid dependency changes).
  const requestIdRef = useRef(0);
+ const abortRef = useRef(null);
  useEffect(() => () => {
  requestIdRef.current += 1;
+ abortRef.current?.abort();
  }, []);
 
  const queryAdminWorkers = useCallback(() => {
  const requestId = ++requestIdRef.current;
  const isCurrent = () => requestId === requestIdRef.current;
+ abortRef.current?.abort();
+ const controller = new AbortController();
+ abortRef.current = controller;
  setIsLoading(true);
  const rawPermissions = expandPermissions(authUser);
  const basePermissions = filterTeamFromPermissions(rawPermissions, authUser?.team);
@@ -376,7 +381,7 @@ export default function DepartmentAttendance() {
  }
  }
 
- fetchAdminWorkers(team.team, apiActiveGroup, selectedSunday, "", permissionsForApi)
+ fetchAdminWorkers(team.team, apiActiveGroup, selectedSunday, "", permissionsForApi, { signal: controller.signal })
  .then((res) => {
  if (!isCurrent()) return;
  setData(sortWorkersById(res));

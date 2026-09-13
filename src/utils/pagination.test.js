@@ -35,7 +35,8 @@ describe("pagination", () => {
   it("stops at an empty page", async () => {
     const fetch = vi.fn(({ page }) => paged(page, page === 1 ? [{ id: 1 }] : []));
     expect(await fetchAllPages(fetch)).toEqual([{ id: 1 }]);
-    expect(fetch).toHaveBeenCalledTimes(2);
+    // Pages 2 and 3 are requested together in one batch, then the walk stops.
+    expect(fetch).toHaveBeenCalledTimes(3);
   });
   it("uses the raw page count when a service filters out current-page rows", async () => {
     const fetch = vi.fn(({ page }) => ({ ...paged(page, page === 1 ? [] : [{ id: page }]), pagination: { ...paged(page, []).pagination, pageCount: 1 } }));
@@ -49,6 +50,18 @@ describe("pagination", () => {
   it("reuses the first response and respects the safety bound", async () => {
     const fetch = vi.fn(({ page }) => paged(page, [{ id: page }]));
     expect(await fetchAllPages(fetch, { first: paged(1, [{ id: 1 }]), maxPages: 2 })).toEqual([{ id: 1 }, { id: 2 }]);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it("requests the remaining pages concurrently when the total is known", async () => {
+    let inFlight = 0; let peak = 0;
+    const fetch = vi.fn(async ({ page }) => { inFlight += 1; peak = Math.max(peak, inFlight); await new Promise(r => setTimeout(r, 5)); inFlight -= 1; return paged(page, [{ id: page }], 8); });
+    expect(await fetchAllPages(fetch, { concurrency: 3 })).toHaveLength(8);
+    expect(peak).toBe(3);
+  });
+  it("stops early when the signal is aborted", async () => {
+    const controller = new AbortController();
+    const fetch = vi.fn(({ page }) => { if (page === 1) controller.abort(); return paged(page, [{ id: page }], 5); });
+    expect(await fetchAllPages(fetch, { signal: controller.signal })).toEqual([{ id: 1 }]);
     expect(fetch).toHaveBeenCalledTimes(1);
   });
   it("walks hasNext-only metadata until false", async () => {

@@ -61,8 +61,17 @@ export function unwrapPaginated(response, requested = {}) {
   return { data, pagination: normalizePagination(extractPaginationMeta(response) || {}, { ...requested, rowCount: data.length }) };
 }
 
-/** Collect each server page once; plain array endpoints require only one request. */
-export async function fetchAllPages(fetchPage, { pageSize = FETCH_ALL_PAGE_LIMIT, maxPages = MAX_PAGES, first } = {}) {
+/** Concurrent page requests during a parallel walk. */
+export const PAGE_CONCURRENCY = 6;
+
+/**
+ * Collect each server page once; plain array endpoints require only one request.
+ * When the first page reports a total page count, the remaining pages are
+ * requested concurrently (PAGE_CONCURRENCY at a time). Pass `signal` to stop a
+ * superseded walk early.
+ */
+export async function fetchAllPages(fetchPage, { pageSize = FETCH_ALL_PAGE_LIMIT, maxPages = MAX_PAGES, first, signal, concurrency = PAGE_CONCURRENCY } = {}) {
+  const aborted = () => Boolean(signal?.aborted);
   let page = 1;
   let raw = first ?? await fetchPage({ page, limit: pageSize });
   let current = unwrapPaginated(raw, { page, limit: pageSize });
@@ -74,9 +83,29 @@ export async function fetchAllPages(fetchPage, { pageSize = FETCH_ALL_PAGE_LIMIT
     if (!seen.has(key)) { seen.add(key); rows.push(row); }
   });
   append(current.data);
+  if (aborted()) return rows;
+  const meta = extractPaginationMeta(raw) || {};
+  const knownTotalPages = meta.totalPages ?? meta.total_pages ??
+    (meta.total != null || meta.count != null ? current.pagination.totalPages : null);
+  if (knownTotalPages != null && Number(knownTotalPages) > 1 && current.pagination.hasNext) {
+    const last = Math.min(Number(knownTotalPages), maxPages);
+    for (let start = 2; start <= last; start += concurrency) {
+      if (aborted()) return rows;
+      const batch = [];
+      for (let p = start; p < start + concurrency && p <= last; p += 1) {
+        batch.push(Promise.resolve(fetchPage({ page: p, limit: pageSize })).then(r => unwrapPaginated(r, { page: p, limit: pageSize }).data));
+      }
+      const results = await Promise.all(batch);
+      results.forEach(append);
+      // A short or empty page means the reported total was stale; stop here.
+      if (results.some(data => data.length === 0)) return rows;
+    }
+    return rows;
+  }
   // Trust hasNext over totalPages: some APIs send a stale or 1-based total
   // while still marking another page. Cap with maxPages so a stuck flag cannot loop.
   while (
+    !aborted() &&
     current.pagination.hasNext &&
     page < maxPages &&
     (extractPaginationMeta(raw)?.pageCount ?? current.data.length) > 0

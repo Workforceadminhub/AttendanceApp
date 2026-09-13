@@ -34,7 +34,7 @@ export const fetchUnmarkedWorkers = async (team, activeDate) => {
 };
 
 /** Unmarked workers for a specific department (Dashboard). */
-export const fetchAdminWorkers = async (team, activeGroup, activeDate, search = "", permissions = []) => {
+export const fetchAdminWorkers = async (team, activeGroup, activeDate, search = "", permissions = [], { signal } = {}) => {
   const params = {
     team,
     activeGroup,
@@ -48,7 +48,7 @@ export const fetchAdminWorkers = async (team, activeGroup, activeDate, search = 
     params.search = search.trim();
   }
   
-  return requestAllWorkerPages("/api/workers", params);
+  return requestAllWorkerPages("/api/workers", params, { signal });
 };
 
 export const addNewWorker = async (worker) => {
@@ -214,12 +214,12 @@ export const fetchTopPerformers = async (department, startDate, endDate, limit =
 
 // ========== End Phase 7 - New Worker Functions ==========
 
-async function requestAllWorkerPages(endpoint, baseParams) {
+async function requestAllWorkerPages(endpoint, baseParams, { signal } = {}) {
   return fetchAllPages(async ({ page, limit }) => {
-    const response = await apiRequest("GET", endpoint, { ...baseParams, page, limit });
+    const response = await apiRequest("GET", endpoint, { ...baseParams, page, limit }, signal ? { signal } : undefined);
     if (!response || response.error) throw new Error(response?.error || "Failed to fetch workers");
     return response;
-  });
+  }, { signal });
 }
 
 async function requestSuperAdminWorkers({ page = 1, limit = DEFAULT_PAGE_LIMIT, search = "", team, department, status, sortBy = "team", permissions } = {}) {

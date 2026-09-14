@@ -51,6 +51,29 @@ export const fetchAdminWorkers = async (team, activeGroup, activeDate, search = 
   return requestAllWorkerPages("/api/workers", params, { signal });
 };
 
+/** One server page of admin workers plus normalized pagination metadata. */
+export const fetchAdminWorkersPage = async (
+  team,
+  activeGroup,
+  activeDate,
+  permissions = [],
+  { page = 1, limit = FETCH_ALL_PAGE_LIMIT, search = "", signal } = {}
+) => {
+  const params = {
+    team,
+    activeGroup,
+    activeDate,
+    isAdmin: true,
+    page,
+    limit,
+    ...(Array.isArray(permissions) && permissions.length > 0 ? { permissions } : {}),
+    ...(search && search.trim() ? { search: search.trim() } : {}),
+  };
+  const response = await apiRequest("GET", "/api/workers", params, signal ? { signal } : undefined);
+  if (!response || response.error) throw new Error(response?.error || "Failed to fetch workers");
+  return unwrapPaginated(response, { page, limit });
+};
+
 export const addNewWorker = async (worker) => {
   // This is a public endpoint, no authentication required
   const response = await apiRequest("POST", "/api/workers/add", worker, undefined, false);

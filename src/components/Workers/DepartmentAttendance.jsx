@@ -4,6 +4,7 @@ import { getDepartmentByUser } from "../../utils/getDepartment";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
  fetchAdminWorkers,
+ fetchAdminWorkersPage,
  fetchWorkers,
  removeWorker,
 } from "../../services/workers";
@@ -129,6 +130,11 @@ export default function DepartmentAttendance() {
  direction: "asc", // 'asc' or 'desc'
  });
  const [currentPage, setCurrentPage] = useState(1);
+ // Admin routes page on the server; one request per visible page.
+ const [serverPagination, setServerPagination] = useState({ total: 0, totalPages: 1 });
+ // Admin summary needs every row, so it is walked only when requested. It is
+ // keyed to the filters (and last save) it was loaded for, so stale rows are ignored.
+ const [summaryState, setSummaryState] = useState({ key: "", rows: null, loading: false });
 
  // ── History mode: date picker ─────────────────────────────────────
  // Max selectable date = the current/next Sunday; min = first Sunday of 2026
@@ -151,6 +157,10 @@ export default function DepartmentAttendance() {
 
  // When the selected Sunday differs from the live date, we're in "history mode"
  const isHistoryMode = selectedSunday !== dateForAttendance;
+
+ const summaryKey = `${activeGroup}|${team.team}|${selectedSunday}|${refresh}`;
+ const summaryRows = summaryState.key === summaryKey ? summaryState.rows : null;
+ const summaryLoading = summaryState.key === summaryKey && summaryState.loading;
 
  // Unique departments from response – used for non–sub-team-admin
  const departmentsFromData = useMemo(() => {
@@ -242,14 +252,15 @@ export default function DepartmentAttendance() {
  });
  }, [filteredData, sortConfig]);
 
- const totalItems = sortedData.length;
- const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+ const totalItems = isAdminMember ? serverPagination.total : sortedData.length;
+ const totalPages = isAdminMember
+ ? Math.max(1, serverPagination.totalPages)
+ : Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
  const currentPageSafe = Math.min(currentPage, totalPages);
  const pageStartIndex = (currentPageSafe - 1) * PAGE_SIZE;
- const paginatedData = sortedData.slice(
- pageStartIndex,
- pageStartIndex + PAGE_SIZE
- );
+ const paginatedData = isAdminMember
+ ? sortedData
+ : sortedData.slice(pageStartIndex, pageStartIndex + PAGE_SIZE);
 
  useEffect(() => {
  if (currentPage > totalPages) {
@@ -257,8 +268,12 @@ export default function DepartmentAttendance() {
  }
  }, [currentPage, totalPages]);
 
+ // Admin routes only have the current page in `data`; the summary uses the on-demand walk.
+ const summarySource = isAdminMember ? summaryRows : filteredData;
+ const summaryReady = !isAdminMember || summaryRows !== null;
+
  const attendanceSummary = useMemo(() => {
- if (!Array.isArray(filteredData)) {
+ if (!Array.isArray(summarySource)) {
  return { total: 0, present: 0, absent: 0, unfilled: 0 };
  }
 
@@ -272,7 +287,7 @@ export default function DepartmentAttendance() {
 
  const presentLabels = new Set(["Present", "Online"]);
 
- filteredData.forEach((person) => {
+ summarySource.forEach((person) => {
  const overrideStatus = overridesById.get(person.id);
  const rawStatus = overrideStatus || person.attendance || "";
  const status = (rawStatus || "").toString().trim();
@@ -289,10 +304,10 @@ export default function DepartmentAttendance() {
  const total = present + absent + unfilled;
 
  return { total, present, absent, unfilled };
- }, [filteredData, attendance]);
+ }, [summarySource, attendance]);
 
  const unfilledDepartments = useMemo(() => {
- if (!Array.isArray(filteredData)) return [];
+ if (!Array.isArray(summarySource)) return [];
 
  const overridesById = new Map(
  (attendance || []).map((item) => [item.workerid, item.attendance])
@@ -300,7 +315,7 @@ export default function DepartmentAttendance() {
 
  const counts = new Map();
 
- filteredData.forEach((person) => {
+ summarySource.forEach((person) => {
  const overrideStatus = overridesById.get(person.id);
  const rawStatus = overrideStatus || person.attendance || "";
  const status = (rawStatus || "").toString().trim();
@@ -319,7 +334,7 @@ export default function DepartmentAttendance() {
  if (b.count !== a.count) return b.count - a.count;
  return a.department.localeCompare(b.department);
  });
- }, [filteredData, attendance, team?.department]);
+ }, [summarySource, attendance, team?.department]);
 
  const options = useMemo(
  () => [
@@ -352,9 +367,11 @@ export default function DepartmentAttendance() {
  // (covers unmount and rapid dependency changes).
  const requestIdRef = useRef(0);
  const abortRef = useRef(null);
+ const summaryAbortRef = useRef(null);
  useEffect(() => () => {
  requestIdRef.current += 1;
  abortRef.current?.abort();
+ summaryAbortRef.current?.abort();
  }, []);
 
  const queryAdminWorkers = useCallback(() => {
@@ -383,10 +400,15 @@ export default function DepartmentAttendance() {
 
  // The API filters on `team`; the scoped permissions list is ignored for admins.
  const apiTeam = isTeamFilter ? activeGroup : team.team;
- fetchAdminWorkers(apiTeam, apiActiveGroup, selectedSunday, "", permissionsForApi, { signal: controller.signal })
- .then((res) => {
+ fetchAdminWorkersPage(apiTeam, apiActiveGroup, selectedSunday, permissionsForApi, {
+ page: currentPage,
+ limit: PAGE_SIZE,
+ signal: controller.signal,
+ })
+ .then(({ data: rows, pagination }) => {
  if (!isCurrent()) return;
- setData(sortWorkersById(res));
+ setData(sortWorkersById(rows));
+ setServerPagination({ total: pagination.total, totalPages: pagination.totalPages });
  setIsLoading(false);
  })
  .catch((error) => {
@@ -401,7 +423,36 @@ export default function DepartmentAttendance() {
  activeGroup,
  team.team,
  selectedSunday,
+ currentPage,
  ]);
+
+ /** Walk every admin page for the summary cards, only when asked. */
+ const loadAdminSummary = useCallback(() => {
+ const controller = new AbortController();
+ summaryAbortRef.current?.abort();
+ summaryAbortRef.current = controller;
+ const key = summaryKey;
+ setSummaryState({ key, rows: null, loading: true });
+ const rawPermissions = expandPermissions(authUser);
+ const basePermissions = filterTeamFromPermissions(rawPermissions, authUser?.team);
+ const isTeamFilter = (isChurchAdmin || isSuperAdmin) && activeGroup && activeGroup !== "All";
+ let permissionsForApi = basePermissions;
+ if (isTeamFilter) {
+ const teamScoped = filterPermissionsByTeam(basePermissions, activeGroup);
+ if (Array.isArray(teamScoped) && teamScoped.length > 0) permissionsForApi = teamScoped;
+ }
+ const apiTeam = isTeamFilter ? activeGroup : team.team;
+ fetchAdminWorkers(apiTeam, isTeamFilter ? "All" : activeGroup, selectedSunday, "", permissionsForApi, { signal: controller.signal })
+ .then((rows) => {
+ if (controller.signal.aborted) return;
+ setSummaryState({ key, rows: Array.isArray(rows) ? rows : [], loading: false });
+ })
+ .catch((error) => {
+ if (controller.signal.aborted) return;
+ toast.error(`Error loading summary: ${error.message}`);
+ setSummaryState({ key, rows: null, loading: false });
+ });
+ }, [authUser, isChurchAdmin, isSuperAdmin, activeGroup, team.team, selectedSunday, summaryKey]);
 
  const queryWorkers = useCallback(() => {
  const requestId = ++requestIdRef.current;
@@ -611,6 +662,7 @@ export default function DepartmentAttendance() {
  useEffect(() => () => debouncedSetActiveGroup.cancel(), [debouncedSetActiveGroup]);
 
  const handleChange = (selected) => {
+ setCurrentPage(1);
  debouncedSetActiveGroup(selected?.value);
  };
 
@@ -747,29 +799,44 @@ export default function DepartmentAttendance() {
  <div className="overflow-hidden rounded-lg border bg-white px-4 py-5 shadow sm:p-6">
  <dt className="text-sm font-medium text-ink-500">Total</dt>
  <dd className="mt-1 text-2xl font-semibold text-ink-900">
- {isLoading ? "-" : attendanceSummary.total}
+ {isLoading ? "-" : isAdminMember ? serverPagination.total : attendanceSummary.total}
  </dd>
  </div>
  <div className="overflow-hidden rounded-lg border bg-white px-4 py-5 shadow sm:p-6">
  <dt className="text-sm font-medium text-ink-500">Present</dt>
  <dd className="mt-1 text-2xl font-semibold text-forest">
- {isLoading ? "-" : attendanceSummary.present}
+ {isLoading || !summaryReady ? "-" : attendanceSummary.present}
  </dd>
  </div>
  <div className="overflow-hidden rounded-lg border bg-white px-4 py-5 shadow sm:p-6">
  <dt className="text-sm font-medium text-ink-500">Absent</dt>
  <dd className="mt-1 text-2xl font-semibold text-brick">
- {isLoading ? "-" : attendanceSummary.absent}
+ {isLoading || !summaryReady ? "-" : attendanceSummary.absent}
  </dd>
  </div>
  <div className="overflow-hidden rounded-lg border bg-white px-4 py-5 shadow sm:p-6">
  <dt className="text-sm font-medium text-ink-500">Unfilled</dt>
  <dd className="mt-1 text-2xl font-semibold text-mustard">
- {isLoading ? "-" : attendanceSummary.unfilled}
+ {isLoading || !summaryReady ? "-" : attendanceSummary.unfilled}
  </dd>
  </div>
  </dl>
- {attendanceSummary.unfilled > 0 && unfilledDepartments.length > 0 && (
+ {isAdminMember && !summaryReady && !isLoading && (
+ <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-lg border bg-white px-4 py-3 shadow">
+ <p className="text-sm text-ink-600">
+ Present, absent and unfilled counts need every worker in this team. Load them when you need them.
+ </p>
+ <button
+ type="button"
+ onClick={loadAdminSummary}
+ disabled={summaryLoading}
+ className="px-3 py-1.5 rounded-md border border-ink-300 text-sm text-ink-700 bg-white enabled:hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed"
+ >
+ {summaryLoading ? "Loading summary..." : "Load summary"}
+ </button>
+ </div>
+ )}
+ {summaryReady && attendanceSummary.unfilled > 0 && unfilledDepartments.length > 0 && (
  <div className="mb-6 rounded-lg border border-mustard/30 bg-mustard/10 px-4 py-4">
  <h2 className="text-sm font-semibold text-mustard">
  Departments with unfilled attendance

@@ -2,7 +2,7 @@ import { useLocation, useNavigate, Link } from "react-router-dom";
 import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { fetchAdminWorkers, fetchWorkers, listSuperAdminWorkers, fetchAllSuperAdminWorkers } from "../../services/workers";
+import { fetchAdminWorkersPage, fetchWorkers, listSuperAdminWorkers, fetchAllSuperAdminWorkers } from "../../services/workers";
 import { toast } from "react-toastify";
 import { getNextSunday } from "../../utils/getDate";
 import ReactSelectDropdown from "../ReactSelect";
@@ -138,14 +138,16 @@ export default function Workers() {
  }
  }, [filters, navigate]);
 
- const queryAdminWorkers = useCallback((search = "") => {
+ // Team admins page on the server too; one request per visible page.
+ const queryAdminWorkers = useCallback((page = 1, limit = 50, search = "") => {
  setIsLoading(true);
  const rawPermissions = expandPermissions(authUser);
  // Filter out team name from permissions (team name shouldn't be in permissions array)
  const permissions = rawPermissions.filter((perm) => perm !== authUser?.team);
- fetchAdminWorkers("All", "All", dateForAttendance, search, permissions)
+ fetchAdminWorkersPage("All", "All", dateForAttendance, permissions, { page, limit, search })
  .then((res) => {
- setData(res);
+ setData(res.data);
+ setPagination(res.pagination);
  setIsLoading(false);
  })
  .catch((error) => {
@@ -230,7 +232,7 @@ export default function Workers() {
  if (isSuperAdmin) {
  querySuperAdminWorkers(1, 50);
  } else if (isAdminMember) {
- queryAdminWorkers();
+ queryAdminWorkers(1, 50);
  } else {
  queryWorkers();
  }
@@ -304,7 +306,7 @@ export default function Workers() {
  if (isSuperAdmin) {
  querySuperAdminWorkers(1, 50);
  } else if (isAdminMember) {
- queryAdminWorkers();
+ queryAdminWorkers(1, 50);
  } else {
  queryWorkers();
  }
@@ -371,7 +373,7 @@ export default function Workers() {
  if (isSuperAdmin) {
  querySuperAdminWorkers(1, 50, normalizedTerm);
  } else if (isAdminMember) {
- queryAdminWorkers(normalizedTerm);
+ queryAdminWorkers(1, 50, normalizedTerm);
  } else {
  queryWorkers(normalizedTerm);
  }
@@ -382,7 +384,7 @@ export default function Workers() {
  if (isSuperAdmin) {
  querySuperAdminWorkers(1, 50);
  } else if (isAdminMember) {
- queryAdminWorkers();
+ queryAdminWorkers(1, 50);
  } else {
  queryWorkers();
  }
@@ -439,7 +441,7 @@ Type "DELETE" to confirm (case-sensitive):`;
  if (isSuperAdmin) {
  await querySuperAdminWorkers(pagination.page, pagination.limit, normalizeSearchTerm(searchTerm), true);
  } else if (isAdminMember) {
- queryAdminWorkers();
+ queryAdminWorkers(pagination.page, pagination.limit, normalizeSearchTerm(searchTerm));
  } else {
  queryWorkers();
  }
@@ -481,6 +483,10 @@ Type "DELETE" to confirm (case-sensitive):`;
  // Request the selected server page.
  const handlePagination = (newPage) => {
  if (newPage < 1) return;
+ if (isAdminMember && !isSuperAdmin) {
+ queryAdminWorkers(newPage, pagination.limit, normalizeSearchTerm(searchTerm));
+ return;
+ }
  querySuperAdminWorkers(newPage, pagination.limit, normalizeSearchTerm(searchTerm));
  };
 
@@ -540,7 +546,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  if (isSuperAdmin) {
  await querySuperAdminWorkers(pagination.page, pagination.limit, normalizeSearchTerm(searchTerm), true);
  } else if (isAdminMember) {
- queryAdminWorkers();
+ queryAdminWorkers(pagination.page, pagination.limit, normalizeSearchTerm(searchTerm));
  } else {
  queryWorkers();
  }
@@ -1213,7 +1219,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  )}
 
  {/* Pagination Controls */}
- {isSuperAdmin && pagination.total > 0 && (
+ {(isSuperAdmin || isAdminMember) && pagination.total > 0 && (
  <div className="px-6 py-4 border-t border-ink-200 bg-cream">
  <div className="flex items-center justify-between">
  <div className="flex items-center text-sm text-ink-700">

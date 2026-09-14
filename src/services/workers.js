@@ -57,7 +57,7 @@ export const fetchAdminWorkersPage = async (
   activeGroup,
   activeDate,
   permissions = [],
-  { page = 1, limit = FETCH_ALL_PAGE_LIMIT, signal } = {}
+  { page = 1, limit = FETCH_ALL_PAGE_LIMIT, search = "", signal } = {}
 ) => {
   const params = {
     team,
@@ -67,6 +67,7 @@ export const fetchAdminWorkersPage = async (
     page,
     limit,
     ...(Array.isArray(permissions) && permissions.length > 0 ? { permissions } : {}),
+    ...(search && search.trim() ? { search: search.trim() } : {}),
   };
   const response = await apiRequest("GET", "/api/workers", params, signal ? { signal } : undefined);
   if (!response || response.error) throw new Error(response?.error || "Failed to fetch workers");

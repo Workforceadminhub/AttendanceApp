@@ -7,7 +7,7 @@ import { getDepartmentByUser } from "../../../utils/getDepartment";
 import { checkAdminStatus } from "../../../utils/checkAdminStatus";
 import { filterPermissionsByTeam } from "../../../utils/routeObject";
 import { useAdminSelectOptions } from "../../../contexts/DepartmentsContext";
-import { fetchAdminWorkers, fetchWorkers } from "../../../services/workers";
+import { fetchAdminWorkersPage, fetchWorkers } from "../../../services/workers";
 import { getUser } from "../../../utils/getUser";
 import { expandPermissions } from "../../../utils/expandPermissions";
 import { switchOffAttendance } from "../../../utils/switchOffAttendance";
@@ -22,6 +22,8 @@ import { debounce } from "lodash";
 import { DEBOUNCE_INTERVAL } from "../../../utils/constants";
 import ViewHistoryButton from "../../ViewHistoryButton";
 import { ArrowUpIcon, ArrowDownIcon } from "@heroicons/react/24/outline";
+
+const PAGE_SIZE = 100;
 
 export default function DepartmentAttendanceHistory() {
   const location = useLocation();
@@ -41,6 +43,9 @@ export default function DepartmentAttendanceHistory() {
   const optionsAdmin = useAdminSelectOptions(isChurchAdmin, team, authUser);
   const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
   const [historyOptions, setHistoryOptions] = useState([]);
+  // Admin routes page on the server; one request per visible page.
+  const [currentPage, setCurrentPage] = useState(1);
+  const [serverPagination, setServerPagination] = useState({ total: 0, totalPages: 1 });
   const [sortConfig, setSortConfig] = useState({
     key: null,
     direction: "asc", // 'asc' or 'desc'
@@ -156,9 +161,13 @@ export default function DepartmentAttendanceHistory() {
 
     // The API filters on `team`; the scoped permissions list is ignored for admins.
     const apiTeam = isTeamFilter ? activeGroup : team.team;
-    fetchAdminWorkers(apiTeam, apiActiveGroup, activeHistory, "", permissionsForApi)
-      .then((res) => {
-        setData(res);
+    fetchAdminWorkersPage(apiTeam, apiActiveGroup, activeHistory, permissionsForApi, {
+      page: currentPage,
+      limit: PAGE_SIZE,
+    })
+      .then(({ data: rows, pagination }) => {
+        setData(rows);
+        setServerPagination({ total: pagination.total, totalPages: pagination.totalPages });
         setIsLoading(false);
       })
       .catch((error) => {
@@ -172,6 +181,7 @@ export default function DepartmentAttendanceHistory() {
     activeGroup,
     team.team,
     activeHistory,
+    currentPage,
   ]);
 
   const queryWorkers = useCallback(() => {
@@ -267,6 +277,7 @@ export default function DepartmentAttendanceHistory() {
   );
 
   const handleChange = (selected) => {
+    setCurrentPage(1);
     debouncedSetActiveGroup(selected?.value);
   };
 
@@ -276,8 +287,13 @@ export default function DepartmentAttendanceHistory() {
   );
 
   const handleHistoryChange = (selected) => {
+    setCurrentPage(1);
     debouncedSetActiveHistory(selected?.value);
   };
+
+  const totalPages = Math.max(1, serverPagination.totalPages);
+  const currentPageSafe = Math.min(currentPage, totalPages);
+  const pageStartIndex = (currentPageSafe - 1) * PAGE_SIZE;
 
   if (!isAdminMember) {
     return <div>Unathorized</div>;
@@ -398,7 +414,7 @@ export default function DepartmentAttendanceHistory() {
                       {sortedData?.map((person, idx) => (
                         <tr key={person.id}>
                           <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-ink-900 sm:pl-0">
-                            {idx + 1}
+                            {pageStartIndex + idx + 1}
                           </td>
                           <td className="whitespace-nowrap px-3 py-4 text-sm text-ink-500">
                             {person.fullname}
@@ -439,6 +455,37 @@ export default function DepartmentAttendanceHistory() {
                     </tbody>
                   )}
                 </table>
+                {totalPages > 1 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+                    <p className="text-sm text-ink-600">
+                      {`Showing ${pageStartIndex + 1}-${Math.min(
+                        pageStartIndex + PAGE_SIZE,
+                        serverPagination.total
+                      )} of ${serverPagination.total} workers`}
+                    </p>
+                    <div className="inline-flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                        disabled={currentPageSafe === 1 || isLoading}
+                        className="px-3 py-1.5 rounded-md border border-ink-300 text-sm text-ink-700 bg-white enabled:hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Previous
+                      </button>
+                      <span className="text-sm text-ink-700">
+                        Page {currentPageSafe} of {totalPages}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                        disabled={currentPageSafe === totalPages || isLoading}
+                        className="px-3 py-1.5 rounded-md border border-ink-300 text-sm text-ink-700 bg-white enabled:hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <button
                   className={`bg-ink-900 text-white p-1.5 ml-[85%] rounded-lg ${
                     attendanceLoading && "cursor-not-allowed"

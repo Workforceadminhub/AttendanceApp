@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
-import { fetchAdminWorkers, fetchWorkers, listSuperAdminWorkers } from "../../services/workers";
+import { fetchAdminWorkersPage, fetchWorkers, listSuperAdminWorkers } from "../../services/workers";
 import { toast } from "react-toastify";
 import { getNextSunday } from "../../utils/getDate";
 import ReactSelectDropdown from "../ReactSelect";
@@ -144,21 +144,23 @@ export default function ChurchAdminWorkers() {
  }
  }, [filters]);
 
- const queryAdminWorkers = useCallback(async (search = "") => {
+ // Team admins page on the server too; one request per visible page.
+ const queryAdminWorkers = useCallback(async (page = 1, limit = 20, search = "") => {
  setIsLoading(true);
  try {
  const user = getUser();
  const rawPermissions = user?.permissions ?? [];
  // Filter out team name from permissions (team name shouldn't be in permissions array)
  const permissions = rawPermissions.filter((perm) => perm !== user?.team);
- const result = await fetchAdminWorkers(
+ const result = await fetchAdminWorkersPage(
  filters.team,
  filters.department,
  dateForAttendance,
- search,
- permissions
+ permissions,
+ { page, limit, search }
  );
- setData(result);
+ setData(result.data);
+ setPagination(result.pagination);
  } catch {
  toast.error("Failed to fetch workers");
  setData([]);
@@ -198,7 +200,7 @@ export default function ChurchAdminWorkers() {
  } else if (isChurchAdmin) {
  return queryChurchAdminWorkers(1, 20, debouncedSearchTerm);
  } else if (isAdminMember) {
- return queryAdminWorkers(debouncedSearchTerm);
+ return queryAdminWorkers(1, 20, debouncedSearchTerm);
  }
  return queryWorkers(debouncedSearchTerm);
  };
@@ -289,7 +291,7 @@ Type "DELETE" to confirm (case-sensitive):`;
  } else if (isChurchAdmin) {
  queryChurchAdminWorkers(1, 20, searchTerm);
  } else if (isAdminMember) {
- queryAdminWorkers(searchTerm);
+ queryAdminWorkers(1, 20, searchTerm);
  } else {
  queryWorkers(searchTerm);
  }
@@ -397,7 +399,7 @@ Type "DELETE" to confirm (case-sensitive):`;
  } else if (isChurchAdmin) {
  queryChurchAdminWorkers(1, 20, searchTerm);
  } else if (isAdminMember) {
- queryAdminWorkers(searchTerm);
+ queryAdminWorkers(1, 20, searchTerm);
  } else {
  queryWorkers(searchTerm);
  }
@@ -780,6 +782,8 @@ Type "DELETE" to confirm (case-sensitive):`;
  pagination.page - 1,
  pagination.limit
  );
+ } else if (isAdminMember) {
+ queryAdminWorkers(pagination.page - 1, pagination.limit, debouncedSearchTerm);
  }
  }}
  disabled={!pagination.hasPrev}
@@ -803,6 +807,8 @@ Type "DELETE" to confirm (case-sensitive):`;
  pagination.page + 1,
  pagination.limit
  );
+ } else if (isAdminMember) {
+ queryAdminWorkers(pagination.page + 1, pagination.limit, debouncedSearchTerm);
  }
  }}
  disabled={!pagination.hasNext}
@@ -850,6 +856,8 @@ Type "DELETE" to confirm (case-sensitive):`;
  pagination.page - 1,
  pagination.limit
  );
+ } else if (isAdminMember) {
+ queryAdminWorkers(pagination.page - 1, pagination.limit, debouncedSearchTerm);
  }
  }}
  disabled={!pagination.hasPrev}
@@ -903,6 +911,8 @@ Type "DELETE" to confirm (case-sensitive):`;
  querySuperAdminWorkers(page, pagination.limit);
  } else if (isChurchAdmin) {
  queryChurchAdminWorkers(page, pagination.limit);
+ } else if (isAdminMember) {
+ queryAdminWorkers(page, pagination.limit, debouncedSearchTerm);
  }
  }
  }}
@@ -934,6 +944,8 @@ Type "DELETE" to confirm (case-sensitive):`;
  pagination.page + 1,
  pagination.limit
  );
+ } else if (isAdminMember) {
+ queryAdminWorkers(pagination.page + 1, pagination.limit, debouncedSearchTerm);
  }
  }}
  disabled={!pagination.hasNext}

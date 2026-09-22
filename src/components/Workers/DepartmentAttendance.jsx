@@ -132,7 +132,7 @@ export default function DepartmentAttendance() {
  const [currentPage, setCurrentPage] = useState(1);
  // Admin routes page on the server; one request per visible page.
  const [serverPagination, setServerPagination] = useState({ total: 0, totalPages: 1 });
- // Admin summary needs every row, so it is walked only when requested. It is
+ // Admin summary loads every row in the background. It is
  // keyed to the filters (and last save) it was loaded for, so stale rows are ignored.
  const [summaryState, setSummaryState] = useState({ key: "", rows: null, loading: false });
 
@@ -268,7 +268,7 @@ export default function DepartmentAttendance() {
  }
  }, [currentPage, totalPages]);
 
- // Admin routes only have the current page in `data`; the summary uses the on-demand walk.
+ // Admin routes only have the current page in `data`; the summary loads independently.
  const summarySource = isAdminMember ? summaryRows : filteredData;
  const summaryReady = !isAdminMember || summaryRows !== null;
 
@@ -426,7 +426,7 @@ export default function DepartmentAttendance() {
  currentPage,
  ]);
 
- /** Walk every admin page for the summary cards, only when asked. */
+ /** Load summary rows independently of the visible table page. */
  const loadAdminSummary = useCallback(() => {
  const controller = new AbortController();
  summaryAbortRef.current?.abort();
@@ -450,9 +450,16 @@ export default function DepartmentAttendance() {
  .catch((error) => {
  if (controller.signal.aborted) return;
  toast.error(`Error loading summary: ${error.message}`);
- setSummaryState({ key, rows: null, loading: false });
+ setSummaryState({ key, rows: null, loading: false, error: true });
  });
  }, [authUser, isChurchAdmin, isSuperAdmin, activeGroup, team.team, selectedSunday, summaryKey]);
+
+ useEffect(() => {
+ if (!isAdminMember) return;
+ loadAdminSummary();
+ return () => summaryAbortRef.current?.abort();
+ }, [isAdminMember, loadAdminSummary]);
+
 
  const queryWorkers = useCallback(() => {
  const requestId = ++requestIdRef.current;
@@ -821,19 +828,22 @@ export default function DepartmentAttendance() {
  </dd>
  </div>
  </dl>
- {isAdminMember && !summaryReady && !isLoading && (
- <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-lg border bg-white px-4 py-3 shadow">
- <p className="text-sm text-ink-600">
- Present, absent and unfilled counts need every worker in this team. Load them when you need them.
- </p>
+ {isAdminMember && !summaryReady && (
+ <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+ {summaryState.key === summaryKey && summaryState.error && !summaryLoading ? (
+ <>
+ <p role="alert" className="text-sm text-brick">Attendance summary could not be loaded.</p>
  <button
  type="button"
  onClick={loadAdminSummary}
- disabled={summaryLoading}
- className="px-3 py-1.5 rounded-md border border-ink-300 text-sm text-ink-700 bg-white enabled:hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed"
+ className="px-3 py-1.5 rounded-md border border-ink-300 text-sm text-ink-700 bg-white hover:bg-cream"
  >
- {summaryLoading ? "Loading summary..." : "Load summary"}
+ Retry summary
  </button>
+ </>
+ ) : (
+ <p role="status" className="text-sm text-ink-600">Loading attendance summary…</p>
+ )}
  </div>
  )}
  {summaryReady && attendanceSummary.unfilled > 0 && unfilledDepartments.length > 0 && (

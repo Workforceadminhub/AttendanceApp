@@ -13,6 +13,7 @@ import CertificatePreview from "../../../components/hub/certificates/Certificate
 import {
   fetchTraining,
   fetchAllTrainings,
+  fetchProgressionPaths,
   fetchEnrollees,
   fetchSessions,
   fetchCurriculum,
@@ -20,6 +21,8 @@ import {
   fetchRegistrationRequests,
   fetchTrainingCertificates,
   fetchWorkerTrainings,
+  fetchPriorCompletions,
+  createPriorCompletion,
   completeEnrollment,
   registerForTraining,
   reviewRegistrationRequest,
@@ -69,10 +72,12 @@ export default function TrainingDetail() {
 
   const { isSuperAdmin, isChurchAdmin, isAdmin, isHOD, user } = getUserRole();
   const isAdminView = isSuperAdmin || isChurchAdmin || isAdmin;
-  const canSelfRegister = !isAdminView;
+  const canManageAssignments = isAdminView || isHOD;
 
   const [tab, setTab] = useState(isAdminView ? "enrollees" : "sessions");
   const [showRefresher, setShowRefresher] = useState(false);
+  const [showPriorCompletionForm, setShowPriorCompletionForm] = useState(false);
+  const [priorCompletion, setPriorCompletion] = useState({ completed_at: "", notes: "" });
   const [previewCertificate, setPreviewCertificate] = useState(null);
 
   const { data: trainingData, isLoading } = useQuery({
@@ -85,6 +90,7 @@ export default function TrainingDetail() {
   // Never treat the generic auth account ID as a worker record. Self-registration
   // is resolved by the API from the authenticated account.
   const myWorkerId = getLinkedWorkerId(user);
+  const canSelfRegister = Boolean(myWorkerId);
 
   const { data: sessionsData } = useQuery({
     queryKey: ["hub-training-sessions", id],
@@ -130,6 +136,11 @@ export default function TrainingDetail() {
     queryFn: () => fetchAllTrainings(),
     enabled: Boolean(training?.progression_path_id),
   });
+  const { data: progressionPathsData } = useQuery({
+    queryKey: ["hub-progression-paths"],
+    queryFn: fetchProgressionPaths,
+    enabled: Boolean(training?.progression_path_id),
+  });
 
   const registerMut = useMutation({
     mutationFn: (options) => {
@@ -168,11 +179,34 @@ export default function TrainingDetail() {
     (myProgress.total > 0 && myProgress.complete);
 
   const chain = useMemo(
-    () =>
-      training?.progression_path_id
-        ? buildPathwayChain(pathTrainingsData?.data ?? [], { pathId: training.progression_path_id })
-        : [],
-    [pathTrainingsData, training]
+    () => {
+      if (!training?.progression_path_id) return [];
+      const trainings = pathTrainingsData?.data ?? [];
+      const pathsPayload = unwrapData(progressionPathsData);
+      const paths = Array.isArray(pathsPayload) ? pathsPayload : pathsPayload?.paths ?? [];
+      const path = paths.find(
+        (item) => String(item.id) === String(training.progression_path_id)
+      );
+      const apiSteps = path?.steps ?? path?.levels ?? [];
+      if (Array.isArray(apiSteps) && apiSteps.length > 0) {
+        return apiSteps
+          .map((step) => {
+            const trainingId =
+              step.training_program_id ??
+              step.training_id ??
+              step.training_program?.id ??
+              step.training?.id;
+            return (
+              step.training_program ??
+              step.training ??
+              trainings.find((item) => String(item.id) === String(trainingId))
+            );
+          })
+          .filter(Boolean);
+      }
+      return buildPathwayChain(trainings, { pathId: training.progression_path_id });
+    },
+    [pathTrainingsData, progressionPathsData, training]
   );
   const currentPathIndex = chain.findIndex((step) => String(step.id) === String(training?.id));
   const prerequisiteTraining = currentPathIndex > 0 ? chain[currentPathIndex - 1] : null;
@@ -181,6 +215,11 @@ export default function TrainingDetail() {
     queryFn: () => fetchWorkerTrainings(myWorkerId),
     enabled: canSelfRegister && Boolean(myWorkerId && prerequisiteTraining),
   });
+  const { data: priorCompletionsData } = useQuery({
+    queryKey: ["hub-worker-prior-completions", myWorkerId],
+    queryFn: () => fetchPriorCompletions(myWorkerId),
+    enabled: Boolean(myWorkerId && prerequisiteTraining),
+  });
   const workerTrainingsPayload = unwrapData(workerTrainingsData);
   const workerTrainings = Array.isArray(workerTrainingsPayload)
     ? workerTrainingsPayload
@@ -188,8 +227,45 @@ export default function TrainingDetail() {
   const hasPlatformPrerequisite = isWorkerTrainingCompleted(
     findWorkerTrainingRecord(workerTrainings, prerequisiteTraining?.id)
   );
+  const priorCompletionsPayload = unwrapData(priorCompletionsData);
+  const priorCompletions = Array.isArray(priorCompletionsPayload)
+    ? priorCompletionsPayload
+    : priorCompletionsPayload?.prior_completions ?? [];
+  const progressionTrainingHistory = [
+    ...workerTrainings,
+    ...priorCompletions.map((record) => ({
+      ...record,
+      training_id: record.training_program_id ?? record.training?.id,
+      status: "completed",
+      completed_at: record.completed_at,
+    })),
+  ];
+  const hasRecordedPriorCompletion = priorCompletions.some(
+    (record) => String(record.training_program_id ?? record.training?.id) === String(prerequisiteTraining?.id)
+  );
   const isPrerequisiteMissing =
-    canSelfRegister && Boolean(prerequisiteTraining) && !myEnrollment && !hasPlatformPrerequisite;
+    canSelfRegister &&
+    Boolean(prerequisiteTraining) &&
+    !myEnrollment &&
+    !hasPlatformPrerequisite &&
+    !hasRecordedPriorCompletion;
+
+  const priorCompletionMut = useMutation({
+    mutationFn: () => createPriorCompletion(myWorkerId, {
+      training_program_id: prerequisiteTraining.id,
+      completed_at: priorCompletion.completed_at,
+      ...(priorCompletion.notes.trim() ? { notes: priorCompletion.notes.trim() } : {}),
+    }),
+    onSuccess: () => {
+      toast.success(`${prerequisiteTraining.name} completion recorded`);
+      setShowPriorCompletionForm(false);
+      setPriorCompletion({ completed_at: "", notes: "" });
+      queryClient.invalidateQueries({ queryKey: ["hub-worker-prior-completions", myWorkerId] });
+      queryClient.invalidateQueries({ queryKey: ["hub-worker-trainings", myWorkerId] });
+      queryClient.invalidateQueries({ queryKey: ["hub-training", id] });
+    },
+    onError: (error) => toast.error(error.message || "Could not record this prior completion"),
+  });
 
   if (isLoading) {
     return (
@@ -278,12 +354,12 @@ export default function TrainingDetail() {
                   </button>
                 ) : null
               )}
-              {canNominate && !isHOD && (
+              {canNominate && (
                 <Link to={`/hub/trainings/${id}/nominate`} className="qc-btn-secondary">
                   Nominate Workers
                 </Link>
               )}
-              {isAdminView && (
+              {canManageAssignments && (
                 <Link to={`/hub/trainings/${id}/assignments`} className="qc-btn-secondary">
                   In Training
                 </Link>
@@ -296,14 +372,70 @@ export default function TrainingDetail() {
             </div>
           </div>
 
+          {!myWorkerId && !isAdminView && (
+            <div className="rounded-md border border-ink-200 bg-white px-4 py-3 text-sm text-ink-600">
+              To enrol yourself, ask an administrator to link this account to your worker profile.
+              You can still nominate workers if your role permits it.
+            </div>
+          )}
+
           {isPrerequisiteMissing && (
             <div className="qc-card p-5">
               <h2 className="text-base font-semibold text-ink-900">Prerequisite not recorded</h2>
               <p id="prerequisite-completion-note" className="mt-1 text-sm text-ink-600">
                 {prerequisiteTraining.name} must be completed before you can register for this level.
                 Registration remains locked until that completion appears in your training history.
-                If you completed it outside this platform, ask a training administrator for help.
               </p>
+              <label className="mt-4 flex items-start gap-3 text-sm text-ink-700">
+                <input
+                  type="checkbox"
+                  checked={showPriorCompletionForm}
+                  onChange={(event) => setShowPriorCompletionForm(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-ink-300 accent-ink-900"
+                />
+                I completed {prerequisiteTraining.name} outside this platform
+              </label>
+              {showPriorCompletionForm && (
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="qc-label" htmlFor="prior-completion-date">Completion date *</label>
+                    <input
+                      id="prior-completion-date"
+                      type="date"
+                      max={asDate(new Date().toISOString())}
+                      value={priorCompletion.completed_at}
+                      onChange={(event) => setPriorCompletion((current) => ({
+                        ...current,
+                        completed_at: event.target.value,
+                      }))}
+                      className="qc-input text-sm qc-num"
+                    />
+                  </div>
+                  <div>
+                    <label className="qc-label" htmlFor="prior-completion-notes">Notes (optional)</label>
+                    <input
+                      id="prior-completion-notes"
+                      value={priorCompletion.notes}
+                      onChange={(event) => setPriorCompletion((current) => ({
+                        ...current,
+                        notes: event.target.value,
+                      }))}
+                      placeholder="Paper certificate or previous programme"
+                      className="qc-input text-sm"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <button
+                      type="button"
+                      disabled={!priorCompletion.completed_at || priorCompletionMut.isPending}
+                      onClick={() => priorCompletionMut.mutate()}
+                      className="qc-btn-primary"
+                    >
+                      {priorCompletionMut.isPending ? "Recording..." : "Record completion"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -402,8 +534,8 @@ export default function TrainingDetail() {
               currentTrainingId={training.id}
               sessions={sessions}
               participation={participation}
-              workerTrainings={workerTrainings}
-              workerId={canSelfRegister ? myWorkerId : null}
+              workerTrainings={progressionTrainingHistory}
+              workerId={myWorkerId}
               isCurrentEnrolled={Boolean(myEnrollment)}
             />
           )}
@@ -465,12 +597,15 @@ function EnrolleeTable({ enrollees, sessions, participation, trainingId, canComp
     mutationFn: (enrollmentId) => completeEnrollment(trainingId, enrollmentId),
     onSuccess: (response) => {
       const payload = unwrapData(response);
+      const issuedCertificate = payload?.issued_certificate ?? payload?.certificate;
+      const certificateNumber = issuedCertificate?.certificate_number ?? payload?.certificate_number;
+      const issuedAt = issuedCertificate?.issued_at ?? payload?.issued_at;
       const certificateCreated = Boolean(
-        payload?.certificate_created || payload?.certificate_number || payload?.certificate?.certificate_number
+        payload?.certificate_created || certificateNumber
       );
       toast.success(
         certificateCreated
-          ? "Training marked as completed and the certificate was generated"
+          ? `Training completed; certificate ${certificateNumber ?? "generated"}${issuedAt ? ` issued ${formatDate(issuedAt)}` : ""}`
           : "Training marked as completed"
       );
       queryClient.invalidateQueries({ queryKey: ["hub-training-enrollees", trainingId] });

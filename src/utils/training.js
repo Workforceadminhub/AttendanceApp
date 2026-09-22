@@ -130,15 +130,31 @@ export function initials(name) {
 
 /** Enrollee/worker records come back under several different key names. */
 export function workerIdOf(record) {
-  return record?.worker_id ?? record?.workerId ?? record?.id ?? null;
+  return (
+    record?.worker_id ??
+    record?.workerId ??
+    record?.workerid ??
+    record?.worker?.id ??
+    record?.user_id ??
+    record?.userId ??
+    record?.user?.id ??
+    record?.nominee_id ??
+    record?.nominee?.id ??
+    record?.id ??
+    null
+  );
 }
 
 export function workerNameOf(record) {
-  const composed = `${record?.firstname ?? ""} ${record?.lastname ?? ""}`.trim();
+  const person = record?.worker ?? record?.user ?? record?.nominee ?? record;
+  const composed = `${person?.firstname ?? ""} ${person?.lastname ?? ""}`.trim();
   return (
     record?.worker_name ??
     record?.fullname ??
     record?.name ??
+    person?.worker_name ??
+    person?.fullname ??
+    person?.name ??
     (composed || `Worker ${workerIdOf(record) ?? ""}`.trim())
   );
 }
@@ -173,7 +189,7 @@ export function successfulNominationRecipients(selected = [], results = [], fail
   const successfulWorkerIds = new Set(
     results
       .filter((result) => result?.success !== false && !result?.error)
-      .map((result) => result?.worker_id ?? result?.workerId ?? result?.worker?.id ?? result?.nominee_id)
+      .map(workerIdOf)
       .filter((id) => id !== undefined && id !== null)
       .map(String)
   );
@@ -186,6 +202,94 @@ export function successfulNominationRecipients(selected = [], results = [], fail
         .map(emailOf)
     ),
   ];
+}
+
+function listFrom(payload, keys) {
+  for (const key of keys) {
+    if (Array.isArray(payload?.[key])) return payload[key];
+  }
+  return [];
+}
+
+function finiteCount(...values) {
+  for (const value of values) {
+    const number = Number(value);
+    if (value !== undefined && value !== null && value !== "" && Number.isFinite(number)) {
+      return number;
+    }
+  }
+  return null;
+}
+
+/** Normalise the nomination endpoint's known batch-response variants. */
+export function nominationOutcome(response, submittedCount = 0) {
+  const payload = unwrapData(response) ?? {};
+  const results = Array.isArray(payload) ? payload : listFrom(payload, ["results"]);
+  const successfulItems = Array.isArray(payload)
+    ? []
+    : listFrom(payload, ["successful", "succeeded", "nominations", "created"]);
+  const failedItems = Array.isArray(payload)
+    ? []
+    : listFrom(payload, ["failed", "failed_workers", "errors", "rejected"]);
+
+  const resultSuccesses = results.filter((item) =>
+    item?.success !== false && !item?.error && !item?.reason &&
+    !["failed", "rejected", "error"].includes(String(item?.status ?? "").toLowerCase())
+  );
+  const resultFailures = results.filter((item) => !resultSuccesses.includes(item));
+
+  let succeeded = finiteCount(
+    payload?.nominated_count,
+    payload?.success_count,
+    payload?.succeeded_count,
+    payload?.success === true ? undefined : payload?.success,
+    Array.isArray(payload?.successful) ? undefined : payload?.successful,
+    Array.isArray(payload?.nominated) ? undefined : payload?.nominated
+  );
+  let failed = finiteCount(
+    payload?.failed_count,
+    payload?.failure_count,
+    Array.isArray(payload?.failed) ? undefined : payload?.failed
+  );
+
+  const requestRejected = payload?.success === false || typeof payload?.error === "string";
+  if (requestRejected) {
+    succeeded = 0;
+    failed = submittedCount;
+  }
+
+  if (succeeded === null) {
+    if (results.length > 0) succeeded = resultSuccesses.length;
+    else if (successfulItems.length > 0) succeeded = successfulItems.length;
+  }
+  if (failed === null) {
+    if (results.length > 0) failed = resultFailures.length;
+    else if (failedItems.length > 0) failed = failedItems.length;
+  }
+
+  // A successful HTTP response without batch details represents a successful
+  // nomination request. Do not display zero merely because the API omitted counters.
+  if (succeeded === null && failed === null) {
+    succeeded = submittedCount;
+    failed = 0;
+  } else {
+    succeeded ??= Math.max(0, submittedCount - (failed ?? 0));
+    failed ??= Math.max(0, submittedCount - succeeded);
+  }
+
+  const successfulResults = results.length > 0 ? resultSuccesses : successfulItems;
+  const failureRecords = results.length > 0 ? resultFailures : failedItems;
+  const reasons = [...new Set(
+    [
+      ...failureRecords,
+      ...(requestRejected ? [{ error: payload?.error ?? payload?.message }] : []),
+    ]
+      .map((item) => item?.error ?? item?.reason ?? item?.message ?? item?.detail)
+      .filter((reason) => typeof reason === "string" && reason.trim())
+      .map((reason) => reason.trim())
+  )];
+
+  return { succeeded, failed, successfulResults, reasons };
 }
 
 /**

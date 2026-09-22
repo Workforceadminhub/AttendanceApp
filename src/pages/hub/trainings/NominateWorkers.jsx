@@ -15,13 +15,12 @@ import {
   nominateWorkers,
 } from "../../../services/hub/trainings";
 import { hubGetAll } from "../../../services/hub/client";
-import { sendBulkEmail } from "../../../services/email";
 import {
   formatDate,
   initials,
+  nominationOutcome,
   unwrapData,
   unwrapTrainingDetail,
-  successfulNominationRecipients,
   workerIdOf,
   workerNameOf,
 } from "../../../utils/training";
@@ -34,21 +33,11 @@ const NOMINATION_TONE = {
   expired: "neutral",
 };
 
-function escapeHtml(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;",
-  })[char]);
-}
-
 export default function NominateWorkers() {
   const { id } = useParams();
   const queryClient = useQueryClient();
   const canNominate = useCanAction("nominate_workers");
-  const { isSuperAdmin, isChurchAdmin, isAdmin, isHOD, user } = getUserRole();
+  const { isSuperAdmin, isChurchAdmin, isAdmin, user } = getUserRole();
   const routeList = useEffectiveRouteList();
 
   const canPickAnyDepartment = isSuperAdmin || isChurchAdmin || isAdmin;
@@ -81,13 +70,18 @@ export default function NominateWorkers() {
       }),
     enabled: Boolean(department),
   });
-  const workers = unwrapData(workersData) ?? [];
+  const workers = useMemo(() => unwrapData(workersData) ?? [], [workersData]);
 
-  const { data: nominationsData } = useQuery({
+  const {
+    data: nominationsData,
+    isLoading: nominationsLoading,
+    isError: nominationsError,
+    refetch: retryNominations,
+  } = useQuery({
     queryKey: ["hub-training-nominations", id],
     queryFn: () => fetchNominations(id),
   });
-  const nominations = unwrapData(nominationsData) ?? [];
+  const nominations = useMemo(() => unwrapData(nominationsData) ?? [], [nominationsData]);
   const nominatedIds = useMemo(
     () => new Map(nominations.map((n) => [String(workerIdOf(n)), n])),
     [nominations]
@@ -102,57 +96,30 @@ export default function NominateWorkers() {
   }, [workers, search]);
 
   const mutation = useMutation({
-    mutationFn: () => {
-      const workerIds = selected.map((w) => workerIdOf(w));
+    mutationFn: (submittedWorkers) => {
+      const workerIds = submittedWorkers.map((w) => workerIdOf(w)).filter((workerId) => workerId != null);
+      if (workerIds.length !== submittedWorkers.length) {
+        throw new Error("One or more selected workers has no worker ID. Refresh the list and try again.");
+      }
       const days = expiresInDays ? Number(expiresInDays) : undefined;
       return nominateWorkers(id, workerIds, days);
     },
-    onSuccess: async (res) => {
-      const payload = unwrapData(res);
-      const results = Array.isArray(payload) ? payload : payload?.results ?? payload?.nominations ?? [];
-      const succeeded = Array.isArray(results) && results.length > 0
-        ? results.filter((result) => result.success !== false && !result.error).length
-        : Number(payload?.nominated_count ?? payload?.success_count ?? payload?.nominated ?? selected.length);
-      const failed = Array.isArray(results) && results.length > 0
-        ? results.length - succeeded
-        : Number(payload?.failed_count ?? payload?.failed ?? 0);
-      const recipients = successfulNominationRecipients(selected, results, failed);
-      let emailStatus = recipients.length > 0 ? "pending" : "not_sent";
-      if (succeeded > 0 && recipients.length > 0) {
-        try {
-          const delivery = await sendBulkEmail({
-            subject: `You have been nominated for ${training?.name ?? "a training"}`,
-            recipients,
-            html: `<p>Hello,</p><p>You have been nominated for <strong>${escapeHtml(training?.name ?? "a training")}</strong>.</p><p>Please sign in to the Workers System to accept or decline the nomination.</p><p>Harvesters International Christian Centre, Gbagada</p>`,
-          });
-          const undelivered = (delivery.failed?.length ?? 0) + (delivery.remaining?.length ?? 0);
-          emailStatus = Number(delivery.sent ?? 0) === recipients.length && undelivered === 0
-            ? "sent"
-            : "partial";
-        } catch {
-          emailStatus = "failed";
-        }
-      }
+    onSuccess: (res, submittedWorkers) => {
+      const { succeeded, failed, reasons } = nominationOutcome(
+        res,
+        submittedWorkers.length
+      );
 
       const parts = [
         `${succeeded} worker${succeeded !== 1 ? "s" : ""} nominated`,
       ];
       if (failed > 0) parts.push(`${failed} could not be nominated`);
-      if (emailStatus === "sent") {
-        parts.push(`email notification${recipients.length === 1 ? "" : "s"} sent`);
-      } else if (emailStatus === "partial") {
-        parts.push("some email notifications could not be delivered");
-      } else if (emailStatus === "failed") {
-        parts.push("email notifications were not delivered");
-      } else if (succeeded > 0 && failed > 0) {
-        parts.push("email was skipped because successful recipients could not be confirmed");
-      } else if (succeeded > 0) {
-        parts.push("no email address was available");
-      }
+      if (reasons.length > 0) parts.push(reasons.join("; "));
 
       const message = parts.join("; ");
-      const hasWarning = failed > 0 || emailStatus === "partial" || emailStatus === "failed";
-      toast[hasWarning ? "warn" : "success"](message);
+      const hasError = succeeded === 0 && failed > 0;
+      const hasWarning = failed > 0;
+      toast[hasError ? "error" : hasWarning ? "warn" : "success"](message);
       setSelected([]);
       queryClient.invalidateQueries({ queryKey: ["hub-training-nominations", id] });
     },
@@ -170,7 +137,7 @@ export default function NominateWorkers() {
 
   const isSelected = (worker) => selected.some((w) => workerIdOf(w) === workerIdOf(worker));
 
-  if (!canNominate || isHOD) {
+  if (!canNominate) {
     return (
       <>
         <Header />
@@ -263,7 +230,12 @@ export default function NominateWorkers() {
                       <input
                         type="checkbox"
                         checked={checked}
-                        disabled={Boolean(existing)}
+                        disabled={
+                          Boolean(existing) ||
+                          mutation.isPending ||
+                          nominationsLoading ||
+                          nominationsError
+                        }
                         onChange={() => toggleWorker(worker)}
                         className="h-4 w-4 rounded border-ink-300 accent-ink-900"
                       />
@@ -307,8 +279,13 @@ export default function NominateWorkers() {
                 </span>
                 <button
                   type="button"
-                  disabled={selected.length === 0 || mutation.isPending}
-                  onClick={() => mutation.mutate()}
+                  disabled={
+                    selected.length === 0 ||
+                    mutation.isPending ||
+                    nominationsLoading ||
+                    nominationsError
+                  }
+                  onClick={() => mutation.mutate([...selected])}
                   className="qc-btn-primary"
                 >
                   {mutation.isPending ? "Nominating..." : "Send Nominations"}
@@ -321,7 +298,22 @@ export default function NominateWorkers() {
           <div>
             <div className="qc-section-title mb-3">Nomination status</div>
             <div className="qc-card overflow-hidden">
-              {nominations.length === 0 ? (
+              {nominationsLoading ? (
+                <div className="p-8 text-center text-sm text-ink-500">
+                  Checking existing nominations...
+                </div>
+              ) : nominationsError ? (
+                <div className="p-8 text-center text-sm text-ink-600">
+                  <p>Existing nominations could not be checked. Sending is paused to prevent duplicates.</p>
+                  <button
+                    type="button"
+                    onClick={() => retryNominations()}
+                    className="qc-btn-secondary mt-3"
+                  >
+                    Try again
+                  </button>
+                </div>
+              ) : nominations.length === 0 ? (
                 <div className="p-8 text-center text-sm text-ink-500">
                   No nominations sent for this training yet.
                 </div>

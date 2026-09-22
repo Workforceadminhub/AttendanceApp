@@ -40,11 +40,10 @@ import {
 export default function DepartmentAssignments() {
   const { id } = useParams();
   const queryClient = useQueryClient();
-  const { isSuperAdmin, isChurchAdmin, isAdmin, user } = getUserRole();
-  // The department-assignment API currently accepts only the two
-  // organisation-wide training administrator roles. This is intentionally
-  // narrower than the general `create_training` permission.
-  const canManageAssignments = isSuperAdmin || isChurchAdmin;
+  const { isSuperAdmin, isChurchAdmin, isAdmin, isHOD, user } = getUserRole();
+  // The API treats organisation admins and department leaders as training
+  // administrators for assignments; there is no separate worker label.
+  const canManageAssignments = isAdmin || isHOD;
   const routeList = useEffectiveRouteList();
 
   const canPickAnyDepartment = isSuperAdmin || isChurchAdmin || isAdmin;
@@ -67,19 +66,22 @@ export default function DepartmentAssignments() {
   });
   const detail = unwrapTrainingDetail(trainingData);
   const training = detail?.training;
-  const participation = detail?.participation ?? [];
+  const participation = useMemo(() => detail?.participation ?? [], [detail]);
 
   const { data: sessionsData } = useQuery({
     queryKey: ["hub-training-sessions", id],
     queryFn: () => fetchSessions(id),
   });
-  const sessions = unwrapData(sessionsData) ?? [];
+  const sessions = useMemo(() => unwrapData(sessionsData) ?? [], [sessionsData]);
 
   const { data: assignmentsData, isLoading } = useQuery({
     queryKey: ["hub-training-dept-assignments", id],
     queryFn: () => fetchDeptAssignments(id),
   });
-  const assignments = unwrapData(assignmentsData) ?? detail?.departmentAssignments ?? [];
+  const assignments = useMemo(
+    () => unwrapData(assignmentsData) ?? detail?.departmentAssignments ?? [],
+    [assignmentsData, detail]
+  );
 
   // Roster for the worker picker, so a leader is not typing raw IDs.
   const { data: workersData } = useQuery({
@@ -176,9 +178,9 @@ export default function DepartmentAssignments() {
 
           {!canManageAssignments && (
             <div className="rounded-md border border-ink-200 bg-white px-4 py-3 text-sm text-ink-600">
-              This page is read-only for your role. A training administrator is an existing
-              <span className="font-medium text-ink-900"> Super Admin or Church Admin</span>; no
-              separate worker label is required.
+              This page is read-only for your role. Training administrators are existing admins,
+              workforce admins, church admins, HODs, and assistant HODs; no separate worker label
+              is required.
             </div>
           )}
 

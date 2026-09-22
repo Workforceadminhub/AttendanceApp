@@ -1,5 +1,5 @@
 import { unwrapPaginated } from "../../utils/pagination.js";
-import { hubGetPaged, hubGet, hubPost, hubPatch, hubDelete } from "./client";
+import { hubGetPaged, hubGet, hubPost, hubPatch, hubDelete, hubPut } from "./client";
 import { sortById } from "./sortById";
 
 export async function fetchTrainings(params) {
@@ -114,6 +114,14 @@ export function fetchWorkerTrainingMetrics(workerId) {
   return hubGet(`/users/${workerId}/training-metrics`);
 }
 
+export function fetchPriorCompletions(workerId) {
+  return hubGetPaged(`/users/${workerId}/prior-completions`);
+}
+
+export function createPriorCompletion(workerId, data) {
+  return hubPost(`/users/${workerId}/prior-completions`, data);
+}
+
 // Progression Path Endpoints - the ordered chain a progressive training sits in.
 export function fetchProgressionPaths() {
   return hubGetPaged("/progression-paths");
@@ -125,6 +133,10 @@ export function createProgressionPath(data) {
 
 export function updateProgressionPath(id, data) {
   return hubPatch(`/progression-paths/${id}`, data);
+}
+
+export function updateProgressionPathSteps(id, steps) {
+  return hubPut(`/progression-paths/${id}/steps`, { steps });
 }
 
 export function deleteProgressionPath(id) {

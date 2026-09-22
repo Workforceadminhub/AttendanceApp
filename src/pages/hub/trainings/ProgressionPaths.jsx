@@ -8,6 +8,7 @@ import {
   fetchProgressionPaths,
   fetchAllTrainings,
   updateProgressionPath,
+  updateProgressionPathSteps,
 } from "../../../services/hub/trainings";
 import { unwrapData } from "../../../utils/training";
 import { buildPathwayChain } from "./TrainingClassification";
@@ -23,26 +24,45 @@ import { buildPathwayChain } from "./TrainingClassification";
 export default function ProgressionPaths() {
   const queryClient = useQueryClient();
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ name: "", description: "" });
+  const [form, setForm] = useState({ name: "", description: "", stepIds: [] });
   const [editingId, setEditingId] = useState(null);
 
   const { data: pathsData, isLoading } = useQuery({
     queryKey: ["hub-progression-paths"],
     queryFn: fetchProgressionPaths,
   });
-  const paths = unwrapData(pathsData) ?? [];
+  const paths = useMemo(() => unwrapData(pathsData) ?? [], [pathsData]);
 
   const { data: trainingsData } = useQuery({
     queryKey: ["hub-trainings", "all-for-pathway"],
     queryFn: () => fetchAllTrainings(),
   });
-  const trainings = trainingsData?.data ?? [];
+  const trainings = useMemo(() => trainingsData?.data ?? [], [trainingsData]);
 
   const chains = useMemo(
     () =>
       paths.map((path) => ({
         path,
-        chain: buildPathwayChain(trainings, { pathId: path.id }),
+        chain: (() => {
+          const apiSteps = path.steps ?? path.levels ?? [];
+          if (!Array.isArray(apiSteps) || apiSteps.length === 0) {
+            return buildPathwayChain(trainings, { pathId: path.id });
+          }
+          return apiSteps
+            .map((step) => {
+              const trainingId =
+                step.training_program_id ??
+                step.training_id ??
+                step.training_program?.id ??
+                step.training?.id;
+              return (
+                step.training_program ??
+                step.training ??
+                trainings.find((training) => String(training.id) === String(trainingId))
+              );
+            })
+            .filter(Boolean);
+        })(),
       })),
     [paths, trainings]
   );
@@ -52,18 +72,21 @@ export default function ProgressionPaths() {
     onSuccess: () => {
       toast.success("Progression pathway created");
       queryClient.invalidateQueries({ queryKey: ["hub-progression-paths"] });
-      setForm({ name: "", description: "" });
+      setForm({ name: "", description: "", stepIds: [] });
       setAdding(false);
     },
     onError: (err) => toast.error(err.message || "Failed to create pathway"),
   });
 
   const updateMut = useMutation({
-    mutationFn: ({ id, payload }) => updateProgressionPath(id, payload),
+    mutationFn: async ({ id, payload, steps }) => {
+      await updateProgressionPath(id, payload);
+      return updateProgressionPathSteps(id, steps);
+    },
     onSuccess: () => {
       toast.success("Progression pathway updated");
       queryClient.invalidateQueries({ queryKey: ["hub-progression-paths"] });
-      setForm({ name: "", description: "" });
+      setForm({ name: "", description: "", stepIds: [] });
       setEditingId(null);
       setAdding(false);
     },
@@ -85,22 +108,56 @@ export default function ProgressionPaths() {
       toast.error("Pathway name is required");
       return;
     }
-    const payload = { name: form.name.trim() };
+    const steps = form.stepIds.map((trainingProgramId) => ({
+      training_program_id: trainingProgramId,
+    }));
+    const payload = { name: form.name.trim(), steps };
     if (form.description.trim()) payload.description = form.description.trim();
-    if (editingId) updateMut.mutate({ id: editingId, payload });
+    if (editingId) {
+      const { steps: ignoredSteps, ...metadata } = payload;
+      void ignoredSteps;
+      updateMut.mutate({ id: editingId, payload: metadata, steps });
+    }
     else createMut.mutate(payload);
   };
 
   const beginEdit = (path) => {
+    const apiSteps = path.steps ?? path.levels ?? [];
+    const fallbackSteps = buildPathwayChain(trainings, { pathId: path.id });
+    const stepIds = (apiSteps.length > 0 ? apiSteps : fallbackSteps)
+      .map((step) =>
+        step.training_program_id ??
+        step.training_id ??
+        step.training_program?.id ??
+        step.training?.id ??
+        step.id
+      )
+      .filter((trainingId) => trainingId != null)
+      .map(String);
     setEditingId(path.id);
-    setForm({ name: path.name ?? "", description: path.description ?? "" });
+    setForm({ name: path.name ?? "", description: path.description ?? "", stepIds });
     setAdding(true);
   };
 
   const cancelForm = () => {
     setAdding(false);
     setEditingId(null);
-    setForm({ name: "", description: "" });
+    setForm({ name: "", description: "", stepIds: [] });
+  };
+
+  const addStep = (trainingId) => {
+    if (!trainingId || form.stepIds.includes(String(trainingId))) return;
+    setForm((current) => ({ ...current, stepIds: [...current.stepIds, String(trainingId)] }));
+  };
+
+  const moveStep = (index, offset) => {
+    setForm((current) => {
+      const target = index + offset;
+      if (target < 0 || target >= current.stepIds.length) return current;
+      const stepIds = [...current.stepIds];
+      [stepIds[index], stepIds[target]] = [stepIds[target], stepIds[index]];
+      return { ...current, stepIds };
+    });
   };
 
   return (
@@ -141,6 +198,68 @@ export default function ProgressionPaths() {
               onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
               placeholder="What this ladder leads to"
             />
+          </div>
+          <div>
+            <label className="qc-label" htmlFor="pathway-level">Levels</label>
+            <p className="mb-2 text-xs text-ink-500">
+              Add existing trainings in the order workers must complete them.
+            </p>
+            <select
+              id="pathway-level"
+              className="qc-input text-sm"
+              value=""
+              onChange={(event) => addStep(event.target.value)}
+            >
+              <option value="">Add a training as a level...</option>
+              {trainings
+                .filter((training) => !form.stepIds.includes(String(training.id)))
+                .map((training) => (
+                  <option key={training.id} value={training.id}>{training.name}</option>
+                ))}
+            </select>
+            {form.stepIds.length > 0 && (
+              <ol className="mt-3 rounded border border-ink-200 divide-y divide-ink-200">
+                {form.stepIds.map((trainingId, index) => {
+                  const training = trainings.find((item) => String(item.id) === String(trainingId));
+                  return (
+                    <li key={trainingId} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
+                      <span className="qc-num text-xs text-ink-500">{index + 1}</span>
+                      <span className="flex-1 min-w-0 truncate text-sm text-ink-900">
+                        {training?.name ?? `Training ${trainingId}`}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => moveStep(index, -1)}
+                        disabled={index === 0}
+                        className="qc-btn-ghost px-2"
+                        aria-label={`Move ${training?.name ?? "level"} up`}
+                      >
+                        Up
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveStep(index, 1)}
+                        disabled={index === form.stepIds.length - 1}
+                        className="qc-btn-ghost px-2"
+                        aria-label={`Move ${training?.name ?? "level"} down`}
+                      >
+                        Down
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setForm((current) => ({
+                          ...current,
+                          stepIds: current.stepIds.filter((id) => id !== trainingId),
+                        }))}
+                        className="text-xs font-medium text-brick hover:underline"
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
           </div>
           <button type="submit" disabled={createMut.isPending || updateMut.isPending} className="qc-btn-primary">
             {createMut.isPending || updateMut.isPending

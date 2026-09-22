@@ -7,10 +7,12 @@ import {
   isEligibleForNextLevel,
   isTrainingFull,
   nextSessionDate,
+  nominationOutcome,
   resolveProgressionStates,
   successfulNominationRecipients,
   trainingStatus,
   unwrapTrainingDetail,
+  workerIdOf,
 } from "./training";
 import { buildPathwayChain } from "../pages/hub/trainings/TrainingClassification";
 
@@ -207,6 +209,45 @@ describe("successfulNominationRecipients", () => {
 
   it("fails closed when partial successes cannot be mapped to workers", () => {
     expect(successfulNominationRecipients(selected, [{ success: true }, { success: false }], 1)).toEqual([]);
+  });
+});
+
+describe("nomination response normalisation", () => {
+  it("supports separate successful and failed worker arrays", () => {
+    expect(nominationOutcome({
+      data: {
+        successful: [{ worker_id: 1 }],
+        failed: [{ worker_id: 2, reason: "Already nominated" }],
+      },
+    }, 2)).toEqual({
+      succeeded: 1,
+      failed: 1,
+      successfulResults: [{ worker_id: 1 }],
+      reasons: ["Already nominated"],
+    });
+  });
+
+  it("does not report zero when a successful response omits counters", () => {
+    expect(nominationOutcome({ message: "Workers nominated" }, 1)).toMatchObject({
+      succeeded: 1,
+      failed: 0,
+    });
+  });
+
+  it("treats a 200 response with success false as a rejected nomination", () => {
+    expect(nominationOutcome({
+      success: false,
+      message: "Worker is already nominated",
+    }, 1)).toMatchObject({
+      succeeded: 0,
+      failed: 1,
+      reasons: ["Worker is already nominated"],
+    });
+  });
+
+  it("reads nested worker identifiers before a nomination record id", () => {
+    expect(workerIdOf({ id: "nomination-9", worker: { id: 42 } })).toBe(42);
+    expect(workerIdOf({ id: "nomination-10", user_id: 43 })).toBe(43);
   });
 });
 

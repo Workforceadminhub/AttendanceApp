@@ -9,8 +9,10 @@ export const PERMISSION_LEVELS = {
   HOD: "HOD",
   SUB_TEAM_ADMIN: "SUB_TEAM_ADMIN",
   TEAM_ADMIN: "TEAM_ADMIN",
+  WORKFORCE_ADMIN: "WORKFORCE_ADMIN",
   CHURCH_ADMIN: "CHURCH_ADMIN",
   SUPER_ADMIN: "SUPER_ADMIN",
+  ASSISTANT_HOD: "ASSISTANT_HOD",
 };
 
 /**
@@ -61,6 +63,8 @@ export function getUserRole() {
     roleRaw === "teamadmin" ||
     roleRaw === "team-head" ||
     roleRaw === "teamhead" ||
+    roleRaw === "wf-admin" ||
+    roleRaw === "workforce-admin" ||
     roleRaw === "admin";
   const isChurchAdminRole =
     roleRaw === "church-admin" ||
@@ -70,7 +74,11 @@ export function getUserRole() {
     (user.department ?? "").toString().trim() === ADMIN_ENUMS.ADMIN_DEPARTMENT ||
     (user.permissionLevel ?? "").toString().trim() === PERMISSION_LEVELS.CHURCH_ADMIN;
   const isSuperAdminRole = roleRaw === "super-admin" || roleRaw === "superadmin";
-  const isHodRole = roleRaw === "hod" || roleRaw === "head-of-department";
+  const isHodRole =
+    roleRaw === "hod" ||
+    roleRaw === "head-of-department" ||
+    roleRaw === "assistant-hod" ||
+    roleRaw === "assistant-head-of-department";
 
   // Check new permissionLevel field first (from backend)
   const permissionLevel =
@@ -99,19 +107,23 @@ export function getUserRole() {
     return fallback;
   })();
 
-  let isSuperAdmin = false;
-  let isChurchAdmin = false;
-  let isTeamAdmin = false;
-  let isSubTeamAdmin = false;
-  let isHOD = false;
+  let isSuperAdmin;
+  let isChurchAdmin;
+  let isTeamAdmin;
+  let isSubTeamAdmin;
+  let isHOD;
 
   if (permissionLevel) {
     // Use the new permissionLevel field
     isSuperAdmin = permissionLevel === PERMISSION_LEVELS.SUPER_ADMIN;
     isChurchAdmin = permissionLevel === PERMISSION_LEVELS.CHURCH_ADMIN;
-    isTeamAdmin = permissionLevel === PERMISSION_LEVELS.TEAM_ADMIN;
+    isTeamAdmin =
+      permissionLevel === PERMISSION_LEVELS.TEAM_ADMIN ||
+      permissionLevel === PERMISSION_LEVELS.WORKFORCE_ADMIN;
     isSubTeamAdmin = permissionLevel === PERMISSION_LEVELS.SUB_TEAM_ADMIN;
-    isHOD = permissionLevel === PERMISSION_LEVELS.HOD;
+    isHOD =
+      permissionLevel === PERMISSION_LEVELS.HOD ||
+      permissionLevel === PERMISSION_LEVELS.ASSISTANT_HOD;
   } else {
     // Fallback to existing string-match logic for backward compatibility
     isSuperAdmin = user.department === "Super Admin";

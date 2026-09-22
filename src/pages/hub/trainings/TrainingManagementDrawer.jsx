@@ -130,20 +130,15 @@ export function TrainingDetailDrawer({ trainingId, fallbackTraining, onClose, on
   const nextSession = nextSessionDate(sessions) ?? asDate(training.start_date);
 
   // Chain view: what sits before and after this training on its pathway.
+  const progressionPathId = training.progression_path_id;
   const { data: pathTrainingsData } = useQuery({
-    queryKey: ["hub-trainings", "pathway", training.progression_path_id],
+    queryKey: ["hub-trainings", "pathway", progressionPathId],
     queryFn: () => fetchAllTrainings(),
-    enabled: Boolean(training.progression_path_id),
+    enabled: Boolean(progressionPathId),
   });
-  const chain = useMemo(
-    () =>
-      training.progression_path_id
-        ? buildPathwayChain(pathTrainingsData?.data ?? [], {
-            pathId: training.progression_path_id,
-          })
-        : [],
-    [pathTrainingsData, training.progression_path_id]
-  );
+  const chain = progressionPathId
+    ? buildPathwayChain(pathTrainingsData?.data ?? [], { pathId: progressionPathId })
+    : [];
 
   return (
     <Panel title="Training Detail" subtitle={training.name} onClose={onClose}>
@@ -315,6 +310,9 @@ export function TrainingFormDrawer({ mode = "create", initialTraining, onClose, 
     capacity: initial.capacity || "",
     registration_deadline: asDate(initial.registration_deadline),
     cohort: initial.cohort || "",
+    new_cohort_name: "",
+    new_cohort_start_date: "",
+    new_cohort_end_date: "",
     visibility_scope: initial.visibility_scope ?? initial.visibility ?? "all_workers",
     department_name: initial.department_name ?? initial.department ?? "",
     location: initial.location ?? initial.meeting_location ?? "",
@@ -401,6 +399,20 @@ export function TrainingFormDrawer({ mode = "create", initialTraining, onClose, 
     if (form.training_kind === TRAINING_KIND.PROGRESSIVE && !form.progression_path_id) {
       next.progression_path_id = "Select the pathway this training belongs to";
     }
+    if (
+      mode === "create" &&
+      (form.new_cohort_start_date || form.new_cohort_end_date) &&
+      !form.new_cohort_name.trim()
+    ) {
+      next.new_cohort_name = "Give this batch a name";
+    }
+    if (
+      form.new_cohort_start_date &&
+      form.new_cohort_end_date &&
+      form.new_cohort_end_date < form.new_cohort_start_date
+    ) {
+      next.new_cohort_end_date = "End date cannot be before the start date";
+    }
     return next;
   };
 
@@ -415,6 +427,17 @@ export function TrainingFormDrawer({ mode = "create", initialTraining, onClose, 
       ...form,
       duration: durationFromDates(form.start_date, form.end_date),
     };
+    const newCohort = form.new_cohort_name.trim()
+      ? {
+          name: form.new_cohort_name.trim(),
+          ...(form.new_cohort_start_date ? { start_date: form.new_cohort_start_date } : {}),
+          ...(form.new_cohort_end_date ? { end_date: form.new_cohort_end_date } : {}),
+        }
+      : null;
+    delete payload.new_cohort_name;
+    delete payload.new_cohort_start_date;
+    delete payload.new_cohort_end_date;
+    if (mode === "create" && newCohort) payload.new_cohort = newCohort;
     if (payload.capacity) payload.capacity = Number(payload.capacity);
     Object.keys(payload).forEach((key) => {
       if (payload[key] === "") delete payload[key];
@@ -470,7 +493,7 @@ export function TrainingFormDrawer({ mode = "create", initialTraining, onClose, 
             placeholder="Brief overview of this training..."
           />
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="qc-label" htmlFor="training-category">Category *</label>
             <select id="training-category" className="qc-input text-sm" value={form.category} onChange={set("category")}>
@@ -512,7 +535,7 @@ export function TrainingFormDrawer({ mode = "create", initialTraining, onClose, 
         )}
 
         <SectionHeading>Schedule</SectionHeading>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="qc-label" htmlFor="training-start">Start date *</label>
             <input
@@ -607,22 +630,67 @@ export function TrainingFormDrawer({ mode = "create", initialTraining, onClose, 
               placeholder="e.g. 30"
             />
           </div>
-          <div>
-            <label className="qc-label" htmlFor="training-cohort">
-              Batch / cohort label
-            </label>
-            <input
-              id="training-cohort"
-              className="qc-input text-sm"
-              value={form.cohort}
-              onChange={set("cohort")}
-              placeholder="Foundation course, June cohort 2026"
-            />
-            <p className="mt-1 text-xs text-ink-500">
-              This label is saved with the training. Creating multiple dated batches requires backend support.
-            </p>
-          </div>
+          {mode === "edit" && (
+            <div>
+              <label className="qc-label" htmlFor="training-cohort">Batch / cohort label</label>
+              <input
+                id="training-cohort"
+                className="qc-input text-sm"
+                value={form.cohort}
+                onChange={set("cohort")}
+                placeholder="Foundation course, June cohort 2026"
+              />
+            </div>
+          )}
         </div>
+        {mode === "create" && (
+          <div className="rounded-md border border-ink-200 bg-white p-4 space-y-4">
+            <div>
+              <h3 className="text-sm font-medium text-ink-900">Create the first batch (optional)</h3>
+              <p className="mt-1 text-xs text-ink-500">
+                The batch will be created with this training in the same save operation.
+              </p>
+            </div>
+            <div>
+              <label className="qc-label" htmlFor="new-cohort-name">Batch name</label>
+              <input
+                id="new-cohort-name"
+                className={`qc-input text-sm ${errors.new_cohort_name ? "border-brick" : ""}`}
+                value={form.new_cohort_name}
+                onChange={set("new_cohort_name")}
+                placeholder="July 2026 Batch"
+              />
+              {errors.new_cohort_name && (
+                <span className="text-xs text-brick mt-1 block">{errors.new_cohort_name}</span>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="qc-label" htmlFor="new-cohort-start">Batch start date</label>
+                <input
+                  id="new-cohort-start"
+                  type="date"
+                  className="qc-input text-sm qc-num"
+                  value={form.new_cohort_start_date}
+                  onChange={set("new_cohort_start_date")}
+                />
+              </div>
+              <div>
+                <label className="qc-label" htmlFor="new-cohort-end">Batch end date</label>
+                <input
+                  id="new-cohort-end"
+                  type="date"
+                  className={`qc-input text-sm qc-num ${errors.new_cohort_end_date ? "border-brick" : ""}`}
+                  value={form.new_cohort_end_date}
+                  onChange={set("new_cohort_end_date")}
+                />
+                {errors.new_cohort_end_date && (
+                  <span className="text-xs text-brick mt-1 block">{errors.new_cohort_end_date}</span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* FE-T2 Classification - a core decision, not a buried toggle. */}
         <SectionHeading>Classification</SectionHeading>

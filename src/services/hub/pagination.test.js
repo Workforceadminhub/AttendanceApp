@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { apiRequest } from "../../utils/apiClient";
 import { hubGetAll, hubGetPaged } from "./client";
-import { fetchAllTrainings, fetchTrainings, fetchEnrollees } from "./trainings";
+import {
+  createPriorCompletion,
+  fetchAllTrainings,
+  fetchEnrollees,
+  fetchPriorCompletions,
+  fetchTrainings,
+  updateProgressionPathSteps,
+} from "./trainings";
 import { fetchCourses } from "./courses";
 vi.mock("../../utils/apiClient", () => ({ apiRequest: vi.fn() }));
 const paged = page => ({ data: [{ id: page }], pagination: { page, per_page: 1, total: 2, total_pages: 2, has_next: page === 1 }, label: 'Roster' });
@@ -36,5 +43,43 @@ describe("Hub pagination", () => {
     apiRequest.mockResolvedValueOnce({ ...paged(1), data: [{ id: 3 }] }).mockResolvedValueOnce(paged(2));
     expect(await fetchAllTrainings()).toEqual({ data: [{ id: 2 }, { id: 3 }] });
     expect(apiRequest).toHaveBeenCalledTimes(2);
+  });
+  it("uses the prior-completion endpoints with the documented payload", async () => {
+    apiRequest.mockResolvedValue({ data: [] });
+    await fetchPriorCompletions("worker-1");
+    expect(apiRequest).toHaveBeenLastCalledWith(
+      "GET",
+      "/api/hub/users/worker-1/prior-completions",
+      undefined,
+      undefined,
+      true
+    );
+
+    const payload = {
+      training_program_id: "training-1",
+      completed_at: "2025-11-12",
+      notes: "Paper certificate",
+    };
+    await createPriorCompletion("worker-1", payload);
+    expect(apiRequest).toHaveBeenLastCalledWith(
+      "POST",
+      "/api/hub/users/worker-1/prior-completions",
+      payload,
+      undefined,
+      true
+    );
+  });
+
+  it("replaces progression steps through the dedicated endpoint", async () => {
+    apiRequest.mockResolvedValue({ success: true });
+    const steps = [{ training_program_id: "training-1" }];
+    await updateProgressionPathSteps("path-1", steps);
+    expect(apiRequest).toHaveBeenLastCalledWith(
+      "PUT",
+      "/api/hub/progression-paths/path-1/steps",
+      { steps },
+      undefined,
+      true
+    );
   });
 });

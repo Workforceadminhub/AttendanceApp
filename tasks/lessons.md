@@ -30,10 +30,6 @@ Captured after user corrections during the Quiet Cockpit redesign. Each entry is
 
 ## React / patterns
 
-### 7. `navigate()` belongs in `useEffect`, never during render
-**Trigger:** Pre-existing bug in `Header.jsx` — `if (!authUser) navigate("/login")` ran during render, producing the React Router warning "You should call navigate() in a React.useEffect()".
-**Rule:** Side effects like `navigate()` must run in `useEffect`. Calling them inline during render works but is incorrect — React doesn't guarantee single-pass renders, and the warning is real.
-
 ### 8. When making a `<tr>` clickable, stop propagation on interactive cells
 **Trigger:** User asked for clickable rows on the Workers table.
 **Rule:** Add `onClick` + `cursor-pointer` + `hover:bg-*` on the `<tr>`, then add `onClick={(e) => e.stopPropagation()}` to any `<td>` containing checkboxes, action buttons, or links. Otherwise clicking those still triggers row navigation. Also keep a real `<a>`/`<Link>` inside the row for keyboard nav and right-click "open in new tab" — it's an a11y gain.
@@ -41,16 +37,8 @@ Captured after user corrections during the Quiet Cockpit redesign. Each entry is
 ## Build / tokens
 
 ### 9. Self-host fonts under strict CSP
-**Trigger:** `index.html` has a strict `font-src 'self' data:` CSP. Google Fonts blocked.
-**Rule:** When CSP blocks third-party `font-src`, use `@fontsource/<font>` npm packages and import the CSS in `src/index.js`. Fonts ship with the bundle, no CSP changes needed.
-
-### 10. Mechanical token sweep is safe with word-bounded perl
-**Trigger:** Needed to migrate ~50 files from gray-* / indigo-* to ink-* / sienna without redesigning each one.
-**Rule:** For palette migrations, use `perl -i -pe 's/\bbg-gray-(\d+)\b/bg-ink-$1/g'` etc. with word boundaries. Pattern-match `hover:`, `focus:`, `placeholder-`, `divide-`, `ring-`, `border-` variants too. Use `while IFS= read -r f; do … done < <(grep -rl …)` — `for f in $files` breaks on newlines.
-
-### 11. CRA preview compile times are tolerable but not instant
-**Trigger:** Verifying changes via `preview_screenshot` immediately after edit sometimes shows stale compile.
-**Rule:** When verifying with the preview server, wait for `preview_logs` to show `Compiled successfully!` before screenshotting. Use a background `until curl -sf http://localhost:3000` poll if you want a notification.
+**Trigger:** The CSP in `vercel.json` (mirrored in `public/index.html`) is `font-src 'self' data:`. Google Fonts blocked.
+**Rule:** When CSP blocks third-party `font-src`, use `@fontsource/<font>` npm packages and import the CSS in `src/index.jsx`. Fonts ship with the bundle, no CSP changes needed.
 
 ## Workflow
 
@@ -58,6 +46,5 @@ Captured after user corrections during the Quiet Cockpit redesign. Each entry is
 **Trigger:** User asked for "scope: both" (vertical slice + surface polish across everything). 17+ pages would have been a multi-week redesign.
 **Rule:** When the design language change is mostly token swaps (color, typography, focus rings), do the mechanical sweep first. Reserve full per-page redesigns for the highest-traffic / first-impression screens. Status pills, card shadows, etc. that *only* affect specific patterns can stay until each page is properly refactored.
 
-### 13. Auth-gated screens can't be visually verified without backend
-**Trigger:** `SuperAdminOverview`, `Workers/Dashboard`, `DepartmentWorkers` etc. are all behind a real auth token check. I can't fake a session because the backend rejects tokens.
-**Rule:** For auth-gated routes, verify compile cleanliness + structural correctness (preserved hooks, data shapes, props). Tell the user explicitly that visual verification is on them. Don't claim screens are "verified" when they're only structurally checked.
+### 13. Auth-gated screens need a real session to verify
+**Rule:** Most screens sit behind a real auth token the backend validates, so a faked session won't render them. To verify one visually, run `node scripts/prepare-ux-audit-login.mjs` (the user enters the credentials) and load the session at the dev-only `/__ux-audit/<role>` route. If that isn't possible, say the screen was only structurally checked, not visually verified.

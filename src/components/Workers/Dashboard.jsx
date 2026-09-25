@@ -24,6 +24,7 @@ import { getUserRole } from "../../utils/getUserRole";
 import { debounce } from "lodash";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
 import { getActiveMeeting, getAllMeetings, MEETINGS_CHANGED_EVENT } from "../../utils/meetingConfig";
+import { normalizeDateString } from "../../utils/meetingLinks";
 import { fetchActiveMeeting } from "../../services/hub/meetings";
 import BirthdayWidget from "../BirthdayWidget";
 import SundayWorkersAttendanceTable from "./SundayWorkersAttendanceTable";
@@ -314,8 +315,11 @@ export default function Dashboard() {
             today.setHours(0, 0, 0, 0);
             const toDate = (d) => {
               if (!d) return null;
-              const [y, m, day] = d.split("-").map(Number);
-              return new Date(y, m - 1, day);
+              const clean = normalizeDateString(d);
+              if (!clean) return null;
+              const [y, m, day] = clean.split("-").map(Number);
+              const date = new Date(y, m - 1, day);
+              return Number.isNaN(date.getTime()) ? null : date;
             };
 
             const meetingTypes = ["leaders", "workers"];
@@ -327,7 +331,7 @@ export default function Dashboard() {
 
                 const mDate = toDate(meeting.date);
                 const isLeaders = type === "leaders";
-                const isPreMeeting = mDate && today < mDate;
+                const isPreMeeting = mDate ? today < mDate : false;
 
                 const label = isPreMeeting
                   ? `${isLeaders ? "Leaders" : "Workers"} Meeting Confirmation`

@@ -8,17 +8,25 @@ import {
   setActiveMeeting as setActiveMeetingLocal,
   deleteMeeting as deleteMeetingLocal,
 } from "../../utils/meetingConfig";
+import { normalizeDateString } from "../../utils/meetingLinks";
 
 /**
  * Normalizes a meeting object from either API (snake_case) or local storage (camelCase).
+ * Returns null if the object is invalid or does not contain a recognizable meetingType and valid date.
  */
 export function normalizeMeeting(m) {
-  if (!m) return null;
-  const meetingTypeRaw = m.meeting_type || m.meetingType || "";
+  if (!m || typeof m !== "object") return null;
+  const meetingTypeRaw = m.meeting_type || m.meetingType;
+  if (!meetingTypeRaw || typeof meetingTypeRaw !== "string") return null;
   const meetingType = meetingTypeRaw.toLowerCase();
-  const date = m.meeting_date || m.date || "";
+  if (meetingType !== "leaders" && meetingType !== "workers") return null;
+
+  const rawDate = m.meeting_date || m.date || "";
+  const date = normalizeDateString(rawDate);
+  if (!date) return null;
+
   return {
-    id: m.id,
+    id: m.id ?? `${meetingType}-${date}`,
     meetingType,
     date,
     title: m.title || `${meetingType === "leaders" ? "Leaders" : "Workers"} Meeting (${date})`,
@@ -40,7 +48,12 @@ export async function fetchMeetings(meetingType = "leaders") {
     const res = await hubGet("/super/admin/meetings", {
       meeting_type: meetingType.toLowerCase(),
     });
-    const rawList = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
+    const payload = res?.data ?? res;
+    const rawList = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.data)
+      ? payload.data
+      : [];
     const normalized = rawList.map(normalizeMeeting).filter(Boolean);
 
     // Synchronize local storage cache
@@ -68,27 +81,31 @@ export async function fetchActiveMeeting(meetingType) {
       "/super/admin/meetings/active",
       meetingType ? { meeting_type: meetingType.toLowerCase() } : undefined
     );
-    const data = res?.data ?? res;
+    const payload = res?.data ?? res;
 
-    let target = null;
-    if (Array.isArray(data)) {
-      target = data
-        .map(normalizeMeeting)
-        .find((m) => !meetingType || m.meetingType === meetingType.toLowerCase());
-    } else if (data && typeof data === "object") {
-      if (meetingType && data[meetingType.toLowerCase()]) {
-        target = normalizeMeeting(data[meetingType.toLowerCase()]);
+    const list = [];
+    if (Array.isArray(payload)) {
+      list.push(...payload);
+    } else if (payload && typeof payload === "object") {
+      if (Array.isArray(payload.data)) {
+        list.push(...payload.data);
       } else {
-        const norm = normalizeMeeting(data);
-        if (norm && (!meetingType || norm.meetingType === meetingType.toLowerCase())) {
-          target = norm;
-        }
+        if (payload.leaders) list.push(payload.leaders);
+        if (payload.workers) list.push(payload.workers);
+        if (payload.meeting_type || payload.meetingType) list.push(payload);
       }
     }
 
-    if (target) {
-      syncActiveMeetingCache(target);
-      return target;
+    const normalizedList = list.map(normalizeMeeting).filter(Boolean);
+    for (const item of normalizedList) {
+      syncActiveMeetingCache(item);
+    }
+
+    if (meetingType) {
+      const match = normalizedList.find((m) => m.meetingType === meetingType.toLowerCase());
+      if (match) return match;
+    } else if (normalizedList.length > 0) {
+      return normalizedList[0];
     }
   } catch (err) {
     console.error("Failed to fetch active meeting from backend:", err);

@@ -16,10 +16,7 @@ export default class RouteErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, info) {
-    if (process.env.NODE_ENV !== "production") {
-       
-      console.error("[RouteErrorBoundary]", error, info);
-    }
+    console.error("[RouteErrorBoundary]", error, info);
     // Hook for Sentry-or-equivalent (see src/utils/errorReporter.js)
     if (typeof window !== "undefined" && window.__reportError) {
       try {

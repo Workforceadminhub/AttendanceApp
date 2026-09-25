@@ -23,7 +23,8 @@ import { getUser } from "../../utils/getUser";
 import { getUserRole } from "../../utils/getUserRole";
 import { debounce } from "lodash";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
-import { getActiveMeeting } from "../../utils/meetingConfig";
+import { getActiveMeeting, getAllMeetings, MEETINGS_CHANGED_EVENT } from "../../utils/meetingConfig";
+import { fetchActiveMeeting } from "../../services/hub/meetings";
 import BirthdayWidget from "../BirthdayWidget";
 import SundayWorkersAttendanceTable from "./SundayWorkersAttendanceTable";
 import Stat from "../ui/Stat";
@@ -120,6 +121,22 @@ export default function Dashboard() {
     }, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  const [, setMeetingTick] = useState(0);
+  useEffect(() => {
+    const refreshMeetings = () => setMeetingTick((t) => t + 1);
+    window.addEventListener(MEETINGS_CHANGED_EVENT, refreshMeetings);
+    window.addEventListener("storage", refreshMeetings);
+
+    if (isAdminMember) {
+      fetchActiveMeeting().catch(() => {});
+    }
+
+    return () => {
+      window.removeEventListener(MEETINGS_CHANGED_EVENT, refreshMeetings);
+      window.removeEventListener("storage", refreshMeetings);
+    };
+  }, [isAdminMember]);
 
   // Super Admin can manually open/close the attendance window; other roles
   // only see the schedule-based status banner.
@@ -295,38 +312,48 @@ export default function Dashboard() {
           {isAdminMember && (isChurchAdmin || isTeamAdmin || authUser?.department === "Super Admin" || authUser?.permissionLevel === "SUPER_ADMIN") && (() => {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
+            const toDate = (d) => {
+              if (!d) return null;
+              const [y, m, day] = d.split("-").map(Number);
+              return new Date(y, m - 1, day);
+            };
 
-            // Determine which meeting type to show - pick the one whose date is closest to today
-            const leadersMeeting = getActiveMeeting("leaders");
-            const workersMeeting = getActiveMeeting("workers");
+            const meetingTypes = ["leaders", "workers"];
+            const buttons = meetingTypes
+              .map((type) => {
+                if (getAllMeetings(type).length === 0) return null;
+                const meeting = getActiveMeeting(type);
+                if (!meeting || !meeting.date) return null;
 
-            const toDate = (d) => { const [y, m, day] = d.split("-").map(Number); return new Date(y, m - 1, day); };
-            const lDate = toDate(leadersMeeting.date);
-            const wDate = toDate(workersMeeting.date);
+                const mDate = toDate(meeting.date);
+                const isLeaders = type === "leaders";
+                const isPreMeeting = mDate && today < mDate;
 
-            // Pick the meeting whose date is nearest to today (upcoming preferred, else most recent)
-            const lDiff = Math.abs(lDate - today);
-            const wDiff = Math.abs(wDate - today);
-            const activeMeeting = lDiff <= wDiff ? leadersMeeting : workersMeeting;
-            const activeDate = lDiff <= wDiff ? lDate : wDate;
-            const isLeaders = activeMeeting.meetingType === "leaders";
+                const label = isPreMeeting
+                  ? `${isLeaders ? "Leaders" : "Workers"} Meeting Confirmation`
+                  : `${isLeaders ? "Leaders" : "Workers"} Meeting Report`;
+                const href = isPreMeeting
+                  ? (isLeaders ? "/report/confirmation-leaders-meeting" : "/report/confirmation-workers-meeting")
+                  : (isLeaders ? "/report/leaders-meeting" : "/report/workers-meeting");
 
-            // Pre-meeting: show Confirmation. On/post meeting day: show Report
-            const isPreMeeting = today < activeDate;
-            const label = isPreMeeting
-              ? `${isLeaders ? "Leaders" : "Workers"} Meeting Confirmation`
-              : `${isLeaders ? "Leaders" : "Workers"} Meeting Report`;
-            const href = isPreMeeting
-              ? (isLeaders ? "/report/confirmation-leaders-meeting" : "/report/confirmation-workers-meeting")
-              : (isLeaders ? "/report/leaders-meeting" : "/report/workers-meeting");
+                return { label, href, key: type };
+              })
+              .filter(Boolean);
+
+            if (buttons.length === 0) return null;
 
             return (
-              <Link
-                to={href}
-                className="inline-flex items-center gap-2 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs sm:text-sm font-medium text-ink transition hover:bg-ink-100 shrink-0"
-              >
-                {label}
-              </Link>
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                {buttons.map((btn) => (
+                  <Link
+                    key={btn.key}
+                    to={btn.href}
+                    className="inline-flex items-center gap-2 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs sm:text-sm font-medium text-ink transition hover:bg-ink-100 shrink-0"
+                  >
+                    {btn.label}
+                  </Link>
+                ))}
+              </div>
             );
           })()}
         </div>

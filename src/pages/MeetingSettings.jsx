@@ -11,12 +11,16 @@ import { meetingPath } from "../utils/meetingLinks";
 import { getUserRole } from "../utils/getUserRole";
 import {
   getAllMeetings,
-  createMeeting,
-  setActiveMeeting,
-  deleteMeeting,
   formatMeetingDisplayDate,
   getActiveMeeting,
+  MEETINGS_CHANGED_EVENT,
 } from "../utils/meetingConfig";
+import {
+  fetchMeetings,
+  createMeetingRemote,
+  setActiveMeetingRemote,
+  deleteMeetingRemote,
+} from "../services/hub/meetings";
 
 export default function MeetingSettings() {
   const navigate = useNavigate();
@@ -25,6 +29,7 @@ export default function MeetingSettings() {
   const [activeTab, setActiveTab] = useState("leaders"); // "leaders" | "workers"
   const [meetings, setMeetings] = useState([]);
   const [manualCopyLink, setManualCopyLink] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form State
   const [meetingType, setMeetingType] = useState("leaders");
@@ -39,23 +44,41 @@ export default function MeetingSettings() {
     }
   }, [isSuperAdmin, isChurchAdmin, navigate]);
 
-  const refreshMeetings = React.useCallback(() => {
-    const list = getAllMeetings(activeTab);
-    setMeetings(list);
+  const refreshMeetings = React.useCallback(async () => {
+    // 1. Initial render from local cache
+    const cached = getAllMeetings(activeTab);
+    setMeetings(cached);
+
+    // 2. Fetch and synchronize with backend
+    try {
+      const remote = await fetchMeetings(activeTab);
+      if (remote && Array.isArray(remote)) {
+        setMeetings(remote);
+      }
+    } catch {
+      // already set to cached
+    }
   }, [activeTab]);
 
   useEffect(() => {
     refreshMeetings();
+    window.addEventListener(MEETINGS_CHANGED_EVENT, refreshMeetings);
+    window.addEventListener("storage", refreshMeetings);
+    return () => {
+      window.removeEventListener(MEETINGS_CHANGED_EVENT, refreshMeetings);
+      window.removeEventListener("storage", refreshMeetings);
+    };
   }, [refreshMeetings]);
 
-  const handleCreateMeeting = (e) => {
+  const handleCreateMeeting = async (e) => {
     e.preventDefault();
     if (!date) {
       toast.error("Please select a meeting date.");
       return;
     }
+    setIsSubmitting(true);
     try {
-      const created = createMeeting({
+      const created = await createMeetingRemote({
         meetingType,
         date,
         title,
@@ -69,9 +92,11 @@ export default function MeetingSettings() {
       setTitle("");
       setSetAsActive(true);
       setActiveTab(meetingType);
-      refreshMeetings();
+      await refreshMeetings();
     } catch (err) {
       toast.error(err.message || "Failed to create meeting.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -87,17 +112,25 @@ export default function MeetingSettings() {
     }
   };
 
-  const handleSetActive = (id) => {
-    setActiveMeeting(id);
-    toast.success("Active meeting updated in this browser.");
-    refreshMeetings();
+  const handleSetActive = async (id) => {
+    try {
+      await setActiveMeetingRemote(id);
+      toast.success("Active meeting updated.");
+      await refreshMeetings();
+    } catch (err) {
+      toast.error(err.message || "Failed to set active meeting.");
+    }
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this meeting configuration?")) {
-      deleteMeeting(id);
-      toast.info("Meeting deleted.");
-      refreshMeetings();
+      try {
+        await deleteMeetingRemote(id);
+        toast.info("Meeting deleted.");
+        await refreshMeetings();
+      } catch (err) {
+        toast.error(err.message || "Failed to delete meeting.");
+      }
     }
   };
 
@@ -110,7 +143,7 @@ export default function MeetingSettings() {
           <div>
             <h1 className="text-2xl font-bold text-ink-900">Meeting Management & Settings</h1>
             <p className="text-xs text-ink-500 mt-0.5">
-              Meetings are saved in this browser. Use Copy Link to share the correct meeting date with Leaders or Workers.
+              Configure and manage Leaders and Workers meetings across the church. Use Copy Link to share with Leaders or Workers.
             </p>
           </div>
 
@@ -128,11 +161,11 @@ export default function MeetingSettings() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-6">
           <Stat
             eyebrow="Active Leaders Meeting Date"
-            value={formatMeetingDisplayDate(getActiveMeeting("leaders")?.date) || "Not Set"}
+            value={getAllMeetings("leaders").length > 0 ? (formatMeetingDisplayDate(getActiveMeeting("leaders")?.date) || "Not Set") : "Not Set"}
           />
           <Stat
             eyebrow="Active Workers Meeting Date"
-            value={formatMeetingDisplayDate(getActiveMeeting("workers")?.date) || "Not Set"}
+            value={getAllMeetings("workers").length > 0 ? (formatMeetingDisplayDate(getActiveMeeting("workers")?.date) || "Not Set") : "Not Set"}
           />
         </div>
 
@@ -224,12 +257,12 @@ export default function MeetingSettings() {
                     className="h-4 w-4 rounded border-ink-300 text-ink focus:ring-ink"
                   />
                   <label htmlFor="setAsActive" className="text-xs text-ink-700 cursor-pointer">
-                    Set as active meeting in this browser
+                    Set as active meeting
                   </label>
                 </div>
 
-                <Button type="submit" variant="primary" className="w-full justify-center">
-                  Create Meeting
+                <Button type="submit" variant="primary" disabled={isSubmitting} className="w-full justify-center">
+                  {isSubmitting ? "Creating Meeting..." : "Create Meeting"}
                 </Button>
               </form>
             </Card>

@@ -3,6 +3,7 @@ import { isMeetingDate } from "./meetingLinks";
 export const MEETINGS_CHANGED_EVENT = "harvesters:meetings-changed";
 
 const MEETINGS_STORAGE_KEY = "harvesters_meetings_config";
+const DELETED_MEETINGS_STORAGE_KEY = "harvesters_deleted_meetings_config";
 
 export const DEFAULT_LEADERS_MEETING_DATE = "2026-09-19";
 export const DEFAULT_WORKERS_MEETING_DATE = "2026-09-19";
@@ -26,22 +27,48 @@ const INITIAL_MEETINGS = [
   },
 ];
 
+function getDeletedMeetingIds() {
+  try {
+    const raw = localStorage.getItem(DELETED_MEETINGS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return new Set(parsed);
+      }
+    }
+  } catch (err) {
+    console.error("Failed to read deleted meetings from storage:", err);
+  }
+  return new Set();
+}
+
+function saveDeletedMeetingId(id) {
+  try {
+    const deleted = getDeletedMeetingIds();
+    deleted.add(id);
+    localStorage.setItem(DELETED_MEETINGS_STORAGE_KEY, JSON.stringify(Array.from(deleted)));
+  } catch (err) {
+    console.error("Failed to save deleted meeting to storage:", err);
+  }
+}
+
 /**
  * Loads meetings array from localStorage or returns default
  */
 function getStoredMeetings() {
   try {
     const raw = localStorage.getItem(MEETINGS_STORAGE_KEY);
-    if (raw) {
+    if (raw !== null) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         return withCurrentDefaults(parsed);
       }
     }
   } catch (err) {
     console.error("Failed to read meetings from storage:", err);
   }
-  const defaults = INITIAL_MEETINGS.map((m) => ({ ...m }));
+  const deletedIds = getDeletedMeetingIds();
+  const defaults = INITIAL_MEETINGS.filter((m) => !deletedIds.has(m.id)).map((m) => ({ ...m }));
   saveStoredMeetings(defaults);
   return defaults;
 }
@@ -49,10 +76,14 @@ function getStoredMeetings() {
 /**
  * Ensures every built-in default meeting exists in a previously stored list and is
  * the active one for its type, so a new default date takes effect on devices that
- * already have older meetings saved.
+ * already have older meetings saved. If a meeting was explicitly deleted by the user,
+ * it will not be re-added.
  */
 function withCurrentDefaults(meetings) {
-  const missing = INITIAL_MEETINGS.filter((d) => !meetings.some((m) => m.id === d.id));
+  const deletedIds = getDeletedMeetingIds();
+  const missing = INITIAL_MEETINGS.filter(
+    (d) => !meetings.some((m) => m.id === d.id) && !deletedIds.has(d.id)
+  );
   if (missing.length === 0) return meetings;
   const types = new Set(missing.map((d) => d.meetingType));
   const updated = [
@@ -170,6 +201,8 @@ export function deleteMeeting(meetingId) {
   const target = meetings.find((m) => m.id === meetingId);
   if (!target) return;
 
+  saveDeletedMeetingId(meetingId);
+
   let updated = meetings.filter((m) => m.id !== meetingId);
   
   // If we deleted the active meeting, set the first remaining one as active
@@ -177,16 +210,6 @@ export function deleteMeeting(meetingId) {
   if (target.isActive && remainingSameType.length > 0) {
     const nextActiveId = remainingSameType[0].id;
     updated = updated.map((m) => (m.id === nextActiveId ? { ...m, isActive: true } : m));
-  } else if (remainingSameType.length === 0) {
-    const defaultDate = target.meetingType === "leaders" ? DEFAULT_LEADERS_MEETING_DATE : DEFAULT_WORKERS_MEETING_DATE;
-    updated.push({
-      id: `${target.meetingType}-default`,
-      meetingType: target.meetingType,
-      date: defaultDate,
-      title: `Default ${target.meetingType === "leaders" ? "Leaders" : "Workers"} Meeting`,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-    });
   }
 
   saveStoredMeetings(updated);
@@ -216,3 +239,39 @@ export function formatMeetingDisplayDate(dateStr) {
     return dateStr;
   }
 }
+
+/**
+ * Synchronize meetings cache for a category with backend data.
+ */
+export function syncMeetingsCache(meetingType, remoteMeetings) {
+  if (!Array.isArray(remoteMeetings)) return;
+  const meetings = getStoredMeetings();
+  const others = meetings.filter((m) => m.meetingType !== meetingType);
+  const updated = [...remoteMeetings, ...others];
+  saveStoredMeetings(updated);
+  window.dispatchEvent(new Event(MEETINGS_CHANGED_EVENT));
+}
+
+/**
+ * Synchronize active meeting in cache with backend data.
+ */
+export function syncActiveMeetingCache(activeMeeting) {
+  if (!activeMeeting || !activeMeeting.meetingType) return;
+  const meetings = getStoredMeetings();
+  const exists = meetings.some((m) => m.id === activeMeeting.id);
+  const updated = exists
+    ? meetings.map((m) =>
+        m.meetingType === activeMeeting.meetingType
+          ? { ...m, isActive: m.id === activeMeeting.id }
+          : m
+      )
+    : [
+        { ...activeMeeting, isActive: true },
+        ...meetings.map((m) =>
+          m.meetingType === activeMeeting.meetingType ? { ...m, isActive: false } : m
+        ),
+      ];
+  saveStoredMeetings(updated);
+  window.dispatchEvent(new Event(MEETINGS_CHANGED_EVENT));
+}
+

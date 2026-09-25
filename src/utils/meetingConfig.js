@@ -1,4 +1,4 @@
-import { isMeetingDate } from "./meetingLinks";
+import { isMeetingDate, normalizeDateString } from "./meetingLinks";
 
 export const MEETINGS_CHANGED_EVENT = "harvesters:meetings-changed";
 
@@ -61,7 +61,24 @@ function getStoredMeetings() {
     if (raw !== null) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        return withCurrentDefaults(parsed);
+        const sanitized = parsed
+          .map((m) => {
+            if (!m || typeof m !== "object") return null;
+            const meetingType = (m.meetingType || m.meeting_type || "").toLowerCase();
+            const date = normalizeDateString(m.date || m.meeting_date);
+            if (!meetingType || !date) return null;
+            return {
+              ...m,
+              id: m.id || `${meetingType}-${date}`,
+              meetingType,
+              date,
+              title: m.title || `${meetingType === "leaders" ? "Leaders" : "Workers"} Meeting (${date})`,
+              isActive: Boolean(m.isActive ?? m.is_active ?? m.set_active),
+            };
+          })
+          .filter(Boolean);
+
+        return withCurrentDefaults(sanitized);
       }
     }
   } catch (err) {
@@ -222,9 +239,12 @@ export function deleteMeeting(meetingId) {
  */
 export function formatMeetingDisplayDate(dateStr) {
   if (!dateStr) return "";
+  const clean = normalizeDateString(dateStr);
+  if (!clean) return typeof dateStr === "string" ? dateStr : "";
   try {
-    const [year, month, day] = dateStr.split("-").map(Number);
+    const [year, month, day] = clean.split("-").map(Number);
     const date = new Date(year, month - 1, day);
+    if (Number.isNaN(date.getTime())) return clean;
     const dayName = date.toLocaleDateString("en-US", { weekday: "long" });
     const monthName = date.toLocaleDateString("en-US", { month: "long" });
 
@@ -236,7 +256,7 @@ export function formatMeetingDisplayDate(dateStr) {
 
     return `${dayName}, ${getOrdinal(day)} ${monthName} ${year}`;
   } catch {
-    return dateStr;
+    return clean;
   }
 }
 
@@ -247,7 +267,21 @@ export function syncMeetingsCache(meetingType, remoteMeetings) {
   if (!Array.isArray(remoteMeetings)) return;
   const meetings = getStoredMeetings();
   const others = meetings.filter((m) => m.meetingType !== meetingType);
-  const updated = [...remoteMeetings, ...others];
+  const sanitizedRemote = remoteMeetings
+    .map((m) => {
+      if (!m || typeof m !== "object") return null;
+      const type = (m.meetingType || m.meeting_type || meetingType).toLowerCase();
+      const date = normalizeDateString(m.date || m.meeting_date);
+      if (!type || !date) return null;
+      return {
+        ...m,
+        id: m.id || `${type}-${date}`,
+        meetingType: type,
+        date,
+      };
+    })
+    .filter(Boolean);
+  const updated = [...sanitizedRemote, ...others];
   saveStoredMeetings(updated);
   window.dispatchEvent(new Event(MEETINGS_CHANGED_EVENT));
 }
@@ -256,19 +290,29 @@ export function syncMeetingsCache(meetingType, remoteMeetings) {
  * Synchronize active meeting in cache with backend data.
  */
 export function syncActiveMeetingCache(activeMeeting) {
-  if (!activeMeeting || !activeMeeting.meetingType) return;
+  if (!activeMeeting || typeof activeMeeting !== "object") return;
+  const meetingType = (activeMeeting.meetingType || activeMeeting.meeting_type || "").toLowerCase();
+  const date = normalizeDateString(activeMeeting.date || activeMeeting.meeting_date);
+  if (!meetingType || !date) return;
+  const sanitized = {
+    ...activeMeeting,
+    id: activeMeeting.id || `${meetingType}-${date}`,
+    meetingType,
+    date,
+    isActive: true,
+  };
   const meetings = getStoredMeetings();
-  const exists = meetings.some((m) => m.id === activeMeeting.id);
+  const exists = meetings.some((m) => m.id === sanitized.id);
   const updated = exists
     ? meetings.map((m) =>
-        m.meetingType === activeMeeting.meetingType
-          ? { ...m, isActive: m.id === activeMeeting.id }
+        m.meetingType === sanitized.meetingType
+          ? { ...m, isActive: m.id === sanitized.id }
           : m
       )
     : [
-        { ...activeMeeting, isActive: true },
+        sanitized,
         ...meetings.map((m) =>
-          m.meetingType === activeMeeting.meetingType ? { ...m, isActive: false } : m
+          m.meetingType === sanitized.meetingType ? { ...m, isActive: false } : m
         ),
       ];
   saveStoredMeetings(updated);

@@ -17,6 +17,7 @@ import {
   deleteMeetingRemote,
 } from "./meetings";
 import { getAllMeetings, getActiveMeeting } from "../../utils/meetingConfig";
+import { meetingPath } from "../../utils/meetingLinks";
 
 beforeEach(() => {
   localStorage.clear();
@@ -43,6 +44,30 @@ describe("meetings hub service", () => {
       isActive: true,
       createdAt: expect.any(String),
     });
+  });
+
+  it("normalizes ISO timestamp and space-separated datetime strings safely", () => {
+    const isoMeeting = normalizeMeeting({
+      id: 16,
+      meeting_type: "leaders",
+      meeting_date: "2026-10-19T00:00:00.000Z",
+    });
+    expect(isoMeeting.date).toBe("2026-10-19");
+
+    const spaceMeeting = normalizeMeeting({
+      id: 17,
+      meeting_type: "workers",
+      meeting_date: "2026-10-17 00:00:00",
+    });
+    expect(spaceMeeting.date).toBe("2026-10-17");
+  });
+
+  it("returns null for invalid or unparseable meetings", () => {
+    expect(normalizeMeeting(null)).toBeNull();
+    expect(normalizeMeeting({})).toBeNull();
+    expect(normalizeMeeting({ message: "No active meetings found" })).toBeNull();
+    expect(normalizeMeeting({ meeting_type: "invalid_type", meeting_date: "2026-10-19" })).toBeNull();
+    expect(normalizeMeeting({ meeting_type: "leaders", meeting_date: "not-a-date" })).toBeNull();
   });
 
   it("fetches all meetings from GET /api/hub/super/admin/meetings and syncs cache", async () => {
@@ -126,6 +151,51 @@ describe("meetings hub service", () => {
 
     await setActiveMeetingRemote(55);
     expect(hubPatch).toHaveBeenCalledWith("/super/admin/meetings/55/active");
+  });
+
+  it("fetches active meetings when backend returns an envelope with both leaders and workers", async () => {
+    hubGet.mockResolvedValueOnce({
+      data: {
+        leaders: {
+          id: 401,
+          meeting_type: "leaders",
+          meeting_date: "2026-10-19T00:00:00.000Z",
+          title: "Leaders October",
+        },
+        workers: {
+          id: 402,
+          meeting_type: "workers",
+          meeting_date: "2026-10-17 00:00:00",
+          title: "Workers October",
+        },
+      },
+    });
+
+    await fetchActiveMeeting(); // No meetingType specified, e.g. on Dashboard load
+    const activeLeaders = getActiveMeeting("leaders");
+    const activeWorkers = getActiveMeeting("workers");
+
+    expect(activeLeaders.date).toBe("2026-10-19");
+    expect(activeWorkers.date).toBe("2026-10-17");
+  });
+
+  it("meetingPath safely generates paths and never throws an exception", () => {
+    // Normal date
+    expect(meetingPath("leaders", "2026-10-19", "confirmationReport")).toBe(
+      "/report/confirmation-leaders-meeting?meeting_date=2026-10-19"
+    );
+    // ISO date
+    expect(meetingPath("leaders", "2026-10-19T00:00:00.000Z", "confirmationReport")).toBe(
+      "/report/confirmation-leaders-meeting?meeting_date=2026-10-19"
+    );
+    // Invalid or missing date falls back without throwing
+    expect(meetingPath("leaders", "", "confirmationReport")).toBe(
+      "/report/confirmation-leaders-meeting"
+    );
+    expect(meetingPath("leaders", null, "attendanceReport")).toBe(
+      "/report/leaders-meeting"
+    );
+    expect(meetingPath(null, "2026-10-19", "confirm")).toBe("/leadersmeeting/confirm");
   });
 
   it("deletes a meeting via DELETE /api/hub/super/admin/meetings/{id}", async () => {

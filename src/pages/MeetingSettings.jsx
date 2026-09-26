@@ -60,6 +60,7 @@ export default function MeetingSettings() {
         fetchMeetings(activeTab),
         fetchMeetings(otherTab),
         fetchActiveMeeting(),
+        fetchActiveMeeting(activeTab),
       ]);
       if (remoteCurrent && Array.isArray(remoteCurrent)) {
         setMeetings(remoteCurrent);
@@ -109,6 +110,9 @@ export default function MeetingSettings() {
         err?.message ||
         "Failed to create meeting on server.";
       toast.error(errMsg);
+      // If the meeting already exists on the server, refresh to pull and display it immediately
+      setActiveTab(meetingType);
+      await refreshMeetings();
     } finally {
       setIsSubmitting(false);
     }

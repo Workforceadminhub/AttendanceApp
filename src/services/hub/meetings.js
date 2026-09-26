@@ -28,18 +28,36 @@ export function normalizeMeeting(m, fallbackType = "") {
   const meetingType = meetingTypeRaw.toLowerCase();
   if (meetingType !== "leaders" && meetingType !== "workers") return null;
 
-  const rawDate = m.meeting_date || m.date || m.scheduled_date || "";
+  const rawDate =
+    m.meeting_date ||
+    m.meetingDate ||
+    m.date ||
+    m.scheduled_date ||
+    m.scheduledDate ||
+    m.start_date ||
+    m.startDate ||
+    "";
   const date = normalizeDateString(rawDate);
   if (!date) return null;
 
+  const id =
+    m.id ??
+    m.meeting_id ??
+    m.meetingId ??
+    m._id ??
+    `${meetingType}-${date}`;
+
   return {
-    id: m.id ?? `${meetingType}-${date}`,
+    id,
     meetingType,
     date,
     title:
       m.title ||
+      m.name ||
+      m.label ||
+      m.meeting_title ||
       `${meetingType === "leaders" ? "Leaders" : "Workers"} Meeting (${date})`,
-    notes: m.notes || "",
+    notes: m.notes || m.description || "",
     isActive: Boolean(m.is_active ?? m.isActive ?? m.set_active ?? m.active),
     createdAt: m.created_at || m.createdAt || new Date().toISOString(),
   };
@@ -116,6 +134,7 @@ export async function fetchMeetings(meetingType = "leaders") {
 
   let rawList = [];
   let lastError = null;
+  let backendReturnedEmpty = false;
 
   const candidates = [
     { meeting_type: normalizedType },
@@ -152,6 +171,8 @@ export async function fetchMeetings(meetingType = "leaders") {
           rawList = list;
           break;
         }
+      } else if (res && (Array.isArray(res) || Array.isArray(res?.data) || Array.isArray(res?.meetings))) {
+        backendReturnedEmpty = true;
       }
     } catch (err) {
       lastError = err;
@@ -167,6 +188,11 @@ export async function fetchMeetings(meetingType = "leaders") {
       syncMeetingsCache(normalizedType, normalized);
       return normalized;
     }
+  }
+
+  if (backendReturnedEmpty && !lastError) {
+    syncMeetingsCache(normalizedType, []);
+    return [];
   }
 
   if (lastError) {

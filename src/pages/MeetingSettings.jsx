@@ -17,6 +17,7 @@ import {
 } from "../utils/meetingConfig";
 import {
   fetchMeetings,
+  fetchActiveMeeting,
   createMeetingRemote,
   setActiveMeetingRemote,
   deleteMeetingRemote,
@@ -56,17 +57,22 @@ export default function MeetingSettings() {
     // 2. Fetch and synchronize both categories with backend
     try {
       const otherTab = activeTab === "leaders" ? "workers" : "leaders";
-      const [remoteCurrent] = await Promise.all([
+      const results = await Promise.allSettled([
         fetchMeetings(activeTab),
         fetchMeetings(otherTab),
         fetchActiveMeeting(),
         fetchActiveMeeting(activeTab),
       ]);
-      if (remoteCurrent && Array.isArray(remoteCurrent)) {
-        setMeetings(remoteCurrent);
+
+      const currentListRes = results[0];
+      if (currentListRes.status === "fulfilled" && Array.isArray(currentListRes.value)) {
+        setMeetings(currentListRes.value);
+      } else {
+        setMeetings(getAllMeetings(activeTab));
       }
-    } catch {
-      // keep cached
+    } catch (err) {
+      console.error("Failed to refresh meetings:", err);
+      setMeetings(getAllMeetings(activeTab));
     }
   }, [activeTab]);
 
@@ -84,11 +90,12 @@ export default function MeetingSettings() {
       toast.error("Please select a meeting date.");
       return;
     }
+    const trimmedDate = date.trim();
     setIsSubmitting(true);
     try {
       const created = await createMeetingRemote({
         meetingType,
-        date,
+        date: trimmedDate,
         title,
         notes,
         setAsActive,
@@ -113,6 +120,18 @@ export default function MeetingSettings() {
       // If the meeting already exists on the server, refresh to pull and display it immediately
       setActiveTab(meetingType);
       await refreshMeetings();
+
+      // If user wanted it set active, attempt to set the existing meeting active
+      if (setAsActive) {
+        const existing = getAllMeetings(meetingType).find((m) => m.date === trimmedDate);
+        if (existing) {
+          try {
+            await setActiveMeetingRemote(existing.id);
+            toast.info(`Set existing meeting for ${formatMeetingDisplayDate(existing.date)} as active.`);
+            await refreshMeetings();
+          } catch {}
+        }
+      }
     } finally {
       setIsSubmitting(false);
     }

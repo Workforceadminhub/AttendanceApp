@@ -9,9 +9,18 @@ vi.mock("../utils/getUserRole", () => ({ getUserRole: () => ({ isSuperAdmin: tru
 vi.mock("react-toastify", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 vi.mock("../services/hub/client", () => ({
   hubGet: vi.fn().mockRejectedValue(new Error("Network unmocked")),
-  hubPost: vi.fn().mockRejectedValue(new Error("Network unmocked")),
-  hubPatch: vi.fn().mockRejectedValue(new Error("Network unmocked")),
-  hubDelete: vi.fn().mockRejectedValue(new Error("Network unmocked")),
+  hubPost: vi.fn().mockImplementation(async (url, data) => ({
+    data: {
+      id: 123,
+      meeting_type: data.meeting_type,
+      meeting_date: data.meeting_date,
+      title: data.title,
+      notes: data.notes,
+      is_active: data.set_active,
+    },
+  })),
+  hubPatch: vi.fn().mockResolvedValue({ success: true }),
+  hubDelete: vi.fn().mockResolvedValue({ success: true }),
 }));
 beforeEach(() => localStorage.clear());
 afterEach(cleanup);

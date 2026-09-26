@@ -35,6 +35,7 @@ export default function MeetingSettings() {
   const [meetingType, setMeetingType] = useState("leaders");
   const [date, setDate] = useState("");
   const [title, setTitle] = useState("");
+  const [notes, setNotes] = useState("");
   const [setAsActive, setSetAsActive] = useState(true);
 
   useEffect(() => {
@@ -49,14 +50,19 @@ export default function MeetingSettings() {
     const cached = getAllMeetings(activeTab);
     setMeetings(cached);
 
-    // 2. Fetch and synchronize with backend
+    // 2. Fetch and synchronize both categories with backend
     try {
-      const remote = await fetchMeetings(activeTab);
-      if (remote && Array.isArray(remote)) {
-        setMeetings(remote);
+      const otherTab = activeTab === "leaders" ? "workers" : "leaders";
+      const [remoteCurrent] = await Promise.all([
+        fetchMeetings(activeTab),
+        fetchMeetings(otherTab),
+        fetchActiveMeeting(),
+      ]);
+      if (remoteCurrent && Array.isArray(remoteCurrent)) {
+        setMeetings(remoteCurrent);
       }
     } catch {
-      // already set to cached
+      // keep cached
     }
   }, [activeTab]);
 
@@ -82,6 +88,7 @@ export default function MeetingSettings() {
         meetingType,
         date,
         title,
+        notes,
         setAsActive,
       });
       toast.success(
@@ -90,11 +97,17 @@ export default function MeetingSettings() {
       // Reset form
       setDate("");
       setTitle("");
+      setNotes("");
       setSetAsActive(true);
       setActiveTab(meetingType);
       await refreshMeetings();
     } catch (err) {
-      toast.error(err.message || "Failed to create meeting.");
+      const errMsg =
+        err?.responseData?.message ||
+        err?.responseData?.error ||
+        err?.message ||
+        "Failed to create meeting on server.";
+      toast.error(errMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -243,6 +256,21 @@ export default function MeetingSettings() {
                     placeholder={`e.g. ${meetingType === "leaders" ? "September Leaders Meeting" : "September Workers Meeting"}`}
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
+                    className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink placeholder-ink-400 focus:outline-none focus:ring-2 focus:ring-ink"
+                  />
+                </div>
+
+                {/* Notes / Agenda */}
+                <div>
+                  <label htmlFor="meeting-notes" className="block text-xs font-medium text-ink-700 mb-1">
+                    Notes / Agenda (Optional)
+                  </label>
+                  <textarea
+                    id="meeting-notes"
+                    rows={2}
+                    placeholder="e.g. Monthly leaders meeting"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
                     className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink placeholder-ink-400 focus:outline-none focus:ring-2 focus:ring-ink"
                   />
                 </div>

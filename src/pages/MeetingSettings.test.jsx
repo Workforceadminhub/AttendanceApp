@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor, cleanup, within } from "@testing-li
 import { MemoryRouter } from "react-router-dom";
 import MeetingSettings from "./MeetingSettings";
 import useMeetingDate from "../components/meeting/useMeetingDate";
-import { createMeeting, getAllMeetings } from "../utils/meetingConfig";
+import { createMeeting, getAllMeetings, resetMeetingsCache } from "../utils/meetingConfig";
 vi.mock("../components/Header", () => ({ default: () => null }));
 vi.mock("../utils/getUserRole", () => ({ getUserRole: () => ({ isSuperAdmin: true }) }));
 vi.mock("react-toastify", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
@@ -22,7 +22,10 @@ vi.mock("../services/hub/client", () => ({
   hubPatch: vi.fn().mockResolvedValue({ success: true }),
   hubDelete: vi.fn().mockResolvedValue({ success: true }),
 }));
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  resetMeetingsCache();
+});
 afterEach(cleanup);
 it("counts saved meetings and copies a plain confirmation link", async () => {
   createMeeting({ date: "2026-09-19", title: "September Leaders" });

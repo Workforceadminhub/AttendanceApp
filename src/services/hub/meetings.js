@@ -4,14 +4,13 @@ import {
   getActiveMeeting,
   syncMeetingsCache,
   syncActiveMeetingCache,
-  createMeeting as createMeetingLocal,
   setActiveMeeting as setActiveMeetingLocal,
   deleteMeeting as deleteMeetingLocal,
 } from "../../utils/meetingConfig";
 import { normalizeDateString } from "../../utils/meetingLinks";
 
 /**
- * Normalizes a meeting object from either API (snake_case) or local storage (camelCase).
+ * Normalizes a meeting object from either API (snake_case) or camelCase.
  * Returns null if the object is invalid or does not contain a recognizable meetingType and valid date.
  */
 export function normalizeMeeting(m) {
@@ -93,7 +92,7 @@ export async function fetchMeetings(meetingType = "leaders") {
 
     const normalized = rawList.map(normalizeMeeting).filter(Boolean);
 
-    // Synchronize local storage cache
+    // Synchronize in-memory cache
     if (normalized.length > 0) {
       syncMeetingsCache(normalizedType, normalized);
       return normalized;
@@ -211,13 +210,13 @@ export async function createMeetingRemote({
         createdAt: new Date().toISOString(),
       };
 
-    // Update local cache
-    createMeetingLocal({
-      meetingType: normalizedType,
-      date: created.date,
-      title: created.title,
-      setAsActive,
-    });
+    // Update in-memory cache directly with backend response
+    if (created.isActive) {
+      syncActiveMeetingCache(created);
+    } else {
+      const currentList = getAllMeetings(normalizedType).filter((m) => m.id !== created.id);
+      syncMeetingsCache(normalizedType, [created, ...currentList]);
+    }
 
     return created;
   } catch (err) {
@@ -240,8 +239,6 @@ export async function setActiveMeetingRemote(id) {
     return res?.data || res;
   } catch (err) {
     console.error("Backend setActive failed:", err);
-    // Still update local active state so UI reflects user intent if offline
-    setActiveMeetingLocal(id);
     throw err;
   }
 }
@@ -254,7 +251,7 @@ export async function setActiveMeetingRemote(id) {
  * @returns {Promise<Object>}
  */
 export async function deleteMeetingRemote(id) {
-  // If local-only synthetic ID, delete locally directly without backend call
+  // If local synthetic ID (e.g. from tests or fallback), delete from memory
   const isLocalOnly = typeof id === "string" && !/^\d+$/.test(id);
   if (isLocalOnly) {
     deleteMeetingLocal(id);
@@ -267,7 +264,6 @@ export async function deleteMeetingRemote(id) {
     return res?.data || res;
   } catch (err) {
     console.error("Backend delete failed:", err);
-    deleteMeetingLocal(id);
     throw err;
   }
 }

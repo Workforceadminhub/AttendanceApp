@@ -2,13 +2,18 @@ import { isMeetingDate, normalizeDateString } from "./meetingLinks";
 
 export const MEETINGS_CHANGED_EVENT = "harvesters:meetings-changed";
 
-const MEETINGS_STORAGE_KEY = "harvesters_meetings_config";
-const DELETED_MEETINGS_STORAGE_KEY = "harvesters_deleted_meetings_config";
+// Purge any legacy browser localStorage entries
+if (typeof window !== "undefined") {
+  try {
+    localStorage.removeItem("harvesters_meetings_config");
+    localStorage.removeItem("harvesters_deleted_meetings_config");
+  } catch {}
+}
 
 export const DEFAULT_LEADERS_MEETING_DATE = "2026-09-19";
 export const DEFAULT_WORKERS_MEETING_DATE = "2026-09-19";
 
-const INITIAL_MEETINGS = [
+export const INITIAL_MEETINGS = [
   {
     id: "leaders-default-2",
     meetingType: "leaders",
@@ -27,107 +32,28 @@ const INITIAL_MEETINGS = [
   },
 ];
 
-function getDeletedMeetingIds() {
-  try {
-    const raw = localStorage.getItem(DELETED_MEETINGS_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        return new Set(parsed);
-      }
-    }
-  } catch (err) {
-    console.error("Failed to read deleted meetings from storage:", err);
-  }
-  return new Set();
-}
-
-function saveDeletedMeetingId(id) {
-  try {
-    const deleted = getDeletedMeetingIds();
-    deleted.add(id);
-    localStorage.setItem(DELETED_MEETINGS_STORAGE_KEY, JSON.stringify(Array.from(deleted)));
-  } catch (err) {
-    console.error("Failed to save deleted meeting to storage:", err);
-  }
-}
+// In-memory cache for the current session/runtime (zero browser localStorage reliance)
+let memoryMeetings = INITIAL_MEETINGS.map((m) => ({ ...m }));
 
 /**
- * Loads meetings array from localStorage or returns default
+ * Resets the in-memory meetings cache (primarily for tests or full re-fetch).
  */
-function getStoredMeetings() {
-  try {
-    const raw = localStorage.getItem(MEETINGS_STORAGE_KEY);
-    if (raw !== null) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        const sanitized = parsed
-          .map((m) => {
-            if (!m || typeof m !== "object") return null;
-            const meetingType = (m.meetingType || m.meeting_type || "").toLowerCase();
-            const date = normalizeDateString(m.date || m.meeting_date);
-            if (!meetingType || !date) return null;
-            return {
-              ...m,
-              id: m.id || `${meetingType}-${date}`,
-              meetingType,
-              date,
-              title: m.title || `${meetingType === "leaders" ? "Leaders" : "Workers"} Meeting (${date})`,
-              isActive: Boolean(m.isActive ?? m.is_active ?? m.set_active),
-            };
-          })
-          .filter(Boolean);
-
-        return withCurrentDefaults(sanitized);
-      }
-    }
-  } catch (err) {
-    console.error("Failed to read meetings from storage:", err);
-  }
-  const deletedIds = getDeletedMeetingIds();
-  const defaults = INITIAL_MEETINGS.filter((m) => !deletedIds.has(m.id)).map((m) => ({ ...m }));
-  saveStoredMeetings(defaults);
-  return defaults;
-}
-
-/**
- * Ensures every built-in default meeting exists in a previously stored list and is
- * the active one for its type, so a new default date takes effect on devices that
- * already have older meetings saved. If a meeting was explicitly deleted by the user,
- * it will not be re-added.
- */
-function withCurrentDefaults(meetings) {
-  const deletedIds = getDeletedMeetingIds();
-  const missing = INITIAL_MEETINGS.filter(
-    (d) => !meetings.some((m) => m.id === d.id) && !deletedIds.has(d.id)
-  );
-  if (missing.length === 0) return meetings;
-  const types = new Set(missing.map((d) => d.meetingType));
-  const updated = [
-    ...missing.map((d) => ({ ...d })),
-    ...meetings.map((m) => (types.has(m.meetingType) ? { ...m, isActive: false } : m)),
-  ];
-  saveStoredMeetings(updated);
-  return updated;
-}
-
-/**
- * Saves meetings array to localStorage
- */
-function saveStoredMeetings(meetings) {
-  try {
-    localStorage.setItem(MEETINGS_STORAGE_KEY, JSON.stringify(meetings));
-  } catch (err) {
-    console.error("Failed to save meetings to storage:", err);
+export function resetMeetingsCache(initial = INITIAL_MEETINGS) {
+  memoryMeetings = initial.map((m) => ({ ...m }));
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.removeItem("harvesters_meetings_config");
+      localStorage.removeItem("harvesters_deleted_meetings_config");
+    } catch {}
+    window.dispatchEvent(new Event(MEETINGS_CHANGED_EVENT));
   }
 }
 
 /**
- * Gets all meetings for a given type ("leaders" or "workers")
+ * Gets all meetings for a given type ("leaders" or "workers") from in-memory cache
  */
 export function getAllMeetings(meetingType = "leaders") {
-  const meetings = getStoredMeetings();
-  return meetings.filter((m) => m.meetingType === meetingType);
+  return memoryMeetings.filter((m) => m.meetingType === meetingType);
 }
 
 /**
@@ -138,7 +64,7 @@ export function getActiveMeeting(meetingType = "leaders") {
   const active = list.find((m) => m.isActive);
   if (active) return active;
   if (list.length > 0) return list[0];
-  
+
   const defaultDate = meetingType === "leaders" ? DEFAULT_LEADERS_MEETING_DATE : DEFAULT_WORKERS_MEETING_DATE;
   return {
     id: `${meetingType}-fallback`,
@@ -154,74 +80,73 @@ export function getActiveMeeting(meetingType = "leaders") {
  */
 export function getMeetingDate(meetingType = "leaders") {
   const active = getActiveMeeting(meetingType);
-  return active.date;
+  return active ? active.date : "";
 }
 
 /**
- * Creates a new meeting and optionally sets it as active
+ * Creates a meeting in in-memory state and optionally sets it as active
  */
-export function createMeeting({ meetingType = "leaders", date, title, setAsActive = true }) {
+export function createMeeting({ meetingType = "leaders", date, title, notes, setAsActive = true }) {
   if (!isMeetingDate(date?.trim())) {
     throw new Error("A valid meeting date (YYYY-MM-DD) is required.");
   }
 
-  const meetings = getStoredMeetings();
   const trimmedDate = date.trim();
-  const meetingTitle = (title || "").trim() || `${meetingType === "leaders" ? "Leaders" : "Workers"} Meeting (${trimmedDate})`;
+  const type = meetingType.toLowerCase();
+  const meetingTitle = (title || "").trim() || `${type === "leaders" ? "Leaders" : "Workers"} Meeting (${trimmedDate})`;
 
-  let updated = meetings.map((m) => {
-    if (setAsActive && m.meetingType === meetingType) {
+  let updated = memoryMeetings.map((m) => {
+    if (setAsActive && m.meetingType === type) {
       return { ...m, isActive: false };
     }
     return m;
   });
 
   const newMeeting = {
-    id: `${meetingType}-${Date.now()}`,
-    meetingType,
+    id: `${type}-${Date.now()}`,
+    meetingType: type,
     date: trimmedDate,
     title: meetingTitle,
-    isActive: setAsActive,
+    notes: (notes || "").trim(),
+    isActive: Boolean(setAsActive),
     createdAt: new Date().toISOString(),
   };
 
-  updated.unshift(newMeeting);
-  saveStoredMeetings(updated);
-  window.dispatchEvent(new Event(MEETINGS_CHANGED_EVENT));
+  memoryMeetings = [newMeeting, ...updated];
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(MEETINGS_CHANGED_EVENT));
+  }
   return newMeeting;
 }
 
 /**
- * Sets a specific meeting ID as active for its type
+ * Sets a specific meeting ID as active for its type in in-memory cache
  */
 export function setActiveMeeting(meetingId) {
-  const meetings = getStoredMeetings();
-  const target = meetings.find((m) => m.id === meetingId);
+  const target = memoryMeetings.find((m) => m.id === meetingId);
   if (!target) return;
 
-  const updated = meetings.map((m) => {
+  memoryMeetings = memoryMeetings.map((m) => {
     if (m.meetingType === target.meetingType) {
       return { ...m, isActive: m.id === meetingId };
     }
     return m;
   });
 
-  saveStoredMeetings(updated);
-  window.dispatchEvent(new Event(MEETINGS_CHANGED_EVENT));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(MEETINGS_CHANGED_EVENT));
+  }
 }
 
 /**
- * Deletes a meeting by ID
+ * Deletes a meeting by ID from in-memory cache
  */
 export function deleteMeeting(meetingId) {
-  const meetings = getStoredMeetings();
-  const target = meetings.find((m) => m.id === meetingId);
+  const target = memoryMeetings.find((m) => m.id === meetingId);
   if (!target) return;
 
-  saveDeletedMeetingId(meetingId);
+  let updated = memoryMeetings.filter((m) => m.id !== meetingId);
 
-  let updated = meetings.filter((m) => m.id !== meetingId);
-  
   // If we deleted the active meeting, set the first remaining one as active
   const remainingSameType = updated.filter((m) => m.meetingType === target.meetingType);
   if (target.isActive && remainingSameType.length > 0) {
@@ -229,8 +154,10 @@ export function deleteMeeting(meetingId) {
     updated = updated.map((m) => (m.id === nextActiveId ? { ...m, isActive: true } : m));
   }
 
-  saveStoredMeetings(updated);
-  window.dispatchEvent(new Event(MEETINGS_CHANGED_EVENT));
+  memoryMeetings = updated;
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(MEETINGS_CHANGED_EVENT));
+  }
 }
 
 /**
@@ -261,33 +188,54 @@ export function formatMeetingDisplayDate(dateStr) {
 }
 
 /**
- * Synchronize meetings cache for a category with backend data.
+ * Synchronize meetings cache for a category with backend data in memory.
  */
 export function syncMeetingsCache(meetingType, remoteMeetings) {
   if (!Array.isArray(remoteMeetings)) return;
-  const meetings = getStoredMeetings();
-  const others = meetings.filter((m) => m.meetingType !== meetingType);
+  const targetType = meetingType.toLowerCase();
+  const currentCategory = memoryMeetings.filter((m) => m.meetingType === targetType);
+  const others = memoryMeetings.filter((m) => m.meetingType !== targetType);
   const sanitizedRemote = remoteMeetings
     .map((m) => {
       if (!m || typeof m !== "object") return null;
-      const type = (m.meetingType || m.meeting_type || meetingType).toLowerCase();
+      const type = (m.meetingType || m.meeting_type || targetType).toLowerCase();
+      if (type !== targetType) return null;
       const date = normalizeDateString(m.date || m.meeting_date);
-      if (!type || !date) return null;
+      if (!date) return null;
       return {
         ...m,
-        id: m.id || `${type}-${date}`,
+        id: m.id ?? `${type}-${date}`,
         meetingType: type,
         date,
+        title: m.title || `${type === "leaders" ? "Leaders" : "Workers"} Meeting (${date})`,
+        isActive: Boolean(m.isActive ?? m.is_active ?? m.set_active),
       };
     })
     .filter(Boolean);
-  const updated = [...sanitizedRemote, ...others];
-  saveStoredMeetings(updated);
-  window.dispatchEvent(new Event(MEETINGS_CHANGED_EVENT));
+
+  const hasChanged =
+    currentCategory.length !== sanitizedRemote.length ||
+    sanitizedRemote.some((remote, idx) => {
+      const cur = currentCategory[idx];
+      return (
+        !cur ||
+        String(cur.id) !== String(remote.id) ||
+        cur.date !== remote.date ||
+        cur.isActive !== remote.isActive ||
+        cur.title !== remote.title
+      );
+    });
+
+  if (!hasChanged) return;
+
+  memoryMeetings = [...others, ...sanitizedRemote];
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(MEETINGS_CHANGED_EVENT));
+  }
 }
 
 /**
- * Synchronize active meeting in cache with backend data.
+ * Synchronize active meeting in cache with backend data in memory.
  */
 export function syncActiveMeetingCache(activeMeeting) {
   if (!activeMeeting || typeof activeMeeting !== "object") return;
@@ -300,22 +248,33 @@ export function syncActiveMeetingCache(activeMeeting) {
     meetingType,
     date,
     isActive: true,
+    title: activeMeeting.title || `${meetingType === "leaders" ? "Leaders" : "Workers"} Meeting (${date})`,
   };
-  const meetings = getStoredMeetings();
-  const exists = meetings.some((m) => m.id === sanitized.id);
+
+  const isMatch = (m) => String(m.id) === String(sanitized.id);
+
+  const currentActive = memoryMeetings.find((m) => m.meetingType === meetingType && m.isActive);
+  if (currentActive && isMatch(currentActive) && currentActive.title === sanitized.title && currentActive.date === sanitized.date) {
+    return;
+  }
+
+  const exists = memoryMeetings.some(isMatch);
   const updated = exists
-    ? meetings.map((m) =>
-        m.meetingType === sanitized.meetingType
-          ? { ...m, isActive: m.id === sanitized.id }
-          : m
-      )
+    ? memoryMeetings.map((m) => {
+        if (m.meetingType !== sanitized.meetingType) return m;
+        if (isMatch(m)) {
+          return { ...m, ...sanitized, isActive: true };
+        }
+        return { ...m, isActive: false };
+      })
     : [
         sanitized,
-        ...meetings.map((m) =>
+        ...memoryMeetings.map((m) =>
           m.meetingType === sanitized.meetingType ? { ...m, isActive: false } : m
         ),
       ];
-  saveStoredMeetings(updated);
-  window.dispatchEvent(new Event(MEETINGS_CHANGED_EVENT));
+  memoryMeetings = updated;
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(MEETINGS_CHANGED_EVENT));
+  }
 }
-

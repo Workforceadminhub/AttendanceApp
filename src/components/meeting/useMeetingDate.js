@@ -23,12 +23,10 @@ export default function useMeetingDate(meetingType) {
     refresh();
     window.addEventListener(MEETINGS_CHANGED_EVENT, refresh);
     window.addEventListener("focus", refresh);
-    window.addEventListener("storage", refresh);
     document.addEventListener("visibilitychange", refresh);
     return () => {
       window.removeEventListener(MEETINGS_CHANGED_EVENT, refresh);
       window.removeEventListener("focus", refresh);
-      window.removeEventListener("storage", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };
   }, [meetingType]);

@@ -25,6 +25,36 @@ vi.mock("../../utils/getUserRole", () => ({
   getUserRole: () => ({ isSuperAdmin: true, isChurchAdmin: false, isTeamAdmin: false }),
 }));
 vi.mock("../../utils/getUser", () => ({ getUser: () => ({ team: "" }) }));
+let mockMeetings = [];
+let nextMockMeetingId = 1000;
+vi.mock("../../services/hub/client", () => ({
+  hubGet: vi.fn().mockImplementation(async (_url, params) => {
+    if (params?.meeting_type) {
+      const type = params.meeting_type.toLowerCase();
+      return {
+        data: mockMeetings.filter(
+          (m) => (m.meeting_type || "").toLowerCase() === type
+        ),
+      };
+    }
+    return { data: mockMeetings };
+  }),
+  hubPost: vi.fn().mockImplementation(async (_url, data) => {
+    nextMockMeetingId += 1;
+    const created = {
+      id: nextMockMeetingId,
+      meeting_type: data.meeting_type,
+      meeting_date: data.meeting_date,
+      title: data.title,
+      notes: data.notes,
+      set_active: data.set_active,
+    };
+    mockMeetings.push(created);
+    return { data: created };
+  }),
+  hubPatch: vi.fn().mockResolvedValue({ success: true }),
+  hubDelete: vi.fn().mockResolvedValue({ success: true }),
+}));
 
 import LeadersMeetingConfirm from "../../pages/LeadersMeetingConfirm";
 import WorkersMeetingConfirm from "../../pages/WorkersMeetingConfirm";
@@ -35,14 +65,16 @@ import WorkersMeetingReport from "../../pages/WorkersMeetingReport";
 import LeadersMeetingPresentReport from "../../pages/LeadersMeetingPresentReport";
 import WorkersMeetingPresentReport from "../../pages/WorkersMeetingPresentReport";
 import MeetingSettings from "../../pages/MeetingSettings";
-import { createMeeting } from "../../utils/meetingConfig";
+import { createMeeting, resetMeetingsCache } from "../../utils/meetingConfig";
 import { getMeetingRegistrations, searchMeetingWorkers } from "../../services/meeting";
 
 const renderPage = (Page) => render(<MemoryRouter><Page /></MemoryRouter>);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockMeetings = [];
   localStorage.clear();
+  resetMeetingsCache();
 });
 
 afterEach(cleanup);
@@ -111,11 +143,7 @@ it("creating an active meeting through Settings updates open meeting and report 
 it("an open report refreshes after another tab changes the active meeting", async () => {
   renderPage(LeadersMeetingReport);
   await waitFor(() => expect(getMeetingRegistrations).toHaveBeenCalledWith("2026-09-19", "all", "leaders"));
-  localStorage.setItem("harvesters_meetings_config", JSON.stringify([
-    { id: "leaders-default-2", meetingType: "leaders", date: "2026-09-19", title: "September 2026 Leaders Meeting", isActive: false },
-    { id: "october", meetingType: "leaders", date: "2026-10-17", title: "October Leaders", isActive: true },
-  ]));
-  fireEvent(window, new Event("storage"));
+  createMeeting({ meetingType: "leaders", date: "2026-10-17", title: "October Leaders", setAsActive: true });
   await waitFor(() => expect(getMeetingRegistrations).toHaveBeenLastCalledWith("2026-10-17", "all", "leaders"));
 });
 

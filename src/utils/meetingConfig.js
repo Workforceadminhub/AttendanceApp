@@ -10,23 +10,23 @@ if (typeof window !== "undefined") {
   } catch {}
 }
 
-export const DEFAULT_LEADERS_MEETING_DATE = "2026-09-19";
-export const DEFAULT_WORKERS_MEETING_DATE = "2026-09-19";
+export const DEFAULT_LEADERS_MEETING_DATE = "2026-10-17";
+export const DEFAULT_WORKERS_MEETING_DATE = "2026-10-17";
 
 export const INITIAL_MEETINGS = [
   {
-    id: "leaders-default-2",
+    id: "leaders-default-october",
     meetingType: "leaders",
     date: DEFAULT_LEADERS_MEETING_DATE,
-    title: "September 2026 Leaders Meeting",
+    title: "October 2026 Leaders Meeting",
     isActive: true,
     createdAt: new Date().toISOString(),
   },
   {
-    id: "workers-default-2",
+    id: "workers-default-october",
     meetingType: "workers",
     date: DEFAULT_WORKERS_MEETING_DATE,
-    title: "September 2026 Workers Meeting",
+    title: "October 2026 Workers Meeting",
     isActive: true,
     createdAt: new Date().toISOString(),
   },

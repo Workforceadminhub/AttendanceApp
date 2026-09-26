@@ -243,4 +243,38 @@ describe("meetings hub service", () => {
     await deleteMeetingRemote(77);
     expect(hubDelete).toHaveBeenCalledWith("/super/admin/meetings/77");
   });
+
+  it("fetches meetings when lowercase query fails and capitalized succeeds", async () => {
+    hubGet
+      .mockRejectedValueOnce(new Error("Unknown filter"))
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: 501,
+            meeting_date: "2026-10-17",
+            title: "October Leaders Meeting",
+            is_active: true,
+          },
+        ],
+      });
+
+    const meetings = await fetchMeetings("leaders");
+    expect(hubGet).toHaveBeenCalledTimes(2);
+    expect(meetings).toHaveLength(1);
+    expect(meetings[0].date).toBe("2026-10-17");
+    expect(meetings[0].meetingType).toBe("leaders");
+  });
+
+  it("normalizes meetings where meeting_type is omitted by using fallbackType", () => {
+    const raw = {
+      id: 601,
+      meeting_date: "2026-10-17",
+      title: "October Leaders",
+      is_active: true,
+    };
+    const norm = normalizeMeeting(raw, "leaders");
+    expect(norm).not.toBeNull();
+    expect(norm.meetingType).toBe("leaders");
+    expect(norm.date).toBe("2026-10-17");
+  });
 });

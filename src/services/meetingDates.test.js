@@ -25,6 +25,6 @@ it("activates a new default meeting on devices that stored an older one", async 
     { id: "leaders-default-1", meetingType: "leaders", date: "2026-08-15", title: "August", isActive: true },
   ]));
   const { getMeetingDate, getAllMeetings } = await import("../utils/meetingConfig");
-  expect(getMeetingDate("leaders")).toBe("2026-09-19");
-  expect(getAllMeetings("leaders").filter((m) => m.isActive).map((m) => m.date)).toEqual(["2026-09-19"]);
+  expect(getMeetingDate("leaders")).toBe("2026-10-17");
+  expect(getAllMeetings("leaders").filter((m) => m.isActive).map((m) => m.date)).toEqual(["2026-10-17"]);
 });

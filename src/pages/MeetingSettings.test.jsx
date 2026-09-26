@@ -40,7 +40,7 @@ it("counts saved meetings and copies a plain confirmation link", async () => {
 it("provides a selectable link when clipboard access fails", async () => {
   Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: vi.fn().mockRejectedValue(new Error()) } });
   render(<MemoryRouter><MeetingSettings /></MemoryRouter>);
-  fireEvent.click(await screen.findByRole("button", { name: /Copy link for September 2026 Leaders/ }));
+  fireEvent.click(await screen.findByRole("button", { name: /Copy link for October 2026 Leaders/ }));
   expect(await screen.findByLabelText("Select and copy this meeting link")).toHaveValue(`${window.location.origin}/leadersmeeting/confirm`);
 });
 function DateProbe() {
@@ -56,7 +56,7 @@ it("keeps a shared meeting date on a fresh browser and after active meeting chan
 });
 it("ignores an impossible date in a link", async () => {
   render(<MemoryRouter initialEntries={["/?meeting_date=2026-02-30"]}><DateProbe /></MemoryRouter>);
-  expect(await screen.findByText("2026-09-19")).toBeInTheDocument();
+  expect(await screen.findByText("2026-10-17")).toBeInTheDocument();
 });
 
 
@@ -64,14 +64,14 @@ it("creates plain attendance links and dated report links", async () => {
   const writeText = vi.fn().mockResolvedValue();
   Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
   render(<MemoryRouter><MeetingSettings /></MemoryRouter>);
-  fireEvent.change(screen.getByLabelText(/Meeting Date/), { target: { value: "2026-09-19" } });
-  fireEvent.change(screen.getByLabelText(/Meeting Title/), { target: { value: "September" } });
+  fireEvent.change(screen.getByLabelText(/Meeting Date/), { target: { value: "2026-11-21" } });
+  fireEvent.change(screen.getByLabelText(/Meeting Title/), { target: { value: "November" } });
   fireEvent.click(screen.getByRole("button", { name: "Create Meeting" }));
-  const copyBtn = await screen.findByRole("button", { name: "Copy attendance link for September" });
+  const copyBtn = await screen.findByRole("button", { name: "Copy attendance link for November" });
   fireEvent.click(copyBtn);
   await waitFor(() => expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/leaders-meeting`));
-  expect(screen.getAllByRole("link", { name: "Confirmation Report" }).some(link => link.getAttribute("href") === "/report/confirmation-leaders-meeting?meeting_date=2026-09-19")).toBe(true);
-  expect(screen.getAllByRole("link", { name: "Attendance Report" }).some(link => link.getAttribute("href") === "/report/leaders-meeting?meeting_date=2026-09-19")).toBe(true);
+  expect(screen.getAllByRole("link", { name: "Confirmation Report" }).some(link => link.getAttribute("href") === "/report/confirmation-leaders-meeting?meeting_date=2026-11-21")).toBe(true);
+  expect(screen.getAllByRole("link", { name: "Attendance Report" }).some(link => link.getAttribute("href") === "/report/leaders-meeting?meeting_date=2026-11-21")).toBe(true);
 });
 
 it("permanently deletes an active meeting and activates the remaining meeting", async () => {
@@ -82,22 +82,22 @@ it("permanently deletes an active meeting and activates the remaining meeting", 
   render(<MemoryRouter><MeetingSettings /></MemoryRouter>);
   fireEvent.click(screen.getByRole("button", { name: /Workers \(2 total\)/ }));
 
-  expect(await screen.findByText("September 2026 Workers Meeting")).toBeInTheDocument();
+  expect(await screen.findByText("October 2026 Workers Meeting")).toBeInTheDocument();
   expect(screen.getByText("August 2026 Workers Meeting")).toBeInTheDocument();
 
-  // Find delete button on the September meeting card
-  const septCard = screen.getByText("September 2026 Workers Meeting").closest("div.rounded-xl");
-  const deleteBtn = within(septCard).getByRole("button", { name: "Delete" });
+  // Find delete button on the October meeting card
+  const octCard = screen.getByText("October 2026 Workers Meeting").closest("div.rounded-xl");
+  const deleteBtn = within(octCard).getByRole("button", { name: "Delete" });
   fireEvent.click(deleteBtn);
 
-  // September should be gone, August should remain and now be Active
+  // October should be gone, August should remain and now be Active
   await waitFor(() => {
-    expect(screen.queryByText("September 2026 Workers Meeting")).not.toBeInTheDocument();
+    expect(screen.queryByText("October 2026 Workers Meeting")).not.toBeInTheDocument();
   });
   expect(await screen.findByText("August 2026 Workers Meeting")).toBeInTheDocument();
   expect(await screen.findByText("Workers (1 total)")).toBeInTheDocument();
 
-  // Check that querying meetings again does not resurrect September 2026 Workers Meeting
+  // Check that querying meetings again does not resurrect October 2026 Workers Meeting
   const remaining = getAllMeetings("workers");
   expect(remaining).toHaveLength(1);
   expect(remaining[0].title).toBe("August 2026 Workers Meeting");
@@ -109,12 +109,12 @@ it("empties the list when the last meeting is deleted and does not resurrect def
   render(<MemoryRouter><MeetingSettings /></MemoryRouter>);
   fireEvent.click(screen.getByRole("button", { name: /Workers \(1 total\)/ }));
 
-  expect(await screen.findByText("September 2026 Workers Meeting")).toBeInTheDocument();
+  expect(await screen.findByText("October 2026 Workers Meeting")).toBeInTheDocument();
 
   fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
   await waitFor(() => {
-    expect(screen.queryByText("September 2026 Workers Meeting")).not.toBeInTheDocument();
+    expect(screen.queryByText("October 2026 Workers Meeting")).not.toBeInTheDocument();
   });
   expect(await screen.findByText("Workers (0 total)")).toBeInTheDocument();
   expect(await screen.findByText(/No Workers meetings found/)).toBeInTheDocument();
@@ -124,25 +124,25 @@ it("empties the list when the last meeting is deleted and does not resurrect def
 it("handles already exists error by loading and activating the existing meeting", async () => {
   const { hubGet, hubPost, hubPatch } = await import("../services/hub/client");
   hubPost.mockRejectedValueOnce({
-    responseData: { message: "A leaders meeting already exists for 2026-10-17" },
+    responseData: { message: "A leaders meeting already exists for 2026-11-21" },
   });
-  hubGet.mockResolvedValueOnce({
+  hubGet.mockResolvedValue({
     data: [
       {
         id: 777,
         meeting_type: "leaders",
-        meeting_date: "2026-10-17",
-        title: "October 2026 Leaders Meeting",
+        meeting_date: "2026-11-21",
+        title: "November 2026 Leaders Meeting",
         is_active: false,
       },
     ],
   });
 
   render(<MemoryRouter><MeetingSettings /></MemoryRouter>);
-  fireEvent.change(screen.getByLabelText(/Meeting Date/), { target: { value: "2026-10-17" } });
+  fireEvent.change(screen.getByLabelText(/Meeting Date/), { target: { value: "2026-11-21" } });
   fireEvent.click(screen.getByRole("button", { name: "Create Meeting" }));
 
-  expect(await screen.findByText("October 2026 Leaders Meeting")).toBeInTheDocument();
+  expect(await screen.findByText("November 2026 Leaders Meeting")).toBeInTheDocument();
   await waitFor(() => {
     expect(hubPatch).toHaveBeenCalledWith("/super/admin/meetings/777/active");
   });

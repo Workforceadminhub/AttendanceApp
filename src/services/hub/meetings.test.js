@@ -146,6 +146,44 @@ describe("meetings hub service", () => {
     expect(created.date).toBe("2026-10-19");
   });
 
+  it("retries createMeetingRemote with lowercase meeting_type when capitalized fails", async () => {
+    hubPost
+      .mockRejectedValueOnce(new Error("meeting_type must be leaders or workers"))
+      .mockResolvedValueOnce({
+        data: {
+          id: 304,
+          meeting_type: "leaders",
+          meeting_date: "2026-10-19",
+          title: "Leaders meeting october",
+          notes: "Leaders meeting october",
+          set_active: true,
+        },
+      });
+
+    const created = await createMeetingRemote({
+      meetingType: "leaders",
+      date: "2026-10-19",
+    });
+
+    expect(hubPost).toHaveBeenCalledTimes(2);
+    expect(hubPost).toHaveBeenLastCalledWith("/super/admin/meetings", expect.objectContaining({
+      meeting_type: "leaders",
+      meeting_date: "2026-10-19",
+    }));
+    expect(created.id).toBe(304);
+  });
+
+  it("throws error when createMeetingRemote fails and does not silently fall back to localStorage", async () => {
+    hubPost.mockRejectedValue(new Error("Unauthorized"));
+
+    await expect(
+      createMeetingRemote({
+        meetingType: "leaders",
+        date: "2026-10-19",
+      })
+    ).rejects.toThrow("Unauthorized");
+  });
+
   it("sets active meeting via PATCH /api/hub/super/admin/meetings/{id}/active", async () => {
     hubPatch.mockResolvedValueOnce({ success: true });
 

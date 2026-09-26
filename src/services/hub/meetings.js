@@ -36,6 +36,15 @@ export function normalizeMeeting(m) {
   };
 }
 
+function extractListFromPayload(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.meetings)) return payload.meetings;
+  if (Array.isArray(payload?.data?.meetings)) return payload.data.meetings;
+  if (Array.isArray(payload?.data?.data)) return payload.data.data;
+  return [];
+}
+
 /**
  * Fetch all meetings for a given category (or all if omitted).
  * GET /api/hub/super/admin/meetings?meeting_type=leaders
@@ -44,27 +53,55 @@ export function normalizeMeeting(m) {
  * @returns {Promise<Array>} List of normalized meetings
  */
 export async function fetchMeetings(meetingType = "leaders") {
+  const normalizedType = meetingType.toLowerCase();
+  const capitalizedType =
+    normalizedType.charAt(0).toUpperCase() + normalizedType.slice(1);
+
   try {
-    const res = await hubGet("/super/admin/meetings", {
-      meeting_type: meetingType.toLowerCase(),
+    // 1. Try with lowercase meeting_type
+    let res = await hubGet("/super/admin/meetings", {
+      meeting_type: normalizedType,
     });
-    const payload = res?.data ?? res;
-    const rawList = Array.isArray(payload)
-      ? payload
-      : Array.isArray(payload?.data)
-      ? payload.data
-      : [];
+    let payload = res?.data ?? res;
+    let rawList = extractListFromPayload(payload);
+
+    // 2. If empty, try capitalized meeting_type in case backend has case-sensitive DB (e.g. PostgreSQL)
+    if (rawList.length === 0) {
+      const resCap = await hubGet("/super/admin/meetings", {
+        meeting_type: capitalizedType,
+      });
+      const payloadCap = resCap?.data ?? resCap;
+      const rawListCap = extractListFromPayload(payloadCap);
+      if (rawListCap.length > 0) {
+        rawList = rawListCap;
+      }
+    }
+
+    // 3. If still empty, try without query params in case backend returns all meetings
+    if (rawList.length === 0) {
+      const resAll = await hubGet("/super/admin/meetings");
+      const payloadAll = resAll?.data ?? resAll;
+      const rawListAll = extractListFromPayload(payloadAll);
+      const filtered = rawListAll.filter((m) => {
+        const t = (m?.meeting_type || m?.meetingType || "").toLowerCase();
+        return t === normalizedType;
+      });
+      if (filtered.length > 0) {
+        rawList = filtered;
+      }
+    }
+
     const normalized = rawList.map(normalizeMeeting).filter(Boolean);
 
     // Synchronize local storage cache
     if (normalized.length > 0) {
-      syncMeetingsCache(meetingType.toLowerCase(), normalized);
+      syncMeetingsCache(normalizedType, normalized);
       return normalized;
     }
-    return getAllMeetings(meetingType);
+    return getAllMeetings(normalizedType);
   } catch (err) {
     console.error(`Failed to fetch ${meetingType} meetings from backend:`, err);
-    return getAllMeetings(meetingType);
+    return getAllMeetings(normalizedType);
   }
 }
 
@@ -136,25 +173,40 @@ export async function createMeetingRemote({
   const capitalizedType =
     normalizedType.charAt(0).toUpperCase() + normalizedType.slice(1);
 
+  const trimmedDate = date.trim();
+  const meetingTitle =
+    (title || "").trim() || `${capitalizedType} Meeting (${trimmedDate})`;
+  const meetingNotes =
+    (notes || "").trim() || meetingTitle;
+
   const payload = {
     meeting_type: capitalizedType, // "Leaders" or "Workers"
-    meeting_date: date.trim(),
-    title:
-      (title || "").trim() ||
-      `${capitalizedType} Meeting (${date.trim()})`,
-    notes: (notes || "").trim() || undefined,
+    meeting_date: trimmedDate,
+    title: meetingTitle,
+    notes: meetingNotes,
     set_active: Boolean(setAsActive),
   };
 
   try {
-    const res = await hubPost("/super/admin/meetings", payload);
+    let res;
+    try {
+      res = await hubPost("/super/admin/meetings", payload);
+    } catch (firstErr) {
+      // If capitalized meeting_type failed validation, retry with lowercase
+      res = await hubPost("/super/admin/meetings", {
+        ...payload,
+        meeting_type: normalizedType,
+      });
+    }
+
+    const responsePayload = res?.data ?? res;
     const created =
-      normalizeMeeting(res?.data || res) || {
-        id: `${normalizedType}-${Date.now()}`,
+      normalizeMeeting(responsePayload) || {
+        id: responsePayload?.id || `${normalizedType}-${Date.now()}`,
         meetingType: normalizedType,
-        date: date.trim(),
-        title: payload.title,
-        notes: payload.notes || "",
+        date: trimmedDate,
+        title: meetingTitle,
+        notes: meetingNotes,
         isActive: Boolean(setAsActive),
         createdAt: new Date().toISOString(),
       };
@@ -169,14 +221,8 @@ export async function createMeetingRemote({
 
     return created;
   } catch (err) {
-    console.error("Backend meeting creation failed, saving locally:", err);
-    // Graceful fallback to local creation if backend encounters error
-    return createMeetingLocal({
-      meetingType: normalizedType,
-      date: date.trim(),
-      title: payload.title,
-      setAsActive,
-    });
+    console.error("Backend meeting creation failed:", err);
+    throw err;
   }
 }
 
@@ -193,8 +239,10 @@ export async function setActiveMeetingRemote(id) {
     setActiveMeetingLocal(id);
     return res?.data || res;
   } catch (err) {
-    console.error("Backend setActive failed, updating locally:", err);
+    console.error("Backend setActive failed:", err);
+    // Still update local active state so UI reflects user intent if offline
     setActiveMeetingLocal(id);
+    throw err;
   }
 }
 
@@ -206,12 +254,20 @@ export async function setActiveMeetingRemote(id) {
  * @returns {Promise<Object>}
  */
 export async function deleteMeetingRemote(id) {
+  // If local-only synthetic ID, delete locally directly without backend call
+  const isLocalOnly = typeof id === "string" && !/^\d+$/.test(id);
+  if (isLocalOnly) {
+    deleteMeetingLocal(id);
+    return { success: true };
+  }
+
   try {
     const res = await hubDelete(`/super/admin/meetings/${id}`);
     deleteMeetingLocal(id);
     return res?.data || res;
   } catch (err) {
-    console.error("Backend delete failed, deleting locally:", err);
+    console.error("Backend delete failed:", err);
     deleteMeetingLocal(id);
+    throw err;
   }
 }

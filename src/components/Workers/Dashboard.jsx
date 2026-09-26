@@ -127,7 +127,6 @@ export default function Dashboard() {
   useEffect(() => {
     const refreshMeetings = () => setMeetingTick((t) => t + 1);
     window.addEventListener(MEETINGS_CHANGED_EVENT, refreshMeetings);
-    window.addEventListener("storage", refreshMeetings);
 
     if (isAdminMember) {
       fetchActiveMeeting().catch(() => {});
@@ -135,7 +134,6 @@ export default function Dashboard() {
 
     return () => {
       window.removeEventListener(MEETINGS_CHANGED_EVENT, refreshMeetings);
-      window.removeEventListener("storage", refreshMeetings);
     };
   }, [isAdminMember]);
 

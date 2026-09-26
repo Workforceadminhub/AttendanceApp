@@ -45,10 +45,13 @@ export default function MeetingSettings() {
     }
   }, [isSuperAdmin, isChurchAdmin, navigate]);
 
+  const updateMeetingsFromCache = React.useCallback(() => {
+    setMeetings(getAllMeetings(activeTab));
+  }, [activeTab]);
+
   const refreshMeetings = React.useCallback(async () => {
-    // 1. Initial render from local cache
-    const cached = getAllMeetings(activeTab);
-    setMeetings(cached);
+    // 1. Initial render from in-memory cache
+    setMeetings(getAllMeetings(activeTab));
 
     // 2. Fetch and synchronize both categories with backend
     try {
@@ -68,13 +71,11 @@ export default function MeetingSettings() {
 
   useEffect(() => {
     refreshMeetings();
-    window.addEventListener(MEETINGS_CHANGED_EVENT, refreshMeetings);
-    window.addEventListener("storage", refreshMeetings);
+    window.addEventListener(MEETINGS_CHANGED_EVENT, updateMeetingsFromCache);
     return () => {
-      window.removeEventListener(MEETINGS_CHANGED_EVENT, refreshMeetings);
-      window.removeEventListener("storage", refreshMeetings);
+      window.removeEventListener(MEETINGS_CHANGED_EVENT, updateMeetingsFromCache);
     };
-  }, [refreshMeetings]);
+  }, [refreshMeetings, updateMeetingsFromCache]);
 
   const handleCreateMeeting = async (e) => {
     e.preventDefault();

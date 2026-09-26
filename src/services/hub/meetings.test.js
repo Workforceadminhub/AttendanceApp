@@ -16,11 +16,12 @@ import {
   setActiveMeetingRemote,
   deleteMeetingRemote,
 } from "./meetings";
-import { getAllMeetings, getActiveMeeting } from "../../utils/meetingConfig";
+import { getAllMeetings, getActiveMeeting, resetMeetingsCache } from "../../utils/meetingConfig";
 import { meetingPath } from "../../utils/meetingLinks";
 
 beforeEach(() => {
   localStorage.clear();
+  resetMeetingsCache();
   vi.clearAllMocks();
 });
 

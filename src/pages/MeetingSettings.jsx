@@ -13,6 +13,8 @@ import {
   getAllMeetings,
   formatMeetingDisplayDate,
   getActiveMeeting,
+  syncMeetingsCache,
+  syncActiveMeetingCache,
   MEETINGS_CHANGED_EVENT,
 } from "../utils/meetingConfig";
 import {
@@ -116,21 +118,46 @@ export default function MeetingSettings() {
         err?.responseData?.error ||
         err?.message ||
         "Failed to create meeting on server.";
-      toast.error(errMsg);
-      // If the meeting already exists on the server, refresh to pull and display it immediately
-      setActiveTab(meetingType);
-      await refreshMeetings();
 
-      // If user wanted it set active, attempt to set the existing meeting active
-      if (setAsActive) {
-        const existing = getAllMeetings(meetingType).find((m) => m.date === trimmedDate);
-        if (existing) {
+      if (/already\s+exist/i.test(errMsg)) {
+        toast.info(
+          `Meeting for ${formatMeetingDisplayDate(trimmedDate)} is already saved on server and has been activated.`
+        );
+        setActiveTab(meetingType);
+        await refreshMeetings();
+
+        const serverExisting = getAllMeetings(meetingType).find((m) => m.date === trimmedDate);
+        const meetingId = serverExisting?.id || `${meetingType}-${trimmedDate}`;
+
+        const existingMeeting = {
+          id: meetingId,
+          meetingType,
+          date: trimmedDate,
+          title: (title || "").trim() || serverExisting?.title || `${meetingType === "leaders" ? "Leaders" : "Workers"} Meeting (${trimmedDate})`,
+          notes: (notes || "").trim() || serverExisting?.notes || "",
+          isActive: Boolean(setAsActive),
+          createdAt: new Date().toISOString(),
+        };
+
+        if (setAsActive) {
+          syncActiveMeetingCache(existingMeeting);
           try {
-            await setActiveMeetingRemote(existing.id);
-            toast.info(`Set existing meeting for ${formatMeetingDisplayDate(existing.date)} as active.`);
-            await refreshMeetings();
+            await setActiveMeetingRemote(meetingId);
           } catch {}
+        } else {
+          const currentList = getAllMeetings(meetingType).filter((m) => m.date !== trimmedDate);
+          syncMeetingsCache(meetingType, [existingMeeting, ...currentList]);
         }
+
+        setDate("");
+        setTitle("");
+        setNotes("");
+        setSetAsActive(true);
+        await refreshMeetings();
+      } else {
+        toast.error(errMsg);
+        setActiveTab(meetingType);
+        await refreshMeetings();
       }
     } finally {
       setIsSubmitting(false);

@@ -1,4 +1,5 @@
 import { hubGet, hubPost, hubPatch, hubDelete } from "./client";
+import { apiRequest } from "../../utils/apiClient";
 import {
   getAllMeetings,
   getActiveMeeting,
@@ -18,15 +19,25 @@ import { normalizeDateString } from "../../utils/meetingLinks";
  */
 export function normalizeMeeting(m, fallbackType = "") {
   if (!m || typeof m !== "object") return null;
-  const meetingTypeRaw =
+
+  const rawType = (
     m.meeting_type ||
     m.meetingType ||
     m.type ||
     m.category ||
-    fallbackType;
-  if (!meetingTypeRaw || typeof meetingTypeRaw !== "string") return null;
-  const meetingType = meetingTypeRaw.toLowerCase();
-  if (meetingType !== "leaders" && meetingType !== "workers") return null;
+    fallbackType ||
+    ""
+  ).toLowerCase().trim();
+
+  let meetingType = "";
+  if (rawType.includes("lead")) {
+    meetingType = "leaders";
+  } else if (rawType.includes("work")) {
+    meetingType = "workers";
+  } else if (fallbackType) {
+    meetingType = fallbackType.toLowerCase().includes("work") ? "workers" : "leaders";
+  }
+  if (!meetingType) return null;
 
   const rawDate =
     m.meeting_date ||
@@ -36,6 +47,10 @@ export function normalizeMeeting(m, fallbackType = "") {
     m.scheduledDate ||
     m.start_date ||
     m.startDate ||
+    m.event_date ||
+    m.eventDate ||
+    m.session_date ||
+    m.sessionDate ||
     "";
   const date = normalizeDateString(rawDate);
   if (!date) return null;
@@ -58,7 +73,13 @@ export function normalizeMeeting(m, fallbackType = "") {
       m.meeting_title ||
       `${meetingType === "leaders" ? "Leaders" : "Workers"} Meeting (${date})`,
     notes: m.notes || m.description || "",
-    isActive: Boolean(m.is_active ?? m.isActive ?? m.set_active ?? m.active),
+    isActive: Boolean(
+      m.is_active ??
+      m.isActive ??
+      m.set_active ??
+      m.active ??
+      (typeof m.status === "string" && m.status.toLowerCase() === "active")
+    ),
     createdAt: m.created_at || m.createdAt || new Date().toISOString(),
   };
 }
@@ -73,20 +94,27 @@ export function normalizeMeeting(m, fallbackType = "") {
 export function extractListFromPayload(payload, meetingType = "") {
   if (!payload) return [];
   if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload.data)) return payload.data;
-  if (Array.isArray(payload.meetings)) return payload.meetings;
-  if (Array.isArray(payload.data?.meetings)) return payload.data.meetings;
-  if (Array.isArray(payload.data?.data)) return payload.data.data;
-  if (Array.isArray(payload.result)) return payload.result;
-  if (Array.isArray(payload.data?.result)) return payload.data.result;
-  if (Array.isArray(payload.rows)) return payload.rows;
-  if (Array.isArray(payload.data?.rows)) return payload.data.rows;
-  if (Array.isArray(payload.items)) return payload.items;
-  if (Array.isArray(payload.data?.items)) return payload.data.items;
+
+  const listKeys = [
+    "data",
+    "meetings",
+    "records",
+    "results",
+    "result",
+    "rows",
+    "items",
+    "list",
+  ];
+  for (const k of listKeys) {
+    if (Array.isArray(payload[k])) return payload[k];
+    if (Array.isArray(payload.data?.[k])) return payload.data[k];
+  }
 
   const typeKey = meetingType ? meetingType.toLowerCase() : "";
-  if (typeKey && Array.isArray(payload[typeKey])) return payload[typeKey];
-  if (typeKey && Array.isArray(payload.data?.[typeKey])) return payload.data[typeKey];
+  if (typeKey) {
+    if (Array.isArray(payload[typeKey])) return payload[typeKey];
+    if (Array.isArray(payload.data?.[typeKey])) return payload.data[typeKey];
+  }
 
   if (Array.isArray(payload.leaders)) return payload.leaders;
   if (Array.isArray(payload.workers)) return payload.workers;
@@ -102,7 +130,7 @@ export function extractListFromPayload(payload, meetingType = "") {
         (v) =>
           v &&
           typeof v === "object" &&
-          (v.meeting_date || v.date || v.meeting_type || v.title)
+          (v.meeting_date || v.meetingDate || v.date || v.meeting_type || v.title)
       )
     ) {
       return values;
@@ -144,39 +172,47 @@ export async function fetchMeetings(meetingType = "leaders") {
     { type: capitalizedType },
   ];
 
-  for (const params of candidates) {
-    try {
-      const res = await hubGet("/super/admin/meetings", params);
-      const payload = res?.data ?? res;
-      const list = extractListFromPayload(payload, normalizedType);
+  // Try standard hub endpoints first, then direct super admin endpoints if empty
+  const endpointPaths = ["/super/admin/meetings", "/api/super/admin/meetings"];
 
-      if (list.length > 0) {
-        if (!params) {
-          // If fetched without filter, select only items for this category
-          const filtered = list.filter((m) => {
-            const t = (
-              m?.meeting_type ||
-              m?.meetingType ||
-              m?.type ||
-              m?.category ||
-              ""
-            ).toLowerCase();
-            return !t || t === normalizedType;
-          });
-          if (filtered.length > 0) {
-            rawList = filtered;
+  for (const basePath of endpointPaths) {
+    for (const params of candidates) {
+      try {
+        const res = basePath.startsWith("/api/")
+          ? await apiRequest("GET", basePath, params)
+          : await hubGet(basePath, params);
+        const payload = res?.data ?? res;
+        const list = extractListFromPayload(payload, normalizedType);
+
+        if (list.length > 0) {
+          if (!params) {
+            // If fetched without filter, select only items for this category
+            const filtered = list.filter((m) => {
+              const t = (
+                m?.meeting_type ||
+                m?.meetingType ||
+                m?.type ||
+                m?.category ||
+                ""
+              ).toLowerCase();
+              return !t || t.includes(normalizedType.slice(0, 4));
+            });
+            if (filtered.length > 0) {
+              rawList = filtered;
+              break;
+            }
+          } else {
+            rawList = list;
             break;
           }
-        } else {
-          rawList = list;
-          break;
+        } else if (res && (Array.isArray(res) || Array.isArray(res?.data) || Array.isArray(res?.meetings))) {
+          backendReturnedEmpty = true;
         }
-      } else if (res && (Array.isArray(res) || Array.isArray(res?.data) || Array.isArray(res?.meetings))) {
-        backendReturnedEmpty = true;
+      } catch (err) {
+        lastError = err;
       }
-    } catch (err) {
-      lastError = err;
     }
+    if (rawList.length > 0) break;
   }
 
   if (rawList.length > 0) {
@@ -222,50 +258,56 @@ export async function fetchActiveMeeting(meetingType) {
       ]
     : [undefined];
 
-  for (const params of candidates) {
-    try {
-      const res = await hubGet("/super/admin/meetings/active", params);
-      const payload = res?.data ?? res;
+  const activePaths = ["/super/admin/meetings/active", "/api/super/admin/meetings/active"];
 
-      const list = [];
-      if (Array.isArray(payload)) {
-        list.push(...payload);
-      } else if (payload && typeof payload === "object") {
-        if (Array.isArray(payload.data)) {
-          list.push(...payload.data);
-        } else {
-          if (payload.leaders) list.push(payload.leaders);
-          if (payload.workers) list.push(payload.workers);
-          if (payload.data?.leaders) list.push(payload.data.leaders);
-          if (payload.data?.workers) list.push(payload.data.workers);
-          if (
-            payload.meeting_type ||
-            payload.meetingType ||
-            payload.type ||
-            payload.meeting_date ||
-            payload.date
-          ) {
-            list.push(payload);
+  for (const basePath of activePaths) {
+    for (const params of candidates) {
+      try {
+        const res = basePath.startsWith("/api/")
+          ? await apiRequest("GET", basePath, params)
+          : await hubGet(basePath, params);
+        const payload = res?.data ?? res;
+
+        const list = [];
+        if (Array.isArray(payload)) {
+          list.push(...payload);
+        } else if (payload && typeof payload === "object") {
+          if (Array.isArray(payload.data)) {
+            list.push(...payload.data);
+          } else {
+            if (payload.leaders) list.push(payload.leaders);
+            if (payload.workers) list.push(payload.workers);
+            if (payload.data?.leaders) list.push(payload.data.leaders);
+            if (payload.data?.workers) list.push(payload.data.workers);
+            if (
+              payload.meeting_type ||
+              payload.meetingType ||
+              payload.type ||
+              payload.meeting_date ||
+              payload.date
+            ) {
+              list.push(payload);
+            }
           }
         }
-      }
 
-      const normalizedList = list
-        .map((m) => normalizeMeeting(m, normalizedType))
-        .filter(Boolean);
+        const normalizedList = list
+          .map((m) => normalizeMeeting(m, normalizedType))
+          .filter(Boolean);
 
-      for (const item of normalizedList) {
-        syncActiveMeetingCache(item);
-      }
+        for (const item of normalizedList) {
+          syncActiveMeetingCache(item);
+        }
 
-      if (normalizedType) {
-        const match = normalizedList.find((m) => m.meetingType === normalizedType);
-        if (match) return match;
-      } else if (normalizedList.length > 0) {
-        return normalizedList[0];
+        if (normalizedType) {
+          const match = normalizedList.find((m) => m.meetingType === normalizedType);
+          if (match) return match;
+        } else if (normalizedList.length > 0) {
+          return normalizedList[0];
+        }
+      } catch {
+        // try next candidate
       }
-    } catch {
-      // try next candidate
     }
   }
 

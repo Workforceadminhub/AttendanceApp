@@ -14,10 +14,27 @@ export function normalizeDateString(val) {
   if (val instanceof Date) {
     if (Number.isNaN(val.getTime())) return "";
     s = val.toISOString().slice(0, 10);
+  } else if (typeof val === "number") {
+    const d = new Date(val < 1e11 ? val * 1000 : val);
+    if (!Number.isNaN(d.getTime())) s = d.toISOString().slice(0, 10);
   } else if (typeof val === "string") {
     s = val.trim();
     if (s.includes("T")) s = s.split("T")[0];
     if (s.includes(" ")) s = s.split(" ")[0];
+
+    // Handle DD/MM/YYYY or DD-MM-YYYY
+    const dmyMatch = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+    if (dmyMatch) {
+      const [, day, month, year] = dmyMatch;
+      s = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+    }
+
+    // Handle YYYY/MM/DD
+    const ymdSlashMatch = s.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+    if (ymdSlashMatch) {
+      const [, year, month, day] = ymdSlashMatch;
+      s = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+    }
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return "";
   const d = new Date(`${s}T00:00:00Z`);

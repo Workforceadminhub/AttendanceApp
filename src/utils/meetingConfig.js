@@ -192,23 +192,33 @@ export function formatMeetingDisplayDate(dateStr) {
  */
 export function syncMeetingsCache(meetingType, remoteMeetings) {
   if (!Array.isArray(remoteMeetings)) return;
-  const targetType = meetingType.toLowerCase();
+  const targetType = meetingType.toLowerCase().includes("work") ? "workers" : "leaders";
   const currentCategory = memoryMeetings.filter((m) => m.meetingType === targetType);
   const others = memoryMeetings.filter((m) => m.meetingType !== targetType);
   const sanitizedRemote = remoteMeetings
     .map((m) => {
       if (!m || typeof m !== "object") return null;
-      const type = (m.meetingType || m.meeting_type || targetType).toLowerCase();
+      const rawType = (m.meetingType || m.meeting_type || targetType).toLowerCase().trim();
+      const type = rawType.includes("lead") ? "leaders" : rawType.includes("work") ? "workers" : targetType;
       if (type !== targetType) return null;
-      const date = normalizeDateString(m.date || m.meeting_date);
+      const rawDate =
+        m.meeting_date ||
+        m.meetingDate ||
+        m.date ||
+        m.scheduled_date ||
+        m.scheduledDate ||
+        m.start_date ||
+        m.startDate ||
+        "";
+      const date = normalizeDateString(rawDate);
       if (!date) return null;
       return {
         ...m,
-        id: m.id ?? `${type}-${date}`,
+        id: m.id ?? m.meeting_id ?? m.meetingId ?? m._id ?? `${type}-${date}`,
         meetingType: type,
         date,
-        title: m.title || `${type === "leaders" ? "Leaders" : "Workers"} Meeting (${date})`,
-        isActive: Boolean(m.isActive ?? m.is_active ?? m.set_active),
+        title: m.title || m.name || `${type === "leaders" ? "Leaders" : "Workers"} Meeting (${date})`,
+        isActive: Boolean(m.isActive ?? m.is_active ?? m.set_active ?? m.active),
       };
     })
     .filter(Boolean);
@@ -239,19 +249,29 @@ export function syncMeetingsCache(meetingType, remoteMeetings) {
  */
 export function syncActiveMeetingCache(activeMeeting) {
   if (!activeMeeting || typeof activeMeeting !== "object") return;
-  const meetingType = (activeMeeting.meetingType || activeMeeting.meeting_type || "").toLowerCase();
-  const date = normalizeDateString(activeMeeting.date || activeMeeting.meeting_date);
+  const rawType = (activeMeeting.meetingType || activeMeeting.meeting_type || "").toLowerCase().trim();
+  const meetingType = rawType.includes("lead") ? "leaders" : rawType.includes("work") ? "workers" : "";
+  const rawDate =
+    activeMeeting.meeting_date ||
+    activeMeeting.meetingDate ||
+    activeMeeting.date ||
+    activeMeeting.scheduled_date ||
+    activeMeeting.scheduledDate ||
+    activeMeeting.start_date ||
+    activeMeeting.startDate ||
+    "";
+  const date = normalizeDateString(rawDate);
   if (!meetingType || !date) return;
   const sanitized = {
     ...activeMeeting,
-    id: activeMeeting.id || `${meetingType}-${date}`,
+    id: activeMeeting.id || activeMeeting.meeting_id || activeMeeting.meetingId || activeMeeting._id || `${meetingType}-${date}`,
     meetingType,
     date,
     isActive: true,
-    title: activeMeeting.title || `${meetingType === "leaders" ? "Leaders" : "Workers"} Meeting (${date})`,
+    title: activeMeeting.title || activeMeeting.name || `${meetingType === "leaders" ? "Leaders" : "Workers"} Meeting (${date})`,
   };
 
-  const isMatch = (m) => String(m.id) === String(sanitized.id);
+  const isMatch = (m) => String(m.id) === String(sanitized.id) || (m.meetingType === meetingType && m.date === date);
 
   const currentActive = memoryMeetings.find((m) => m.meetingType === meetingType && m.isActive);
   if (currentActive && isMatch(currentActive) && currentActive.title === sanitized.title && currentActive.date === sanitized.date) {

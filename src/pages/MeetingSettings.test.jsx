@@ -121,3 +121,30 @@ it("empties the list when the last meeting is deleted and does not resurrect def
   expect(getAllMeetings("workers")).toHaveLength(0);
 });
 
+it("handles already exists error by loading and activating the existing meeting", async () => {
+  const { hubGet, hubPost, hubPatch } = await import("../services/hub/client");
+  hubPost.mockRejectedValueOnce({
+    responseData: { message: "A leaders meeting already exists for 2026-10-17" },
+  });
+  hubGet.mockResolvedValueOnce({
+    data: [
+      {
+        id: 777,
+        meeting_type: "leaders",
+        meeting_date: "2026-10-17",
+        title: "October 2026 Leaders Meeting",
+        is_active: false,
+      },
+    ],
+  });
+
+  render(<MemoryRouter><MeetingSettings /></MemoryRouter>);
+  fireEvent.change(screen.getByLabelText(/Meeting Date/), { target: { value: "2026-10-17" } });
+  fireEvent.click(screen.getByRole("button", { name: "Create Meeting" }));
+
+  expect(await screen.findByText("October 2026 Leaders Meeting")).toBeInTheDocument();
+  await waitFor(() => {
+    expect(hubPatch).toHaveBeenCalledWith("/super/admin/meetings/777/active");
+  });
+});
+

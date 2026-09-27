@@ -1,5 +1,6 @@
 import { fetchAllSuperAdminWorkers } from "../services/workers";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useDeferredValue } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate, Link } from "react-router-dom";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
@@ -11,13 +12,10 @@ import { maskEmail, maskPhone } from "../utils/pii";
 import { getUserRole } from "../utils/getUserRole";
 
 const PAGE_SIZE = 50;
+const EMPTY_LIST = [];
 
 export default function AllWorkers() {
  const navigate = useNavigate();
- const [page, setPage] = useState(1);
- const [allWorkers, setAllWorkers] = useState([]);
- const [filteredWorkers, setFilteredWorkers] = useState([]);
- const [isLoading, setIsLoading] = useState(false);
  
  // Column filters state
  const [columnFilters, setColumnFilters] = useState({
@@ -47,33 +45,33 @@ export default function AllWorkers() {
     }
   }, [navigate]);
 
- // Fetch all workers
- const fetchAllWorkers = async () => {
- setIsLoading(true);
- try {
- const workersData = await fetchAllSuperAdminWorkers();
-
- setAllWorkers(workersData);
- setFilteredWorkers(workersData);
- } catch (error) {
- toast.error("Failed to fetch workers");
- setAllWorkers([]);
- setFilteredWorkers([]);
- } finally {
- setIsLoading(false);
- }
- };
+ // The whole directory, cached so returning to this page doesn't download
+ // every worker again. Refresh refetches it.
+ const {
+ data: allWorkers = EMPTY_LIST,
+ isLoading: isFirstLoad,
+ isFetching,
+ error: workersError,
+ refetch: refetchWorkers,
+ } = useQuery({
+ queryKey: ["allSuperAdminWorkers"],
+ queryFn: () => fetchAllSuperAdminWorkers(),
+ });
+ const isLoading = isFirstLoad || isFetching;
 
  useEffect(() => {
- fetchAllWorkers();
- }, []);
+ if (workersError) toast.error("Failed to fetch workers");
+ }, [workersError]);
 
- // Apply filters and sorting whenever columnFilters, sortConfig, or allWorkers change
- useEffect(() => {
+ // The inputs update immediately; filtering the full directory follows the
+ // deferred value so typing stays responsive. Derived during render instead
+ // of copied into state by an effect (which rendered twice per keystroke).
+ const deferredFilters = useDeferredValue(columnFilters);
+ const filteredWorkers = useMemo(() => {
  let filtered = [...allWorkers];
 
  // Apply each column filter
- Object.entries(columnFilters).forEach(([column, filterValue]) => {
+ Object.entries(deferredFilters).forEach(([column, filterValue]) => {
  if (filterValue && filterValue.trim() !== "") {
  const searchTerm = filterValue.toLowerCase().trim();
  filtered = filtered.filter((worker) => {
@@ -96,10 +94,6 @@ export default function AllWorkers() {
  if (aValue === null || aValue === undefined) return 1;
  if (bValue === null || bValue === undefined) return -1;
 
- // Convert to string for comparison
- const aStr = String(aValue).toLowerCase();
- const bStr = String(bValue).toLowerCase();
-
  // Try numeric comparison first
  const aNum = Number(aValue);
  const bNum = Number(bValue);
@@ -108,6 +102,8 @@ export default function AllWorkers() {
  }
 
  // String comparison
+ const aStr = String(aValue).toLowerCase();
+ const bStr = String(bValue).toLowerCase();
  if (aStr < bStr) {
  return sortConfig.direction === "asc" ? -1 : 1;
  }
@@ -118,9 +114,14 @@ export default function AllWorkers() {
  });
  }
 
- setFilteredWorkers(filtered);
- setPage(1);
- }, [columnFilters, sortConfig, allWorkers]);
+ return filtered;
+ }, [deferredFilters, sortConfig, allWorkers]);
+
+ // Any filter or sort change starts again from page 1.
+ const listKey = JSON.stringify([deferredFilters, sortConfig]);
+ const [pageState, setPageState] = useState({ key: listKey, page: 1 });
+ const page = pageState.key === listKey ? pageState.page : 1;
+ const setPage = (next) => setPageState({ key: listKey, page: next });
 
  // Handle filter input change
  const handleFilterChange = (column, value) => {
@@ -282,7 +283,7 @@ export default function AllWorkers() {
  Export
  </button>
  <button
- onClick={fetchAllWorkers}
+ onClick={() => refetchWorkers()}
  disabled={isLoading}
  className="bg-ink-900 hover:bg-ink-900 px-4 py-2 text-white rounded-lg text-sm font-medium disabled:opacity-50"
  >

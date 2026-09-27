@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
@@ -20,30 +21,27 @@ import {
 
 const PAGE_LIMIT = 50;
 const initialMeta = { page: 1, limit: PAGE_LIMIT, total: 0, totalPages: 1, hasNext: false, hasPrev: false };
+const EMPTY_ROWS = [];
 const badgeCount = meta => meta.total ?? (meta.hasNext ? `${meta.pageCount}+` : meta.filteredCount);
 
 export default function PendingWorkers() {
  const navigate = useNavigate();
- const [pendingAddWorkers, setPendingAddWorkers] = useState([]);
- const [pendingRemoveWorkers, setPendingRemoveWorkers] = useState([]);
- const [addMeta, setAddMeta] = useState(initialMeta);
- const [removeMeta, setRemoveMeta] = useState(initialMeta);
+ const queryClient = useQueryClient();
+ // Page shown in each inbox tab.
+ const [addPage, setAddPage] = useState(1);
+ const [removePage, setRemovePage] = useState(1);
  const [isExporting, setIsExporting] = useState(false);
- const [isLoading, setIsLoading] = useState(false);
  const [isProcessing, setIsProcessing] = useState(false);
  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
  const [bulkDeleteConfirmText, setBulkDeleteConfirmText] = useState("");
  const [activeTab, setActiveTab] = useState("add");
  const [selectedWorkers, setSelectedWorkers] = useState(new Set());
  const [isSelectAll, setIsSelectAll] = useState(false);
- const hasFetched = useRef(false);
  const [sortConfig, setSortConfig] = useState({
  key: null,
  direction: "asc", // 'asc' or 'desc'
  });
  
- // Pagination state
- const [pagination, setPagination] = useState(initialMeta);
 
  const { isAdmin, isSuperAdmin, isChurchAdmin, user: authUser } = getUserRole();
  const canAccessPendingWorkers = isAdmin;
@@ -76,43 +74,38 @@ export default function PendingWorkers() {
  return workers.filter((w) => canAccessDepartment(w.department || w.department_name));
  }, []);
 
- const fetchTab = useCallback(async (tab, page) => {
- const fn = tab === "add" ? fetchPendingAdd : fetchPendingRemove;
- const result = await fn(page, PAGE_LIMIT, permissions);
- const rows = filterByAccess(result.data || []);
- if (tab === "add") {
- setPendingAddWorkers(rows);
- setAddMeta(result.pagination);
- } else {
- setPendingRemoveWorkers(rows);
- setRemoveMeta(result.pagination);
- }
- return result.pagination;
- }, [permissions, filterByAccess]);
+ // Both inboxes load up front (their tab badges show counts). Each page is
+ // cached, so switching tabs or coming back to this screen is instant;
+ // actions below refresh them.
+ const permissionsKey = Array.isArray(permissions) ? permissions.join(",") : "";
+ const inboxQuery = (tab, page) => ({
+ queryKey: ["pendingWorkers", tab, page, permissionsKey],
+ queryFn: () => (tab === "add" ? fetchPendingAdd : fetchPendingRemove)(page, PAGE_LIMIT, permissions),
+ select: (result) => ({ rows: filterByAccess(result.data || []), meta: result.pagination }),
+ placeholderData: (prev) => prev,
+ enabled: canAccessPendingWorkers,
+ });
+ const addQuery = useQuery(inboxQuery("add", addPage));
+ const removeQuery = useQuery(inboxQuery("remove", removePage));
+ const pendingAddWorkers = addQuery.data?.rows ?? EMPTY_ROWS;
+ const pendingRemoveWorkers = removeQuery.data?.rows ?? EMPTY_ROWS;
+ const addMeta = addQuery.data?.meta ?? initialMeta;
+ const removeMeta = removeQuery.data?.meta ?? initialMeta;
+ const activeQuery = activeTab === "add" ? addQuery : removeQuery;
+ const pagination = activeTab === "add" ? addMeta : removeMeta;
+ const isLoading = addQuery.isLoading || removeQuery.isLoading || activeQuery.isPlaceholderData;
 
- const loadingRef = useRef(false);
- const fetchAllPendingWorkers = useCallback(async () => {
- if (loadingRef.current) return;
- loadingRef.current = true;
- setIsLoading(true);
- try {
- const [add, remove] = await Promise.all([fetchTab("add", 1), fetchTab("remove", 1)]);
- setPagination(activeTab === "add" ? add : remove);
- } catch {
- toast.error("Failed to fetch pending workers");
- } finally {
- loadingRef.current = false;
- setIsLoading(false);
- }
- }, [activeTab, fetchTab]);
-
+ const inboxError = addQuery.error || removeQuery.error;
  useEffect(() => {
- if (hasFetched.current) {
- return;
- }
- hasFetched.current = true;
- void fetchAllPendingWorkers();
- }, [fetchAllPendingWorkers]);
+ if (inboxError) toast.error("Failed to fetch pending workers");
+ }, [inboxError]);
+
+ /** Back to page 1 of both inboxes, refetched. */
+ const fetchAllPendingWorkers = useCallback(async () => {
+ setAddPage(1);
+ setRemovePage(1);
+ await queryClient.invalidateQueries({ queryKey: ["pendingWorkers"] });
+ }, [queryClient]);
 
  // Delete single worker (permanent)
  const deleteWorker = async (workerId) => {
@@ -143,36 +136,17 @@ export default function PendingWorkers() {
  };
 
  // Request a page of the active inbox.
- const handlePagination = async (newPage) => {
+ const handlePagination = (newPage) => {
  if (newPage < 1 || isBusy) return;
  clearSelection();
- setIsLoading(true);
- try {
- setPagination(await fetchTab(activeTab, newPage));
- } catch {
- toast.error("Failed to fetch pending workers");
- } finally {
- setIsLoading(false);
- }
+ (activeTab === "add" ? setAddPage : setRemovePage)(newPage);
  };
 
- const handleTabChange = async (tab) => {
+ const handleTabChange = (tab) => {
  if (isBusy) return;
  setActiveTab(tab);
  clearSelection();
- const meta = tab === "add" ? addMeta : removeMeta;
- if (meta.page === 1) {
- setPagination(meta);
- return;
- }
- setIsLoading(true);
- try {
- setPagination(await fetchTab(tab, 1));
- } catch {
- toast.error("Failed to fetch pending workers");
- } finally {
- setIsLoading(false);
- }
+ (tab === "add" ? setAddPage : setRemovePage)(1);
  };
 
  // Multi-select functionality

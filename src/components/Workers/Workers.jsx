@@ -1,7 +1,8 @@
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchAdminWorkersPage, fetchWorkers, listSuperAdminWorkers, fetchAllSuperAdminWorkers } from "../../services/workers";
 import { toast } from "react-toastify";
 import { getNextSunday } from "../../utils/getDate";
@@ -46,14 +47,19 @@ const normalizeSearchTerm = (term) => {
  return term.trim();
 };
 
+const PAGE_LIMIT = 50;
+const EMPTY_PAGINATION = { page: 1, limit: PAGE_LIMIT, total: 0, totalPages: 0, hasNext: false, hasPrev: false };
+const DELETE_CONCURRENCY = 5;
+
 export default function Workers() {
  const navigate = useNavigate();
  const location = useLocation();
+ const queryClient = useQueryClient();
  const authUser = useMemo(() => JSON.parse(sessionStorage.getItem("authUser")), []);
 
  // All hooks must be called before any conditional returns
- const [data, setData] = useState([]);
- const [isLoading, setIsLoading] = useState(false);
+ // Set while a delete request is in flight.
+ const [isDeleting, setIsDeleting] = useState(false);
  const dateForAttendance = getNextSunday();
  const [filters, setFilters] = useState({
  department: "All",
@@ -69,14 +75,6 @@ export default function Workers() {
  // );
  const [filterModalOpen, setFilterModalOpen] = useState(false);
  const [expandedRows, setExpandedRows] = useState(new Set());
- const [pagination, setPagination] = useState({
- page: 1,
- limit: 50,
- total: 0,
- totalPages: 0,
- hasNext: false,
- hasPrev: false,
- });
  const [availableDepartments, setAvailableDepartments] = useState([]);
  const [searchTerm, setSearchTerm] = useState("");
  // The input updates searchTerm on every key; requests follow the debounced value.
@@ -84,8 +82,6 @@ export default function Workers() {
  const [selectedWorkers, setSelectedWorkers] = useState(new Set());
  const [isSelectAll, setIsSelectAll] = useState(false);
  const [isExporting, setIsExporting] = useState(false);
- // Every list request bumps this; a response is applied only if it is still the latest.
- const latestRequest = useRef(0);
 
  const [filterOptions, setFilterOptions] = useState({
  departments: [{ value: "All", label: "All Departments" }],
@@ -122,79 +118,72 @@ export default function Workers() {
 
  const fallbackFilterOptions = useMemo(() => generateFallbackFilterOptions(), []);
 
- const querySuperAdminWorkers = useCallback(async (page = 1, limit = 50, search = "", fallbackIfEmpty = false) => {
- const requestId = ++latestRequest.current;
- setIsLoading(true);
- try {
- let result = await listSuperAdminWorkers({ page, limit, search, team: filters.team, department: filters.department });
- if (requestId !== latestRequest.current) return;
- if (fallbackIfEmpty && result.data.length === 0 && page > 1) {
- result = await listSuperAdminWorkers({ page: page - 1, limit, search, team: filters.team, department: filters.department });
- if (requestId !== latestRequest.current) return;
- }
- setData(result.data);
- setPagination(result.pagination);
- setSelectedWorkers(new Set());
- setIsSelectAll(false);
+ // One cached query per role, filter, search and page, so going back to a
+ // page already seen (e.g. after opening a worker) is instant. Super admins
+ // use the super-admin listing, team admins page on the server, other roles
+ // load their department. Superseded requests are ignored by React Query.
+ const role = isSuperAdmin ? "super" : isAdminMember ? "admin" : "member";
+ const search = normalizeSearchTerm(debouncedSearchTerm);
+ // Any filter or search change starts again from page 1.
+ const listKey = JSON.stringify([filters, search]);
+ const [pageState, setPageState] = useState({ key: listKey, page: 1 });
+ const page = pageState.key === listKey ? pageState.page : 1;
+ const setPage = useCallback((next) => setPageState({ key: listKey, page: next }), [listKey]);
+ const workersQueryKey = [
+ "workersList",
+ role,
+ filters.team,
+ filters.department,
+ search,
+ role === "member" ? team.department : null,
+ role === "member" ? null : page,
+ dateForAttendance,
+ ];
 
- setIsLoading(false);
- } catch (error) {
- if (requestId !== latestRequest.current) return;
+ const {
+ data: listData,
+ isLoading: isFirstLoad,
+ isPlaceholderData,
+ error: listError,
+ } = useQuery({
+ queryKey: workersQueryKey,
+ queryFn: async () => {
+ if (role === "super") {
+ return listSuperAdminWorkers({ page, limit: PAGE_LIMIT, search, team: filters.team, department: filters.department });
+ }
+ // Filter out team name from permissions (team name shouldn't be in permissions array)
+ const permissions = expandPermissions(authUser).filter((perm) => perm !== authUser?.team);
+ if (role === "admin") {
+ return fetchAdminWorkersPage("All", "All", dateForAttendance, permissions, { page, limit: PAGE_LIMIT, search });
+ }
+ return { data: await fetchWorkers(team.department, dateForAttendance, permissions, search), pagination: null };
+ },
+ placeholderData: (prev) => prev,
+ });
+ const data = listData?.data ?? [];
+ const pagination = listData?.pagination ?? EMPTY_PAGINATION;
+ const isLoading = isFirstLoad || isPlaceholderData || isDeleting;
+
+ useEffect(() => {
+ if (!listError) return;
  // Check if it's an authentication error
- if (
- error.message.includes("401") ||
- error.message.includes("Unauthorized")
- ) {
+ if (listError.message.includes("401") || listError.message.includes("Unauthorized")) {
  toast.error("Authentication failed. Please log in again.");
  logoutSession();
  navigate("/login");
  } else {
- toast.error(`Error loading workers: ${error.message}`);
+ toast.error(`Error loading workers: ${listError.message}`);
  }
+ }, [listError, navigate]);
 
- setIsLoading(false);
+ /** Refetch after deletes; step back a page if the current one emptied. */
+ const refreshAfterDelete = async () => {
+ await queryClient.invalidateQueries({ queryKey: ["workersList"] });
+ const fresh = queryClient.getQueryData(workersQueryKey);
+ if (role === "super" && page > 1 && Array.isArray(fresh?.data) && fresh.data.length === 0) {
+ setPage(page - 1);
  }
- }, [filters, navigate]);
-
- // Team admins page on the server too; one request per visible page.
- const queryAdminWorkers = useCallback((page = 1, limit = 50, search = "") => {
- const requestId = ++latestRequest.current;
- setIsLoading(true);
- const rawPermissions = expandPermissions(authUser);
- // Filter out team name from permissions (team name shouldn't be in permissions array)
- const permissions = rawPermissions.filter((perm) => perm !== authUser?.team);
- fetchAdminWorkersPage("All", "All", dateForAttendance, permissions, { page, limit, search })
- .then((res) => {
- if (requestId !== latestRequest.current) return;
- setData(res.data);
- setPagination(res.pagination);
- setIsLoading(false);
- })
- .catch((error) => {
- if (requestId !== latestRequest.current) return;
- toast.error(`Error loading workers: ${error.message}`);
- setIsLoading(false);
- });
- }, [authUser, dateForAttendance]);
-
- const queryWorkers = useCallback((search = "") => {
- const requestId = ++latestRequest.current;
- setIsLoading(true);
- const rawPermissions = expandPermissions(authUser);
- // Filter out team name from permissions (team name shouldn't be in permissions array)
- const permissions = rawPermissions.filter((perm) => perm !== authUser?.team);
- fetchWorkers(team.department, dateForAttendance, permissions, search)
- .then((res) => {
- if (requestId !== latestRequest.current) return;
- setData(res);
- setIsLoading(false);
- })
- .catch((error) => {
- if (requestId !== latestRequest.current) return;
- toast.error(`Error loading workers: ${error.message}`);
- setIsLoading(false);
- });
- }, [authUser, team.department, dateForAttendance]);
+ };
 
  const clearSelection = useCallback(() => {
  setSelectedWorkers(new Set());
@@ -252,27 +241,10 @@ export default function Workers() {
  }
  }, [apiDepartmentsByTeam, isSuperAdmin]);
 
+ // A new filter, search or page clears the selection.
  useEffect(() => {
- const search = normalizeSearchTerm(debouncedSearchTerm);
- if (isSuperAdmin) {
- querySuperAdminWorkers(1, 50, search);
- } else if (isAdminMember) {
- queryAdminWorkers(1, 50, search);
- } else {
- queryWorkers(search);
- }
  clearSelection();
- }, [
- filters,
- debouncedSearchTerm,
- isAdminMember,
- isSuperAdmin,
- team.team,
- querySuperAdminWorkers,
- queryAdminWorkers,
- queryWorkers,
- clearSelection,
- ]);
+ }, [listKey, page, clearSelection]);
 
  // Load filter options. Only super admins can open the filter modal, so
  // other roles skip this entirely.
@@ -378,24 +350,18 @@ Type "DELETE" to confirm (case-sensitive):`;
  return;
  }
 
- setIsLoading(true);
+ setIsDeleting(true);
  try {
  await apiRequest("DELETE", `/api/super/admin/${workerId}/workers`);
 
  toast.success("Worker deleted successfully");
 
  // Refresh the data
- if (isSuperAdmin) {
- await querySuperAdminWorkers(pagination.page, pagination.limit, normalizeSearchTerm(searchTerm), true);
- } else if (isAdminMember) {
- queryAdminWorkers(pagination.page, pagination.limit, normalizeSearchTerm(searchTerm));
- } else {
- queryWorkers();
- }
+ await refreshAfterDelete();
  } catch (error) {
  toast.error("Failed to delete worker");
  } finally {
- setIsLoading(false);
+ setIsDeleting(false);
  }
  };
 
@@ -430,11 +396,7 @@ Type "DELETE" to confirm (case-sensitive):`;
  // Request the selected server page.
  const handlePagination = (newPage) => {
  if (newPage < 1) return;
- if (isAdminMember && !isSuperAdmin) {
- queryAdminWorkers(newPage, pagination.limit, normalizeSearchTerm(searchTerm));
- return;
- }
- querySuperAdminWorkers(newPage, pagination.limit, normalizeSearchTerm(searchTerm));
+ setPage(newPage);
  };
 
  const bulkDeleteWorkers = async () => {
@@ -465,19 +427,20 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  return;
  }
 
- setIsLoading(true);
+ setIsDeleting(true);
  try {
  const workerIds = Array.from(selectedWorkers);
  let successCount = 0;
  let errorCount = 0;
 
- for (const workerId of workerIds) {
- try {
- await apiRequest("DELETE", `/api/super/admin/${workerId}/workers`);
- successCount++;
- } catch (error) {
- errorCount++;
- }
+ // A few deletes at a time rather than strictly one after another.
+ for (let i = 0; i < workerIds.length; i += DELETE_CONCURRENCY) {
+ const results = await Promise.allSettled(
+ workerIds
+ .slice(i, i + DELETE_CONCURRENCY)
+ .map((workerId) => apiRequest("DELETE", `/api/super/admin/${workerId}/workers`))
+ );
+ results.forEach((r) => (r.status === "fulfilled" ? successCount++ : errorCount++));
  }
 
  if (successCount > 0) {
@@ -490,17 +453,11 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  clearSelection();
 
  // Refresh the data
- if (isSuperAdmin) {
- await querySuperAdminWorkers(pagination.page, pagination.limit, normalizeSearchTerm(searchTerm), true);
- } else if (isAdminMember) {
- queryAdminWorkers(pagination.page, pagination.limit, normalizeSearchTerm(searchTerm));
- } else {
- queryWorkers();
- }
+ await refreshAfterDelete();
  } catch (error) {
  toast.error(`Failed to delete workers: ${error.message}`);
  } finally {
- setIsLoading(false);
+ setIsDeleting(false);
  }
  };
 
@@ -687,7 +644,10 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  </button>
  <button
  className="bg-ink-500 px-3 py-1.5 sm:px-4 sm:py-2 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-ink-600"
- onClick={() => querySuperAdminWorkers(1, 50)}
+ onClick={() => {
+ setPage(1);
+ queryClient.invalidateQueries({ queryKey: ["workersList"] });
+ }}
  >
  Refresh
  </button>

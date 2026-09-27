@@ -38,9 +38,15 @@ const ATTENDANCE_QUERY_KEYS = [
   ["attendanceHistoryTable"],
   ["unmarkedWorkers"],
   ["attendanceExport"],
+  ["attendanceTable"],
   // A save for a new Sunday adds a date to the history pickers.
   ["historyOptions"],
 ];
+
+// Dropped when not on screen, but not refetched while on screen: the
+// attendance page writes saved statuses into it instead of re-downloading
+// every worker in scope after each save.
+const INACTIVE_ONLY_QUERY_KEYS = [["attendanceSummaryRows"]];
 
 /**
  * Call after a successful save. Queries on screen refetch now; cached ones
@@ -51,6 +57,9 @@ const ATTENDANCE_QUERY_KEYS = [
 export function invalidateAttendanceQueries(queryClient) {
   for (const queryKey of ATTENDANCE_QUERY_KEYS) {
     queryClient.invalidateQueries({ queryKey, type: "active" });
+    queryClient.removeQueries({ queryKey, type: "inactive" });
+  }
+  for (const queryKey of INACTIVE_ONLY_QUERY_KEYS) {
     queryClient.removeQueries({ queryKey, type: "inactive" });
   }
 }

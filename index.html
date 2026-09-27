@@ -14,6 +14,15 @@
     />
     <link rel="apple-touch-icon" href="/logo.jpg" />
     <link rel="manifest" href="/manifest.json" />
+    <!-- Body font: fetch in parallel with the CSS instead of after it. Vite
+         rewrites this to the same hashed file the @font-face rule uses. -->
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      crossorigin
+      href="/node_modules/@fontsource/geist-sans/files/geist-sans-latin-400-normal.woff2"
+    />
     <title>Harvesters Gbagada</title>
   </head>
   <body>

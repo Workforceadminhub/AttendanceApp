@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { memo, useState, useEffect, useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import Header from "../components/Header";
@@ -175,7 +176,9 @@ function countBy(rows, getValue) {
     .sort((a, b) => b.registrations - a.registrations || a.name.localeCompare(b.name));
 }
 
-function RegistrationOverview({ rows, loading }) {
+// Memoized: typing in the list search re-rendered both charts and recounted
+// every registration although `rows` hadn't changed.
+const RegistrationOverview = memo(function RegistrationOverview({ rows, loading }) {
   if (loading) {
     return <div className="h-80 rounded-xl border border-ink-200 bg-white" aria-busy="true" />;
   }
@@ -243,7 +246,7 @@ function RegistrationOverview({ rows, loading }) {
       </section>
     </div>
   );
-}
+});
 
 // ── Edit modal ────────────────────────────────────────────────────────────────
 
@@ -529,6 +532,8 @@ function DeleteModal({ registration, onClose, onDeleted }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+const ALL_REGISTRATIONS_KEY = "awakeningAllRegistrations";
+
 export default function AwakeningRegistrationAdmin() {
   const navigate = useNavigate();
 
@@ -538,7 +543,6 @@ export default function AwakeningRegistrationAdmin() {
   const hasAccess = isSuperAdmin || isChurchAdmin;
 
   const [registrations, setRegistrations] = useState([]);
-  const [overviewRegistrations, setOverviewRegistrations] = useState([]);
 
   useEffect(() => {
     if (!hasAccess) {
@@ -549,7 +553,6 @@ export default function AwakeningRegistrationAdmin() {
 
   const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 1, hasNext: false, hasPrev: false });
   const [isLoading, setIsLoading] = useState(true);
-  const [isOverviewLoading, setIsOverviewLoading] = useState(true);
   const [view, setView] = useState("overview");
 
   const [search, setSearch] = useState("");
@@ -576,19 +579,48 @@ export default function AwakeningRegistrationAdmin() {
   // Reset to page 1 when filters change
   useEffect(() => { setPage(1); }, [campus, regType, team]);
 
+  // Every matching registration, for the overview charts and for grouped
+  // service teams (which page on the client). Cached per filter set, so a page
+  // click or a switch between views reuses it instead of downloading
+  // everything again; edits invalidate it.
+  const queryClient = useQueryClient();
+  const isGroupedTeam = getAwakeningServiceTeamQueryValues(team).length > 1;
+  const allRowsQuery = useMemo(
+    () => ({
+      queryKey: [ALL_REGISTRATIONS_KEY, search, campus, regType, team],
+      queryFn: () =>
+        fetchAllAwakeningRegistrations({
+          search,
+          campus,
+          registrationType: regType,
+          serviceTeam: team,
+        }),
+      staleTime: 5 * 60 * 1000,
+    }),
+    [search, campus, regType, team]
+  );
+  const {
+    data: overviewRegistrations = [],
+    isLoading: isOverviewLoading,
+    error: overviewError,
+  } = useQuery({ ...allRowsQuery, enabled: hasAccess && (view === "overview" || isGroupedTeam) });
+
+  useEffect(() => {
+    if (overviewError) toast.error(overviewError.message || "Failed to load registration overview.");
+  }, [overviewError]);
+
+  const refreshAfterChange = () => {
+    queryClient.invalidateQueries({ queryKey: [ALL_REGISTRATIONS_KEY] });
+    load();
+  };
+
   // Fetch
   const load = useCallback(async () => {
     if (!hasAccess) return;
     setIsLoading(true);
     try {
-      const serviceTeamValues = getAwakeningServiceTeamQueryValues(team);
-      if (serviceTeamValues.length > 1) {
-        const rows = await fetchAllAwakeningRegistrations({
-          search,
-          campus,
-          registrationType: regType,
-          serviceTeam: team,
-        });
+      if (isGroupedTeam) {
+        const rows = await queryClient.fetchQuery(allRowsQuery);
         const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_LIMIT));
         const safePage = Math.min(page, totalPages);
         const start = (safePage - 1) * PAGE_LIMIT;
@@ -617,27 +649,8 @@ export default function AwakeningRegistrationAdmin() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, search, campus, regType, team, hasAccess]);
+  }, [page, search, campus, regType, team, hasAccess, isGroupedTeam, queryClient, allRowsQuery]);
 
-  const loadOverview = useCallback(async () => {
-    if (!hasAccess) return;
-    setIsOverviewLoading(true);
-    try {
-      const rows = await fetchAllAwakeningRegistrations({
-        search,
-        campus,
-        registrationType: regType,
-        serviceTeam: team,
-      });
-      setOverviewRegistrations(rows);
-    } catch (err) {
-      toast.error(err.message || "Failed to load registration overview.");
-    } finally {
-      setIsOverviewLoading(false);
-    }
-  }, [search, campus, regType, team, hasAccess]);
-
-  useEffect(() => { loadOverview(); }, [loadOverview]);
   useEffect(() => { if (view === "list") load(); }, [view, load]);
 
   const handleExport = async () => {
@@ -844,8 +857,7 @@ export default function AwakeningRegistrationAdmin() {
           registration={editing}
           onClose={() => setEditing(null)}
           onSaved={() => {
-            load();
-            loadOverview();
+            refreshAfterChange();
           }}
         />
       )}
@@ -854,8 +866,7 @@ export default function AwakeningRegistrationAdmin() {
           registration={deleting}
           onClose={() => setDeleting(null)}
           onDeleted={() => {
-            load();
-            loadOverview();
+            refreshAfterChange();
           }}
         />
       )}
@@ -863,8 +874,7 @@ export default function AwakeningRegistrationAdmin() {
         <AwakeningBulkUploadModal
           onClose={() => setShowBulkUpload(false)}
           onComplete={() => {
-            load();
-            loadOverview();
+            refreshAfterChange();
           }}
         />
       )}

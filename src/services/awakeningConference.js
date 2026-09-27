@@ -118,6 +118,7 @@ export const fetchAwakeningRegistrations = async ({
 };
 
 const EXPORT_PAGE_SIZE = 100;
+const PAGE_CONCURRENCY = 4;
 
 function registrationTime(registration) {
   const value = registration?.created_at ?? registration?.createdAt ?? registration?.timestamp;
@@ -133,16 +134,25 @@ async function fetchAllForServiceTeam(filters, serviceTeam) {
     limit: EXPORT_PAGE_SIZE,
   });
   const rows = [...first.data];
+  const totalPages = first.pagination?.totalPages ?? 1;
 
-  for (let page = 2; page <= (first.pagination?.totalPages ?? 1); page += 1) {
-     
-    const next = await fetchAwakeningRegistrations({
-      ...filters,
-      serviceTeam,
-      page,
-      limit: EXPORT_PAGE_SIZE,
-    });
-    rows.push(...next.data);
+  // Remaining pages a few at a time (they were fetched one after another).
+  for (let start = 2; start <= totalPages; start += PAGE_CONCURRENCY) {
+    const pages = [];
+    for (let page = start; page < start + PAGE_CONCURRENCY && page <= totalPages; page += 1) {
+      pages.push(page);
+    }
+    const results = await Promise.all(
+      pages.map((page) =>
+        fetchAwakeningRegistrations({
+          ...filters,
+          serviceTeam,
+          page,
+          limit: EXPORT_PAGE_SIZE,
+        })
+      )
+    );
+    results.forEach((next) => rows.push(...next.data));
   }
 
   return rows;

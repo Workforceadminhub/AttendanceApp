@@ -78,8 +78,18 @@ export default function MeetingSettings() {
     }
   }, [activeTab]);
 
+  // Sync with the backend once on mount. The first sync fills the in-memory
+  // cache for both categories, so a tab switch only re-renders from it
+  // instead of re-running all four lookups. Mutations still call
+  // refreshMeetings directly.
+  const didInitialSyncRef = React.useRef(false);
   useEffect(() => {
-    refreshMeetings();
+    if (didInitialSyncRef.current) {
+      updateMeetingsFromCache();
+    } else {
+      didInitialSyncRef.current = true;
+      refreshMeetings();
+    }
     window.addEventListener(MEETINGS_CHANGED_EVENT, updateMeetingsFromCache);
     return () => {
       window.removeEventListener(MEETINGS_CHANGED_EVENT, updateMeetingsFromCache);

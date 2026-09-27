@@ -148,6 +148,27 @@ export function extractListFromPayload(payload, meetingType = "") {
   return [];
 }
 
+// The meetings API has answered on different paths and filter params across
+// deployments, so each fetch walks the variants until one returns meetings.
+// Remember the variant that worked (per lookup) and try it first next time:
+// a working setup then costs one request instead of re-walking every failing
+// variant ahead of it.
+const preferredVariants = new Map();
+
+/** Forget remembered endpoint variants (tests). */
+export function resetPreferredMeetingVariants() {
+  preferredVariants.clear();
+}
+
+function orderedVariants(lookupKey, paths, candidates) {
+  const variants = paths.flatMap((basePath) =>
+    candidates.map((params, index) => ({ basePath, params, id: `${basePath}#${index}` }))
+  );
+  const preferred = variants.findIndex((v) => v.id === preferredVariants.get(lookupKey));
+  if (preferred > 0) variants.unshift(...variants.splice(preferred, 1));
+  return variants;
+}
+
 /**
  * Fetch all meetings for a given category.
  * Tries case and parameter variations sequentially so server quirks don't block retrieval.
@@ -175,44 +196,44 @@ export async function fetchMeetings(meetingType = "leaders") {
   // Try standard hub endpoints first, then direct super admin endpoints if empty
   const endpointPaths = ["/super/admin/meetings", "/api/super/admin/meetings"];
 
-  for (const basePath of endpointPaths) {
-    for (const params of candidates) {
-      try {
-        const res = basePath.startsWith("/api/")
-          ? await apiRequest("GET", basePath, params)
-          : await hubGet(basePath, params);
-        const payload = res?.data ?? res;
-        const list = extractListFromPayload(payload, normalizedType);
+  const lookupKey = `list:${normalizedType}`;
+  for (const { basePath, params, id } of orderedVariants(lookupKey, endpointPaths, candidates)) {
+    try {
+      const res = basePath.startsWith("/api/")
+        ? await apiRequest("GET", basePath, params)
+        : await hubGet(basePath, params);
+      const payload = res?.data ?? res;
+      const list = extractListFromPayload(payload, normalizedType);
 
-        if (list.length > 0) {
-          if (!params) {
-            // If fetched without filter, select only items for this category
-            const filtered = list.filter((m) => {
-              const t = (
-                m?.meeting_type ||
-                m?.meetingType ||
-                m?.type ||
-                m?.category ||
-                ""
-              ).toLowerCase();
-              return !t || t.includes(normalizedType.slice(0, 4));
-            });
-            if (filtered.length > 0) {
-              rawList = filtered;
-              break;
-            }
-          } else {
-            rawList = list;
+      if (list.length > 0) {
+        if (!params) {
+          // If fetched without filter, select only items for this category
+          const filtered = list.filter((m) => {
+            const t = (
+              m?.meeting_type ||
+              m?.meetingType ||
+              m?.type ||
+              m?.category ||
+              ""
+            ).toLowerCase();
+            return !t || t.includes(normalizedType.slice(0, 4));
+          });
+          if (filtered.length > 0) {
+            rawList = filtered;
+            preferredVariants.set(lookupKey, id);
             break;
           }
-        } else if (res && (Array.isArray(res) || Array.isArray(res?.data) || Array.isArray(res?.meetings))) {
-          backendReturnedEmpty = true;
+        } else {
+          rawList = list;
+          preferredVariants.set(lookupKey, id);
+          break;
         }
-      } catch (err) {
-        lastError = err;
+      } else if (res && (Array.isArray(res) || Array.isArray(res?.data) || Array.isArray(res?.meetings))) {
+        backendReturnedEmpty = true;
       }
+    } catch (err) {
+      lastError = err;
     }
-    if (rawList.length > 0) break;
   }
 
   if (rawList.length > 0) {
@@ -260,54 +281,57 @@ export async function fetchActiveMeeting(meetingType) {
 
   const activePaths = ["/super/admin/meetings/active", "/api/super/admin/meetings/active"];
 
-  for (const basePath of activePaths) {
-    for (const params of candidates) {
-      try {
-        const res = basePath.startsWith("/api/")
-          ? await apiRequest("GET", basePath, params)
-          : await hubGet(basePath, params);
-        const payload = res?.data ?? res;
+  const lookupKey = `active:${normalizedType}`;
+  for (const { basePath, params, id } of orderedVariants(lookupKey, activePaths, candidates)) {
+    try {
+      const res = basePath.startsWith("/api/")
+        ? await apiRequest("GET", basePath, params)
+        : await hubGet(basePath, params);
+      const payload = res?.data ?? res;
 
-        const list = [];
-        if (Array.isArray(payload)) {
-          list.push(...payload);
-        } else if (payload && typeof payload === "object") {
-          if (Array.isArray(payload.data)) {
-            list.push(...payload.data);
-          } else {
-            if (payload.leaders) list.push(payload.leaders);
-            if (payload.workers) list.push(payload.workers);
-            if (payload.data?.leaders) list.push(payload.data.leaders);
-            if (payload.data?.workers) list.push(payload.data.workers);
-            if (
-              payload.meeting_type ||
-              payload.meetingType ||
-              payload.type ||
-              payload.meeting_date ||
-              payload.date
-            ) {
-              list.push(payload);
-            }
+      const list = [];
+      if (Array.isArray(payload)) {
+        list.push(...payload);
+      } else if (payload && typeof payload === "object") {
+        if (Array.isArray(payload.data)) {
+          list.push(...payload.data);
+        } else {
+          if (payload.leaders) list.push(payload.leaders);
+          if (payload.workers) list.push(payload.workers);
+          if (payload.data?.leaders) list.push(payload.data.leaders);
+          if (payload.data?.workers) list.push(payload.data.workers);
+          if (
+            payload.meeting_type ||
+            payload.meetingType ||
+            payload.type ||
+            payload.meeting_date ||
+            payload.date
+          ) {
+            list.push(payload);
           }
         }
-
-        const normalizedList = list
-          .map((m) => normalizeMeeting(m, normalizedType))
-          .filter(Boolean);
-
-        for (const item of normalizedList) {
-          syncActiveMeetingCache(item);
-        }
-
-        if (normalizedType) {
-          const match = normalizedList.find((m) => m.meetingType === normalizedType);
-          if (match) return match;
-        } else if (normalizedList.length > 0) {
-          return normalizedList[0];
-        }
-      } catch {
-        // try next candidate
       }
+
+      const normalizedList = list
+        .map((m) => normalizeMeeting(m, normalizedType))
+        .filter(Boolean);
+
+      for (const item of normalizedList) {
+        syncActiveMeetingCache(item);
+      }
+
+      if (normalizedType) {
+        const match = normalizedList.find((m) => m.meetingType === normalizedType);
+        if (match) {
+          preferredVariants.set(lookupKey, id);
+          return match;
+        }
+      } else if (normalizedList.length > 0) {
+        preferredVariants.set(lookupKey, id);
+        return normalizedList[0];
+      }
+    } catch {
+      // try next candidate
     }
   }
 

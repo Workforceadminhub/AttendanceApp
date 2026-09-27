@@ -1,10 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import {
-  calculateTotals,
-  fetchAdminAttendance,
-  fetchAttendance,
-} from "../../services/attendance";
+import { useAttendanceQuery } from "../../hooks/useAttendanceQueries";
+import { calculateTotals } from "../../services/attendance";
 import Header from "../Header";
 import { getNextSunday, getSundayDisplayDate, getSundaysInYear } from "../../utils/getDate";
 import { Link, useLocation } from "react-router-dom";
@@ -180,27 +176,17 @@ export default function Dashboard() {
   }, []);
 
   const permissions = useMemo(() => expandPermissions(authUser), [authUser]);
-  const permissionsKey = useMemo(() => permissions.join(","), [permissions]);
 
   const {
     data: rawAttendance,
     isLoading,
     error: attendanceError,
-  } = useQuery({
-    queryKey: [
-      "dashboardAttendance",
-      isAdminMember ? "admin" : "user",
-      activeGroup,
-      isChurchAdmin,
-      selectedDate,
-      permissionsKey,
-    ],
-    queryFn: () => {
-      if (isAdminMember) {
-        return fetchAdminAttendance(activeGroup, isChurchAdmin, selectedDate, null, null, permissions);
-      }
-      return fetchAttendance(selectedDate, null, null, permissions);
-    },
+  } = useAttendanceQuery({
+    isAdminMember,
+    activeGroup,
+    isChurchAdmin,
+    date: selectedDate,
+    permissions,
     placeholderData: (prev) => prev,
   });
 

@@ -35,6 +35,11 @@ const ATTENDANCE_QUERY_KEYS = [
   ["sundayAttendance"],
   ["departmentRosterBySunday"],
   ["attendanceHistory"],
+  ["attendanceHistoryTable"],
+  ["unmarkedWorkers"],
+  ["attendanceExport"],
+  // A save for a new Sunday adds a date to the history pickers.
+  ["historyOptions"],
 ];
 
 /**

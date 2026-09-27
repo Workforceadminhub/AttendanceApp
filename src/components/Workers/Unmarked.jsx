@@ -1,8 +1,8 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
  // fetchAdminWorkers,
  fetchUnmarkedWorkers,
@@ -61,13 +61,23 @@ export default function UnmarkedAttendance() {
  const navigate = useNavigate();
  // const team = getDepartment(location.pathname);
  const [attendance, setAttendance] = useState([]);
- const [data, setData] = useState([]);
- const [isLoading, setIsLoading] = useState(false);
+ // Set while a delete request is in flight.
+ const [isRemoving, setIsRemoving] = useState(false);
  const [attendanceLoading, setAttendanceLoading] = useState(false);
  const queryClient = useQueryClient();
  const dateForAttendance = getNextSunday();
- const [refresh, setRefresh] = useState(0);
  const [activeGroup, setActiveGroup] = useState("All");
+ // Cached per group and Sunday; saving attendance refreshes it.
+ const {
+ data = [],
+ isLoading: isListLoading,
+ error: unmarkedError,
+ refetch: refetchUnmarked,
+ } = useQuery({
+ queryKey: ["unmarkedWorkers", activeGroup, dateForAttendance],
+ queryFn: () => fetchUnmarkedWorkers(activeGroup),
+ });
+ const isLoading = isListLoading || isRemoving;
  const team = getDepartmentByUser(location.pathname);
  const { isChurchAdmin: isChurchAdminRole, isSuperAdmin } = getUserRole();
  const isChurchAdmin = isChurchAdminRole || isSuperAdmin || team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
@@ -168,30 +178,15 @@ export default function UnmarkedAttendance() {
  });
  }, [data, attendance]);
 
- const loadUnmarkedWorkers = useCallback(() => {
- setIsLoading(true);
- fetchUnmarkedWorkers(activeGroup)
- .then((res) => {
- setData(res);
- setIsLoading(false);
- })
- .catch((error) => {
- toast.error(`Error marking attendance: ${error.message}`);
- setIsLoading(false);
- });
- }, [activeGroup]);
-
  useEffect(() => {
  switchOffAttendance()
  .then((res) => setAttendanceIsClosed(res))
  .catch((err) => {/* Silent error handling */});
  }, []);
 
- // One effect: loadUnmarkedWorkers changes with activeGroup, and refresh
- // bumps after a save. (Two separate effects both fired on mount.)
  useEffect(() => {
- loadUnmarkedWorkers();
- }, [refresh, loadUnmarkedWorkers]);
+ if (unmarkedError) toast.error(`Error marking attendance: ${unmarkedError.message}`);
+ }, [unmarkedError]);
 
  function updateOrAddWorker(array, newWorker) {
  // Find the index of an object with the same workerid
@@ -231,8 +226,8 @@ export default function UnmarkedAttendance() {
 
  try {
  await addAttendance(attendData);
+ // Refetches this list too (it is on screen).
  invalidateAttendanceQueries(queryClient);
- setRefresh(Math.random());
  toast.success("Attendance added successfully");
  } catch (error) {
  toast.error(error?.message || "Failed to add attendance");
@@ -259,15 +254,18 @@ export default function UnmarkedAttendance() {
  ) {
  toast.error("Please fill all required fields");
  } else {
- setIsLoading(true);
+ setIsRemoving(true);
  removeWorker(workerId, deleteData)
  .then(() => {
  toast.success("Request submitted and pending approval");
- setIsLoading(false);
+ setIsRemoving(false);
  setModalOpen(false);
- setRefresh(Math.random());
+ refetchUnmarked();
  })
- .catch((error) => toast.error(`Error removing worker: ${error.message}`));
+ .catch((error) => {
+ setIsRemoving(false);
+ toast.error(`Error removing worker: ${error.message}`);
+ });
  }
  };
 

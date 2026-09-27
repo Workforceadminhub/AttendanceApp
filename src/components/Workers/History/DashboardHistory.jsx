@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import debounce from "lodash/debounce";
@@ -9,14 +9,10 @@ import { checkAdminStatus } from "../../../utils/checkAdminStatus";
 import { getUserRole } from "../../../utils/getUserRole";
 import { useAdminSelectOptions } from "../../../contexts/DepartmentsContext";
 
-import {
-  calculateTotals,
-  fetchAdminAttendance,
-  fetchAttendance,
-} from "../../../services/attendance";
+import { calculateTotals } from "../../../services/attendance";
+import { useAttendanceQuery, useHistoryOptions } from "../../../hooks/useAttendanceQueries";
 import { getUser } from "../../../utils/getUser";
 import { expandPermissions } from "../../../utils/expandPermissions";
-import { fetchHistoryOptions } from "../../../services/history";
 import { DEBOUNCE_INTERVAL } from "../../../utils/constants";
 import Header from "../../Header";
 import Layout from "../../Layout";
@@ -25,8 +21,6 @@ import LoadingState from "../../LoadingState";
 import ViewHistoryButton from "../../ViewHistoryButton";
 
 export default function DashboardHistory() {
-  const [attendanceSummary, setAttendanceSummary] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [activeGroup, setActiveGroup] = useState("All");
   const dateForAttendance = getNextSunday();
   const location = useLocation();
@@ -38,59 +32,26 @@ export default function DashboardHistory() {
   const authUser = useMemo(() => getUser(), []);
   const options = useAdminSelectOptions(isChurchAdmin, team, authUser);
   const [activeHistory, setActiveHistory] = useState(dateForAttendance);
-  const [historyOptions, setHistoryOptions] = useState([]);
 
-  const queryAdminAttendance = useCallback(() => {
-    setIsLoading(true);
-    const permissions = expandPermissions(authUser);
-    fetchAdminAttendance(activeGroup, isChurchAdmin, activeHistory, null, null, permissions)
-      .then((attendance) => {
-        setAttendanceSummary(calculateTotals(attendance));
-        setIsLoading(false);
-      })
-      .catch((error) => {
-        setIsLoading(false);
-        toast.error(`Error loading summary: ${error.message}`);
-      });
-  }, [activeGroup, isChurchAdmin, activeHistory, authUser]);
-
-  const queryAttendance = useCallback(() => {
-    setIsLoading(true);
-    const permissions = expandPermissions(authUser);
-    fetchAttendance(activeHistory, null, null, permissions)
-      .then((attendance) => {
-        setAttendanceSummary(calculateTotals(attendance));
-        setIsLoading(false);
-      })
-      .catch((error) => {
-        setIsLoading(false);
-        toast.error(`Error loading summary: ${error.message}`);
-      });
-  }, [activeHistory, authUser]);
-
-  useEffect(() => {
-    if (isAdminMember) {
-      queryAdminAttendance();
-    } else {
-      queryAttendance();
-    }
-  }, [
+  // Same cached query as the Dashboard for the selected Sunday.
+  const permissions = useMemo(() => expandPermissions(authUser), [authUser]);
+  const { data: rawAttendance, isLoading, error: attendanceError } = useAttendanceQuery({
+    isAdminMember,
     activeGroup,
     isChurchAdmin,
-    isAdminMember,
-    activeHistory,
-    queryAdminAttendance,
-    queryAttendance,
-  ]);
+    date: activeHistory,
+    permissions,
+  });
+  const { data: historyOptions = [] } = useHistoryOptions();
 
-  // Only the date options load here. A second, unscoped attendance fetch used
-  // to run alongside the query effect above and could overwrite its
-  // admin-scoped totals if it finished last.
   useEffect(() => {
-    fetchHistoryOptions().then((res) =>
-      setHistoryOptions(res.map((item) => ({ label: item, value: item })))
-    );
-  }, []);
+    if (attendanceError) toast.error(`Error loading summary: ${attendanceError.message}`);
+  }, [attendanceError]);
+
+  const attendanceSummary = useMemo(
+    () => (rawAttendance ? calculateTotals(rawAttendance) : []),
+    [rawAttendance]
+  );
 
   const debouncedSetActiveGroup = useMemo(
     () => debounce((value) => setActiveGroup(value), DEBOUNCE_INTERVAL),

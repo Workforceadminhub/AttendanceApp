@@ -1,9 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Header from "../Header";
-import {
-  fetchAdminAttendance,
-  fetchAttendance,
-} from "../../services/attendance";
+import { useAttendanceQuery } from "../../hooks/useAttendanceQueries";
 import { getEffectiveRouteList } from "../../utils/routeObject";
 import { useAdminSelectOptions } from "../../contexts/DepartmentsContext";
 import getDefaultSummary from "../../utils/getDefaultSummary";
@@ -27,11 +24,8 @@ import { format } from "date-fns";
 import AdminDepartmentSummaryTable from "./AdminDepartmentSummaryTable";
 
 export default function DepartmentSummary() {
-  const [isLoading, setIsLoading] = useState(false);
   const [activeGroup, setActiveGroup] = useState("All");
-  const [attendanceSummary, setAttendanceSummary] = useState(
-    getDefaultSummary(getEffectiveRouteList())
-  );
+  const [defaultSummary] = useState(() => getDefaultSummary(getEffectiveRouteList()));
   const [dateRange, setDateRange] = useState({ startDate: null, endDate: null });
   const location = useLocation();
   const pathname = location.pathname;
@@ -54,51 +48,31 @@ export default function DepartmentSummary() {
     setDateRange({ startDate, endDate });
   }, []);
 
-  const queryAdminAttendance = useCallback(() => {
-    setIsLoading(true);
-    const permissions = expandPermissions(authUser);
-    fetchAdminAttendance(activeGroup, isChurchAdmin, null, startDateStr, endDateStr, permissions)
-      .then((attendance) => {
-        const filtered = filterByUserPermissions(attendance ?? [], authUser, pathname);
-        setAttendanceSummary(filtered);
-        setIsLoading(false);
-      })
-      .catch((error) => {
-        setIsLoading(false);
-        toast.error(`Error loading summary: ${error.message}`);
-      });
-  }, [activeGroup, isChurchAdmin, startDateStr, endDateStr, authUser, pathname]);
-
-  const queryAttendance = useCallback(() => {
-    setIsLoading(true);
-    const permissions = expandPermissions(authUser);
-    fetchAttendance(null, startDateStr, endDateStr, permissions)
-      .then((attendance) => {
-        const filtered = filterByUserPermissions(attendance ?? [], authUser, pathname);
-        setAttendanceSummary(filtered);
-        setIsLoading(false);
-      })
-      .catch((error) => {
-        setIsLoading(false);
-        toast.error(`Error loading summary: ${error.message}`);
-      });
-  }, [startDateStr, endDateStr, authUser, pathname]);
-
-  useEffect(() => {
-    if (isAdminMember) {
-      queryAdminAttendance();
-    } else {
-      queryAttendance();
-    }
-  }, [
+  // Cached per group and range (shared with the Dashboard and history pages).
+  // Waits for DateRangeFilter, which reports its default range right after
+  // mounting; fetching with no range first was a wasted request.
+  const permissions = useMemo(() => expandPermissions(authUser), [authUser]);
+  const { data: rawAttendance, isLoading, error: attendanceError } = useAttendanceQuery({
+    isAdminMember,
     activeGroup,
     isChurchAdmin,
-    isAdminMember,
-    startDateStr,
-    endDateStr,
-    queryAdminAttendance,
-    queryAttendance,
-  ]);
+    startDate: startDateStr,
+    endDate: endDateStr,
+    permissions,
+    enabled: Boolean(startDateStr && endDateStr),
+  });
+
+  useEffect(() => {
+    if (attendanceError) toast.error(`Error loading summary: ${attendanceError.message}`);
+  }, [attendanceError]);
+
+  const attendanceSummary = useMemo(
+    () =>
+      rawAttendance
+        ? filterByUserPermissions(rawAttendance ?? [], authUser, pathname)
+        : defaultSummary,
+    [rawAttendance, authUser, pathname, defaultSummary]
+  );
 
   const debouncedSetActiveGroup = useMemo(
     () => debounce((value) => setActiveGroup(value), DEBOUNCE_INTERVAL),

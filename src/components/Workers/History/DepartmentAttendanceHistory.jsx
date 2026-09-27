@@ -1,6 +1,7 @@
 // import { useNavigate } from "react-router-dom";
 import { useLocation } from "react-router-dom";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import { getNextSunday } from "../../../utils/getDate";
 import { getDepartmentByUser } from "../../../utils/getDepartment";
@@ -17,7 +18,7 @@ import Header from "../../Header";
 import Layout from "../../Layout";
 import ReactSelectDropdown, { ATTENDANCE_COLORS } from "../../ReactSelect";
 import TableLoadingState from "../../TableLoadingState";
-import { fetchHistoryOptions } from "../../../services/history";
+import { useHistoryOptions } from "../../../hooks/useAttendanceQueries";
 import debounce from "lodash/debounce";
 import { DEBOUNCE_INTERVAL } from "../../../utils/constants";
 import ViewHistoryButton from "../../ViewHistoryButton";
@@ -29,8 +30,6 @@ export default function DepartmentAttendanceHistory() {
   const location = useLocation();
   // const team = getDepartment(location.pathname);
   const [attendance] = useState([]);
-  const [data, setData] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const dateForAttendance = getNextSunday();
   const [refresh, setRefresh] = useState("");
@@ -42,10 +41,8 @@ export default function DepartmentAttendanceHistory() {
   const authUser = useMemo(() => getUser(), []);
   const optionsAdmin = useAdminSelectOptions(isChurchAdmin, team, authUser);
   const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
-  const [historyOptions, setHistoryOptions] = useState([]);
   // Admin routes page on the server; one request per visible page.
   const [currentPage, setCurrentPage] = useState(1);
-  const [serverPagination, setServerPagination] = useState({ total: 0, totalPages: 1 });
   const [sortConfig, setSortConfig] = useState({
     key: null,
     direction: "asc", // 'asc' or 'desc'
@@ -121,11 +118,11 @@ export default function DepartmentAttendanceHistory() {
     );
   };
 
-  const queryAdminWorkers = useCallback(() => {
-    setIsLoading(true);
-    const rawPermissions = expandPermissions(authUser);
-    const basePermissions = filterTeamFromPermissions(rawPermissions, authUser?.team);
-
+  // Admin routes page on the server. Cached per history date, group and page,
+  // so going back to a date or page already viewed is instant.
+  const permissions = useMemo(() => expandPermissions(authUser), [authUser]);
+  const adminScope = useMemo(() => {
+    const basePermissions = filterTeamFromPermissions(permissions, authUser?.team);
     const isTeamFilter =
       (isChurchAdmin || isSuperAdmin) && activeGroup && activeGroup !== "All";
 
@@ -142,62 +139,58 @@ export default function DepartmentAttendanceHistory() {
 
     // The API filters on `team`; the scoped permissions list is ignored for admins.
     const apiTeam = isTeamFilter ? activeGroup : team.team;
-    fetchAdminWorkersPage(apiTeam, apiActiveGroup, activeHistory, permissionsForApi, {
-      page: currentPage,
-      limit: PAGE_SIZE,
-    })
-      .then(({ data: rows, pagination }) => {
-        setData(rows);
-        setServerPagination({ total: pagination.total, totalPages: pagination.totalPages });
-        setIsLoading(false);
-      })
-      .catch((error) => {
-        toast.error(`Error marking attendance: ${error.message}`);
-        setIsLoading(false);
-      });
-  }, [
-    authUser,
-    isChurchAdmin,
-    isSuperAdmin,
-    activeGroup,
-    team.team,
-    activeHistory,
-    currentPage,
-  ]);
+    return { apiTeam, apiActiveGroup, permissionsForApi };
+  }, [permissions, authUser, isChurchAdmin, isSuperAdmin, activeGroup, team.team]);
 
-  const queryWorkers = useCallback(() => {
-    setIsLoading(true);
-    const permissions = expandPermissions(authUser);
-    fetchWorkers(team.department, activeHistory, permissions, "")
-      .then((res) => {
-        setData(res);
-      })
-      .catch((error) => {
-        toast.error(`Error marking attendance: ${error.message}`);
-        setIsLoading(false);
-      })
-      .finally(() => setIsLoading(false));
-  }, [team.department, activeHistory, authUser]);
+  const {
+    data: tableData,
+    isLoading: isFirstLoad,
+    isPlaceholderData,
+    error: tableError,
+  } = useQuery({
+    queryKey: isAdminMember
+      ? [
+          "attendanceHistoryTable",
+          "admin",
+          adminScope.apiTeam,
+          adminScope.apiActiveGroup,
+          activeHistory,
+          currentPage,
+          adminScope.permissionsForApi.join(","),
+          refresh,
+        ]
+      : ["attendanceHistoryTable", "user", team.department, activeHistory, permissions.join(","), refresh],
+    queryFn: async () => {
+      if (isAdminMember) {
+        const { data: rows, pagination } = await fetchAdminWorkersPage(
+          adminScope.apiTeam,
+          adminScope.apiActiveGroup,
+          activeHistory,
+          adminScope.permissionsForApi,
+          { page: currentPage, limit: PAGE_SIZE }
+        );
+        return { rows, pagination: { total: pagination.total, totalPages: pagination.totalPages } };
+      }
+      return { rows: await fetchWorkers(team.department, activeHistory, permissions, ""), pagination: null };
+    },
+    // Keep the previous pagination while the next page loads; the table still
+    // shows its loading state until the new rows arrive.
+    placeholderData: (prev) => prev,
+  });
+  const data = tableData?.rows ?? [];
+  const serverPagination = tableData?.pagination ?? { total: 0, totalPages: 1 };
+  const isLoading = isFirstLoad || isPlaceholderData;
+  const { data: historyOptions = [] } = useHistoryOptions();
+
+  useEffect(() => {
+    if (tableError) toast.error(`Error marking attendance: ${tableError.message}`);
+  }, [tableError]);
 
   useEffect(() => {
     switchOffAttendance()
       .then((res) => setAttendanceIsClosed(res))
       .catch((err) => {/* Silent error handling */});
-
-    fetchHistoryOptions().then((res) =>
-      setHistoryOptions(res.map((item) => ({ label: item, value: item })))
-    );
   }, []);
-
-  // One effect: the query callbacks already change with group, history date,
-  // team and page. (A second copy of this effect fired on mount too.)
-  useEffect(() => {
-    if (isAdminMember) {
-      queryAdminWorkers();
-    } else {
-      queryWorkers();
-    }
-  }, [refresh, isAdminMember, queryAdminWorkers, queryWorkers]);
 
   const saveAttendance = async () => {
     setAttendanceLoading(true);

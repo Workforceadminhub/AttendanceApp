@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
-import Header from "../../../components/Header";
 import Layout from "../../../components/Layout";
 import { useCanAction } from "../../../contexts/RBACContext";
 import {
@@ -135,7 +134,6 @@ export default function Cohorts() {
   if (!canCreate) {
     return (
       <>
-        <Header />
         <Layout>
           <div className="p-8 text-center text-ink-500">
             You do not have permission to manage cohorts.
@@ -147,7 +145,6 @@ export default function Cohorts() {
 
   return (
     <>
-      <Header />
       <Layout>
         <div className="max-w-5xl mx-auto space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-4">

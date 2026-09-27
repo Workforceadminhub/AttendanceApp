@@ -13,6 +13,7 @@ import LoadingState from "./components/LoadingState";
 import { DepartmentsProvider, useDepartmentRoutes } from "./contexts/DepartmentsContext";
 import { RBACProvider } from "./contexts/RBACContext";
 import HubRoute from "./components/auth/HubRoute";
+import AppShell from "./components/AppShell";
 
 // Code-split heavy pages - keeps initial bundle small
 const Dashboard = lazy(() => import("./components/Workers/Dashboard"));
@@ -148,14 +149,6 @@ const AppRoutes = () => {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/set-password" element={<SetPassword />} />
-            <Route
-              path="/report"
-              element={
-                <PrivateRoute>
-                  <Report />
-                </PrivateRoute>
-              }
-            />
             <Route path="/new/worker" element={<NewWorker />} />
             <Route path="/leadership-registration" element={<LeadershipRegistration />} />
             <Route path="/awakening" element={<AwakeningRegistration />} />
@@ -164,6 +157,16 @@ const AppRoutes = () => {
             <Route path="/workersmeeting/confirm" element={<WorkersMeetingConfirm />} />
             <Route path="/workers-meeting/confirm" element={<WorkersMeetingConfirm />} />
             <Route path="/workers-meeting" element={<WorkersMeetingPresent />} />
+            {/* Signed-in pages share one Header that stays mounted across navigation. */}
+            <Route element={<AppShell />}>
+            <Route
+              path="/report"
+              element={
+                <PrivateRoute>
+                  <Report />
+                </PrivateRoute>
+              }
+            />
             <Route
               path="/admin/leadership-registrations"
               element={
@@ -738,7 +741,6 @@ const AppRoutes = () => {
               }
             />
             {/* Public - no auth required */}
-            <Route path="/verify/:certificateNumber" element={<VerifyCertificate />} />
 
             {/* Fallback param routes - catch new dept/admin slugs before dept cache refreshes */}
             <Route
@@ -790,6 +792,8 @@ const AppRoutes = () => {
               }
             />
 
+            </Route>
+            <Route path="/verify/:certificateNumber" element={<VerifyCertificate />} />
             <Route path="*" exact={true} element={<NotFound />} />
         </Routes>
       </Suspense>

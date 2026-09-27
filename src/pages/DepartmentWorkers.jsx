@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import { loadExcelJS } from "../utils/loadExcelJS";
 import { saveAs } from "file-saver";
-import Header from "../components/Header";
 import Layout from "../components/Layout";
 import LoadingState from "../components/LoadingState";
 import { getDepartmentRoute, getDepartmentNameFromRoute, isSameDepartment } from "../utils/routeObject";
@@ -406,7 +405,6 @@ export default function DepartmentWorkers() {
 
  return (
  <div className="px-4 sm:px-6 lg:px-8 py-8">
- <Header />
  <Layout>
  <div className="mb-6">
  <div className="flex items-center gap-2 text-sm text-ink-500 mb-1">

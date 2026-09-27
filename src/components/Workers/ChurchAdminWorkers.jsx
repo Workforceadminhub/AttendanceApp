@@ -1,7 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, Link } from "react-router-dom";
-import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
 import { fetchAdminWorkersPage, fetchWorkers, listSuperAdminWorkers } from "../../services/workers";
 import { toast } from "react-toastify";
@@ -322,7 +321,6 @@ Type "DELETE" to confirm (case-sensitive):`;
 
  return (
  <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
- <Header />
  <Layout>
  <div>
  {/* Header Section */}

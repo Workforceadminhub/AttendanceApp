@@ -8,7 +8,6 @@ import {
   ListBulletIcon,
   PhotoIcon,
 } from "@heroicons/react/24/outline";
-import Header from "../components/Header";
 import Layout from "../components/Layout";
 import { Button, Card } from "../components/ui";
 import { buildEmail } from "../emails/template";
@@ -185,7 +184,6 @@ function BulkEmailComposer() {
 
   return (
     <div className="min-h-screen bg-cream">
-      <Header />
       <Layout>
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-ink-900">Bulk Email</h1>

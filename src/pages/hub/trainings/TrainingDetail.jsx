@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
-import Header from "../../../components/Header";
 import Layout from "../../../components/Layout";
 import { Tag } from "../../../components/ui";
 import { useCanAction } from "../../../contexts/RBACContext";
@@ -270,7 +269,6 @@ export default function TrainingDetail() {
   if (isLoading) {
     return (
       <>
-        <Header />
         <Layout>
           <div className="p-8 text-center text-ink-500">Loading training...</div>
         </Layout>
@@ -281,7 +279,6 @@ export default function TrainingDetail() {
   if (!training) {
     return (
       <>
-        <Header />
         <Layout>
           <div className="p-8 text-center text-ink-500">Training not found.</div>
         </Layout>
@@ -300,7 +297,6 @@ export default function TrainingDetail() {
 
   return (
     <>
-      <Header />
       <Layout>
         <div className="space-y-6">
           <Link to="/hub/trainings" className="text-sm text-ink-500 hover:text-ink-900">

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
-import Header from "../../../components/Header";
 import Layout from "../../../components/Layout";
 import { Tag } from "../../../components/ui";
 import { useCanAction } from "../../../contexts/RBACContext";
@@ -189,7 +188,6 @@ export default function MarkAttendance() {
   if (!canMark) {
     return (
       <>
-        <Header />
         <Layout>
           <div className="max-w-lg mx-auto qc-card p-8 text-center">
             <div className="w-10 h-10 rounded-full bg-brick-50 flex items-center justify-center mx-auto mb-3">
@@ -213,7 +211,6 @@ export default function MarkAttendance() {
 
   return (
     <>
-      <Header />
       <Layout>
         <div className="space-y-6">
           <Link to={`/hub/trainings/${id}`} className="text-sm text-ink-500 hover:text-ink-900">

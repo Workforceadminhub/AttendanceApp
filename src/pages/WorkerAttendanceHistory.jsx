@@ -10,7 +10,6 @@ import {
  Tooltip,
  ResponsiveContainer,
 } from "recharts";
-import Header from "../components/Header";
 import Layout from "../components/Layout";
 import LoadingState from "../components/LoadingState";
 import Stat from "../components/ui/Stat";
@@ -157,7 +156,6 @@ export default function WorkerAttendanceHistory() {
 
  return (
  <div className="min-h-screen bg-cream">
- <Header />
  <Layout>
  <div className="mb-6">
  <div className="qc-num text-2xs uppercase tracking-tag text-ink-500 mb-2 flex items-center gap-2 flex-wrap">

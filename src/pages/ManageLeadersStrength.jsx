@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import Header from "../components/Header";
 import Layout from "../components/Layout";
 import { toast } from "react-toastify";
 import { getUserRole } from "../utils/getUserRole";
@@ -88,7 +87,6 @@ export default function ManageLeadersStrength() {
 
   return (
     <div className="min-h-screen bg-cream">
-      <Header />
       <Layout>
         <div className="max-w-4xl mx-auto py-6 space-y-6">
           {/* Header section */}

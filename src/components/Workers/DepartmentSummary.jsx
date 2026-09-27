@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import Header from "../Header";
 import { useAttendanceQuery } from "../../hooks/useAttendanceQueries";
 import { getEffectiveRouteList } from "../../utils/routeObject";
 import { useAdminSelectOptions } from "../../contexts/DepartmentsContext";
@@ -92,7 +91,6 @@ export default function DepartmentSummary() {
 
   return (
     <div className="min-h-screen bg-cream">
-      <Header />
       <Layout>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
           <div className="min-w-0">

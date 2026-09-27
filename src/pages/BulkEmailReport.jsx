@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
 import { Navigate, Link } from "react-router-dom";
-import Header from "../components/Header";
 import Layout from "../components/Layout";
 import { Button, Card } from "../components/ui";
 import { fetchEmailReport } from "../services/email";
@@ -55,7 +54,6 @@ function Report() {
 
   return (
     <div className="min-h-screen bg-cream">
-      <Header />
       <Layout>
         <div className="mb-6 flex items-start justify-between gap-3">
           <div>

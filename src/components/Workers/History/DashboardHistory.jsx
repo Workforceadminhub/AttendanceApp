@@ -14,7 +14,6 @@ import { useAttendanceQuery, useHistoryOptions } from "../../../hooks/useAttenda
 import { getUser } from "../../../utils/getUser";
 import { expandPermissions } from "../../../utils/expandPermissions";
 import { DEBOUNCE_INTERVAL } from "../../../utils/constants";
-import Header from "../../Header";
 import Layout from "../../Layout";
 import ReactSelectDropdown from "../../ReactSelect";
 import LoadingState from "../../LoadingState";
@@ -74,7 +73,6 @@ export default function DashboardHistory() {
   };
   return (
     <div className="min-h-screen bg-cream">
-      <Header />
       <Layout>
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
           <div className="min-w-0">

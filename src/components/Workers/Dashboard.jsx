@@ -1,7 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useAttendanceQuery } from "../../hooks/useAttendanceQueries";
 import { calculateTotals } from "../../services/attendance";
-import Header from "../Header";
 import { getNextSunday, getSundayDisplayDate, getSundaysInYear } from "../../utils/getDate";
 import { Link, useLocation } from "react-router-dom";
 import { getDepartmentByUser } from "../../utils/getDepartment";
@@ -276,7 +275,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-cream">
-      <Header />
       <Layout>
         {/* Page heading */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">

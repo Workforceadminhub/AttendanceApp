@@ -2,7 +2,6 @@ import { fetchAllSuperAdminWorkers } from "../services/workers";
 import { useState, useEffect, useMemo, useDeferredValue } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, Link } from "react-router-dom";
-import Header from "../components/Header";
 import Layout from "../components/Layout";
 import { toast } from "react-toastify";
 import LoadingState from "../components/LoadingState";
@@ -255,7 +254,6 @@ export default function AllWorkers() {
 
  return (
  <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
- <Header />
  <Layout>
  <div>
  {/* Header Section */}

@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { loadExcelJS } from "../../utils/loadExcelJS";
 import { saveAs } from "file-saver";
-import Header from "../Header";
 import Layout from "../Layout";
 import Stat from "../ui/Stat";
 import Card from "../ui/Card";
@@ -724,7 +723,6 @@ export default function MeetingReport({ meetingType, metric }) {
 
   return (
     <div className="min-h-screen bg-cream">
-      <Header />
       <Layout>
         {unassignedConfirmedDistricts.length > 0 && (
           <div

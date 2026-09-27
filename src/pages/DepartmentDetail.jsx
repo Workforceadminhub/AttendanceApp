@@ -12,7 +12,6 @@ import {
  ResponsiveContainer,
  Legend,
 } from "recharts";
-import Header from "../components/Header";
 import Layout from "../components/Layout";
 import AttendanceLeaderboard from "../components/AttendanceLeaderboard";
 import LoadingState from "../components/LoadingState";
@@ -243,7 +242,6 @@ export default function DepartmentDetail() {
 
  return (
  <div className="px-4 sm:px-6 lg:px-8 py-8">
- <Header />
  <Layout>
  {/* Department Header */}
  <div className="mb-6">

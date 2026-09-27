@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import Header from "../components/Header";
 import Layout from "../components/Layout";
 import { toast } from "react-toastify";
 import { fetchPendingAdd, fetchPendingRemove, fetchAllPending } from "../services/workers";
@@ -615,7 +614,6 @@ export default function PendingWorkers() {
 
  return (
  <div className="min-h-screen bg-cream">
- <Header />
  <Layout>
  <div>
  {/* Page header */}

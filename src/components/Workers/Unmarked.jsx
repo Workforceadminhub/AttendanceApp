@@ -1,6 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -271,7 +270,6 @@ export default function UnmarkedAttendance() {
 
  return (
  <div className="min-h-screen bg-cream">
- <Header />
  <Layout>
  <div>
  <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">

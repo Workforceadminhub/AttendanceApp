@@ -1,5 +1,4 @@
 import { useLocation, useNavigate, Link } from "react-router-dom";
-import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -612,7 +611,6 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
 
  return (
  <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
- <Header />
  <Layout>
  <div>
  {/* Header Section */}

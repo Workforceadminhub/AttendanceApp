@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import Header from "../../../components/Header";
 import Layout from "../../../components/Layout";
 import { Tag } from "../../../components/ui";
 import CertificatePreview from "../../../components/hub/certificates/CertificatePreview";
@@ -37,7 +36,6 @@ export default function WorkerCertificates() {
 
   return (
     <>
-      <Header />
       <Layout>
         <div className="space-y-6">
           <div>

@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import Header from "../components/Header";
 import Layout from "../components/Layout";
 // import ReactSelectDropdown from "../components/ReactSelect";
 import { toast } from "react-toastify";
@@ -429,7 +428,6 @@ export default function AddWorker() {
 
  return (
  <div className="min-h-screen bg-cream">
- <Header />
  <Layout>
  <div className="max-w-4xl mx-auto">
  {/* Page header */}

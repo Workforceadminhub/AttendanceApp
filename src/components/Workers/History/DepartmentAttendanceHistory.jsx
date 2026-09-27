@@ -14,7 +14,6 @@ import { expandPermissions } from "../../../utils/expandPermissions";
 import { switchOffAttendance } from "../../../utils/switchOffAttendance";
 import { addAttendance } from "../../../services/attendance";
 import { getUserRole, filterTeamFromPermissions } from "../../../utils/getUserRole";
-import Header from "../../Header";
 import Layout from "../../Layout";
 import ReactSelectDropdown, { ATTENDANCE_COLORS } from "../../ReactSelect";
 import TableLoadingState from "../../TableLoadingState";
@@ -237,7 +236,6 @@ export default function DepartmentAttendanceHistory() {
 
   return (
     <div className="min-h-screen bg-cream">
-      <Header />
       <Layout>
         <div>
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">

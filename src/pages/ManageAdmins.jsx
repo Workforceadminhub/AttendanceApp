@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import Select from "react-select";
-import Header from "../components/Header";
 import Layout from "../components/Layout";
 import GenericModal from "../components/GenericModal";
 import LoadingState from "../components/LoadingState";
@@ -605,7 +604,6 @@ export default function ManageAdmins() {
 
  return (
  <div className="min-h-screen bg-cream">
- <Header />
  <Layout>
  <div>
  <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">

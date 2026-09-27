@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
-import Header from "../../../components/Header";
 import Layout from "../../../components/Layout";
 import { Stat, Tag } from "../../../components/ui";
 import { useEffectiveRouteList } from "../../../contexts/DepartmentsContext";
@@ -142,7 +141,6 @@ export default function DepartmentAssignments() {
 
   return (
     <>
-      <Header />
       <Layout>
         <div className="space-y-6">
           <Link to={`/hub/trainings/${id}`} className="text-sm text-ink-500 hover:text-ink-900">

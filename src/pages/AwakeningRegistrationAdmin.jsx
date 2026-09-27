@@ -2,7 +2,6 @@ import { memo, useState, useEffect, useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
-import Header from "../components/Header";
 import Layout from "../components/Layout";
 import DataTable from "../components/ui/DataTable";
 import Tag from "../components/ui/Tag";
@@ -702,7 +701,6 @@ export default function AwakeningRegistrationAdmin() {
   if (!hasAccess) {
     return (
       <Layout>
-        <Header />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
           <div className="qc-card p-12 text-center">
             <div className="qc-eyebrow text-ink-400">Access denied</div>
@@ -717,7 +715,6 @@ export default function AwakeningRegistrationAdmin() {
 
   return (
     <Layout>
-      <Header />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {/* Back link */}

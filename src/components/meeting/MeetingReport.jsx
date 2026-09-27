@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useDeferredValue } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { loadExcelJS } from "../../utils/loadExcelJS";
@@ -100,6 +100,10 @@ function clickable(handler) {
 
 const thinBorder = { style: "thin", color: { argb: "FFE5E7EB" } };
 const cellBorder = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
+
+// Rows rendered per "Show more" step. A meeting has 1,000+ registrations, and
+// rendering all of them made every keystroke in the search box slow.
+const ROW_BATCH = 100;
 
 const confirmationLabel = (r) =>
   r.is_confirmed === true ? "Confirmed" : r.is_confirmed === false ? "Not Attending" : "No Response";
@@ -262,30 +266,46 @@ export default function MeetingReport({ meetingType, metric }) {
   })();
 
   const directorates = [...new Set(TEAM_STRUCTURE.map((t) => t.directorate))];
-  const selectedApiTeams = filterDirectorate
-    ? TEAM_STRUCTURE.filter((t) => t.directorate === filterDirectorate).flatMap((t) => t.apiTeams)
-    : [];
+  const selectedApiTeams = useMemo(
+    () =>
+      filterDirectorate
+        ? TEAM_STRUCTURE.filter((t) => t.directorate === filterDirectorate).flatMap((t) => t.apiTeams)
+        : [],
+    [filterDirectorate]
+  );
 
-  const apiTeamOptions = [
-    ...new Set(
-      scopedRegistrations
-        .filter((r) => !filterDirectorate || selectedApiTeams.includes(r.team))
-        .map((r) => r.team)
-        .filter(Boolean)
-    ),
-  ].sort();
+  const apiTeamOptions = useMemo(
+    () =>
+      [
+        ...new Set(
+          scopedRegistrations
+            .filter((r) => !filterDirectorate || selectedApiTeams.includes(r.team))
+            .map((r) => r.team)
+            .filter(Boolean)
+        ),
+      ].sort(),
+    [scopedRegistrations, filterDirectorate, selectedApiTeams]
+  );
 
-  const departments = [
-    ...new Set(
-      scopedRegistrations
-        .filter((r) => !filterDirectorate || selectedApiTeams.includes(r.team))
-        .filter((r) => !filterTeam || r.team === filterTeam)
-        .map((r) => r.department)
-        .filter(Boolean)
-    ),
-  ].sort();
+  const departments = useMemo(
+    () =>
+      [
+        ...new Set(
+          scopedRegistrations
+            .filter((r) => !filterDirectorate || selectedApiTeams.includes(r.team))
+            .filter((r) => !filterTeam || r.team === filterTeam)
+            .map((r) => r.department)
+            .filter(Boolean)
+        ),
+      ].sort(),
+    [scopedRegistrations, filterDirectorate, selectedApiTeams, filterTeam]
+  );
 
-  const filtered = scopedRegistrations.filter((r) => {
+  // The input shows `search` immediately; filtering follows the deferred value
+  // so typing stays responsive while the list catches up.
+  const deferredSearch = useDeferredValue(search);
+
+  const filtered = useMemo(() => scopedRegistrations.filter((r) => {
     if (filterDirectorate && !selectedApiTeams.includes(r.team)) return false;
     if (filterTeam && r.team !== filterTeam) return false;
     if (filterSubTeam === "Unassigned") {
@@ -301,8 +321,8 @@ export default function MeetingReport({ meetingType, metric }) {
     if (status === "not attending" && r.is_confirmed !== false) return false;
     if (status === "no response" && (r.is_confirmed === true || r.is_confirmed === false)) return false;
 
-    if (search.trim()) {
-      const q = search.toLowerCase();
+    if (deferredSearch.trim()) {
+      const q = deferredSearch.toLowerCase();
       if (
         !r.name?.toLowerCase().includes(q) &&
         !r.department?.toLowerCase().includes(q) &&
@@ -311,11 +331,16 @@ export default function MeetingReport({ meetingType, metric }) {
         return false;
     }
     return true;
-  });
+  }), [scopedRegistrations, filterDirectorate, selectedApiTeams, filterTeam, filterSubTeam, filterDept, status, deferredSearch]);
+
+  // Render the list in batches; any filter change starts again from the first.
+  const listKey = [filterDirectorate, filterTeam, filterSubTeam, filterDept, status, deferredSearch].join("|");
+  const [shownRows, setShownRows] = useState({ key: listKey, count: ROW_BATCH });
+  const visibleCount = shownRows.key === listKey ? shownRows.count : ROW_BATCH;
 
   const hasFilter = Boolean(filterDirectorate || filterTeam || filterDept || search.trim());
 
-  const filteredStats = (() => {
+  const filteredStats = useMemo(() => {
     const total = filtered.length;
     let confirmed = 0;
     let declined = 0;
@@ -337,7 +362,7 @@ export default function MeetingReport({ meetingType, metric }) {
       pctConfirmed: total ? `${Math.round((confirmed / total) * 100)}%` : "-",
       pctPresent: total ? `${((present / total) * 100).toFixed(1)}%` : "-",
     };
-  })();
+  }, [filtered]);
 
   // Directorate / team summary rows (TEAM_STRUCTURE is small, so this is cheap to recompute).
   const grouped = (() => {
@@ -1076,7 +1101,7 @@ export default function MeetingReport({ meetingType, metric }) {
                       </td>
                     </tr>
                   ) : (
-                    filtered.map((r, i) => (
+                    filtered.slice(0, visibleCount).map((r, i) => (
                       <tr key={r.id} className="hover:bg-cream-100">
                         <td className={td}>{i + 1}</td>
                         <td className={`${td} font-medium`}>{r.name}</td>
@@ -1108,6 +1133,17 @@ export default function MeetingReport({ meetingType, metric }) {
                   )}
                 </tbody>
               </table>
+              {!loading && filtered.length > visibleCount && (
+                <div className="flex justify-center border-t border-ink-100 p-3">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setShownRows({ key: listKey, count: visibleCount + ROW_BATCH })}
+                  >
+                    Show {Math.min(ROW_BATCH, filtered.length - visibleCount)} more
+                  </Button>
+                </div>
+              )}
             </Card>
           </>
         )}

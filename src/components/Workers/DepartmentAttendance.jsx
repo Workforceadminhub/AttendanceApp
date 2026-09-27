@@ -1,7 +1,7 @@
 import { useLocation } from "react-router-dom";
 import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
  fetchAdminWorkers,
  fetchAdminWorkersPage,
@@ -28,6 +28,7 @@ import ViewHistoryButton from "../ViewHistoryButton";
 import { TrashIcon, ArrowUpIcon, ArrowDownIcon } from "@heroicons/react/24/outline";
 import Modal from "../Modal";
 import { getUser } from "../../utils/getUser";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { expandPermissions } from "../../utils/expandPermissions";
 import LoadingState from "../LoadingState";
 
@@ -55,15 +56,31 @@ function isSunday(date) {
  return date.getDay() === 0;
 }
 
-// Separate component for the attendance dropdown to reduce duplication
-const AttendanceDropdown = ({
+function updateOrAddWorker(array, newWorker) {
+ // Find the index of an object with the same workerid
+ const index = array.findIndex(
+ (worker) => worker.workerid === newWorker.workerid
+ );
+
+ if (index !== -1) {
+ // If a match is found, replace the old object with the new one
+ return array.map((worker, i) => (i === index ? newWorker : worker));
+ }
+ // If no match is found, add the new object to a new array
+ return [...array, newWorker];
+}
+
+// Separate component for the attendance dropdown to reduce duplication.
+// Memoized (with a stable updateAttendance) so marking one worker re-renders
+// that row's select only, not all 100 on the page.
+const AttendanceDropdown = memo(function AttendanceDropdown({
  person,
  disabled,
  attendanceIsClosed,
  updateAttendance,
  options,
  className,
-}) => {
+}) {
  return (
  <ReactSelectDropdown
  title="Mark attendance"
@@ -83,7 +100,7 @@ const AttendanceDropdown = ({
  className={className}
  />
  );
-};
+});
 
 const PAGE_SIZE = 100;
 
@@ -162,6 +179,8 @@ export default function DepartmentAttendance() {
  // still in `attendance` and the summary applies them as overrides, so
  // re-downloading every worker in scope after each save isn't needed.
  const summaryKey = `${activeGroup}|${team.team}|${selectedSunday}`;
+ // Tailwind's sm breakpoint: which of the two row layouts to mount.
+ const isDesktop = useMediaQuery("(min-width: 640px)");
  const summaryRows = summaryState.key === summaryKey ? summaryState.rows : null;
  const summaryLoading = summaryState.key === summaryKey && summaryState.loading;
 
@@ -598,20 +617,6 @@ export default function DepartmentAttendance() {
  }
  }, [availableDepartmentNames, selectedDepartmentFilter]);
 
- function updateOrAddWorker(array, newWorker) {
- // Find the index of an object with the same workerid
- const index = array.findIndex(
- (worker) => worker.workerid === newWorker.workerid
- );
-
- if (index !== -1) {
- // If a match is found, replace the old object with the new one
- return array.map((worker, i) => (i === index ? newWorker : worker));
- }
- // If no match is found, add the new object to a new array
- return [...array, newWorker];
- }
-
  const handleSort = (columnKey) => {
  setSortConfig((prevConfig) => {
  if (prevConfig.key === columnKey) {
@@ -638,7 +643,7 @@ export default function DepartmentAttendance() {
  );
  };
 
- const updateAttendance = (selected, person) => {
+ const updateAttendance = useCallback((selected, person) => {
  setAttendance((prev) =>
  updateOrAddWorker(prev, {
  workerid: person.id,
@@ -649,7 +654,7 @@ export default function DepartmentAttendance() {
  attendancedate: dateForAttendance,
  })
  );
- };
+ }, [team.department, team.team, dateForAttendance]);
 
  const saveAttendance = async () => {
  try {
@@ -870,7 +875,9 @@ export default function DepartmentAttendance() {
  <LoadingState />
  ) : (
  <div className="space-y-4">
- {/* Desktop Table */}
+ {/* Desktop Table. Only one layout is mounted: rendering both and
+ hiding one with CSS mounted two selects per worker. */}
+ {isDesktop && (
  <div className="hidden sm:block">
  <div className="overflow-x-auto">
  <table className="min-w-full divide-y divide-ink-300">
@@ -962,6 +969,7 @@ export default function DepartmentAttendance() {
  </table>
  </div>
  </div>
+ )}
  <Modal
  confirmText="Yes, Delete"
  title="Request to delete worker"
@@ -974,6 +982,7 @@ export default function DepartmentAttendance() {
  />
 
  {/* Mobile Cards */}
+ {!isDesktop && (
  <div className="sm:hidden">
  <div className="space-y-4">
  {paginatedData?.map((person, idx) => (
@@ -1027,6 +1036,7 @@ export default function DepartmentAttendance() {
  ))}
  </div>
  </div>
+ )}
  {totalPages > 1 && (
  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
  <p className="text-sm text-ink-600">

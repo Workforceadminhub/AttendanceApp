@@ -1,9 +1,9 @@
 // import { useNavigate } from "react-router-dom";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
-import { debounce } from "lodash";
+import debounce from "lodash/debounce";
 import getDefaultSummary from "../../../utils/getDefaultSummary";
 import { getEffectiveRouteList } from "../../../utils/routeObject";
 import { useAdminSelectOptions } from "../../../contexts/DepartmentsContext";
@@ -12,26 +12,18 @@ import { getDepartmentByUser } from "../../../utils/getDepartment";
 import { ADMIN_ENUMS } from "../../../utils/enums";
 import { checkAdminStatus } from "../../../utils/checkAdminStatus";
 import { getUserRole } from "../../../utils/getUserRole";
-import {
-  fetchAdminAttendance,
-  fetchAttendance,
-} from "../../../services/attendance";
+import { useAttendanceQuery, useHistoryOptions } from "../../../hooks/useAttendanceQueries";
 import { getUser } from "../../../utils/getUser";
 import { expandPermissions } from "../../../utils/expandPermissions";
-import { fetchHistoryOptions } from "../../../services/history";
 import { DEBOUNCE_INTERVAL } from "../../../utils/constants";
 import Layout from "../../Layout";
 import ReactSelectDropdown from "../../ReactSelect";
 import TableLoadingState from "../../TableLoadingState";
-import Header from "../../Header";
 import ViewHistoryButton from "../../ViewHistoryButton";
 
 export default function DepartmentSummaryHistory() {
-  const [isLoading, setIsLoading] = useState(false);
   const [activeGroup, setActiveGroup] = useState("All");
-  const [attendanceSummary, setAttendanceSummary] = useState(
-    getDefaultSummary(getEffectiveRouteList())
-  );
+  const [defaultSummary] = useState(() => getDefaultSummary(getEffectiveRouteList()));
   const location = useLocation();
   const dateForAttendance = getNextSunday();
   const team = getDepartmentByUser(location.pathname);
@@ -42,69 +34,37 @@ export default function DepartmentSummaryHistory() {
   const authUser = useMemo(() => getUser(), []);
   const options = useAdminSelectOptions(isChurchAdmin, team, authUser);
   const [activeHistory, setActiveHistory] = useState(dateForAttendance);
-  const [historyOptions, setHistoryOptions] = useState([]);
 
-  const queryAdminAttendance = useCallback(() => {
-    setIsLoading(true);
-    const permissions = expandPermissions(authUser);
-    fetchAdminAttendance(activeGroup, isChurchAdmin, activeHistory, null, null, permissions)
-      .then((attendance) => {
-        setAttendanceSummary(attendance);
-        setIsLoading(false);
-      })
-      .catch((error) => {
-        setIsLoading(false);
-        toast.error(`Error loading summary: ${error.message}`);
-      });
-  }, [activeGroup, isChurchAdmin, activeHistory, authUser]);
-
-  const queryAttendance = useCallback(() => {
-    setIsLoading(true);
-    const permissions = expandPermissions(authUser);
-    fetchAttendance(activeHistory, null, null, permissions)
-      .then((attendance) => {
-        setAttendanceSummary(attendance);
-        setIsLoading(false);
-      })
-      .catch((error) => {
-        setIsLoading(false);
-        toast.error(`Error loading summary: ${error.message}`);
-      });
-  }, [activeHistory, authUser]);
-
-  useEffect(() => {
-    fetchHistoryOptions().then((res) =>
-      setHistoryOptions(res.map((item) => ({ label: item, value: item })))
-    );
-  }, []);
-
-  useEffect(() => {
-    if (isAdminMember) {
-      queryAdminAttendance();
-    } else {
-      queryAttendance();
-    }
-  }, [
+  // Same cached query as the Dashboard and summary pages for this Sunday.
+  const permissions = useMemo(() => expandPermissions(authUser), [authUser]);
+  const { data: rawAttendance, isLoading, error: attendanceError } = useAttendanceQuery({
+    isAdminMember,
     activeGroup,
     isChurchAdmin,
-    isAdminMember,
-    activeHistory,
-    queryAdminAttendance,
-    queryAttendance,
-  ]);
+    date: activeHistory,
+    permissions,
+  });
+  const { data: historyOptions = [] } = useHistoryOptions();
+  const attendanceSummary = rawAttendance ?? defaultSummary;
 
-  const debouncedSetActiveGroup = debounce(
-    (value) => setActiveGroup(value),
-    DEBOUNCE_INTERVAL
+  useEffect(() => {
+    if (attendanceError) toast.error(`Error loading summary: ${attendanceError.message}`);
+  }, [attendanceError]);
+
+  // Memoized so the debounce survives re-renders; a new one per render
+  // never delays anything.
+  const debouncedSetActiveGroup = useMemo(
+    () => debounce((value) => setActiveGroup(value), DEBOUNCE_INTERVAL),
+    []
   );
 
   const handleChange = (selected) => {
     debouncedSetActiveGroup(selected?.value);
   };
 
-  const debouncedSetActiveHistory = debounce(
-    (value) => setActiveHistory(value),
-    DEBOUNCE_INTERVAL
+  const debouncedSetActiveHistory = useMemo(
+    () => debounce((value) => setActiveHistory(value), DEBOUNCE_INTERVAL),
+    []
   );
 
   const handleHistoryChange = (selected) => {
@@ -113,7 +73,6 @@ export default function DepartmentSummaryHistory() {
 
   return (
     <div className="min-h-screen bg-cream">
-      <Header />
       <Layout>
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
           <div className="min-w-0">

@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
-import Header from "../../../components/Header";
 import Layout from "../../../components/Layout";
 import { Tag } from "../../../components/ui";
 import {
@@ -42,7 +41,6 @@ export default function MyNominations() {
 
   return (
     <>
-      <Header />
       <Layout>
         <div className="max-w-2xl space-y-6">
           <div>

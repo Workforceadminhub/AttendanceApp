@@ -4,6 +4,7 @@
 
 import { getAccessToken, getSessionUser } from "../utils/authSession";
 import { validateImageFile } from "../utils/validateImageFile";
+import { prepareEmailImage } from "../utils/prepareEmailImage";
 
 /**
  * Parse a free-form recipients string (pasted list / CSV column) into a clean,
@@ -55,7 +56,7 @@ export const parseRecipients = (raw = "") => {
  * @param {"resend"|"brevo"} [payload.provider]  Which provider to send through.
  * @returns {Promise<{ provider: string, sent: number, failed: string[] }>} Send result.
  */
-export const sendBulkEmail = async ({ subject, html, recipients, provider }) => {
+export const sendBulkEmail = async ({ subject, html, recipients, provider, campaignId }) => {
   if (!subject || !subject.trim()) {
     throw new Error("Subject is required.");
   }
@@ -82,6 +83,8 @@ export const sendBulkEmail = async ({ subject, html, recipients, provider }) => 
       html,
       recipients,
       ...(provider ? { provider } : {}),
+      // Set when continuing a send the server handed back as `remaining`.
+      ...(campaignId ? { campaignId } : {}),
       ...(requesterCode ? { requesterCode } : {}),
     }),
   });
@@ -141,11 +144,13 @@ export const uploadEmailImage = async (file) => {
   const token = getAccessToken();
   const requesterCode = getSessionUser()?.code;
 
+  // Scale down and re-encode first so the base64 body fits Vercel's limit.
+  const image = await prepareEmailImage(file, check.contentType);
   const base64 = await new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result.split(",")[1]);
     reader.onerror = reject;
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(image);
   });
 
   const res = await fetch("/api/upload-email-image", {

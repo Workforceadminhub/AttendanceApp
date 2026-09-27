@@ -10,7 +10,6 @@ import {
  Tooltip,
  ResponsiveContainer,
 } from "recharts";
-import Header from "../components/Header";
 import Layout from "../components/Layout";
 import LoadingState from "../components/LoadingState";
 import Stat from "../components/ui/Stat";
@@ -72,9 +71,11 @@ export default function WorkerAttendanceHistory() {
  return getSundaysInYear().reverse();
  }, []);
 
- // Fetch workers for each Sunday in parallel to get per-worker attendance
+ // Fetch the department roster for each Sunday to get per-worker attendance.
+ // The fetch doesn't depend on the worker, so the key leaves workerId out:
+ // opening another worker in the same department reuses the cached rosters.
  const { data: attendanceByDate, isLoading } = useQuery({
- queryKey: ["workerAttendanceByDate", workerId, department, sundays.length],
+ queryKey: ["departmentRosterBySunday", department, sundays.length],
  queryFn: async () => {
  // Keep the history view from opening dozens of connections at once. The
  // attendance API is shared with the dashboard and can return transient 503s
@@ -155,7 +156,6 @@ export default function WorkerAttendanceHistory() {
 
  return (
  <div className="min-h-screen bg-cream">
- <Header />
  <Layout>
  <div className="mb-6">
  <div className="qc-num text-2xs uppercase tracking-tag text-ink-500 mb-2 flex items-center gap-2 flex-wrap">

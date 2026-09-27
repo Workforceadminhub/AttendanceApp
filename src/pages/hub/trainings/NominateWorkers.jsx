@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
-import Header from "../../../components/Header";
 import Layout from "../../../components/Layout";
 import { Tag } from "../../../components/ui";
 import { useCanAction } from "../../../contexts/RBACContext";
@@ -140,7 +139,6 @@ export default function NominateWorkers() {
   if (!canNominate) {
     return (
       <>
-        <Header />
         <Layout>
           <div className="max-w-lg mx-auto qc-card p-8 text-center text-ink-500">
             You do not have permission to nominate workers.
@@ -152,7 +150,6 @@ export default function NominateWorkers() {
 
   return (
     <>
-      <Header />
       <Layout>
         <div className="max-w-3xl space-y-6">
           <Link to={`/hub/trainings/${id}`} className="text-sm text-ink-500 hover:text-ink-900">

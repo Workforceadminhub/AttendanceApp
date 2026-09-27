@@ -1,9 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import Header from "../components/Header";
 import Layout from "../components/Layout";
 import { toast } from "react-toastify";
-import ExcelJS from "exceljs";
+import { loadExcelJS } from "../utils/loadExcelJS";
 import {
  teamsAndDepartments,
  normalizeWorkerRole,
@@ -207,6 +206,7 @@ export default function ChurchAdminAddWorker() {
  reader.onload = async (e) => {
  try {
  const buffer = e.target.result;
+ const ExcelJS = await loadExcelJS();
  const workbook = new ExcelJS.Workbook();
  await workbook.xlsx.load(buffer);
  const worksheet = workbook.worksheets[0];
@@ -360,7 +360,6 @@ export default function ChurchAdminAddWorker() {
 
  return (
  <Layout>
- <Header />
  <div className="min-h-screen bg-cream py-8">
  <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
  {/* Header */}

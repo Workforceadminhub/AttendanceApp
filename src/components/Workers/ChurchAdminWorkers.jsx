@@ -1,6 +1,6 @@
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, Link } from "react-router-dom";
-import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
 import { fetchAdminWorkersPage, fetchWorkers, listSuperAdminWorkers } from "../../services/workers";
 import { toast } from "react-toastify";
@@ -26,12 +26,16 @@ import { getUser } from "../../utils/getUser";
 import { getUserRole } from "../../utils/getUserRole";
 
 
+const PAGE_LIMIT = 20;
+const EMPTY_PAGINATION = { page: 1, limit: PAGE_LIMIT, total: 0, totalPages: 0, hasNext: false, hasPrev: false };
+
 export default function ChurchAdminWorkers() {
  const navigate = useNavigate();
  const location = useLocation();
+ const queryClient = useQueryClient();
  // All hooks must be called before any conditional returns
- const [data, setData] = useState([]);
- const [isLoading, setIsLoading] = useState(false);
+ // Set while a delete request is in flight.
+ const [isDeleting, setIsDeleting] = useState(false);
  const dateForAttendance = getNextSunday();
  const [filters, setFilters] = useState({
  department: "All",
@@ -49,14 +53,6 @@ export default function ChurchAdminWorkers() {
  });
  const [searchTerm, setSearchTerm] = useState("");
  const [expandedRows, setExpandedRows] = useState(new Set());
- const [pagination, setPagination] = useState({
- page: 1,
- limit: 20,
- total: 0,
- totalPages: 0,
- hasNext: false,
- hasPrev: false,
- });
  
  // Debounced search hook
  const { debouncedSearch, search: debouncedSearchTerm } = useDebouncedSearch();
@@ -114,108 +110,66 @@ export default function ChurchAdminWorkers() {
  initializeFilters();
  }, []);
 
- // Query functions for Church Admin - uses same API as Super Admin but with Church Admin token
- const queryChurchAdminWorkers = useCallback(async (page = 1, limit = 20, search = "") => {
- setIsLoading(true);
- try {
- const result = await listSuperAdminWorkers({ page, limit, search, team: filters.team, department: filters.department });
- setData(result.data);
- setPagination(result.pagination);
- } catch {
- toast.error("Failed to fetch workers");
- setData([]);
- } finally {
- setIsLoading(false);
- }
- }, [filters]);
+ // One cached query per role, filter, search and page, so going back to a
+ // page already seen (e.g. after opening a worker) is instant. Super and
+ // Church Admins use the super-admin listing; team admins page on the
+ // server; other roles load their department.
+ const role = isSuperAdmin || isChurchAdmin ? "directory" : isAdminMember ? "admin" : "member";
+ // Any filter or search change starts again from page 1.
+ const listKey = JSON.stringify([filters, debouncedSearchTerm]);
+ const [pageState, setPageState] = useState({ key: listKey, page: 1 });
+ const page = pageState.key === listKey ? pageState.page : 1;
+ const setPage = (next) => setPageState({ key: listKey, page: next });
 
- // Query function for Super Admin (kept for compatibility)
- const querySuperAdminWorkers = useCallback(async (page = 1, limit = 20, search = "") => {
- setIsLoading(true);
- try {
- const result = await listSuperAdminWorkers({ page, limit, search, team: filters.team, department: filters.department });
- setData(result.data);
- setPagination(result.pagination);
- } catch {
- toast.error("Failed to fetch workers");
- setData([]);
- } finally {
- setIsLoading(false);
- }
- }, [filters]);
-
- // Team admins page on the server too; one request per visible page.
- const queryAdminWorkers = useCallback(async (page = 1, limit = 20, search = "") => {
- setIsLoading(true);
- try {
- const user = getUser();
- const rawPermissions = user?.permissions ?? [];
- // Filter out team name from permissions (team name shouldn't be in permissions array)
- const permissions = rawPermissions.filter((perm) => perm !== user?.team);
- const result = await fetchAdminWorkersPage(
+ const {
+ data: listData,
+ isLoading: isFirstLoad,
+ isPlaceholderData,
+ error: listError,
+ } = useQuery({
+ queryKey: [
+ "churchAdminWorkers",
+ role,
  filters.team,
  filters.department,
- dateForAttendance,
- permissions,
- { page, limit, search }
- );
- setData(result.data);
- setPagination(result.pagination);
- } catch {
- toast.error("Failed to fetch workers");
- setData([]);
- } finally {
- setIsLoading(false);
- }
- }, [filters, dateForAttendance]);
-
- const queryWorkers = useCallback(async (search = "") => {
- const user = getUser();
- const rawPermissions = user?.permissions ?? [];
- // Filter out team name from permissions (team name shouldn't be in permissions array)
- const permissions = rawPermissions.filter((perm) => perm !== user?.team);
- setIsLoading(true);
- try {
- const result = await fetchWorkers(
- filters.department,
- dateForAttendance,
- // we get permissions from logged in user
- permissions,
- search
- );
- setData(result);
- } catch {
- toast.error("Failed to fetch workers");
- setData([]);
- } finally {
- setIsLoading(false);
- }
- }, [filters, dateForAttendance]);
-
- // Load data based on user type
- useEffect(() => {
- const run = () => {
- if (isSuperAdmin) {
- return querySuperAdminWorkers(1, 20, debouncedSearchTerm);
- } else if (isChurchAdmin) {
- return queryChurchAdminWorkers(1, 20, debouncedSearchTerm);
- } else if (isAdminMember) {
- return queryAdminWorkers(1, 20, debouncedSearchTerm);
- }
- return queryWorkers(debouncedSearchTerm);
- };
- run();
- }, [
- filters,
  debouncedSearchTerm,
- isSuperAdmin,
- isChurchAdmin,
- isAdminMember,
- querySuperAdminWorkers,
- queryChurchAdminWorkers,
- queryAdminWorkers,
- queryWorkers,
- ]);
+ role === "member" ? null : page,
+ dateForAttendance,
+ ],
+ queryFn: async () => {
+ if (role === "directory") {
+ return listSuperAdminWorkers({
+ page,
+ limit: PAGE_LIMIT,
+ search: debouncedSearchTerm,
+ team: filters.team,
+ department: filters.department,
+ });
+ }
+ const user = getUser();
+ // Filter out team name from permissions (team name shouldn't be in permissions array)
+ const permissions = (user?.permissions ?? []).filter((perm) => perm !== user?.team);
+ if (role === "admin") {
+ return fetchAdminWorkersPage(filters.team, filters.department, dateForAttendance, permissions, {
+ page,
+ limit: PAGE_LIMIT,
+ search: debouncedSearchTerm,
+ });
+ }
+ return {
+ data: await fetchWorkers(filters.department, dateForAttendance, permissions, debouncedSearchTerm),
+ pagination: null,
+ };
+ },
+ placeholderData: (prev) => prev,
+ });
+ const data = listData?.data ?? [];
+ const pagination = listData?.pagination ?? EMPTY_PAGINATION;
+ const isLoading = isFirstLoad || isPlaceholderData || isDeleting;
+
+ useEffect(() => {
+ if (listError) toast.error("Failed to fetch workers");
+ }, [listError]);
 
  const handleSearch = (term) => {
  setSearchTerm(term);
@@ -279,26 +233,19 @@ Type "DELETE" to confirm (case-sensitive):`;
  return;
  }
 
- setIsLoading(true);
+ setIsDeleting(true);
  try {
  await apiRequest("DELETE", `/api/super/admin/${workerId}/workers`);
 
  toast.success("Worker deleted successfully");
 
- // Refresh the data
- if (isSuperAdmin) {
- querySuperAdminWorkers(1, 20, searchTerm);
- } else if (isChurchAdmin) {
- queryChurchAdminWorkers(1, 20, searchTerm);
- } else if (isAdminMember) {
- queryAdminWorkers(1, 20, searchTerm);
- } else {
- queryWorkers(searchTerm);
- }
+ // Refresh the data from the first page
+ setPage(1);
+ queryClient.invalidateQueries({ queryKey: ["churchAdminWorkers"] });
  } catch {
  toast.error("Failed to delete worker");
  } finally {
- setIsLoading(false);
+ setIsDeleting(false);
  }
  };
 
@@ -374,7 +321,6 @@ Type "DELETE" to confirm (case-sensitive):`;
 
  return (
  <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
- <Header />
  <Layout>
  <div>
  {/* Header Section */}
@@ -394,15 +340,8 @@ Type "DELETE" to confirm (case-sensitive):`;
  <button
  className="bg-ink-500 px-6 py-2 text-white rounded-lg text-sm font-medium min-w-[140px] min-h-touch"
  onClick={() => {
- if (isSuperAdmin) {
- querySuperAdminWorkers(1, 20, searchTerm);
- } else if (isChurchAdmin) {
- queryChurchAdminWorkers(1, 20, searchTerm);
- } else if (isAdminMember) {
- queryAdminWorkers(1, 20, searchTerm);
- } else {
- queryWorkers(searchTerm);
- }
+ setPage(1);
+ queryClient.invalidateQueries({ queryKey: ["churchAdminWorkers"] });
  }}
  >
  Refresh Workers
@@ -772,19 +711,7 @@ Type "DELETE" to confirm (case-sensitive):`;
  <div className="flex-1 flex justify-between sm:hidden">
  <button
  onClick={() => {
- if (isSuperAdmin) {
- querySuperAdminWorkers(
- pagination.page - 1,
- pagination.limit
- );
- } else if (isChurchAdmin) {
- queryChurchAdminWorkers(
- pagination.page - 1,
- pagination.limit
- );
- } else if (isAdminMember) {
- queryAdminWorkers(pagination.page - 1, pagination.limit, debouncedSearchTerm);
- }
+ setPage(pagination.page - 1);
  }}
  disabled={!pagination.hasPrev}
  className={`relative inline-flex items-center px-4 py-2 min-h-touch min-w-touch border text-sm font-medium rounded-md ${
@@ -797,19 +724,7 @@ Type "DELETE" to confirm (case-sensitive):`;
  </button>
  <button
  onClick={() => {
- if (isSuperAdmin) {
- querySuperAdminWorkers(
- pagination.page + 1,
- pagination.limit
- );
- } else if (isChurchAdmin) {
- queryChurchAdminWorkers(
- pagination.page + 1,
- pagination.limit
- );
- } else if (isAdminMember) {
- queryAdminWorkers(pagination.page + 1, pagination.limit, debouncedSearchTerm);
- }
+ setPage(pagination.page + 1);
  }}
  disabled={!pagination.hasNext}
  className={`ml-3 relative inline-flex items-center px-4 py-2 min-h-touch min-w-touch border text-sm font-medium rounded-md ${
@@ -846,19 +761,7 @@ Type "DELETE" to confirm (case-sensitive):`;
  >
  <button
  onClick={() => {
- if (isSuperAdmin) {
- querySuperAdminWorkers(
- pagination.page - 1,
- pagination.limit
- );
- } else if (isChurchAdmin) {
- queryChurchAdminWorkers(
- pagination.page - 1,
- pagination.limit
- );
- } else if (isAdminMember) {
- queryAdminWorkers(pagination.page - 1, pagination.limit, debouncedSearchTerm);
- }
+ setPage(pagination.page - 1);
  }}
  disabled={!pagination.hasPrev}
  className={`relative inline-flex items-center px-2 py-2 min-h-touch min-w-touch rounded-l-md border text-sm font-medium ${
@@ -907,13 +810,7 @@ Type "DELETE" to confirm (case-sensitive):`;
  key={`${page}-${index}`}
  onClick={() => {
  if (typeof page === "number") {
- if (isSuperAdmin) {
- querySuperAdminWorkers(page, pagination.limit);
- } else if (isChurchAdmin) {
- queryChurchAdminWorkers(page, pagination.limit);
- } else if (isAdminMember) {
- queryAdminWorkers(page, pagination.limit, debouncedSearchTerm);
- }
+ setPage(page);
  }
  }}
  className={`relative inline-flex items-center px-4 py-2 min-h-touch min-w-touch border text-sm font-medium ${
@@ -934,19 +831,7 @@ Type "DELETE" to confirm (case-sensitive):`;
 
  <button
  onClick={() => {
- if (isSuperAdmin) {
- querySuperAdminWorkers(
- pagination.page + 1,
- pagination.limit
- );
- } else if (isChurchAdmin) {
- queryChurchAdminWorkers(
- pagination.page + 1,
- pagination.limit
- );
- } else if (isAdminMember) {
- queryAdminWorkers(pagination.page + 1, pagination.limit, debouncedSearchTerm);
- }
+ setPage(pagination.page + 1);
  }}
  disabled={!pagination.hasNext}
  className={`relative inline-flex items-center px-2 py-2 min-h-touch min-w-touch rounded-r-md border text-sm font-medium ${

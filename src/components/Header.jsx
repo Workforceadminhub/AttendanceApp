@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Bars3Icon, XMarkIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { getUser } from "../utils/getUser";
 import { logoutSession } from "../utils/authSession";
 import { getUserRole } from "../utils/getUserRole";
@@ -139,7 +139,13 @@ function NavLink({ href, children }) {
 }
 
 export default function Header() {
-  const [mobileOpen, setMobileOpen] = useState(false);
+  // The Header now stays mounted across pages (see AppShell), so remember
+  // which page the mobile menu was opened on: it closes on any navigation,
+  // including browser Back, instead of staying open over the next page.
+  const { pathname } = useLocation();
+  const [mobileOpenPath, setMobileOpenPath] = useState(null);
+  const mobileOpen = mobileOpenPath === pathname;
+  const setMobileOpen = (open) => setMobileOpenPath(open ? pathname : null);
   const authUser = useMemo(() => getUser(), []);
   const navigate = useNavigate();
 

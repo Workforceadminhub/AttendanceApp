@@ -29,6 +29,41 @@ async function requestAttendancePages(endpoint, params, history = false) {
   return objectData && arrayKey && !history ? { ...objectData, [arrayKey]: rows } : rows;
 }
 
+/** React Query keys whose data changes when attendance is saved. */
+const ATTENDANCE_QUERY_KEYS = [
+  ["dashboardAttendance"],
+  ["sundayAttendance"],
+  ["departmentRosterBySunday"],
+  ["attendanceHistory"],
+  ["attendanceHistoryTable"],
+  ["unmarkedWorkers"],
+  ["attendanceExport"],
+  ["attendanceTable"],
+  // A save for a new Sunday adds a date to the history pickers.
+  ["historyOptions"],
+];
+
+// Dropped when not on screen, but not refetched while on screen: the
+// attendance page writes saved statuses into it instead of re-downloading
+// every worker in scope after each save.
+const INACTIVE_ONLY_QUERY_KEYS = [["attendanceSummaryRows"]];
+
+/**
+ * Call after a successful save. Queries on screen refetch now; cached ones
+ * for other pages are dropped so those pages load fresh next time. (With
+ * refetchOnMount off app-wide, a merely invalidated inactive query would
+ * still show the pre-save numbers when its page mounts.)
+ */
+export function invalidateAttendanceQueries(queryClient) {
+  for (const queryKey of ATTENDANCE_QUERY_KEYS) {
+    queryClient.invalidateQueries({ queryKey, type: "active" });
+    queryClient.removeQueries({ queryKey, type: "inactive" });
+  }
+  for (const queryKey of INACTIVE_ONLY_QUERY_KEYS) {
+    queryClient.removeQueries({ queryKey, type: "inactive" });
+  }
+}
+
 // const table = "attendance2";
 export const addAttendance = async (attendance) => {
   try {
@@ -58,41 +93,34 @@ export const fetchAdminAttendance = async (
   permissions = []
 ) => {
   const dateForAttendance = activeDate || getNextSunday();
-  try {
-    const params = {
-      activeGroup,
-      activeDate: dateForAttendance,
-      isChurchAdmin,
-    };
-    if (Array.isArray(permissions) && permissions.length > 0) {
-      params.permissions = permissions;
-    }
-    if (startDate) params.startDate = startDate;
-    if (endDate) params.endDate = endDate;
-
-    return await requestAttendancePages("/api/attendance/admin", params);
-  } catch (error) {
-    // Silent error handling
-    return null;
+  const params = {
+    activeGroup,
+    activeDate: dateForAttendance,
+    isChurchAdmin,
+  };
+  if (Array.isArray(permissions) && permissions.length > 0) {
+    params.permissions = permissions;
   }
+  if (startDate) params.startDate = startDate;
+  if (endDate) params.endDate = endDate;
+
+  // Errors propagate: returning null here made React Query cache a failed
+  // request (e.g. a 503) as empty data and never retry it.
+  return requestAttendancePages("/api/attendance/admin", params);
 };
 
 export const fetchAttendance = async (activeDate, startDate, endDate, permissions = []) => {
   const dateForAttendance = activeDate || getNextSunday();
 
-  try {
-    const params = { activeDate: dateForAttendance };
-    if (Array.isArray(permissions) && permissions.length > 0) {
-      params.permissions = permissions;
-    }
-    if (startDate) params.startDate = startDate;
-    if (endDate) params.endDate = endDate;
-
-    return await requestAttendancePages("/api/attendance", params);
-  } catch (error) {
-    // Silent error handling
-    return null;
+  const params = { activeDate: dateForAttendance };
+  if (Array.isArray(permissions) && permissions.length > 0) {
+    params.permissions = permissions;
   }
+  if (startDate) params.startDate = startDate;
+  if (endDate) params.endDate = endDate;
+
+  // Errors propagate so callers and React Query see a failure, not "no data".
+  return requestAttendancePages("/api/attendance", params);
 };
 
 export function calculateTotals(data) {
@@ -239,21 +267,19 @@ function countSundaysInRange(startStr, endStr) {
  * @param {string[]} permissions - Array of department names the user has access to
  * @param {string} [fromDate] - Start date filter (ISO yyyy-MM-dd)
  * @param {string} [toDate] - End date filter (ISO yyyy-MM-dd)
- * @returns {Promise<Array>} Array of history records or [] on error
+ * @returns {Promise<Array>} Array of history records
  */
 export const fetchAttendanceHistory = async (permissions, fromDate, toDate) => {
-  try {
-    const params = {};
-    if (Array.isArray(permissions) && permissions.length > 0) {
-      params.permissions = permissions;
-    }
-    if (fromDate) params.fromDate = fromDate;
-    if (toDate) params.toDate = toDate;
-
-    return await requestAttendancePages("/api/attendance/history", params, true);
-  } catch (error) {
-    return [];
+  const params = {};
+  if (Array.isArray(permissions) && permissions.length > 0) {
+    params.permissions = permissions;
   }
+  if (fromDate) params.fromDate = fromDate;
+  if (toDate) params.toDate = toDate;
+
+  // Errors propagate (used by useQuery), so a failure is retried instead of
+  // being cached as an empty history.
+  return requestAttendancePages("/api/attendance/history", params, true);
 };
 
 // ========== End Phase 7 - Date Range Functions ==========

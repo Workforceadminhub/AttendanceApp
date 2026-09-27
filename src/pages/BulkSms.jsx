@@ -10,7 +10,6 @@ import {
   PaperAirplaneIcon,
   DevicePhoneMobileIcon,
 } from "@heroicons/react/24/outline";
-import Header from "../components/Header";
 import Layout from "../components/Layout";
 import { Button, Card } from "../components/ui";
 import {
@@ -195,7 +194,6 @@ function BulkSmsComposer() {
 
   return (
     <div className="min-h-screen bg-cream">
-      <Header />
       <Layout>
         {/* Top Header */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

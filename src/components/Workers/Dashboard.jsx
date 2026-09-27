@@ -1,11 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import {
-  calculateTotals,
-  fetchAdminAttendance,
-  fetchAttendance,
-} from "../../services/attendance";
-import Header from "../Header";
+import { useAttendanceQuery } from "../../hooks/useAttendanceQueries";
+import { calculateTotals } from "../../services/attendance";
 import { getNextSunday, getSundayDisplayDate, getSundaysInYear } from "../../utils/getDate";
 import { Link, useLocation } from "react-router-dom";
 import { getDepartmentByUser } from "../../utils/getDepartment";
@@ -21,7 +16,7 @@ import { filterByUserPermissions } from "../../utils/filterByPermissions";
 import { expandPermissions } from "../../utils/expandPermissions";
 import { getUser } from "../../utils/getUser";
 import { getUserRole } from "../../utils/getUserRole";
-import { debounce } from "lodash";
+import debounce from "lodash/debounce";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
 import { getActiveMeeting, getAllMeetings, MEETINGS_CHANGED_EVENT } from "../../utils/meetingConfig";
 import { normalizeDateString } from "../../utils/meetingLinks";
@@ -180,27 +175,17 @@ export default function Dashboard() {
   }, []);
 
   const permissions = useMemo(() => expandPermissions(authUser), [authUser]);
-  const permissionsKey = useMemo(() => permissions.join(","), [permissions]);
 
   const {
     data: rawAttendance,
     isLoading,
     error: attendanceError,
-  } = useQuery({
-    queryKey: [
-      "dashboardAttendance",
-      isAdminMember ? "admin" : "user",
-      activeGroup,
-      isChurchAdmin,
-      selectedDate,
-      permissionsKey,
-    ],
-    queryFn: () => {
-      if (isAdminMember) {
-        return fetchAdminAttendance(activeGroup, isChurchAdmin, selectedDate, null, null, permissions);
-      }
-      return fetchAttendance(selectedDate, null, null, permissions);
-    },
+  } = useAttendanceQuery({
+    isAdminMember,
+    activeGroup,
+    isChurchAdmin,
+    date: selectedDate,
+    permissions,
     placeholderData: (prev) => prev,
   });
 
@@ -290,7 +275,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-cream">
-      <Header />
       <Layout>
         {/* Page heading */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">

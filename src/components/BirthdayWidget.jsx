@@ -36,7 +36,10 @@ export default function BirthdayWidget({ department }) {
  const permissions = expandPermissions(auth);
  return fetchWorkers(department || "All", null, permissions);
  },
- staleTime: 10 * 60 * 1000, // 10 minutes
+ // Birthdays barely change within a session, and this walks every worker in
+ // scope (there is no birthday endpoint), so keep the result for an hour.
+ staleTime: 60 * 60 * 1000,
+ gcTime: 60 * 60 * 1000,
  enabled: true,
  });
 

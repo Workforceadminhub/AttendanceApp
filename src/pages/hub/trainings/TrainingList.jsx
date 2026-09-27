@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
-import Header from "../../../components/Header";
 import Layout from "../../../components/Layout";
 import { Stat, Tag } from "../../../components/ui";
 import { useCanAction } from "../../../contexts/RBACContext";
@@ -70,7 +69,6 @@ export default function TrainingList() {
 
   return (
     <>
-      <Header />
       <Layout>
         <div className="space-y-6">
           {/* Role 1: Operations / Training Admin View */}

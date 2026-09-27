@@ -15,6 +15,7 @@ import {
   createMeetingRemote,
   setActiveMeetingRemote,
   deleteMeetingRemote,
+  resetPreferredMeetingVariants,
 } from "./meetings";
 import { getAllMeetings, getActiveMeeting, resetMeetingsCache } from "../../utils/meetingConfig";
 import { meetingPath } from "../../utils/meetingLinks";
@@ -22,6 +23,7 @@ import { meetingPath } from "../../utils/meetingLinks";
 beforeEach(() => {
   localStorage.clear();
   resetMeetingsCache();
+  resetPreferredMeetingVariants();
   vi.clearAllMocks();
 });
 
@@ -263,6 +265,22 @@ describe("meetings hub service", () => {
     expect(meetings).toHaveLength(1);
     expect(meetings[0].date).toBe("2026-10-17");
     expect(meetings[0].meetingType).toBe("leaders");
+  });
+
+  it("tries the variant that last returned meetings first on the next fetch", async () => {
+    const response = {
+      data: [{ id: 502, meeting_date: "2026-10-17", title: "October Leaders", is_active: true }],
+    };
+    hubGet.mockRejectedValueOnce(new Error("Unknown filter")).mockResolvedValueOnce(response);
+    await fetchMeetings("leaders");
+    expect(hubGet).toHaveBeenCalledTimes(2);
+
+    hubGet.mockClear();
+    hubGet.mockResolvedValueOnce(response);
+    const meetings = await fetchMeetings("leaders");
+    expect(hubGet).toHaveBeenCalledTimes(1);
+    expect(hubGet).toHaveBeenCalledWith("/super/admin/meetings", { meeting_type: "Leaders" });
+    expect(meetings[0].id).toBe(502);
   });
 
   it("normalizes meetings where meeting_type is omitted by using fallbackType", () => {

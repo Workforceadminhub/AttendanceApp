@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "react-router-dom";
 import { fetchDepartments } from "../services/departments";
 import {
   setDynamicDepartments,
@@ -45,6 +46,10 @@ function writeCache(data) {
 }
 
 export function DepartmentsProvider({ children }) {
+  // Subscribing to the location re-renders the provider on navigation, so
+  // `isAuthed` is re-read after the client-side redirect that follows login.
+  // Without it the query stayed disabled for the rest of that session.
+  useLocation();
   const isAuthed = typeof window !== "undefined" && !!sessionStorage.getItem("accessToken");
   const [cached] = useState(() => readCache());
 

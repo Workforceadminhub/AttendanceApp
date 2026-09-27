@@ -1,13 +1,13 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import Header from "../Header";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getDepartmentByUser } from "../../utils/getDepartment";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
  // fetchAdminWorkers,
  fetchUnmarkedWorkers,
  removeWorker,
 } from "../../services/workers";
-import { addAttendance } from "../../services/attendance";
+import { addAttendance, invalidateAttendanceQueries } from "../../services/attendance";
 import { toast } from "react-toastify";
 import { getNextSunday } from "../../utils/getDate";
 import ReactSelectDropdown from "../ReactSelect";
@@ -20,7 +20,7 @@ import { useAdminSelectOptions } from "../../contexts/DepartmentsContext";
 import { ADMIN_ENUMS } from "../../utils/enums";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
-import { debounce } from "lodash";
+import debounce from "lodash/debounce";
 import ViewHistoryButton from "../ViewHistoryButton";
 import { TrashIcon } from "@heroicons/react/24/outline";
 import Modal from "../Modal";
@@ -60,12 +60,23 @@ export default function UnmarkedAttendance() {
  const navigate = useNavigate();
  // const team = getDepartment(location.pathname);
  const [attendance, setAttendance] = useState([]);
- const [data, setData] = useState([]);
- const [isLoading, setIsLoading] = useState(false);
+ // Set while a delete request is in flight.
+ const [isRemoving, setIsRemoving] = useState(false);
  const [attendanceLoading, setAttendanceLoading] = useState(false);
+ const queryClient = useQueryClient();
  const dateForAttendance = getNextSunday();
- const [refresh, setRefresh] = useState(0);
  const [activeGroup, setActiveGroup] = useState("All");
+ // Cached per group and Sunday; saving attendance refreshes it.
+ const {
+ data = [],
+ isLoading: isListLoading,
+ error: unmarkedError,
+ refetch: refetchUnmarked,
+ } = useQuery({
+ queryKey: ["unmarkedWorkers", activeGroup, dateForAttendance],
+ queryFn: () => fetchUnmarkedWorkers(activeGroup),
+ });
+ const isLoading = isListLoading || isRemoving;
  const team = getDepartmentByUser(location.pathname);
  const { isChurchAdmin: isChurchAdminRole, isSuperAdmin } = getUserRole();
  const isChurchAdmin = isChurchAdminRole || isSuperAdmin || team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
@@ -166,19 +177,6 @@ export default function UnmarkedAttendance() {
  });
  }, [data, attendance]);
 
- const loadUnmarkedWorkers = useCallback(() => {
- setIsLoading(true);
- fetchUnmarkedWorkers(activeGroup)
- .then((res) => {
- setData(res);
- setIsLoading(false);
- })
- .catch((error) => {
- toast.error(`Error marking attendance: ${error.message}`);
- setIsLoading(false);
- });
- }, [activeGroup]);
-
  useEffect(() => {
  switchOffAttendance()
  .then((res) => setAttendanceIsClosed(res))
@@ -186,12 +184,8 @@ export default function UnmarkedAttendance() {
  }, []);
 
  useEffect(() => {
- loadUnmarkedWorkers();
- }, [activeGroup, isAdminMember, isChurchAdmin, team.team, loadUnmarkedWorkers]);
-
- useEffect(() => {
- loadUnmarkedWorkers();
- }, [refresh, loadUnmarkedWorkers]);
+ if (unmarkedError) toast.error(`Error marking attendance: ${unmarkedError.message}`);
+ }, [unmarkedError]);
 
  function updateOrAddWorker(array, newWorker) {
  // Find the index of an object with the same workerid
@@ -231,7 +225,8 @@ export default function UnmarkedAttendance() {
 
  try {
  await addAttendance(attendData);
- setRefresh(Math.random());
+ // Refetches this list too (it is on screen).
+ invalidateAttendanceQueries(queryClient);
  toast.success("Attendance added successfully");
  } catch (error) {
  toast.error(error?.message || "Failed to add attendance");
@@ -258,21 +253,23 @@ export default function UnmarkedAttendance() {
  ) {
  toast.error("Please fill all required fields");
  } else {
- setIsLoading(true);
+ setIsRemoving(true);
  removeWorker(workerId, deleteData)
  .then(() => {
  toast.success("Request submitted and pending approval");
- setIsLoading(false);
+ setIsRemoving(false);
  setModalOpen(false);
- setRefresh(Math.random());
+ refetchUnmarked();
  })
- .catch((error) => toast.error(`Error removing worker: ${error.message}`));
+ .catch((error) => {
+ setIsRemoving(false);
+ toast.error(`Error removing worker: ${error.message}`);
+ });
  }
  };
 
  return (
  <div className="min-h-screen bg-cream">
- <Header />
  <Layout>
  <div>
  <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">

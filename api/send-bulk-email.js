@@ -16,7 +16,7 @@ import { Resend } from "resend";
 import nodemailer from "nodemailer";
 import { ulid } from "ulid";
 import { authorize } from "./_lib/auth.js";
-import { insertRows, supabaseConfigured } from "./_lib/supabase.js";
+import { insertRows, selectRows, supabaseConfigured, updateRows } from "./_lib/supabase.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESEND_BATCH = 100;
@@ -120,7 +120,11 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const ZOHO_TIME_BUDGET_MS = 25_000; // stop 5s before typical 30s timeout
+// Keep in step with "maxDuration" for this function in vercel.json. Zoho sends
+// one message at a time, so stop 5s early and hand the rest back to the client.
+const FUNCTION_MAX_DURATION_MS = 60_000;
+const ZOHO_TIME_BUDGET_MS = FUNCTION_MAX_DURATION_MS - 5_000;
+const ULID_RE = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 
 async function sendViaZoho({ from, subject, html, recipients, campaignId }) {
   const startTime = Date.now();
@@ -250,7 +254,24 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "No valid recipient addresses." });
   }
 
-  const campaignId = ulid();
+  // A Zoho send that ran out of time is continued by the client with the
+  // `remaining` recipients and the same campaignId, so one send is one report
+  // row instead of one row per continuation.
+  const continuingId =
+    typeof body.campaignId === "string" && ULID_RE.test(body.campaignId) ? body.campaignId : null;
+  let existingCampaign = null;
+  if (continuingId && supabaseConfigured()) {
+    try {
+      const [row] = await selectRows(
+        "bulk_emails",
+        `select=id,sent_by,sent_count,failed_count&id=eq.${continuingId}&limit=1`
+      );
+      if (row && (row.sent_by || null) === (auth.code || null)) existingCampaign = row;
+    } catch (e) {
+      console.error("bulk_emails lookup failed:", e?.message || e);
+    }
+  }
+  const campaignId = existingCampaign ? existingCampaign.id : ulid();
   const sender = resolveSender(process.env.EMAIL_FROM);
   const args = { from: sender.header, subject, html, recipients: clean, campaignId };
 
@@ -262,7 +283,16 @@ export default async function handler(req, res) {
         : await sendViaResend(args);
 
   // Log the send to Supabase for the report (best-effort — never fail the send).
-  if (supabaseConfigured()) {
+  if (supabaseConfigured() && existingCampaign) {
+    try {
+      await updateRows("bulk_emails", `id=eq.${campaignId}`, {
+        sent_count: (existingCampaign.sent_count || 0) + sent,
+        failed_count: (existingCampaign.failed_count || 0) + failed.length,
+      });
+    } catch (e) {
+      console.error("bulk_emails update failed:", e?.message || e);
+    }
+  } else if (supabaseConfigured()) {
     try {
       await insertRows("bulk_emails", [
         {

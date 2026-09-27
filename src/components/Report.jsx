@@ -1,39 +1,24 @@
-import React, { useEffect, useState } from "react";
-import Header from "./Header";
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Layout from "./Layout";
 import ExportButton from "./ExportButton";
 import { exportAttendance } from "../services/exportAttendance";
-import apiRequest from "../utils/apiClient";
+import { useHistoryDates } from "../hooks/useAttendanceQueries";
 
 export default function Report() {
-  const [dates, setDates] = useState([]);
   const [selectedDate, setSelectedDate] = useState("");
-  const [data, setData] = useState([]);
 
-  // 1️⃣ Fetch available attendance dates on mount
-  useEffect(() => {
-    async function fetchDates() {
-      try {
-        const res = await apiRequest("GET","/api/uniquedates");
-        const result = res.data
-        setDates(result || []);
-      } catch (err) {
-      }
-    }
-    fetchDates();
-  }, []);
-
-  // 2️⃣ When a date is selected, fetch data for that date
-  useEffect(() => {
-    if (!selectedDate) return;
-    exportAttendance(selectedDate)
-      .then((res) => setData(res))
-      .catch(() => {});
-  }, [selectedDate]);
+  // Dates shared (and cached) with the history pages; each export is cached
+  // per date, so switching back to a date doesn't download it again.
+  const { data: dates = [] } = useHistoryDates();
+  const { data = [] } = useQuery({
+    queryKey: ["attendanceExport", selectedDate],
+    queryFn: () => exportAttendance(selectedDate),
+    enabled: Boolean(selectedDate),
+  });
 
   return (
     <div className="min-h-screen bg-cream">
-      <Header />
       <Layout>
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">

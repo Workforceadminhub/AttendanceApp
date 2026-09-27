@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import Header from "../../../components/Header";
 import Layout from "../../../components/Layout";
 import { Stat, Tag } from "../../../components/ui";
 import CertificatePreview from "../../../components/hub/certificates/CertificatePreview";
@@ -86,7 +85,6 @@ export default function CertificateInventory() {
 
   return (
     <>
-      <Header />
       <Layout>
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">

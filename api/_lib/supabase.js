@@ -50,3 +50,36 @@ export async function selectRows(table, query = "") {
   }
   return res.json();
 }
+
+/** PATCH rows matching a raw PostgREST filter (e.g. "id=eq.abc"). Throws on non-2xx. */
+export async function updateRows(table, filter, patch) {
+  const res = await fetch(`${URL}/rest/v1/${table}?${filter}`, {
+    method: "PATCH",
+    headers: headers({ Prefer: "return=minimal" }),
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Supabase update ${table} failed: HTTP ${res.status} ${text}`);
+  }
+}
+
+/**
+ * Call a Postgres function through PostgREST (POST /rpc/<name>). Throws on
+ * non-2xx; the error carries `status` so callers can detect a missing
+ * function (404).
+ */
+export async function callRpc(name, args = {}) {
+  const res = await fetch(`${URL}/rest/v1/rpc/${name}`, {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify(args),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    const error = new Error(`Supabase rpc ${name} failed: HTTP ${res.status} ${text}`);
+    error.status = res.status;
+    throw error;
+  }
+  return res.json();
+}

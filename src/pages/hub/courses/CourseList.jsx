@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import Header from "../../../components/Header";
 import Layout from "../../../components/Layout";
 import { Tag } from "../../../components/ui";
 import { useCanAction } from "../../../contexts/RBACContext";
@@ -39,7 +38,6 @@ export default function CourseList() {
 
   return (
     <>
-      <Header />
       <Layout>
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">

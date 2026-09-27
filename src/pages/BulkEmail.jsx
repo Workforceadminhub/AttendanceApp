@@ -8,7 +8,6 @@ import {
   ListBulletIcon,
   PhotoIcon,
 } from "@heroicons/react/24/outline";
-import Header from "../components/Header";
 import Layout from "../components/Layout";
 import { Button, Card } from "../components/ui";
 import { buildEmail } from "../emails/template";
@@ -155,10 +154,12 @@ function BulkEmailComposer() {
     let pending = valid;
     let totalSent = 0;
     let totalFailed = [];
+    let campaignId;
     try {
       while (pending.length > 0) {
         toast.info(`Sending… ${totalSent} sent, ${pending.length} remaining`, { autoClose: 3000 });
-        const res = await sendBulkEmail({ subject, html, recipients: pending, provider });
+        const res = await sendBulkEmail({ subject, html, recipients: pending, provider, campaignId });
+        campaignId = res?.campaignId || campaignId;
         totalSent += res?.sent || 0;
         if (res?.failed?.length) totalFailed.push(...res.failed);
         pending = res?.remaining || [];
@@ -183,7 +184,6 @@ function BulkEmailComposer() {
 
   return (
     <div className="min-h-screen bg-cream">
-      <Header />
       <Layout>
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-ink-900">Bulk Email</h1>

@@ -4,7 +4,7 @@ import React from "react";
  * Layout - page content shell.
  *
  * Centered max-width column with consistent horizontal padding and a
- * generous vertical rhythm. Pages render their own <Header /> above this.
+ * generous vertical rhythm. The Header above it comes from AppShell.
  *
  * The bottom padding ensures content never sits flush with the viewport edge
  * on mobile, where a sticky bottom action bar may overlay the last 64px.

@@ -1,14 +1,14 @@
 import { useLocation } from "react-router-dom";
-import Header from "../Header";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getDepartmentByUser } from "../../utils/getDepartment";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
  fetchAdminWorkers,
  fetchAdminWorkersPage,
  fetchWorkers,
  removeWorker,
 } from "../../services/workers";
-import { addAttendance } from "../../services/attendance";
+import { addAttendance, invalidateAttendanceQueries } from "../../services/attendance";
 import { toast } from "react-toastify";
 import { getNextSunday, getSundayDisplayDate } from "../../utils/getDate";
 import DatePicker from "react-datepicker";
@@ -23,11 +23,12 @@ import { checkAdminStatus } from "../../utils/checkAdminStatus";
 import { getUserRole, filterTeamFromPermissions } from "../../utils/getUserRole";
 import { fetchDepartments } from "../../services/departments";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
-import { debounce } from "lodash";
+import debounce from "lodash/debounce";
 import ViewHistoryButton from "../ViewHistoryButton";
 import { TrashIcon, ArrowUpIcon, ArrowDownIcon } from "@heroicons/react/24/outline";
 import Modal from "../Modal";
 import { getUser } from "../../utils/getUser";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { expandPermissions } from "../../utils/expandPermissions";
 import LoadingState from "../LoadingState";
 
@@ -55,15 +56,31 @@ function isSunday(date) {
  return date.getDay() === 0;
 }
 
-// Separate component for the attendance dropdown to reduce duplication
-const AttendanceDropdown = ({
+function updateOrAddWorker(array, newWorker) {
+ // Find the index of an object with the same workerid
+ const index = array.findIndex(
+ (worker) => worker.workerid === newWorker.workerid
+ );
+
+ if (index !== -1) {
+ // If a match is found, replace the old object with the new one
+ return array.map((worker, i) => (i === index ? newWorker : worker));
+ }
+ // If no match is found, add the new object to a new array
+ return [...array, newWorker];
+}
+
+// Separate component for the attendance dropdown to reduce duplication.
+// Memoized (with a stable updateAttendance) so marking one worker re-renders
+// that row's select only, not all 100 on the page.
+const AttendanceDropdown = memo(function AttendanceDropdown({
  person,
  disabled,
  attendanceIsClosed,
  updateAttendance,
  options,
  className,
-}) => {
+}) {
  return (
  <ReactSelectDropdown
  title="Mark attendance"
@@ -83,7 +100,7 @@ const AttendanceDropdown = ({
  className={className}
  />
  );
-};
+});
 
 const PAGE_SIZE = 100;
 
@@ -100,11 +117,11 @@ export default function DepartmentAttendance() {
  const location = useLocation();
  // const team = getDepartment(location.pathname);
  const [attendance, setAttendance] = useState([]);
- const [data, setData] = useState([]);
- const [isLoading, setIsLoading] = useState(false);
+ // Set while a delete request is in flight.
+ const [isRemoving, setIsRemoving] = useState(false);
  const [attendanceLoading, setAttendanceLoading] = useState(false);
+ const queryClient = useQueryClient();
  const dateForAttendance = getNextSunday();
- const [refresh, setRefresh] = useState(0);
  const [activeGroup, setActiveGroup] = useState("All");
  const team = getDepartmentByUser(location.pathname);
  const { isChurchAdmin, isSuperAdmin, isSubTeamAdmin, assignedDepartments } = getUserRole();
@@ -125,16 +142,14 @@ export default function DepartmentAttendance() {
  roleofrequester: "",
  });
  const [apiDepartments, setApiDepartments] = useState([]);
+ // Sub-team admins fetch per department, so their table waits for this list
+ // instead of first loading the parent department and then fetching again.
+ const [apiDepartmentsLoaded, setApiDepartmentsLoaded] = useState(false);
  const [sortConfig, setSortConfig] = useState({
  key: null,
  direction: "asc", // 'asc' or 'desc'
  });
  const [currentPage, setCurrentPage] = useState(1);
- // Admin routes page on the server; one request per visible page.
- const [serverPagination, setServerPagination] = useState({ total: 0, totalPages: 1 });
- // Admin summary loads every row in the background. It is
- // keyed to the filters (and last save) it was loaded for, so stale rows are ignored.
- const [summaryState, setSummaryState] = useState({ key: "", rows: null, loading: false });
 
  // ── History mode: date picker ─────────────────────────────────────
  // Max selectable date = the current/next Sunday; min = first Sunday of 2026
@@ -158,9 +173,126 @@ export default function DepartmentAttendance() {
  // When the selected Sunday differs from the live date, we're in "history mode"
  const isHistoryMode = selectedSunday !== dateForAttendance;
 
- const summaryKey = `${activeGroup}|${team.team}|${selectedSunday}|${refresh}`;
- const summaryRows = summaryState.key === summaryKey ? summaryState.rows : null;
- const summaryLoading = summaryState.key === summaryKey && summaryState.loading;
+ // Tailwind's sm breakpoint: which of the two row layouts to mount.
+ const isDesktop = useMediaQuery("(min-width: 640px)");
+
+ const permissions = useMemo(() => expandPermissions(authUser), [authUser]);
+ const permissionsKey = permissions.join(",");
+ // Admin routes filter by team on the server; a team pick scopes permissions.
+ const adminScope = useMemo(() => {
+ const basePermissions = filterTeamFromPermissions(permissions, authUser?.team);
+ const isTeamFilter =
+ (isChurchAdmin || isSuperAdmin) && activeGroup && activeGroup !== "All";
+ let permissionsForApi = basePermissions;
+ if (isTeamFilter) {
+ const teamScoped = filterPermissionsByTeam(basePermissions, activeGroup);
+ if (Array.isArray(teamScoped) && teamScoped.length > 0) permissionsForApi = teamScoped;
+ }
+ return {
+ // The API filters on `team`; the scoped permissions list is ignored for admins.
+ apiTeam: isTeamFilter ? activeGroup : team.team,
+ apiActiveGroup: isTeamFilter ? "All" : activeGroup,
+ permissionsForApi,
+ };
+ }, [permissions, authUser, isChurchAdmin, isSuperAdmin, activeGroup, team.team]);
+
+ // The table: one server page for admin routes, the whole department
+ // otherwise. Cached per filter, date and page, so revisiting is instant;
+ // saving attendance refreshes it.
+ const subTeamDepartmentNames = isSubTeamAdmin ? apiDepartments.map((d) => d.name).join("|") : "";
+ const {
+ data: tableData,
+ isLoading: isTableFirstLoad,
+ isPlaceholderData,
+ error: tableError,
+ refetch: refetchTable,
+ } = useQuery({
+ queryKey: isAdminMember
+ ? [
+ "attendanceTable",
+ "admin",
+ adminScope.apiTeam,
+ adminScope.apiActiveGroup,
+ selectedSunday,
+ currentPage,
+ adminScope.permissionsForApi.join(","),
+ ]
+ : [
+ "attendanceTable",
+ "user",
+ team.department,
+ isSubTeamAdmin ? selectedDepartmentFilter : null,
+ subTeamDepartmentNames,
+ selectedSunday,
+ permissionsKey,
+ ],
+ queryFn: async ({ signal }) => {
+ if (isAdminMember) {
+ const { data: rows, pagination } = await fetchAdminWorkersPage(
+ adminScope.apiTeam,
+ adminScope.apiActiveGroup,
+ selectedSunday,
+ adminScope.permissionsForApi,
+ { page: currentPage, limit: PAGE_SIZE, signal }
+ );
+ return {
+ rows: sortWorkersById(rows),
+ pagination: { total: pagination.total, totalPages: pagination.totalPages },
+ };
+ }
+ if (isSubTeamAdmin && selectedDepartmentFilter !== "All") {
+ return { rows: sortWorkersById(await fetchWorkers(selectedDepartmentFilter, selectedSunday, permissions, "")) };
+ }
+ if (isSubTeamAdmin && apiDepartments.length > 0) {
+ const results = await Promise.all(
+ apiDepartments.map((d) => fetchWorkers(d.name, selectedSunday, permissions, ""))
+ );
+ return { rows: sortWorkersById(results.flat()) };
+ }
+ return { rows: sortWorkersById(await fetchWorkers(team.department, selectedSunday, permissions, "")) };
+ },
+ enabled: isAdminMember || !isSubTeamAdmin || apiDepartmentsLoaded,
+ // Keep the previous pagination while the next page loads; the table still
+ // shows its loading state until the new rows arrive.
+ placeholderData: (prev) => prev,
+ });
+ const data = useMemo(() => tableData?.rows ?? [], [tableData]);
+ const serverPagination = tableData?.pagination ?? { total: 0, totalPages: 1 };
+ const isLoading =
+ isTableFirstLoad || isPlaceholderData || isRemoving || (!tableData && !tableError);
+
+ useEffect(() => {
+ if (tableError) toast.error(`Error loading attendance: ${tableError.message}`);
+ }, [tableError]);
+
+ // Admin summary counts every worker in scope, independently of the visible
+ // page. Not refetched after saves: the saved statuses are written into this
+ // cache (see saveAttendance), so re-downloading everyone isn't needed.
+ const summaryQueryKey = [
+ "attendanceSummaryRows",
+ adminScope.apiTeam,
+ adminScope.apiActiveGroup,
+ selectedSunday,
+ adminScope.permissionsForApi.join(","),
+ ];
+ const summaryQuery = useQuery({
+ queryKey: summaryQueryKey,
+ queryFn: ({ signal }) =>
+ fetchAdminWorkers(
+ adminScope.apiTeam,
+ adminScope.apiActiveGroup,
+ selectedSunday,
+ "",
+ adminScope.permissionsForApi,
+ { signal }
+ ).then((rows) => (Array.isArray(rows) ? rows : [])),
+ enabled: isAdminMember,
+ });
+ const summaryRows = summaryQuery.data ?? null;
+
+ useEffect(() => {
+ if (summaryQuery.error) toast.error(`Error loading summary: ${summaryQuery.error.message}`);
+ }, [summaryQuery.error]);
 
  // Unique departments from response – used for non–sub-team-admin
  const departmentsFromData = useMemo(() => {
@@ -363,163 +495,6 @@ export default function DepartmentAttendance() {
  // Allow church admin to mark attendance, keep other admin roles read-only
  const disableForAdminRole = isAdminMember && !isChurchAdmin;
 
- // Incremented per fetch; responses from an older request are ignored
- // (covers unmount and rapid dependency changes).
- const requestIdRef = useRef(0);
- const abortRef = useRef(null);
- const summaryAbortRef = useRef(null);
- useEffect(() => () => {
- requestIdRef.current += 1;
- abortRef.current?.abort();
- summaryAbortRef.current?.abort();
- }, []);
-
- const queryAdminWorkers = useCallback(() => {
- const requestId = ++requestIdRef.current;
- const isCurrent = () => requestId === requestIdRef.current;
- abortRef.current?.abort();
- const controller = new AbortController();
- abortRef.current = controller;
- setIsLoading(true);
- const rawPermissions = expandPermissions(authUser);
- const basePermissions = filterTeamFromPermissions(rawPermissions, authUser?.team);
-
- const isTeamFilter =
- (isChurchAdmin || isSuperAdmin) && activeGroup && activeGroup !== "All";
-
- let apiActiveGroup = activeGroup;
- let permissionsForApi = basePermissions;
-
- if (isTeamFilter) {
- const teamScoped = filterPermissionsByTeam(basePermissions, activeGroup);
- apiActiveGroup = "All";
- if (Array.isArray(teamScoped) && teamScoped.length > 0) {
- permissionsForApi = teamScoped;
- }
- }
-
- // The API filters on `team`; the scoped permissions list is ignored for admins.
- const apiTeam = isTeamFilter ? activeGroup : team.team;
- fetchAdminWorkersPage(apiTeam, apiActiveGroup, selectedSunday, permissionsForApi, {
- page: currentPage,
- limit: PAGE_SIZE,
- signal: controller.signal,
- })
- .then(({ data: rows, pagination }) => {
- if (!isCurrent()) return;
- setData(sortWorkersById(rows));
- setServerPagination({ total: pagination.total, totalPages: pagination.totalPages });
- setIsLoading(false);
- })
- .catch((error) => {
- if (!isCurrent()) return;
- toast.error(`Error loading attendance: ${error.message}`);
- setIsLoading(false);
- });
- }, [
- authUser,
- isChurchAdmin,
- isSuperAdmin,
- activeGroup,
- team.team,
- selectedSunday,
- currentPage,
- ]);
-
- /** Load summary rows independently of the visible table page. */
- const loadAdminSummary = useCallback(() => {
- const controller = new AbortController();
- summaryAbortRef.current?.abort();
- summaryAbortRef.current = controller;
- const key = summaryKey;
- setSummaryState({ key, rows: null, loading: true });
- const rawPermissions = expandPermissions(authUser);
- const basePermissions = filterTeamFromPermissions(rawPermissions, authUser?.team);
- const isTeamFilter = (isChurchAdmin || isSuperAdmin) && activeGroup && activeGroup !== "All";
- let permissionsForApi = basePermissions;
- if (isTeamFilter) {
- const teamScoped = filterPermissionsByTeam(basePermissions, activeGroup);
- if (Array.isArray(teamScoped) && teamScoped.length > 0) permissionsForApi = teamScoped;
- }
- const apiTeam = isTeamFilter ? activeGroup : team.team;
- fetchAdminWorkers(apiTeam, isTeamFilter ? "All" : activeGroup, selectedSunday, "", permissionsForApi, { signal: controller.signal })
- .then((rows) => {
- if (controller.signal.aborted) return;
- setSummaryState({ key, rows: Array.isArray(rows) ? rows : [], loading: false });
- })
- .catch((error) => {
- if (controller.signal.aborted) return;
- toast.error(`Error loading summary: ${error.message}`);
- setSummaryState({ key, rows: null, loading: false, error: true });
- });
- }, [authUser, isChurchAdmin, isSuperAdmin, activeGroup, team.team, selectedSunday, summaryKey]);
-
- useEffect(() => {
- if (!isAdminMember) return;
- loadAdminSummary();
- return () => summaryAbortRef.current?.abort();
- }, [isAdminMember, loadAdminSummary]);
-
-
- const queryWorkers = useCallback(() => {
- const requestId = ++requestIdRef.current;
- const isCurrent = () => requestId === requestIdRef.current;
- setIsLoading(true);
- const permissions = expandPermissions(authUser);
-
- if (isSubTeamAdmin && selectedDepartmentFilter !== "All") {
- fetchWorkers(selectedDepartmentFilter, selectedSunday, permissions, "")
- .then((res) => {
- if (!isCurrent()) return;
- setData(sortWorkersById(res));
- setIsLoading(false);
- })
- .catch((error) => {
- if (!isCurrent()) return;
- toast.error(`Error loading attendance: ${error.message}`);
- setIsLoading(false);
- });
- return;
- }
-
- if (isSubTeamAdmin && apiDepartments.length > 0) {
- Promise.all(
- apiDepartments.map((d) => fetchWorkers(d.name, selectedSunday, permissions, ""))
- )
- .then((results) => {
- if (!isCurrent()) return;
- const merged = results.flat();
- setData(sortWorkersById(merged));
- setIsLoading(false);
- })
- .catch((error) => {
- if (!isCurrent()) return;
- toast.error(`Error loading attendance: ${error.message}`);
- setIsLoading(false);
- });
- return;
- }
-
- fetchWorkers(team.department, selectedSunday, permissions, "")
- .then((res) => {
- if (!isCurrent()) return;
- setData(sortWorkersById(res));
- setIsLoading(false);
- })
- .catch((error) => {
- if (!isCurrent()) return;
- toast.error(`Error loading attendance: ${error.message}`);
- setIsLoading(false);
- });
- }, [
- authUser,
- isSubTeamAdmin,
- selectedDepartmentFilter,
- apiDepartments,
- team.department,
- selectedSunday,
- ]);
-
  useEffect(() => {
  let cancelled = false;
  switchOffAttendance()
@@ -548,40 +523,22 @@ export default function DepartmentAttendance() {
  return assigned.length === 0 || assigned.includes(route);
  });
  setApiDepartments(filtered);
+ setApiDepartmentsLoaded(true);
  })
  .catch(() => {
- if (!cancelled) setApiDepartments([]);
+ if (cancelled) return;
+ setApiDepartments([]);
+ setApiDepartmentsLoaded(true);
  });
  return () => {
  cancelled = true;
  };
  }, [isSubTeamAdmin, isAdminMember, assignedDepartmentsKey, assignedDepartments]);
 
- const subTeamSelectedDepartmentDep = isSubTeamAdmin
- ? selectedDepartmentFilter
- : null;
- const subTeamApiDepartmentsCountDep = isSubTeamAdmin ? apiDepartments.length : 0;
-
+ // Unsaved picks belong to the live Sunday; drop them when viewing history.
  useEffect(() => {
  if (isHistoryMode) setAttendance([]);
- if (isAdminMember) {
- queryAdminWorkers();
- } else {
- queryWorkers();
- }
- }, [
- activeGroup,
- isAdminMember,
- isChurchAdmin,
- team.team,
- subTeamSelectedDepartmentDep,
- subTeamApiDepartmentsCountDep,
- selectedSunday,
- isHistoryMode,
- refresh,
- queryAdminWorkers,
- queryWorkers,
- ]);
+ }, [isHistoryMode, selectedSunday]);
 
  // Reset department filter if selected department no longer in available list
  const availableDepartmentNames = availableDepartments;
@@ -594,20 +551,6 @@ export default function DepartmentAttendance() {
  setSelectedDepartmentFilter("All");
  }
  }, [availableDepartmentNames, selectedDepartmentFilter]);
-
- function updateOrAddWorker(array, newWorker) {
- // Find the index of an object with the same workerid
- const index = array.findIndex(
- (worker) => worker.workerid === newWorker.workerid
- );
-
- if (index !== -1) {
- // If a match is found, replace the old object with the new one
- return array.map((worker, i) => (i === index ? newWorker : worker));
- }
- // If no match is found, add the new object to a new array
- return [...array, newWorker];
- }
 
  const handleSort = (columnKey) => {
  setSortConfig((prevConfig) => {
@@ -635,7 +578,7 @@ export default function DepartmentAttendance() {
  );
  };
 
- const updateAttendance = (selected, person) => {
+ const updateAttendance = useCallback((selected, person) => {
  setAttendance((prev) =>
  updateOrAddWorker(prev, {
  workerid: person.id,
@@ -646,14 +589,23 @@ export default function DepartmentAttendance() {
  attendancedate: dateForAttendance,
  })
  );
- };
+ }, [team.department, team.team, dateForAttendance]);
 
  const saveAttendance = async () => {
  try {
  setAttendanceLoading(true);
  await addAttendance(attendance);
+ // Write the saved statuses into the cached summary rows so it stays
+ // right without re-downloading every worker in scope.
+ const savedById = new Map(attendance.map((a) => [a.workerid, a.attendance]));
+ queryClient.setQueryData(summaryQueryKey, (rows) =>
+ Array.isArray(rows)
+ ? rows.map((r) => (savedById.has(r.id) ? { ...r, attendance: savedById.get(r.id) } : r))
+ : rows
+ );
+ // Refetches the table (on screen) and drops other cached attendance.
+ invalidateAttendanceQueries(queryClient);
  setAttendanceLoading(false);
- setRefresh(Math.random());
  toast.success("Attendance added successfully");
  } catch (error) {
  // error handling
@@ -681,16 +633,16 @@ export default function DepartmentAttendance() {
  ) {
  toast.error("Please fill all required fields");
  } else {
- setIsLoading(true);
+ setIsRemoving(true);
  removeWorker(workerId, deleteData)
  .then(() => {
  toast.success("Request submitted and pending approval");
- setIsLoading(false);
+ setIsRemoving(false);
  setModalOpen(false);
- setRefresh(Math.random());
+ refetchTable();
  })
  .catch((error) => {
- setIsLoading(false);
+ setIsRemoving(false);
  toast.error(`Error removing worker: ${error.message}`);
  });
  }
@@ -698,7 +650,6 @@ export default function DepartmentAttendance() {
 
  return (
  <div className="min-h-screen bg-cream">
- <Header />
  <Layout>
  <div>
  <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
@@ -830,12 +781,12 @@ export default function DepartmentAttendance() {
  </dl>
  {isAdminMember && !summaryReady && (
  <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
- {summaryState.key === summaryKey && summaryState.error && !summaryLoading ? (
+ {summaryQuery.isError && !summaryQuery.isFetching ? (
  <>
  <p role="alert" className="text-sm text-brick">Attendance summary could not be loaded.</p>
  <button
  type="button"
- onClick={loadAdminSummary}
+ onClick={() => summaryQuery.refetch()}
  className="px-3 py-1.5 rounded-md border border-ink-300 text-sm text-ink-700 bg-white hover:bg-cream"
  >
  Retry summary
@@ -867,7 +818,9 @@ export default function DepartmentAttendance() {
  <LoadingState />
  ) : (
  <div className="space-y-4">
- {/* Desktop Table */}
+ {/* Desktop Table. Only one layout is mounted: rendering both and
+ hiding one with CSS mounted two selects per worker. */}
+ {isDesktop && (
  <div className="hidden sm:block">
  <div className="overflow-x-auto">
  <table className="min-w-full divide-y divide-ink-300">
@@ -959,6 +912,7 @@ export default function DepartmentAttendance() {
  </table>
  </div>
  </div>
+ )}
  <Modal
  confirmText="Yes, Delete"
  title="Request to delete worker"
@@ -971,6 +925,7 @@ export default function DepartmentAttendance() {
  />
 
  {/* Mobile Cards */}
+ {!isDesktop && (
  <div className="sm:hidden">
  <div className="space-y-4">
  {paginatedData?.map((person, idx) => (
@@ -1024,6 +979,7 @@ export default function DepartmentAttendance() {
  ))}
  </div>
  </div>
+ )}
  {totalPages > 1 && (
  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
  <p className="text-sm text-ink-600">

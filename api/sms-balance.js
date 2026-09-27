@@ -4,7 +4,7 @@
  * Retrieves wallet balance for Sendchamp or SmartSMSSolutions.
  * Restricted strictly to Super Admins.
  */
-import { decodeJwt } from "./_lib/auth.js";
+import { decodeJwt, verifyStatus } from "./_lib/auth.js";
 
 const BACKEND_API_URL =
   process.env.BACKEND_API_URL || process.env.REACT_APP_BASE_URL || "";
@@ -37,17 +37,14 @@ async function authorizeSuperAdmin(authHeader) {
     return { ok: false, status: 500, reason: "backend_url_not_configured" };
   }
 
-  try {
-    const res = await fetch(`${BACKEND_API_URL}${ADMIN_VERIFY_PATH}`, {
-      method: "GET",
-      headers: { Authorization: authHeader, "Content-Type": "application/json" },
-    });
-    if (res.status !== 200) {
-      return { ok: false, status: 401, reason: `token_rejected (${res.status})` };
-    }
-  } catch (e) {
-    console.error("verify fetch failed:", e?.message || e);
+  // Shared with the email functions: a recently verified token skips the
+  // backend round trip.
+  const status = await verifyStatus(authHeader, ADMIN_VERIFY_PATH);
+  if (status === 0) {
     return { ok: false, status: 500, reason: "auth_verification_failed" };
+  }
+  if (status !== 200) {
+    return { ok: false, status: 401, reason: `token_rejected (${status})` };
   }
 
   const claims = decodeJwt(authHeader);

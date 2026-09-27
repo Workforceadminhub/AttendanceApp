@@ -13,6 +13,7 @@ import LoadingState from "./components/LoadingState";
 import { DepartmentsProvider, useDepartmentRoutes } from "./contexts/DepartmentsContext";
 import { RBACProvider } from "./contexts/RBACContext";
 import HubRoute from "./components/auth/HubRoute";
+import AppShell from "./components/AppShell";
 
 // Code-split heavy pages - keeps initial bundle small
 const Dashboard = lazy(() => import("./components/Workers/Dashboard"));
@@ -96,12 +97,16 @@ const queryClient = new QueryClient({
       staleTime: 5 * 60 * 1000, // 5 minutes
       gcTime: 10 * 60 * 1000, // 10 minutes
       retry: (failureCount, error) => {
+        if (failureCount >= 3) return false;
         // Don't retry auth/permission errors (deterministic - won't change on retry)
         const msg = error?.message || "";
         if (msg.includes("Invalid credentials") || msg.includes("permission")) return false;
-        // Server errors (5xx) ARE often transient (Lambda cold starts, API
-        // Gateway throttling). Retry up to 3 times with exponential backoff.
-        return failureCount < 3;
+        // Retry only what can be transient: network errors (no status),
+        // timeouts, throttling and 5xx (Lambda cold starts, API Gateway).
+        // Other 4xx responses won't change, and retrying them delayed the
+        // error message by ~14s.
+        const status = error?.status;
+        return !status || status === 408 || status === 429 || status >= 500;
       },
       retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
     },
@@ -144,14 +149,6 @@ const AppRoutes = () => {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/set-password" element={<SetPassword />} />
-            <Route
-              path="/report"
-              element={
-                <PrivateRoute>
-                  <Report />
-                </PrivateRoute>
-              }
-            />
             <Route path="/new/worker" element={<NewWorker />} />
             <Route path="/leadership-registration" element={<LeadershipRegistration />} />
             <Route path="/awakening" element={<AwakeningRegistration />} />
@@ -160,6 +157,16 @@ const AppRoutes = () => {
             <Route path="/workersmeeting/confirm" element={<WorkersMeetingConfirm />} />
             <Route path="/workers-meeting/confirm" element={<WorkersMeetingConfirm />} />
             <Route path="/workers-meeting" element={<WorkersMeetingPresent />} />
+            {/* Signed-in pages share one Header that stays mounted across navigation. */}
+            <Route element={<AppShell />}>
+            <Route
+              path="/report"
+              element={
+                <PrivateRoute>
+                  <Report />
+                </PrivateRoute>
+              }
+            />
             <Route
               path="/admin/leadership-registrations"
               element={
@@ -734,7 +741,6 @@ const AppRoutes = () => {
               }
             />
             {/* Public - no auth required */}
-            <Route path="/verify/:certificateNumber" element={<VerifyCertificate />} />
 
             {/* Fallback param routes - catch new dept/admin slugs before dept cache refreshes */}
             <Route
@@ -786,6 +792,8 @@ const AppRoutes = () => {
               }
             />
 
+            </Route>
+            <Route path="/verify/:certificateNumber" element={<VerifyCertificate />} />
             <Route path="*" exact={true} element={<NotFound />} />
         </Routes>
       </Suspense>

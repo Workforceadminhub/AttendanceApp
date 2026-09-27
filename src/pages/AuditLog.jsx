@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import Header from "../components/Header";
 import Layout from "../components/Layout";
 import DateRangeFilter from "../components/DateRangeFilter";
 import LoadingState from "../components/LoadingState";
@@ -96,7 +95,6 @@ export default function AuditLog() {
  if (!isSuperAdmin && !isChurchAdmin) {
  return (
  <div className="min-h-screen bg-cream">
- <Header />
  <Layout>
  <div className="qc-card p-12 text-center">
  <div className="qc-eyebrow text-ink-400">Access denied</div>
@@ -111,7 +109,6 @@ export default function AuditLog() {
 
  return (
  <div className="min-h-screen bg-cream">
- <Header />
  <Layout>
 
  <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">

@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import Header from "../components/Header";
 import Layout from "../components/Layout";
 import { toast } from "react-toastify";
-import ExcelJS from "exceljs";
+import { loadExcelJS } from "../utils/loadExcelJS";
 import { getEffectiveRouteList, getDepartmentNameFromRoute, getDepartmentRoute, getTeamForDepartment } from "../utils/routeObject";
 import { normalizeWorkerRole } from "../utils/teams";
 import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
@@ -52,6 +51,7 @@ export default function HODBulkAddWorker() {
  reader.onload = async (e) => {
  try {
  const buffer = e.target.result;
+ const ExcelJS = await loadExcelJS();
  const workbook = new ExcelJS.Workbook();
  await workbook.xlsx.load(buffer);
  const worksheet = workbook.worksheets[0];
@@ -320,7 +320,6 @@ export default function HODBulkAddWorker() {
 
  return (
  <div className="px-4 sm:px-6 lg:px-8 py-8">
- <Header />
  <Layout>
  <div className="max-w-4xl mx-auto">
  <div className="mb-6">

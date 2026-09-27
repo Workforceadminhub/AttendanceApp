@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "react-toastify";
-import Header from "../../../components/Header";
 import Layout from "../../../components/Layout";
 import { useCanAction } from "../../../contexts/RBACContext";
 import { createCourse } from "../../../services/hub/courses";
@@ -63,7 +62,6 @@ export default function CreateCourse() {
   if (!canCreate) {
     return (
       <>
-        <Header />
         <Layout>
           <div className="p-8 text-center text-ink-500">
             You do not have permission to create courses.
@@ -75,7 +73,6 @@ export default function CreateCourse() {
 
   return (
     <>
-      <Header />
       <Layout>
         <div className="max-w-2xl">
           <div className="mb-6">

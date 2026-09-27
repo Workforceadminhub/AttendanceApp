@@ -1,6 +1,7 @@
 // import { useNavigate } from "react-router-dom";
 import { useLocation } from "react-router-dom";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import { getNextSunday } from "../../../utils/getDate";
 import { getDepartmentByUser } from "../../../utils/getDepartment";
@@ -13,12 +14,11 @@ import { expandPermissions } from "../../../utils/expandPermissions";
 import { switchOffAttendance } from "../../../utils/switchOffAttendance";
 import { addAttendance } from "../../../services/attendance";
 import { getUserRole, filterTeamFromPermissions } from "../../../utils/getUserRole";
-import Header from "../../Header";
 import Layout from "../../Layout";
-import ReactSelectDropdown from "../../ReactSelect";
+import ReactSelectDropdown, { ATTENDANCE_COLORS } from "../../ReactSelect";
 import TableLoadingState from "../../TableLoadingState";
-import { fetchHistoryOptions } from "../../../services/history";
-import { debounce } from "lodash";
+import { useHistoryOptions } from "../../../hooks/useAttendanceQueries";
+import debounce from "lodash/debounce";
 import { DEBOUNCE_INTERVAL } from "../../../utils/constants";
 import ViewHistoryButton from "../../ViewHistoryButton";
 import { ArrowUpIcon, ArrowDownIcon } from "@heroicons/react/24/outline";
@@ -28,9 +28,7 @@ const PAGE_SIZE = 100;
 export default function DepartmentAttendanceHistory() {
   const location = useLocation();
   // const team = getDepartment(location.pathname);
-  const [attendance, setAttendance] = useState([]);
-  const [data, setData] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [attendance] = useState([]);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const dateForAttendance = getNextSunday();
   const [refresh, setRefresh] = useState("");
@@ -42,33 +40,12 @@ export default function DepartmentAttendanceHistory() {
   const authUser = useMemo(() => getUser(), []);
   const optionsAdmin = useAdminSelectOptions(isChurchAdmin, team, authUser);
   const [attendanceIsClosed, setAttendanceIsClosed] = useState(false);
-  const [historyOptions, setHistoryOptions] = useState([]);
   // Admin routes page on the server; one request per visible page.
   const [currentPage, setCurrentPage] = useState(1);
-  const [serverPagination, setServerPagination] = useState({ total: 0, totalPages: 1 });
   const [sortConfig, setSortConfig] = useState({
     key: null,
     direction: "asc", // 'asc' or 'desc'
   });
-
-  const options = useMemo(
-    () => [
-      { value: "present", label: "Present" },
-      { value: "online", label: "Online" },
-      { value: "absent", label: "Absent" },
-      {
-        value: "out-of-town",
-        label: "Out of town/travelled",
-      },
-      { value: "work", label: "Work" },
-      { value: "sick", label: "Sick" },
-      { value: "family-issue", label: "Family issue" },
-      { value: "school-exam", label: "School exam" },
-      { value: "not-reachable", label: "Not reachable" },
-      { value: "inactive", label: "Inactive" },
-    ],
-    []
-  );
 
   const getSortableValue = (person, key) => {
     switch (key) {
@@ -140,11 +117,11 @@ export default function DepartmentAttendanceHistory() {
     );
   };
 
-  const queryAdminWorkers = useCallback(() => {
-    setIsLoading(true);
-    const rawPermissions = expandPermissions(authUser);
-    const basePermissions = filterTeamFromPermissions(rawPermissions, authUser?.team);
-
+  // Admin routes page on the server. Cached per history date, group and page,
+  // so going back to a date or page already viewed is instant.
+  const permissions = useMemo(() => expandPermissions(authUser), [authUser]);
+  const adminScope = useMemo(() => {
+    const basePermissions = filterTeamFromPermissions(permissions, authUser?.team);
     const isTeamFilter =
       (isChurchAdmin || isSuperAdmin) && activeGroup && activeGroup !== "All";
 
@@ -161,102 +138,58 @@ export default function DepartmentAttendanceHistory() {
 
     // The API filters on `team`; the scoped permissions list is ignored for admins.
     const apiTeam = isTeamFilter ? activeGroup : team.team;
-    fetchAdminWorkersPage(apiTeam, apiActiveGroup, activeHistory, permissionsForApi, {
-      page: currentPage,
-      limit: PAGE_SIZE,
-    })
-      .then(({ data: rows, pagination }) => {
-        setData(rows);
-        setServerPagination({ total: pagination.total, totalPages: pagination.totalPages });
-        setIsLoading(false);
-      })
-      .catch((error) => {
-        toast.error(`Error marking attendance: ${error.message}`);
-        setIsLoading(false);
-      });
-  }, [
-    authUser,
-    isChurchAdmin,
-    isSuperAdmin,
-    activeGroup,
-    team.team,
-    activeHistory,
-    currentPage,
-  ]);
+    return { apiTeam, apiActiveGroup, permissionsForApi };
+  }, [permissions, authUser, isChurchAdmin, isSuperAdmin, activeGroup, team.team]);
 
-  const queryWorkers = useCallback(() => {
-    setIsLoading(true);
-    const permissions = expandPermissions(authUser);
-    fetchWorkers(team.department, activeHistory, permissions, "")
-      .then((res) => {
-        setData(res);
-      })
-      .catch((error) => {
-        toast.error(`Error marking attendance: ${error.message}`);
-        setIsLoading(false);
-      })
-      .finally(() => setIsLoading(false));
-  }, [team.department, activeHistory, authUser]);
+  const {
+    data: tableData,
+    isLoading: isFirstLoad,
+    isPlaceholderData,
+    error: tableError,
+  } = useQuery({
+    queryKey: isAdminMember
+      ? [
+          "attendanceHistoryTable",
+          "admin",
+          adminScope.apiTeam,
+          adminScope.apiActiveGroup,
+          activeHistory,
+          currentPage,
+          adminScope.permissionsForApi.join(","),
+          refresh,
+        ]
+      : ["attendanceHistoryTable", "user", team.department, activeHistory, permissions.join(","), refresh],
+    queryFn: async () => {
+      if (isAdminMember) {
+        const { data: rows, pagination } = await fetchAdminWorkersPage(
+          adminScope.apiTeam,
+          adminScope.apiActiveGroup,
+          activeHistory,
+          adminScope.permissionsForApi,
+          { page: currentPage, limit: PAGE_SIZE }
+        );
+        return { rows, pagination: { total: pagination.total, totalPages: pagination.totalPages } };
+      }
+      return { rows: await fetchWorkers(team.department, activeHistory, permissions, ""), pagination: null };
+    },
+    // Keep the previous pagination while the next page loads; the table still
+    // shows its loading state until the new rows arrive.
+    placeholderData: (prev) => prev,
+  });
+  const data = tableData?.rows ?? [];
+  const serverPagination = tableData?.pagination ?? { total: 0, totalPages: 1 };
+  const isLoading = isFirstLoad || isPlaceholderData;
+  const { data: historyOptions = [] } = useHistoryOptions();
+
+  useEffect(() => {
+    if (tableError) toast.error(`Error marking attendance: ${tableError.message}`);
+  }, [tableError]);
 
   useEffect(() => {
     switchOffAttendance()
       .then((res) => setAttendanceIsClosed(res))
       .catch((err) => {/* Silent error handling */});
-
-    fetchHistoryOptions().then((res) =>
-      setHistoryOptions(res.map((item) => ({ label: item, value: item })))
-    );
   }, []);
-
-  useEffect(() => {
-    if (isAdminMember) {
-      queryAdminWorkers();
-    } else {
-      queryWorkers();
-    }
-  }, [
-    activeGroup,
-    activeHistory,
-    isAdminMember,
-    isChurchAdmin,
-    team.team,
-    queryAdminWorkers,
-    queryWorkers,
-  ]);
-
-  useEffect(() => {
-    if (isAdminMember) {
-      queryAdminWorkers();
-    } else {
-      queryWorkers();
-    }
-  }, [refresh, isAdminMember, queryAdminWorkers, queryWorkers]);
-
-  function updateOrAddWorker(array, newWorker) {
-    // Find the index of an object with the same workerid
-    const index = array.findIndex(
-      (worker) => worker.workerid === newWorker.workerid
-    );
-
-    // Always return a new array so React sees a state change.
-    if (index !== -1) {
-      return array.map((worker, i) => (i === index ? newWorker : worker));
-    }
-    return [...array, newWorker];
-  }
-
-  const updateAttendance = (selected, person) => {
-    const newAttendance = updateOrAddWorker(attendance, {
-      workerid: person.id,
-      name: person.fullname,
-      attendance: selected?.label,
-      department: team.department,
-      team: team.team,
-      attendancedate: dateForAttendance,
-    });
-    setAttendance(newAttendance);
-    setRefresh("updated");
-  };
 
   const saveAttendance = async () => {
     setAttendanceLoading(true);
@@ -271,9 +204,11 @@ export default function DepartmentAttendanceHistory() {
     }
   };
 
-  const debouncedSetActiveGroup = debounce(
-    (value) => setActiveGroup(value),
-    DEBOUNCE_INTERVAL
+  // Memoized so the debounce survives re-renders; a new one per render
+  // never delays anything.
+  const debouncedSetActiveGroup = useMemo(
+    () => debounce((value) => setActiveGroup(value), DEBOUNCE_INTERVAL),
+    []
   );
 
   const handleChange = (selected) => {
@@ -281,9 +216,9 @@ export default function DepartmentAttendanceHistory() {
     debouncedSetActiveGroup(selected?.value);
   };
 
-  const debouncedSetActiveHistory = debounce(
-    (value) => setActiveHistory(value),
-    DEBOUNCE_INTERVAL
+  const debouncedSetActiveHistory = useMemo(
+    () => debounce((value) => setActiveHistory(value), DEBOUNCE_INTERVAL),
+    []
   );
 
   const handleHistoryChange = (selected) => {
@@ -301,7 +236,6 @@ export default function DepartmentAttendanceHistory() {
 
   return (
     <div className="min-h-screen bg-cream">
-      <Header />
       <Layout>
         <div>
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
@@ -431,23 +365,19 @@ export default function DepartmentAttendanceHistory() {
                           </td>
 
                           <td className="whitespace-nowrap px-3 py-4 text-sm text-ink-500">
-                            <div className="w-48 z-1000 pr-4">
-                              <ReactSelectDropdown
-                                title="Mark attendance"
-                                disabled
-                                defaultValue={
-                                  person?.attendance
-                                    ? {
-                                        value: person.attendance.toLowerCase(),
-                                        label: person.attendance,
-                                      }
-                                    : undefined
-                                }
-                                onChange={(selected) =>
-                                  updateAttendance(selected, person)
-                                }
-                                options={options}
-                              />
+                            {/* Read-only here, so a coloured label instead of a
+                                disabled react-select per row (up to 100). */}
+                            <div className="w-48 pr-4">
+                              {person?.attendance ? (
+                                <span
+                                  className="inline-flex rounded-lg px-2 py-1 text-sm text-ink-900"
+                                  style={{ backgroundColor: ATTENDANCE_COLORS[person.attendance] }}
+                                >
+                                  {person.attendance}
+                                </span>
+                              ) : (
+                                "-"
+                              )}
                             </div>
                           </td>
                         </tr>

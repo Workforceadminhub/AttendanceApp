@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
-import Header from "../components/Header";
 import Layout from "../components/Layout";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
@@ -78,8 +77,18 @@ export default function MeetingSettings() {
     }
   }, [activeTab]);
 
+  // Sync with the backend once on mount. The first sync fills the in-memory
+  // cache for both categories, so a tab switch only re-renders from it
+  // instead of re-running all four lookups. Mutations still call
+  // refreshMeetings directly.
+  const didInitialSyncRef = React.useRef(false);
   useEffect(() => {
-    refreshMeetings();
+    if (didInitialSyncRef.current) {
+      updateMeetingsFromCache();
+    } else {
+      didInitialSyncRef.current = true;
+      refreshMeetings();
+    }
     window.addEventListener(MEETINGS_CHANGED_EVENT, updateMeetingsFromCache);
     return () => {
       window.removeEventListener(MEETINGS_CHANGED_EVENT, updateMeetingsFromCache);
@@ -200,7 +209,6 @@ export default function MeetingSettings() {
 
   return (
     <div className="min-h-screen bg-cream">
-      <Header title="Meeting Settings" />
       <Layout>
         {/* Page Header */}
         <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

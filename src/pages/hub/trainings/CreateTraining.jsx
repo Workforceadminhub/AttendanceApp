@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Header from "../../../components/Header";
 import Layout from "../../../components/Layout";
 import { useCanAction } from "../../../contexts/RBACContext";
 import { TrainingFormDrawer } from "./TrainingManagementDrawer";
@@ -14,7 +13,6 @@ export default function CreateTraining() {
   if (!canCreate) {
     return (
       <>
-        <Header />
         <Layout><div className="p-8 text-center text-ink-500">You do not have permission to create trainings.</div></Layout>
       </>
     );
@@ -27,7 +25,6 @@ export default function CreateTraining() {
 
   return (
     <>
-      <Header />
       <Layout>
         <div className="max-w-2xl mx-auto py-12 text-center">
           <h1 className="text-3xl font-medium text-ink-900 tracking-tight">Create Training</h1>

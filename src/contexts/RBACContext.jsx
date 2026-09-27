@@ -1,9 +1,13 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { fetchMyRBAC } from "../services/hub/rbac";
 import { getUserRole } from "../utils/getUserRole";
 
 const RBACContext = createContext(null);
+
+// After a failed /rbac/me call, wait this long before trying again on a later
+// navigation. It used to retry on every route change.
+const RETRY_AFTER_FAILURE_MS = 60 * 1000;
 
 /**
  * Training Hub actions that Super Admin and Church Admin always hold, even when
@@ -29,6 +33,7 @@ export function RBACProvider({ children }) {
   const [rbac, setRbac] = useState(null);
   const [loading, setLoading] = useState(false);
   const loadedRef = useRef(false);
+  const lastFailureRef = useRef({ token: null, at: 0 });
   const { pathname } = useLocation();
 
   const load = useCallback(async () => {
@@ -52,6 +57,7 @@ export function RBACProvider({ children }) {
       loadedRef.current = true;
     } catch {
       setRbac(null);
+      lastFailureRef.current = { token, at: Date.now() };
     } finally {
       setLoading(false);
     }
@@ -69,6 +75,8 @@ export function RBACProvider({ children }) {
       return;
     }
     if (loadedRef.current) return;
+    const failure = lastFailureRef.current;
+    if (failure.token === token && Date.now() - failure.at < RETRY_AFTER_FAILURE_MS) return;
     load();
   }, [load, pathname]);
 
@@ -84,11 +92,9 @@ export function RBACProvider({ children }) {
     return () => window.removeEventListener("storage", onStorage);
   }, [load]);
 
-  const value = {
-    rbac,
-    loading,
-    refresh: load,
-  };
+  // Memoized: the provider re-renders on every navigation (it reads the
+  // pathname), and a new object each time re-rendered every RBAC consumer.
+  const value = useMemo(() => ({ rbac, loading, refresh: load }), [rbac, loading, load]);
 
   return <RBACContext.Provider value={value}>{children}</RBACContext.Provider>;
 }

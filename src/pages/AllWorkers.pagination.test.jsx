@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import AllWorkers from "./AllWorkers";
 import { fetchAllSuperAdminWorkers } from "../services/workers";
 vi.mock("../services/workers", () => ({ fetchAllSuperAdminWorkers: vi.fn() }));
@@ -11,7 +12,8 @@ vi.mock("../utils/getUserRole", () => ({ getUserRole: () => ({ isSuperAdmin: tru
 describe("All Workers pagination", () => {
   it("renders 50 rows at a time and filters the entire dataset when on another page", async () => {
     fetchAllSuperAdminWorkers.mockResolvedValue(Array.from({ length: 55 }, (_, index) => ({ id: index + 1, firstname: `Person${index + 1}`, lastname: 'Worker' })));
-    render(<MemoryRouter><AllWorkers /></MemoryRouter>);
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={queryClient}><MemoryRouter><AllWorkers /></MemoryRouter></QueryClientProvider>);
     expect(await screen.findByText('Showing 55 of 55 workers')).toBeInTheDocument();
     expect(screen.getAllByRole('row')).toHaveLength(51);
     expect(screen.queryByText('Person51')).not.toBeInTheDocument();

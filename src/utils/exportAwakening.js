@@ -1,4 +1,4 @@
-import ExcelJS from "exceljs";
+import { loadExcelJS } from "./loadExcelJS";
 import { saveAs } from "file-saver";
 import { format } from "date-fns";
 import { fetchAllAwakeningRegistrations } from "../services/awakeningConference";
@@ -99,6 +99,7 @@ export async function exportAwakeningWorkbook(filters = {}) {
     throw new Error("No registrations match the current filters.");
   }
 
+  const ExcelJS = await loadExcelJS();
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Harvesters Workers System";
 

@@ -48,3 +48,9 @@ create index if not exists email_events_occurred_at_idx  on public.email_events 
 -- Lock both tables to server-side (service role) access only.
 alter table public.bulk_emails enable row level security;
 alter table public.email_events enable row level security;
+
+-- New tables here don't inherit default privileges, and RLS doesn't grant
+-- table access, so the service role needs explicit grants or PostgREST
+-- fails with 42501 permission denied.
+grant select, insert, update, delete on table public.bulk_emails to service_role;
+grant select, insert, update, delete on table public.email_events to service_role;

@@ -4,11 +4,39 @@ import { setDynamicDepartments, getEffectiveRouteList, isDepartmentActive } from
 import { DISTRICT_CLUSTER_LABELS } from "../utils/teams";
 import { fetchHubTeams } from "./hub/teams";
 
+// Departments and teams are read on most pages (filters, worker forms, the
+// meeting check-in flow), often by several components at once. Share one
+// recent request for a few minutes instead of walking every department page
+// on each mount. Department changes made through this module clear it.
+const SHARED_TTL_MS = 5 * 60 * 1000;
+const sharedRequests = new Map();
+
+function sharedRequest(key, load) {
+  const hit = sharedRequests.get(key);
+  if (!hit || Date.now() - hit.at > SHARED_TTL_MS) {
+    const promise = load();
+    sharedRequests.set(key, { promise, at: Date.now() });
+    promise.catch(() => {
+      if (sharedRequests.get(key)?.promise === promise) sharedRequests.delete(key);
+    });
+    return promise.then((value) => structuredClone(value));
+  }
+  // Callers sort and edit what they get back, so each gets its own copy.
+  return hit.promise.then((value) => structuredClone(value));
+}
+
+/** Drop shared department/team results so the next read refetches. */
+export function clearDepartmentsCache() {
+  sharedRequests.clear();
+}
+
 /**
  * Fetch all departments (including empty or unmapped).
  * @returns {Promise<Array>} List of departments
  */
-export const fetchDepartments = async () => {
+export const fetchDepartments = () => sharedRequest("departments", loadDepartments);
+
+const loadDepartments = async () => {
   const items = await fetchAllPages(async ({ page, limit }) => {
     const response = await apiRequest("GET", "/api/departments", { page, limit });
     if (!response || response.error) throw new Error(response?.error || "Failed to fetch departments");
@@ -29,7 +57,10 @@ export const fetchDepartments = async () => {
  * Returns all teams and departments including empty or unmapped.
  * @returns {Promise<{ teams: Array<{ value: string, label: string }>, departments: Array<{ value: string, label: string }>, departmentsByTeam: Record<string, string[]> }>}
  */
-export const fetchTeamsAndDepartmentsForFilter = async () => {
+export const fetchTeamsAndDepartmentsForFilter = () =>
+  sharedRequest("teamsAndDepartments", loadTeamsAndDepartmentsForFilter);
+
+const loadTeamsAndDepartmentsForFilter = async () => {
   const [departmentsList, hubTeams] = await Promise.all([
     fetchDepartments(),
     fetchHubTeams().catch(() => []),
@@ -204,6 +235,7 @@ export const addDepartment = async (data) => {
   if (!response || response.error) {
     throw new Error(response?.error || "Failed to add department");
   }
+  clearDepartmentsCache();
   return response.data || response;
 };
 
@@ -233,6 +265,7 @@ export const updateDepartment = async (data) => {
   if (!response || response.error) {
     throw new Error(response?.error || "Failed to update department");
   }
+  clearDepartmentsCache();
   return response.data || response;
 };
 
@@ -250,6 +283,7 @@ export const toggleDepartmentStatus = async (id, isactive) => {
   if (!response || response.error) {
     throw new Error(response?.error || "Failed to toggle department status");
   }
+  clearDepartmentsCache();
   return response.data || response;
 };
 
@@ -266,5 +300,6 @@ export const deleteDepartment = async (id) => {
   if (!response || response.error) {
     throw new Error(response?.error || "Failed to delete department");
   }
+  clearDepartmentsCache();
   return response.data || response;
 };

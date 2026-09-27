@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
-import Header from "../components/Header";
 import Layout from "../components/Layout";
 import LoadingState from "../components/LoadingState";
 import { toast } from "react-toastify";
@@ -325,7 +324,6 @@ const getHODCancelPath = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-cream">
-        <Header />
         <Layout>
           <div className="max-w-4xl mx-auto py-6">
             <LoadingState />
@@ -338,7 +336,6 @@ const getHODCancelPath = () => {
  if (!worker) {
  return (
  <div className="min-h-screen bg-cream">
- <Header />
  <Layout>
  <div className="max-w-md mx-auto qc-card p-8 text-center mt-12">
  <div className="qc-eyebrow text-ink-400">404</div>
@@ -363,7 +360,6 @@ const getHODCancelPath = () => {
 
  return (
  <div className="min-h-screen bg-cream">
- <Header />
  <Layout>
  <div className="max-w-4xl mx-auto">
  <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">

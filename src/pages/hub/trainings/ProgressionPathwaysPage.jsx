@@ -1,4 +1,3 @@
-import Header from "../../../components/Header";
 import Layout from "../../../components/Layout";
 import { useCanAction } from "../../../contexts/RBACContext";
 import ProgressionPaths from "./ProgressionPaths";
@@ -8,7 +7,6 @@ export default function ProgressionPathwaysPage() {
 
   return (
     <>
-      <Header />
       <Layout>
         <div className="max-w-5xl mx-auto space-y-6">
           <div>

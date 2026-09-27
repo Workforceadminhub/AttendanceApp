@@ -5,6 +5,8 @@
  * authorizes Super Admins / Church Admins from the verified token claims, or an
  * allowlisted login code.
  */
+import { createHash } from "node:crypto";
+
 const BACKEND_API_URL =
   process.env.BACKEND_API_URL || process.env.REACT_APP_BASE_URL || "";
 const ADMIN_VERIFY_PATH = process.env.AUTH_VERIFY_PATH || "/api/super/admin/admins";
@@ -21,11 +23,43 @@ async function statusOf(authHeader, path) {
       method: "GET",
       headers: { Authorization: authHeader, "Content-Type": "application/json" },
     });
+    // Only the status matters; release the connection instead of leaving the
+    // (list-sized) body unread.
+    await res.body?.cancel().catch(() => {});
     return res.status;
   } catch (e) {
     console.error("verify fetch failed:", path, e?.message || e);
     return 0;
   }
+}
+
+// Tokens the backend accepted, remembered per warm function instance for up
+// to a minute and never past the token's own exp. Every call used to replay
+// the token to the backend first: one or two extra round trips per request.
+const VERIFIED_TTL_MS = 60 * 1000;
+const MAX_VERIFIED = 500;
+const verifiedUntil = new Map();
+
+/**
+ * HTTP status the backend returns for this token on `path` (0 on network
+ * failure). A recent 200 for the same token and path is served from memory.
+ */
+export async function verifyStatus(authHeader, path) {
+  const key = `${path}:${createHash("sha256").update(authHeader).digest("hex")}`;
+  const until = verifiedUntil.get(key);
+  if (until && until > Date.now()) return 200;
+  verifiedUntil.delete(key);
+
+  const status = await statusOf(authHeader, path);
+  if (status === 200) {
+    const expMs = Number(decodeJwt(authHeader)?.exp) * 1000;
+    const cap = Number.isFinite(expMs) && expMs > 0 ? expMs : Infinity;
+    if (verifiedUntil.size >= MAX_VERIFIED) {
+      verifiedUntil.delete(verifiedUntil.keys().next().value);
+    }
+    verifiedUntil.set(key, Math.min(Date.now() + VERIFIED_TTL_MS, cap));
+  }
+  return status;
 }
 
 export function decodeJwt(authHeader) {
@@ -79,9 +113,9 @@ export async function authorize(authHeader) {
     return { ok: false, status: 500, reason: "backend_url_not_configured" };
   }
 
-  const userStatus = await statusOf(authHeader, USER_VERIFY_PATH);
+  const userStatus = await verifyStatus(authHeader, USER_VERIFY_PATH);
   if (userStatus !== 200) {
-    const adminStatus = await statusOf(authHeader, ADMIN_VERIFY_PATH);
+    const adminStatus = await verifyStatus(authHeader, ADMIN_VERIFY_PATH);
     if (adminStatus !== 200) {
       return {
         ok: false,

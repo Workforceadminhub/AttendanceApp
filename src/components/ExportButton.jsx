@@ -1,5 +1,5 @@
 import React from "react";
-import ExcelJS from "exceljs";
+import { loadExcelJS } from "../utils/loadExcelJS";
 import { saveAs } from "file-saver";
 
 export default function ExportButton({ data }) {
@@ -18,6 +18,7 @@ export default function ExportButton({ data }) {
 
  const exportToExcel = async () => {
  try {
+ const ExcelJS = await loadExcelJS();
  const workbook = new ExcelJS.Workbook();
  const worksheet = workbook.addWorksheet("Data");
 

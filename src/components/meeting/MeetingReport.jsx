@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
-import ExcelJS from "exceljs";
+import { loadExcelJS } from "../../utils/loadExcelJS";
 import { saveAs } from "file-saver";
 import Header from "../Header";
 import Layout from "../Layout";
@@ -459,6 +459,7 @@ export default function MeetingReport({ meetingType, metric }) {
 
   const exportSummarySheet = async () => {
     try {
+      const ExcelJS = await loadExcelJS();
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet("Attendance Summary");
 
@@ -568,6 +569,7 @@ export default function MeetingReport({ meetingType, metric }) {
 
   const exportListExcel = async () => {
     try {
+      const ExcelJS = await loadExcelJS();
       const workbook = new ExcelJS.Workbook();
 
       const teamGroups = {};

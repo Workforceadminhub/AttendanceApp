@@ -4,7 +4,7 @@ import Header from "../components/Header";
 import Layout from "../components/Layout";
 // import ReactSelectDropdown from "../components/ReactSelect";
 import { toast } from "react-toastify";
-import ExcelJS from "exceljs";
+import { loadExcelJS } from "../utils/loadExcelJS";
 import {
  teamsAndDepartments,
  normalizeWorkerRole,
@@ -232,6 +232,7 @@ export default function AddWorker() {
  reader.onload = async (e) => {
  try {
  const buffer = e.target.result;
+ const ExcelJS = await loadExcelJS();
  const workbook = new ExcelJS.Workbook();
  await workbook.xlsx.load(buffer);
  const worksheet = workbook.worksheets[0];

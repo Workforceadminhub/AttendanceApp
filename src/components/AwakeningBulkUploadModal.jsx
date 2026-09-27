@@ -1,5 +1,5 @@
 import { useState } from "react";
-import ExcelJS from "exceljs";
+import { loadExcelJS } from "../utils/loadExcelJS";
 import { toast } from "react-toastify";
 import GenericModal from "./GenericModal";
 import Tag from "./ui/Tag";
@@ -162,6 +162,7 @@ async function parseFile(file) {
 
   // Excel (.xlsx / .xls) via ExcelJS - same approach as HODBulkAddWorker
   const buffer = await file.arrayBuffer();
+  const ExcelJS = await loadExcelJS();
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer);
   const worksheet = workbook.worksheets[0];

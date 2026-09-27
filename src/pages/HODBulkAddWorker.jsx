@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
 import { toast } from "react-toastify";
-import ExcelJS from "exceljs";
+import { loadExcelJS } from "../utils/loadExcelJS";
 import { getEffectiveRouteList, getDepartmentNameFromRoute, getDepartmentRoute, getTeamForDepartment } from "../utils/routeObject";
 import { normalizeWorkerRole } from "../utils/teams";
 import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
@@ -52,6 +52,7 @@ export default function HODBulkAddWorker() {
  reader.onload = async (e) => {
  try {
  const buffer = e.target.result;
+ const ExcelJS = await loadExcelJS();
  const workbook = new ExcelJS.Workbook();
  await workbook.xlsx.load(buffer);
  const worksheet = workbook.worksheets[0];

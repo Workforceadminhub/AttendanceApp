@@ -1,4 +1,4 @@
-import ExcelJS from "exceljs";
+import { loadExcelJS } from "./loadExcelJS";
 import { saveAs } from "file-saver";
 import { getEffectiveRouteList } from "./routeObject";
 
@@ -115,6 +115,7 @@ function listFormula(values) {
  * - HOD bulk add: Department and Team are set from the page (the department you're on); these columns are ignored. You can leave them blank or omit them.
  */
 export async function downloadSampleWorkersExcel() {
+  const ExcelJS = await loadExcelJS();
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Workers", { views: [{ state: "frozen", ySplit: 1 }] });
 

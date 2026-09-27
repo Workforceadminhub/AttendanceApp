@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useParams, Link, useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
-import ExcelJS from "exceljs";
+import { loadExcelJS } from "../utils/loadExcelJS";
 import { saveAs } from "file-saver";
 import Header from "../components/Header";
 import Layout from "../components/Layout";
@@ -205,6 +205,7 @@ export default function DepartmentWorkers() {
  workersByDept[dept].push(w);
  });
 
+ const ExcelJS = await loadExcelJS();
  const workbook = new ExcelJS.Workbook();
 
  const headers = [

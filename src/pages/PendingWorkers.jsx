@@ -7,7 +7,7 @@ import { fetchPendingAdd, fetchPendingRemove, fetchAllPending } from "../service
 import LoadingState from "../components/LoadingState";
 import GenericModal from "../components/GenericModal";
 import { saveAs } from "file-saver";
-import ExcelJS from "exceljs";
+import { loadExcelJS } from "../utils/loadExcelJS";
 import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
 import apiRequest from "../utils/apiClient";
 import { 
@@ -554,6 +554,7 @@ export default function PendingWorkers() {
  workersByDept[dept].push(worker);
  });
 
+ const ExcelJS = await loadExcelJS();
  const workbook = new ExcelJS.Workbook();
 
  const headers = [

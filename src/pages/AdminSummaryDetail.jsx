@@ -25,9 +25,9 @@ import {
   getDepartmentsForTeam,
   filterPermissionsByTeam,
 } from "../utils/routeObject";
-import { fetchAttendance } from "../services/attendance";
-import { fetchAdminWorkers } from "../services/workers";
-import { getNextSunday, getSundaysInYear } from "../utils/getDate";
+import { countAdminWorkers } from "../services/workers";
+import { getNextSunday } from "../utils/getDate";
+import { useSundayAttendance } from "../hooks/useSundayAttendance";
 
 export default function AdminSummaryDetail() {
   const location = useLocation();
@@ -76,91 +76,53 @@ export default function AdminSummaryDetail() {
     return depts.filter((dept) => !excluded.has(dept)).sort();
   }, [teamName]);
 
-  // Attendance Trend: replicate HOD/sub-team-admin pattern:
-  // fetch attendance for each Sunday via GET /api/attendance?activeDate=Sunday - d/m/y
-  const {
-    data: trendsData,
-    isLoading: isTrendsLoading,
-  } = useQuery({
-    queryKey: ["adminSummaryTrendsBySundays", departmentKey, selectedDepartment, 2026],
-    queryFn: async () => {
-      const allSundays = getSundaysInYear(2026);
-      const cutoffDate = sundayToYYYYMMDD(getNextSunday()) || "";
-      const sundayStrings = allSundays.filter((s) => {
-        const d = sundayToYYYYMMDD(s);
-        return d && d <= cutoffDate;
-      });
-      const permissions = expandPermissions(authUser);
-      const selectedDept = selectedDepartment && selectedDepartment !== "All" ? selectedDepartment : null;
-      const selectedRoute = selectedDept ? getDepartmentRoute(selectedDept) || selectedDept : null;
-      const selectedNormRoute = selectedRoute
-        ? selectedRoute.toString().replace(/^\//, "").toLowerCase()
-        : null;
-      const fetchWithRetry = async (activeDate, attempts = 3) => {
-        for (let i = 0; i < attempts; i++) {
-          const result = await fetchAttendance(
-            activeDate,
-            null,
-            null,
-            permissions
-          );
-          if (result !== null) return result;
-          if (i < attempts - 1) {
-            await new Promise((resolve) =>
-              setTimeout(resolve, 400 * 2 ** i)
+  // Attendance Trend: /api/attendance for every Sunday, shared with the other
+  // trend pages through the React Query cache (see useSundayAttendance).
+  // Team/department picks only re-filter the cached lists.
+  const trendPermissions = useMemo(() => expandPermissions(getUser()), []);
+  const { data: sundayAttendance, isLoading: isTrendsLoading } = useSundayAttendance(
+    2026,
+    trendPermissions,
+    { enabled: canPickTeam ? !!selectedTeam : true }
+  );
+  const trendsData = useMemo(() => {
+    if (!sundayAttendance) return undefined;
+    const selectedDept = selectedDepartment && selectedDepartment !== "All" ? selectedDepartment : null;
+    const selectedRoute = selectedDept ? getDepartmentRoute(selectedDept) || selectedDept : null;
+    const selectedNormRoute = selectedRoute
+      ? selectedRoute.toString().replace(/^\//, "").toLowerCase()
+      : null;
+    const allowedDepartments = new Set(departmentOptions);
+    return sundayAttendance.map(({ activeDate, dateStr, list }) => {
+      const filtered = selectedDept
+        ? list.filter((item) => {
+            const name = item.department || item.department_name || "";
+            const itemRoute = (
+              item.route ||
+              item.department_route ||
+              item.departmentRoute ||
+              ""
+            )
+              .toString()
+              .replace(/^\//, "")
+              .toLowerCase();
+            return (
+              name === selectedDept ||
+              (!!selectedNormRoute && itemRoute === selectedNormRoute)
             );
-          }
-        }
-        return null;
-      };
-      const results = new Array(sundayStrings.length);
-      const CONCURRENCY = 4;
-      for (let i = 0; i < sundayStrings.length; i += CONCURRENCY) {
-        const slice = sundayStrings.slice(i, i + CONCURRENCY);
-         
-        const sliceResults = await Promise.all(slice.map(fetchWithRetry));
-        sliceResults.forEach((result, index) => {
-          results[i + index] = result;
-        });
-      }
-      const allowedDepartments = new Set(departmentOptions);
-      const points = sundayStrings.map((activeDate, i) => {
-        const list = results[i];
-        const arr = Array.isArray(list) ? list : [];
+          })
+        : canPickTeam
+        ? list.filter((item) => {
+            const name = item.department || item.department_name || "";
+            return allowedDepartments.has(name);
+          })
+        : list;
 
-        const filtered = selectedDept
-          ? arr.filter((item) => {
-              const name = item.department || item.department_name || "";
-              const itemRoute = (
-                item.route ||
-                item.department_route ||
-                item.departmentRoute ||
-                ""
-              )
-                .toString()
-                .replace(/^\//, "")
-                .toLowerCase();
-              return (
-                name === selectedDept ||
-                (!!selectedNormRoute && itemRoute === selectedNormRoute)
-              );
-            })
-          : canPickTeam
-          ? arr.filter((item) => {
-              const name = item.department || item.department_name || "";
-              return allowedDepartments.has(name);
-            })
-          : arr;
-
-        const present = filtered.reduce((s, item) => s + (item.present ?? 0), 0);
-        const absent = filtered.reduce((s, item) => s + (item.absent ?? 0), 0);
-        const date = sundayToYYYYMMDD(activeDate) || activeDate;
-        return { date, present, absent };
-      });
-      return points.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-    },
-    enabled: canPickTeam ? !!selectedTeam : true,
-  });
+      const present = filtered.reduce((s, item) => s + (item.present ?? 0), 0);
+      const absent = filtered.reduce((s, item) => s + (item.absent ?? 0), 0);
+      return { date: dateStr || activeDate, present, absent };
+    });
+  }, [sundayAttendance, selectedDepartment, departmentOptions, canPickTeam]);
 
   const trends = useMemo(
     () => (Array.isArray(trendsData) ? trendsData : []),
@@ -204,11 +166,13 @@ export default function AdminSummaryDetail() {
     return lastSun.toISOString().split("T")[0];
   }, [selectedMonth]);
 
+  // Only the count is shown (tab label), so ask the server for its total
+  // rather than downloading the whole team's roster.
   const {
-    data: workersData,
+    data: workersCount = 0,
     isLoading: isWorkersLoading,
   } = useQuery({
-    queryKey: ["adminSummaryWorkers", departmentKey, selectedDepartment],
+    queryKey: ["adminSummaryWorkerCount", departmentKey, selectedDepartment],
     queryFn: async () => {
       const permissions = expandPermissions(authUser);
       const activeDate = getNextSunday();
@@ -217,21 +181,10 @@ export default function AdminSummaryDetail() {
           ? selectedDepartment
           : "All";
       // Admin workers endpoint already understands team-level filters.
-      return fetchAdminWorkers(
-        departmentKey,
-        activeGroup,
-        activeDate,
-        "",
-        permissions
-      );
+      return countAdminWorkers(departmentKey, activeGroup, activeDate, permissions);
     },
     enabled: canPickTeam ? !!selectedTeam : true,
   });
-
-  const workersCount = useMemo(
-    () => (Array.isArray(workersData) ? workersData.length : 0),
-    [workersData]
-  );
 
   const leaderboardPermissions = useMemo(() => {
     const base = expandPermissions(authUser);
@@ -540,16 +493,4 @@ function AttendanceTrendChart({ data }) {
       </BarChart>
     </ResponsiveContainer>
   );
-}
-
-// Local helper: parse "Sunday - d/m/y" to yyyy-MM-dd
-function sundayToYYYYMMDD(dateStr) {
-  if (!dateStr || !/^Sunday - \d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) return null;
-  const parts = dateStr.split(" - ")[1].split("/");
-  const day = parseInt(parts[0], 10);
-  const month = parseInt(parts[1], 10);
-  const year = parseInt(parts[2], 10);
-  const d = String(day).padStart(2, "0");
-  const m = String(month).padStart(2, "0");
-  return `${year}-${m}-${d}`;
 }

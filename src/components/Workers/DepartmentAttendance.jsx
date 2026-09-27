@@ -23,7 +23,7 @@ import { checkAdminStatus } from "../../utils/checkAdminStatus";
 import { getUserRole, filterTeamFromPermissions } from "../../utils/getUserRole";
 import { fetchDepartments } from "../../services/departments";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
-import { debounce } from "lodash";
+import debounce from "lodash/debounce";
 import ViewHistoryButton from "../ViewHistoryButton";
 import { TrashIcon, ArrowUpIcon, ArrowDownIcon } from "@heroicons/react/24/outline";
 import Modal from "../Modal";
@@ -158,7 +158,10 @@ export default function DepartmentAttendance() {
  // When the selected Sunday differs from the live date, we're in "history mode"
  const isHistoryMode = selectedSunday !== dateForAttendance;
 
- const summaryKey = `${activeGroup}|${team.team}|${selectedSunday}|${refresh}`;
+ // `refresh` is deliberately left out: after a save the saved statuses are
+ // still in `attendance` and the summary applies them as overrides, so
+ // re-downloading every worker in scope after each save isn't needed.
+ const summaryKey = `${activeGroup}|${team.team}|${selectedSunday}`;
  const summaryRows = summaryState.key === summaryKey ? summaryState.rows : null;
  const summaryLoading = summaryState.key === summaryKey && summaryState.loading;
 

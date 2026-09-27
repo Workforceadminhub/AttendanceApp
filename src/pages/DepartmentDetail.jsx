@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { useSundayAttendance } from "../hooks/useSundayAttendance";
 import {
  BarChart,
  Bar,
@@ -18,23 +19,9 @@ import LoadingState from "../components/LoadingState";
 import { getEffectiveRouteList, getDepartmentRoute, getDepartmentNameFromRoute, isSameDepartment } from "../utils/routeObject";
 import { getUser } from "../utils/getUser";
 import { expandPermissions } from "../utils/expandPermissions";
-import { getNextSunday, getSundaysInYear } from "../utils/getDate";
-import { fetchAttendance } from "../services/attendance";
 import { fetchWorkers } from "../services/workers";
 import { getUserRole } from "../utils/getUserRole";
 import { fetchDepartments } from "../services/departments";
-
-/** Parse "Sunday - d/m/y" to yyyy-MM-dd */
-function sundayToYYYYMMDD(dateStr) {
- if (!dateStr || !/^Sunday - \d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) return null;
- const parts = dateStr.split(" - ")[1].split("/");
- const day = parseInt(parts[0], 10);
- const month = parseInt(parts[1], 10);
- const year = parseInt(parts[2], 10);
- const d = String(day).padStart(2, "0");
- const m = String(month).padStart(2, "0");
- return `${year}-${m}-${d}`;
-}
 
 export default function DepartmentDetail() {
  const { departmentRoute: routeParam } = useParams();
@@ -111,67 +98,32 @@ export default function DepartmentDetail() {
  });
  }, [isSubTeamAdmin, allDepartments, assignedDepartments, roleUser]);
 
- // Attendance Trend: fetch attendance for every Sunday via GET /api/attendance?activeDate=Sunday - d/m/y
- const {
- data: trendsData,
- isLoading: isTrendsLoading,
- } = useQuery({
- queryKey: ["departmentTrendsBySundays", decodedDepartment, 2026],
- queryFn: async () => {
- const allSundays = getSundaysInYear(2026);
- const cutoffDate = sundayToYYYYMMDD(getNextSunday()) || "";
- const sundayStrings = allSundays.filter((s) => {
- const d = sundayToYYYYMMDD(s);
- return d && d <= cutoffDate;
- });
- const authUser = getUser();
- const permissions = expandPermissions(authUser);
- // Throttle to 4 concurrent /api/attendance calls - firing all 50+ in
- // parallel saturates Lambda concurrency and makes most requests 503.
- // 4 in flight, retry up to 2x per Sunday on transient failure.
- const fetchWithRetry = async (activeDate, attempts = 3) => {
- for (let i = 0; i < attempts; i++) {
- const r = await fetchAttendance(activeDate, null, null, permissions);
- if (r !== null) return r;
- if (i < attempts - 1) await new Promise((res) => setTimeout(res, 400 * 2 ** i));
- }
- return null;
- };
- const results = new Array(sundayStrings.length);
- const CONCURRENCY = 4;
- for (let i = 0; i < sundayStrings.length; i += CONCURRENCY) {
- const slice = sundayStrings.slice(i, i + CONCURRENCY);
-  
- const sliceResults = await Promise.all(slice.map(fetchWithRetry));
- sliceResults.forEach((r, j) => {
- results[i + j] = r;
- });
- }
+ // Attendance Trend: /api/attendance for every Sunday, shared with the other
+ // trend pages through the React Query cache (see useSundayAttendance).
+ const trendPermissions = useMemo(() => expandPermissions(getUser()), []);
+ const { data: sundayAttendance, isLoading: isTrendsLoading } = useSundayAttendance(
+ 2026,
+ trendPermissions,
+ { enabled: !!decodedDepartment }
+ );
+ const trendsData = useMemo(() => {
+ if (!sundayAttendance) return undefined;
  const normRoute = (departmentRoute || "").replace(/^\//, "").toLowerCase();
- const points = sundayStrings.map((activeDate, i) => {
- const list = results[i];
- const arr = Array.isArray(list) ? list : [];
- const forDept = arr.filter((item) => {
+ const points = sundayAttendance.map(({ activeDate, dateStr, list }) => {
+ const forDept = list.filter((item) => {
  const name = item.department || item.department_name || "";
  const itemRoute = (item.route || item.department_route || item.departmentRoute || "").replace(/^\//, "").toLowerCase();
  return isSameDepartment(name, decodedDepartment) || (normRoute && itemRoute === normRoute);
  });
  const present = forDept.reduce((s, item) => s + (item.present ?? 0), 0);
  const absent = forDept.reduce((s, item) => s + (item.absent ?? 0), 0);
- const date = sundayToYYYYMMDD(activeDate) || activeDate;
- return { date, present, absent };
+ return { date: dateStr || activeDate, present, absent };
  });
- const rawBySunday = sundayStrings.map((activeDate, i) => ({
- dateStr: sundayToYYYYMMDD(activeDate) || "",
- list: Array.isArray(results[i]) ? results[i] : [],
- }));
  return {
- points: points.sort((a, b) => (a.date || "").localeCompare(b.date || "")),
- rawBySunday,
+ points,
+ rawBySunday: sundayAttendance.map(({ dateStr, list }) => ({ dateStr, list })),
  };
- },
- enabled: !!decodedDepartment,
- });
+ }, [sundayAttendance, departmentRoute, decodedDepartment]);
 
  const {
  data: workersData,
@@ -179,12 +131,10 @@ export default function DepartmentDetail() {
  isError: isWorkersError,
  refetch: refetchWorkers,
  } = useQuery({
- queryKey: ["departmentWorkers", decodedDepartment],
- queryFn: () => {
- const authUser = getUser();
- const permissions = expandPermissions(authUser);
- return fetchWorkers(decodedDepartment, undefined, permissions);
- },
+ // Same key and fetch as DepartmentWorkers, so the "Workers (N)" link below
+ // opens from cache instead of downloading the roster a second time.
+ queryKey: ["departmentWorkers", decodedDepartment, trendPermissions.join(",")],
+ queryFn: () => fetchWorkers(decodedDepartment, undefined, trendPermissions),
  });
 
  const workers = workersData || [];

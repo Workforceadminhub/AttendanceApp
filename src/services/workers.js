@@ -74,6 +74,30 @@ export const fetchAdminWorkersPage = async (
   return unwrapPaginated(response, { page, limit });
 };
 
+/**
+ * Number of admin workers in a scope. Asks for a one-row page and reads the
+ * server's total instead of downloading every worker; walks all pages only
+ * when the response carries no total.
+ */
+export const countAdminWorkers = async (team, activeGroup, activeDate, permissions = []) => {
+  const params = {
+    team,
+    activeGroup,
+    activeDate,
+    isAdmin: true,
+    page: 1,
+    limit: 1,
+    ...(Array.isArray(permissions) && permissions.length > 0 ? { permissions } : {}),
+  };
+  const response = await apiRequest("GET", "/api/workers", params);
+  if (!response || response.error) throw new Error(response?.error || "Failed to fetch workers");
+  const meta = extractPaginationMeta(response);
+  const total = Number(meta?.total ?? meta?.count);
+  if (meta && (meta.total != null || meta.count != null) && Number.isFinite(total)) return total;
+  const rows = await fetchAdminWorkers(team, activeGroup, activeDate, "", permissions);
+  return rows.length;
+};
+
 export const addNewWorker = async (worker) => {
   // This is a public endpoint, no authentication required
   const response = await apiRequest("POST", "/api/workers/add", worker, undefined, false);

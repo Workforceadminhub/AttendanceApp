@@ -72,9 +72,11 @@ export default function WorkerAttendanceHistory() {
  return getSundaysInYear().reverse();
  }, []);
 
- // Fetch workers for each Sunday in parallel to get per-worker attendance
+ // Fetch the department roster for each Sunday to get per-worker attendance.
+ // The fetch doesn't depend on the worker, so the key leaves workerId out:
+ // opening another worker in the same department reuses the cached rosters.
  const { data: attendanceByDate, isLoading } = useQuery({
- queryKey: ["workerAttendanceByDate", workerId, department, sundays.length],
+ queryKey: ["departmentRosterBySunday", department, sundays.length],
  queryFn: async () => {
  // Keep the history view from opening dozens of connections at once. The
  // attendance API is shared with the dashboard and can return transient 503s

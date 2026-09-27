@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
-import { debounce } from "lodash";
+import debounce from "lodash/debounce";
 import getDefaultSummary from "../../../utils/getDefaultSummary";
 import { getEffectiveRouteList } from "../../../utils/routeObject";
 import { useAdminSelectOptions } from "../../../contexts/DepartmentsContext";
@@ -93,18 +93,20 @@ export default function DepartmentSummaryHistory() {
     queryAttendance,
   ]);
 
-  const debouncedSetActiveGroup = debounce(
-    (value) => setActiveGroup(value),
-    DEBOUNCE_INTERVAL
+  // Memoized so the debounce survives re-renders; a new one per render
+  // never delays anything.
+  const debouncedSetActiveGroup = useMemo(
+    () => debounce((value) => setActiveGroup(value), DEBOUNCE_INTERVAL),
+    []
   );
 
   const handleChange = (selected) => {
     debouncedSetActiveGroup(selected?.value);
   };
 
-  const debouncedSetActiveHistory = debounce(
-    (value) => setActiveHistory(value),
-    DEBOUNCE_INTERVAL
+  const debouncedSetActiveHistory = useMemo(
+    () => debounce((value) => setActiveHistory(value), DEBOUNCE_INTERVAL),
+    []
   );
 
   const handleHistoryChange = (selected) => {

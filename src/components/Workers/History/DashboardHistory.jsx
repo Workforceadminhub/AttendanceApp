@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
-import { debounce } from "lodash";
+import debounce from "lodash/debounce";
 import { getNextSunday, getSundayDisplayDate } from "../../../utils/getDate";
 import { getDepartmentByUser } from "../../../utils/getDepartment";
 import { ADMIN_ENUMS } from "../../../utils/enums";

@@ -18,7 +18,7 @@ import { filterByUserPermissions } from "../../utils/filterByPermissions";
 import { getUser } from "../../utils/getUser";
 import { expandPermissions } from "../../utils/expandPermissions";
 import { toast } from "react-toastify";
-import { debounce } from "lodash";
+import debounce from "lodash/debounce";
 import { getUserRole } from "../../utils/getUserRole";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
 import ViewHistoryButton from "../ViewHistoryButton";

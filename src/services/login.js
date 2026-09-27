@@ -1,5 +1,4 @@
 import apiRequest from "../utils/apiClient";
-import { initializeFilterData } from "../utils/filterCache";
 import { persistSession } from "../utils/authSession";
 import { resolveAdminRoute, ensureSessionRoute } from "../utils/routeObject";
 
@@ -20,8 +19,6 @@ const loginService = async (code) => {
     }
     ensureSessionRoute(authUser);
     sessionStorage.setItem("authUser", JSON.stringify(authUser));
-
-    initializeFilterData().catch(() => {});
 
     return { ...response, authUser };
   }

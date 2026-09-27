@@ -21,7 +21,7 @@ import { filterByUserPermissions } from "../../utils/filterByPermissions";
 import { expandPermissions } from "../../utils/expandPermissions";
 import { getUser } from "../../utils/getUser";
 import { getUserRole } from "../../utils/getUserRole";
-import { debounce } from "lodash";
+import debounce from "lodash/debounce";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
 import { getActiveMeeting, getAllMeetings, MEETINGS_CHANGED_EVENT } from "../../utils/meetingConfig";
 import { normalizeDateString } from "../../utils/meetingLinks";

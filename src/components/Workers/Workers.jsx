@@ -10,11 +10,7 @@ import Layout from "../Layout";
 // import { getAdminSelectOptions } from "../../utils/routeObject";
 // import { ADMIN_ENUMS } from "../../utils/enums";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
-import {
- getCachedFilterData,
- getFilterOptions,
- initializeFilterData,
-} from "../../utils/filterCache";
+import { useDebouncedSearch } from "../../hooks/useDebouncedSearch";
 import apiRequest from "../../utils/apiClient";
 import { logoutSession } from "../../utils/authSession";
 import { teamsAndDepartments } from "../../utils/teams";
@@ -30,6 +26,26 @@ import GenericModal from "../GenericModal";
 import LoadingState from "../LoadingState";
 import { saveAs } from "file-saver";
 
+// Normalize phone number for search (remove leading 0 if present)
+const normalizePhoneNumber = (phoneNumber) => {
+ if (!phoneNumber) return phoneNumber;
+ // Remove leading 0 if present
+ return phoneNumber.startsWith('0') ? phoneNumber.substring(1) : phoneNumber;
+};
+
+// Check if search term looks like a phone number and normalize it
+const normalizeSearchTerm = (term) => {
+ if (!term) return term;
+ 
+ // Check if the term looks like a phone number (starts with 0 or is all digits)
+ const phoneRegex = /^0?\d{10,11}$/;
+ if (phoneRegex.test(term.trim())) {
+ return normalizePhoneNumber(term.trim());
+ }
+ 
+ return term.trim();
+};
+
 export default function Workers() {
  const navigate = useNavigate();
  const location = useLocation();
@@ -39,7 +55,6 @@ export default function Workers() {
  const [data, setData] = useState([]);
  const [isLoading, setIsLoading] = useState(false);
  const dateForAttendance = getNextSunday();
- const [refresh, ] = useState(0);
  const [filters, setFilters] = useState({
  department: "All",
  team: "All",
@@ -64,10 +79,13 @@ export default function Workers() {
  });
  const [availableDepartments, setAvailableDepartments] = useState([]);
  const [searchTerm, setSearchTerm] = useState("");
+ // The input updates searchTerm on every key; requests follow the debounced value.
+ const { debouncedSearch, search: debouncedSearchTerm } = useDebouncedSearch();
  const [selectedWorkers, setSelectedWorkers] = useState(new Set());
  const [isSelectAll, setIsSelectAll] = useState(false);
  const [isExporting, setIsExporting] = useState(false);
- const latestSuperAdminRequest = useRef(0);
+ // Every list request bumps this; a response is applied only if it is still the latest.
+ const latestRequest = useRef(0);
 
  const [filterOptions, setFilterOptions] = useState({
  departments: [{ value: "All", label: "All Departments" }],
@@ -105,14 +123,14 @@ export default function Workers() {
  const fallbackFilterOptions = useMemo(() => generateFallbackFilterOptions(), []);
 
  const querySuperAdminWorkers = useCallback(async (page = 1, limit = 50, search = "", fallbackIfEmpty = false) => {
- const requestId = ++latestSuperAdminRequest.current;
+ const requestId = ++latestRequest.current;
  setIsLoading(true);
  try {
  let result = await listSuperAdminWorkers({ page, limit, search, team: filters.team, department: filters.department });
- if (requestId !== latestSuperAdminRequest.current) return;
+ if (requestId !== latestRequest.current) return;
  if (fallbackIfEmpty && result.data.length === 0 && page > 1) {
  result = await listSuperAdminWorkers({ page: page - 1, limit, search, team: filters.team, department: filters.department });
- if (requestId !== latestSuperAdminRequest.current) return;
+ if (requestId !== latestRequest.current) return;
  }
  setData(result.data);
  setPagination(result.pagination);
@@ -121,7 +139,7 @@ export default function Workers() {
 
  setIsLoading(false);
  } catch (error) {
- if (requestId !== latestSuperAdminRequest.current) return;
+ if (requestId !== latestRequest.current) return;
  // Check if it's an authentication error
  if (
  error.message.includes("401") ||
@@ -140,33 +158,39 @@ export default function Workers() {
 
  // Team admins page on the server too; one request per visible page.
  const queryAdminWorkers = useCallback((page = 1, limit = 50, search = "") => {
+ const requestId = ++latestRequest.current;
  setIsLoading(true);
  const rawPermissions = expandPermissions(authUser);
  // Filter out team name from permissions (team name shouldn't be in permissions array)
  const permissions = rawPermissions.filter((perm) => perm !== authUser?.team);
  fetchAdminWorkersPage("All", "All", dateForAttendance, permissions, { page, limit, search })
  .then((res) => {
+ if (requestId !== latestRequest.current) return;
  setData(res.data);
  setPagination(res.pagination);
  setIsLoading(false);
  })
  .catch((error) => {
+ if (requestId !== latestRequest.current) return;
  toast.error(`Error loading workers: ${error.message}`);
  setIsLoading(false);
  });
  }, [authUser, dateForAttendance]);
 
  const queryWorkers = useCallback((search = "") => {
+ const requestId = ++latestRequest.current;
  setIsLoading(true);
  const rawPermissions = expandPermissions(authUser);
  // Filter out team name from permissions (team name shouldn't be in permissions array)
  const permissions = rawPermissions.filter((perm) => perm !== authUser?.team);
  fetchWorkers(team.department, dateForAttendance, permissions, search)
  .then((res) => {
+ if (requestId !== latestRequest.current) return;
  setData(res);
  setIsLoading(false);
  })
  .catch((error) => {
+ if (requestId !== latestRequest.current) return;
  toast.error(`Error loading workers: ${error.message}`);
  setIsLoading(false);
  });
@@ -229,16 +253,18 @@ export default function Workers() {
  }, [apiDepartmentsByTeam, isSuperAdmin]);
 
  useEffect(() => {
+ const search = normalizeSearchTerm(debouncedSearchTerm);
  if (isSuperAdmin) {
- querySuperAdminWorkers(1, 50);
+ querySuperAdminWorkers(1, 50, search);
  } else if (isAdminMember) {
- queryAdminWorkers(1, 50);
+ queryAdminWorkers(1, 50, search);
  } else {
- queryWorkers();
+ queryWorkers(search);
  }
  clearSelection();
  }, [
  filters,
+ debouncedSearchTerm,
  isAdminMember,
  isSuperAdmin,
  team.team,
@@ -248,10 +274,11 @@ export default function Workers() {
  clearSelection,
  ]);
 
- // Load filter options: API-led for super-admin, cache/fallback otherwise
+ // Load filter options. Only super admins can open the filter modal, so
+ // other roles skip this entirely.
  useEffect(() => {
+ if (!isSuperAdmin) return;
  const loadFilterOptions = async () => {
- if (isSuperAdmin) {
  try {
  const { teams, departments, departmentsByTeam } = await fetchTeamsAndDepartmentsForFilter();
  setFilterOptions({ teams, departments });
@@ -259,36 +286,6 @@ export default function Workers() {
  } catch (_) {
  setFilterOptions(fallbackFilterOptions);
  setApiDepartmentsByTeam(null);
- }
- return;
- }
-
- const cachedFilterData = getCachedFilterData();
- if (cachedFilterData) {
- const options = getFilterOptions(cachedFilterData);
- if (options) {
- setFilterOptions(options);
- }
- } else {
- const accessToken = sessionStorage.getItem("accessToken");
- if (accessToken) {
- initializeFilterData(accessToken)
- .then((filterData) => {
- if (filterData) {
- const options = getFilterOptions(filterData);
- if (options) {
- setFilterOptions(options);
- }
- } else {
- setFilterOptions(fallbackFilterOptions);
- }
- })
- .catch(() => {
- setFilterOptions(fallbackFilterOptions);
- });
- } else {
- setFilterOptions(fallbackFilterOptions);
- }
  }
  };
 
@@ -302,24 +299,6 @@ export default function Workers() {
  }
  }, [isSuperAdmin, apiDepartmentsByTeam, filters.team, updateDepartmentsForTeam]);
 
- useEffect(() => {
- if (isSuperAdmin) {
- querySuperAdminWorkers(1, 50);
- } else if (isAdminMember) {
- queryAdminWorkers(1, 50);
- } else {
- queryWorkers();
- }
- clearSelection();
- }, [
- refresh,
- isSuperAdmin,
- isAdminMember,
- querySuperAdminWorkers,
- queryAdminWorkers,
- queryWorkers,
- clearSelection,
- ]);
  const handleFilterChange = (filterType, value) => {
  setFilters((prev) => {
  const newFilters = {
@@ -346,48 +325,16 @@ export default function Workers() {
  updateDepartmentsForTeam("All");
  };
 
- // Normalize phone number for search (remove leading 0 if present)
- const normalizePhoneNumber = (phoneNumber) => {
- if (!phoneNumber) return phoneNumber;
- // Remove leading 0 if present
- return phoneNumber.startsWith('0') ? phoneNumber.substring(1) : phoneNumber;
- };
-
- // Check if search term looks like a phone number and normalize it
- const normalizeSearchTerm = (term) => {
- if (!term) return term;
- 
- // Check if the term looks like a phone number (starts with 0 or is all digits)
- const phoneRegex = /^0?\d{10,11}$/;
- if (phoneRegex.test(term.trim())) {
- return normalizePhoneNumber(term.trim());
- }
- 
- return term.trim();
- };
-
  // Search functionality
  const handleSearch = (term) => {
  setSearchTerm(term);
- const normalizedTerm = normalizeSearchTerm(term);
- if (isSuperAdmin) {
- querySuperAdminWorkers(1, 50, normalizedTerm);
- } else if (isAdminMember) {
- queryAdminWorkers(1, 50, normalizedTerm);
- } else {
- queryWorkers(normalizedTerm);
- }
+ debouncedSearch(term);
  };
 
  const clearSearch = () => {
  setSearchTerm("");
- if (isSuperAdmin) {
- querySuperAdminWorkers(1, 50);
- } else if (isAdminMember) {
- queryAdminWorkers(1, 50);
- } else {
- queryWorkers();
- }
+ debouncedSearch("");
+ debouncedSearch.flush();
  };
 
  const openFilterModal = () => {

@@ -18,7 +18,7 @@ import Layout from "../../Layout";
 import ReactSelectDropdown from "../../ReactSelect";
 import TableLoadingState from "../../TableLoadingState";
 import { fetchHistoryOptions } from "../../../services/history";
-import { debounce } from "lodash";
+import debounce from "lodash/debounce";
 import { DEBOUNCE_INTERVAL } from "../../../utils/constants";
 import ViewHistoryButton from "../../ViewHistoryButton";
 import { ArrowUpIcon, ArrowDownIcon } from "@heroicons/react/24/outline";
@@ -208,22 +208,8 @@ export default function DepartmentAttendanceHistory() {
     );
   }, []);
 
-  useEffect(() => {
-    if (isAdminMember) {
-      queryAdminWorkers();
-    } else {
-      queryWorkers();
-    }
-  }, [
-    activeGroup,
-    activeHistory,
-    isAdminMember,
-    isChurchAdmin,
-    team.team,
-    queryAdminWorkers,
-    queryWorkers,
-  ]);
-
+  // One effect: the query callbacks already change with group, history date,
+  // team and page. (A second copy of this effect fired on mount too.)
   useEffect(() => {
     if (isAdminMember) {
       queryAdminWorkers();
@@ -271,9 +257,11 @@ export default function DepartmentAttendanceHistory() {
     }
   };
 
-  const debouncedSetActiveGroup = debounce(
-    (value) => setActiveGroup(value),
-    DEBOUNCE_INTERVAL
+  // Memoized so the debounce survives re-renders; a new one per render
+  // never delays anything.
+  const debouncedSetActiveGroup = useMemo(
+    () => debounce((value) => setActiveGroup(value), DEBOUNCE_INTERVAL),
+    []
   );
 
   const handleChange = (selected) => {
@@ -281,9 +269,9 @@ export default function DepartmentAttendanceHistory() {
     debouncedSetActiveGroup(selected?.value);
   };
 
-  const debouncedSetActiveHistory = debounce(
-    (value) => setActiveHistory(value),
-    DEBOUNCE_INTERVAL
+  const debouncedSetActiveHistory = useMemo(
+    () => debounce((value) => setActiveHistory(value), DEBOUNCE_INTERVAL),
+    []
   );
 
   const handleHistoryChange = (selected) => {

@@ -20,7 +20,7 @@ import { useAdminSelectOptions } from "../../contexts/DepartmentsContext";
 import { ADMIN_ENUMS } from "../../utils/enums";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
 import { DEBOUNCE_INTERVAL } from "../../utils/constants";
-import { debounce } from "lodash";
+import debounce from "lodash/debounce";
 import ViewHistoryButton from "../ViewHistoryButton";
 import { TrashIcon } from "@heroicons/react/24/outline";
 import Modal from "../Modal";
@@ -185,10 +185,8 @@ export default function UnmarkedAttendance() {
  .catch((err) => {/* Silent error handling */});
  }, []);
 
- useEffect(() => {
- loadUnmarkedWorkers();
- }, [activeGroup, isAdminMember, isChurchAdmin, team.team, loadUnmarkedWorkers]);
-
+ // One effect: loadUnmarkedWorkers changes with activeGroup, and refresh
+ // bumps after a save. (Two separate effects both fired on mount.)
  useEffect(() => {
  loadUnmarkedWorkers();
  }, [refresh, loadUnmarkedWorkers]);

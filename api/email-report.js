@@ -10,7 +10,7 @@
  *                                 complained, unsubscribed, other, total } } ] }
  */
 import { authorize } from "./_lib/auth.js";
-import { selectRows, supabaseConfigured } from "./_lib/supabase.js";
+import { callRpc, selectRows, supabaseConfigured } from "./_lib/supabase.js";
 
 // Map raw provider event names to summary buckets.
 function bucket(event) {
@@ -36,6 +36,41 @@ const EMPTY = () => ({
   other: 0,
   total: 0,
 });
+
+// PostgREST returns at most max-rows (1000 by default) per response.
+const EVENTS_PAGE_SIZE = 1000;
+
+/**
+ * { [campaignId]: { [event]: count } } for the given campaigns. Uses the
+ * email_event_counts function (db/email_report_counts.sql), which counts in
+ * the database. Until that migration is applied, falls back to paging
+ * through the raw events so the counts are still complete.
+ */
+async function eventCounts(ids) {
+  try {
+    const rows = await callRpc("email_event_counts", { campaign_ids: ids });
+    return Object.fromEntries(rows.map((r) => [r.campaign_id, r.counts || {}]));
+  } catch (e) {
+    if (e?.status !== 404) throw e;
+  }
+
+  // PostgREST in.() — quote ids to be safe with special chars.
+  const inList = ids.map((id) => `"${String(id).replace(/"/g, '""')}"`).join(",");
+  const counts = {};
+  for (let offset = 0; ; offset += EVENTS_PAGE_SIZE) {
+    const page = await selectRows(
+      "email_events",
+      `select=campaign_id,event&campaign_id=in.(${encodeURIComponent(inList)})` +
+        `&order=id&limit=${EVENTS_PAGE_SIZE}&offset=${offset}`
+    );
+    for (const ev of page) {
+      const c = (counts[ev.campaign_id] = counts[ev.campaign_id] || {});
+      c[ev.event] = (c[ev.event] || 0) + 1;
+    }
+    if (page.length < EVENTS_PAGE_SIZE) break;
+  }
+  return counts;
+}
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -63,16 +98,13 @@ export default async function handler(req, res) {
     const stats = {};
     const ids = sends.map((s) => s.id).filter(Boolean);
     if (ids.length) {
-      // PostgREST in.() — quote ids to be safe with special chars.
-      const inList = ids.map((id) => `"${String(id).replace(/"/g, '""')}"`).join(",");
-      const events = await selectRows(
-        "email_events",
-        `select=campaign_id,event&campaign_id=in.(${encodeURIComponent(inList)})&limit=100000`
-      );
-      for (const ev of events) {
-        const s = (stats[ev.campaign_id] = stats[ev.campaign_id] || EMPTY());
-        s[bucket(ev.event)] += 1;
-        s.total += 1;
+      const counts = await eventCounts(ids);
+      for (const [campaignId, byEvent] of Object.entries(counts)) {
+        const s = (stats[campaignId] = stats[campaignId] || EMPTY());
+        for (const [event, n] of Object.entries(byEvent)) {
+          s[bucket(event)] += Number(n) || 0;
+          s.total += Number(n) || 0;
+        }
       }
     }
 

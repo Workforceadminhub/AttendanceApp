@@ -29,11 +29,15 @@ export async function mapWithConcurrency(items, worker, concurrency = 4) {
 // and most requests come back 503.
 const CONCURRENCY = 4;
 
+// A Sunday that still fails after retries is left empty rather than failing
+// the whole chart.
 async function fetchWithRetry(activeDate, permissions, attempts = 3) {
   for (let i = 0; i < attempts; i++) {
-    const result = await fetchAttendance(activeDate, null, null, permissions);
-    if (result !== null) return result;
-    if (i < attempts - 1) await new Promise((resolve) => setTimeout(resolve, 400 * 2 ** i));
+    try {
+      return await fetchAttendance(activeDate, null, null, permissions);
+    } catch {
+      if (i < attempts - 1) await new Promise((resolve) => setTimeout(resolve, 400 * 2 ** i));
+    }
   }
   return null;
 }

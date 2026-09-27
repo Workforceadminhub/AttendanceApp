@@ -35,8 +35,8 @@ describe("attendance page collection", () => {
       .mockResolvedValueOnce({ data: { history: [{ id: 2 }], pagination: pagination(2) } });
     expect(await fetchAttendanceHistory(['Sound'])).toEqual([{ id: 1 }, { id: 2 }]);
   });
-  it("keeps the existing failure values when a later page fails", async () => {
+  it("rejects when a later page fails instead of returning empty data", async () => {
     apiRequest.mockResolvedValueOnce({ data: [{ id: 1 }], pagination: pagination(1) }).mockRejectedValueOnce(new Error('Failed'));
-    expect(await fetchAttendance('2026-09-13')).toBeNull();
+    await expect(fetchAttendance('2026-09-13')).rejects.toThrow('Failed');
   });
 });

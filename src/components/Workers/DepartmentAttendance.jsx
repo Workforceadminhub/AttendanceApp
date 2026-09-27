@@ -1,4 +1,5 @@
 import { useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import Header from "../Header";
 import { getDepartmentByUser } from "../../utils/getDepartment";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -8,7 +9,7 @@ import {
  fetchWorkers,
  removeWorker,
 } from "../../services/workers";
-import { addAttendance } from "../../services/attendance";
+import { addAttendance, invalidateAttendanceQueries } from "../../services/attendance";
 import { toast } from "react-toastify";
 import { getNextSunday, getSundayDisplayDate } from "../../utils/getDate";
 import DatePicker from "react-datepicker";
@@ -120,6 +121,7 @@ export default function DepartmentAttendance() {
  const [data, setData] = useState([]);
  const [isLoading, setIsLoading] = useState(false);
  const [attendanceLoading, setAttendanceLoading] = useState(false);
+ const queryClient = useQueryClient();
  const dateForAttendance = getNextSunday();
  const [refresh, setRefresh] = useState(0);
  const [activeGroup, setActiveGroup] = useState("All");
@@ -660,6 +662,7 @@ export default function DepartmentAttendance() {
  try {
  setAttendanceLoading(true);
  await addAttendance(attendance);
+ invalidateAttendanceQueries(queryClient);
  setAttendanceLoading(false);
  setRefresh(Math.random());
  toast.success("Attendance added successfully");

@@ -96,12 +96,16 @@ const queryClient = new QueryClient({
       staleTime: 5 * 60 * 1000, // 5 minutes
       gcTime: 10 * 60 * 1000, // 10 minutes
       retry: (failureCount, error) => {
+        if (failureCount >= 3) return false;
         // Don't retry auth/permission errors (deterministic - won't change on retry)
         const msg = error?.message || "";
         if (msg.includes("Invalid credentials") || msg.includes("permission")) return false;
-        // Server errors (5xx) ARE often transient (Lambda cold starts, API
-        // Gateway throttling). Retry up to 3 times with exponential backoff.
-        return failureCount < 3;
+        // Retry only what can be transient: network errors (no status),
+        // timeouts, throttling and 5xx (Lambda cold starts, API Gateway).
+        // Other 4xx responses won't change, and retrying them delayed the
+        // error message by ~14s.
+        const status = error?.status;
+        return !status || status === 408 || status === 429 || status >= 500;
       },
       retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
     },

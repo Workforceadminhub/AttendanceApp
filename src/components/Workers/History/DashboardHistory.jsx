@@ -83,18 +83,14 @@ export default function DashboardHistory() {
     queryAttendance,
   ]);
 
+  // Only the date options load here. A second, unscoped attendance fetch used
+  // to run alongside the query effect above and could overwrite its
+  // admin-scoped totals if it finished last.
   useEffect(() => {
-    setIsLoading(true);
-    const permissions = expandPermissions(authUser);
-    fetchAttendance(undefined, null, null, permissions).then((attendance) => {
-      setAttendanceSummary(calculateTotals(attendance));
-      setIsLoading(false);
-    });
-
     fetchHistoryOptions().then((res) =>
       setHistoryOptions(res.map((item) => ({ label: item, value: item })))
     );
-  }, [authUser]);
+  }, []);
 
   const debouncedSetActiveGroup = useMemo(
     () => debounce((value) => setActiveGroup(value), DEBOUNCE_INTERVAL),

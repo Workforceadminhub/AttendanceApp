@@ -55,7 +55,7 @@ export const parseRecipients = (raw = "") => {
  * @param {"resend"|"brevo"} [payload.provider]  Which provider to send through.
  * @returns {Promise<{ provider: string, sent: number, failed: string[] }>} Send result.
  */
-export const sendBulkEmail = async ({ subject, html, recipients, provider }) => {
+export const sendBulkEmail = async ({ subject, html, recipients, provider, campaignId }) => {
   if (!subject || !subject.trim()) {
     throw new Error("Subject is required.");
   }
@@ -82,6 +82,8 @@ export const sendBulkEmail = async ({ subject, html, recipients, provider }) => 
       html,
       recipients,
       ...(provider ? { provider } : {}),
+      // Set when continuing a send the server handed back as `remaining`.
+      ...(campaignId ? { campaignId } : {}),
       ...(requesterCode ? { requesterCode } : {}),
     }),
   });

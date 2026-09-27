@@ -1,5 +1,9 @@
 {
   "outputDirectory": "build",
+  "functions": {
+    "api/send-bulk-email.js": { "maxDuration": 60 },
+    "api/send-bulk-sms.js": { "maxDuration": 60 }
+  },
   "rewrites": [
     { "source": "/((?!api/|assets/).*)", "destination": "/index.html" }
   ],

@@ -155,10 +155,12 @@ function BulkEmailComposer() {
     let pending = valid;
     let totalSent = 0;
     let totalFailed = [];
+    let campaignId;
     try {
       while (pending.length > 0) {
         toast.info(`Sending… ${totalSent} sent, ${pending.length} remaining`, { autoClose: 3000 });
-        const res = await sendBulkEmail({ subject, html, recipients: pending, provider });
+        const res = await sendBulkEmail({ subject, html, recipients: pending, provider, campaignId });
+        campaignId = res?.campaignId || campaignId;
         totalSent += res?.sent || 0;
         if (res?.failed?.length) totalFailed.push(...res.failed);
         pending = res?.remaining || [];

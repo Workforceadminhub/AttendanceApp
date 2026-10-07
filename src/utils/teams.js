@@ -69,9 +69,7 @@ export const teamsAndDepartments = [
       "Lightbearers Community",
       "Living Spring Community",
       "Ogudu/Alapere Community",
-      "Praise (Couple) Community",
       "Rehoboth Community",
-      "Royal Priesthoods Community",
       "Shekinah Community",
       "Shomolu 2 Community",
       "Sunrise Community",
@@ -250,10 +248,8 @@ export const PASTOR_ISAAC_COMMUNITIES = [
 ];
 
 export const PASTOR_BIOLA_COMMUNITIES = [
-  "Royal Priesthoods Community",
   "Ogudu/Alapere Community",
   "Lightbearers Community",
-  "Praise (Couple) Community",
   "Harmony Community",
   "Bethel Community",
   "Hephzibah Community",
@@ -296,9 +292,7 @@ const isaacCommunitySet = new Set([
 
 const biolaCommunitySet = new Set([
   ...PASTOR_BIOLA_COMMUNITIES.map((c) => c.toLowerCase().trim()),
-  "royal priesthood community",
   "ogudu alapere community",
-  "praise couple community",
   "zion life community",
   "living spring community",
   "judah community",

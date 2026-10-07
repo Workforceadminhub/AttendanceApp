@@ -10,7 +10,7 @@ import {
 } from "../../services/workers";
 import { addAttendance, invalidateAttendanceQueries } from "../../services/attendance";
 import { toast } from "react-toastify";
-import { getNextSunday, getSundayDisplayDate } from "../../utils/getDate";
+import { getMonthSundaysThrough, getNextSunday, getSundayDisplayDate } from "../../utils/getDate";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import ReactSelectDropdown from "../ReactSelect";
@@ -31,6 +31,9 @@ import { getUser } from "../../utils/getUser";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { expandPermissions } from "../../utils/expandPermissions";
 import LoadingState from "../LoadingState";
+import { downloadAttendanceWorkbook } from "../../services/exportAttendance";
+import { saveAs } from "file-saver";
+import { format } from "date-fns";
 
 /** Convert "Sunday - d/m/y" → Date object */
 function sundayStringToDate(dateStr) {
@@ -172,6 +175,36 @@ export default function DepartmentAttendance() {
 
  // When the selected Sunday differs from the live date, we're in "history mode"
  const isHistoryMode = selectedSunday !== dateForAttendance;
+
+ // Super admin export: the selected month's Sundays up to the selected one,
+ // as a workbook with one column per Sunday.
+ const [isExporting, setIsExporting] = useState(false);
+ const exportSundays = useMemo(
+ () => getMonthSundaysThrough(selectedDate ?? sundayStringToDate(dateForAttendance)),
+ [selectedDate, dateForAttendance]
+ );
+ const exportRange =
+ exportSundays.length > 1
+ ? `${format(exportSundays[0], "d")} - ${format(exportSundays[exportSundays.length - 1], "d MMM")}`
+ : exportSundays.length === 1
+ ? format(exportSundays[0], "d MMM")
+ : "";
+
+ const exportWorkbook = async () => {
+ const dates = exportSundays.map((d) => format(d, "yyyy-MM-dd"));
+ setIsExporting(true);
+ try {
+ const blob = await downloadAttendanceWorkbook(dates);
+ if (blob) {
+ const range = dates.length > 1 ? `${dates[0]}-to-${dates[dates.length - 1]}` : dates[0];
+ saveAs(blob, `workers-attendance-${range}.xlsx`);
+ }
+ } catch (error) {
+ toast.error(`Error exporting attendance: ${error.message}`);
+ } finally {
+ setIsExporting(false);
+ }
+ };
 
  // Tailwind's sm breakpoint: which of the two row layouts to mount.
  const isDesktop = useMediaQuery("(min-width: 640px)");
@@ -669,10 +702,23 @@ export default function DepartmentAttendance() {
  </p>
  </div>
  {isAdminMember && (
+ <div className="flex flex-wrap gap-2">
+ {/* The workbook covers every team, so offer it on the campus-wide page only */}
+ {isSuperAdmin && team?.department === "Super Admin" && exportRange && (
+ <button
+ type="button"
+ className="qc-btn-secondary"
+ onClick={exportWorkbook}
+ disabled={isExporting}
+ >
+ {isExporting ? "Exporting..." : `Export ${exportRange}`}
+ </button>
+ )}
  <ViewHistoryButton
  label="View history"
  link={`/attendance/history/admin/${team.department}`}
  />
+ </div>
  )}
  </div>
 

@@ -56,6 +56,23 @@ export function getSundaysInYear(year) {
   return year != null ? sundays : sundays.reverse();
 }
 
+/**
+ * Sundays of `date`'s month, from the first one up to `date` itself.
+ * @param {Date} date
+ * @returns {Date[]}
+ */
+export function getMonthSundaysThrough(date) {
+  if (!date) return [];
+  const sunday = new Date(date.getFullYear(), date.getMonth(), 1);
+  sunday.setDate(1 + ((7 - sunday.getDay()) % 7));
+  const sundays = [];
+  while (sunday <= date) {
+    sundays.push(new Date(sunday));
+    sunday.setDate(sunday.getDate() + 7);
+  }
+  return sundays;
+}
+
 export function getNextSunday() {
   const date = new Date();
 

@@ -33,8 +33,11 @@ export const fetchUnmarkedWorkers = async (team, activeDate) => {
   });
 };
 
-/** Unmarked workers for a specific department (Dashboard). */
-export const fetchAdminWorkers = async (team, activeGroup, activeDate, search = "", permissions = [], { signal } = {}) => {
+/**
+ * Every admin worker in scope. Pass `first`, a page-1 result fetched with
+ * FETCH_ALL_PAGE_LIMIT, to reuse it instead of requesting page 1 again.
+ */
+export const fetchAdminWorkers = async (team, activeGroup, activeDate, search = "", permissions = [], { signal, first } = {}) => {
   const params = {
     team,
     activeGroup,
@@ -48,7 +51,7 @@ export const fetchAdminWorkers = async (team, activeGroup, activeDate, search = 
     params.search = search.trim();
   }
   
-  return requestAllWorkerPages("/api/workers", params, { signal });
+  return requestAllWorkerPages("/api/workers", params, { signal, first });
 };
 
 /** One server page of admin workers plus normalized pagination metadata. */
@@ -261,12 +264,12 @@ export const fetchTopPerformers = async (department, startDate, endDate, limit =
 
 // ========== End Phase 7 - New Worker Functions ==========
 
-async function requestAllWorkerPages(endpoint, baseParams, { signal } = {}) {
+async function requestAllWorkerPages(endpoint, baseParams, { signal, first } = {}) {
   return fetchAllPages(async ({ page, limit }) => {
     const response = await apiRequest("GET", endpoint, { ...baseParams, page, limit }, signal ? { signal } : undefined);
     if (!response || response.error) throw new Error(response?.error || "Failed to fetch workers");
     return response;
-  }, { signal });
+  }, { signal, first });
 }
 
 async function requestSuperAdminWorkers({ page = 1, limit = DEFAULT_PAGE_LIMIT, search = "", team, department, status, sortBy = "team", permissions } = {}) {

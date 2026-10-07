@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import apiRequest from "../utils/apiClient";
-import { listSuperAdminWorkers, fetchWorkers, fetchAllSuperAdminWorkers, fetchAllPending, fetchPendingAdd } from "./workers";
+import { listSuperAdminWorkers, fetchWorkers, fetchAllSuperAdminWorkers, fetchAllPending, fetchPendingAdd, fetchAdminWorkers, fetchAdminWorkersPage } from "./workers";
 vi.mock("../utils/apiClient", () => ({ default: vi.fn() }));
 const response = (page, totalPages = 2) => ({ data: [{ id: page, team: 'Programs', department: 'Sound' }], pagination: { page, limit: 50, total: totalPages * 50, totalPages, hasNext: page < totalPages, hasPrev: page > 1 } });
 
@@ -15,6 +15,14 @@ describe("worker pagination", () => {
     apiRequest.mockImplementation((method, endpoint, { page }) => response(page));
     expect(await fetchWorkers('Sound', '2026-09-13')).toEqual([...response(1).data, ...response(2).data]);
     expect(apiRequest.mock.calls.map(call => call[2].page)).toEqual([1, 2]);
+  });
+  it("walks admin workers from a page 1 the caller already has", async () => {
+    apiRequest.mockImplementation((method, endpoint, { page }) => response(page, 3));
+    const first = await fetchAdminWorkersPage('Gbagada Campus', 'All', 'Sunday - 4/10/2026', [], { page: 1 });
+    apiRequest.mockClear();
+    const rows = await fetchAdminWorkers('Gbagada Campus', 'All', 'Sunday - 4/10/2026', '', [], { first });
+    expect(rows.map(row => row.id)).toEqual([1, 2, 3]);
+    expect(apiRequest.mock.calls.map(call => call[2].page)).toEqual([2, 3]);
   });
   it("requests plain worker lists only once", async () => {
     apiRequest.mockResolvedValue({ data: [{ id: 1 }] });

@@ -9,6 +9,7 @@ import {
  removeWorker,
 } from "../../services/workers";
 import { addAttendance, invalidateAttendanceQueries } from "../../services/attendance";
+import { FETCH_ALL_PAGE_LIMIT } from "../../utils/pagination";
 import { toast } from "react-toastify";
 import { getNextSunday, getSundayDisplayDate } from "../../utils/getDate";
 import DatePicker from "react-datepicker";
@@ -102,7 +103,8 @@ const AttendanceDropdown = memo(function AttendanceDropdown({
  );
 });
 
-const PAGE_SIZE = 100;
+// Same size as the summary's full walk, so the two can share page 1.
+const PAGE_SIZE = FETCH_ALL_PAGE_LIMIT;
 
 function sortWorkersById(workers) {
  if (!Array.isArray(workers)) return [];
@@ -196,6 +198,31 @@ export default function DepartmentAttendance() {
  };
  }, [permissions, authUser, isChurchAdmin, isSuperAdmin, activeGroup, team.team]);
 
+ // Page 1 of the admin scope is needed by both the table and the summary.
+ // Going through the query cache lets the second caller join the request
+ // already in flight instead of sending its own; staleTime 0 means a later
+ // call (after a save, say) still gets fresh rows.
+ const fetchAdminFirstPage = () =>
+ queryClient.fetchQuery({
+ queryKey: [
+ "attendanceTable",
+ "adminFirstPage",
+ adminScope.apiTeam,
+ adminScope.apiActiveGroup,
+ selectedSunday,
+ adminScope.permissionsForApi.join(","),
+ ],
+ queryFn: () =>
+ fetchAdminWorkersPage(
+ adminScope.apiTeam,
+ adminScope.apiActiveGroup,
+ selectedSunday,
+ adminScope.permissionsForApi,
+ { page: 1, limit: PAGE_SIZE }
+ ),
+ staleTime: 0,
+ });
+
  // The table: one server page for admin routes, the whole department
  // otherwise. Cached per filter, date and page, so revisiting is instant;
  // saving attendance refreshes it.
@@ -228,7 +255,10 @@ export default function DepartmentAttendance() {
  ],
  queryFn: async ({ signal }) => {
  if (isAdminMember) {
- const { data: rows, pagination } = await fetchAdminWorkersPage(
+ const { data: rows, pagination } =
+ currentPage === 1
+ ? await fetchAdminFirstPage()
+ : await fetchAdminWorkersPage(
  adminScope.apiTeam,
  adminScope.apiActiveGroup,
  selectedSunday,
@@ -277,15 +307,17 @@ export default function DepartmentAttendance() {
  ];
  const summaryQuery = useQuery({
  queryKey: summaryQueryKey,
- queryFn: ({ signal }) =>
- fetchAdminWorkers(
+ queryFn: async ({ signal }) => {
+ const rows = await fetchAdminWorkers(
  adminScope.apiTeam,
  adminScope.apiActiveGroup,
  selectedSunday,
  "",
  adminScope.permissionsForApi,
- { signal }
- ).then((rows) => (Array.isArray(rows) ? rows : [])),
+ { signal, first: await fetchAdminFirstPage() }
+ );
+ return Array.isArray(rows) ? rows : [];
+ },
  enabled: isAdminMember,
  });
  const summaryRows = summaryQuery.data ?? null;

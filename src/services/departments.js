@@ -146,16 +146,19 @@ const loadTeamsAndDepartmentsForFilter = async () => {
     });
   }
 
-  // Include any remaining effective-route departments (API-backed once loaded)
-  const effectiveList = getEffectiveRouteList();
-  effectiveList.forEach((item) => {
-    if (
-      item.department &&
-      !inactiveDepartmentNames.has(String(item.department).trim().toLowerCase())
-    ) {
-      addDeptToTeam(item.team, item.department);
-    }
-  });
+  // Use the static route list only when the API returned nothing. Once the API
+  // has loaded, that list still holds static entries the API no longer returns
+  // (deleted departments), and adding them would bring those back as options.
+  if (!departmentsList?.length) {
+    getEffectiveRouteList().forEach((item) => {
+      if (
+        item.department &&
+        !inactiveDepartmentNames.has(String(item.department).trim().toLowerCase())
+      ) {
+        addDeptToTeam(item.team, item.department);
+      }
+    });
+  }
 
   const teamNames = [...teamNamesSet]
     .filter((t) => !isHiddenTeam(t))

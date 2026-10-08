@@ -39,6 +39,7 @@ const ATTENDANCE_QUERY_KEYS = [
   ["unmarkedWorkers"],
   ["attendanceExport"],
   ["attendanceTable"],
+  ["attendanceSummary"],
   // A save for a new Sunday adds a date to the history pickers.
   ["historyOptions"],
 ];
@@ -63,6 +64,24 @@ export function invalidateAttendanceQueries(queryClient) {
     queryClient.removeQueries({ queryKey, type: "inactive" });
   }
 }
+
+/**
+ * Total, present, absent and unmarked counts for an admin scope on one
+ * Sunday, in one request instead of downloading every worker in scope.
+ * @returns {Promise<{total: number, present: number, absent: number, unmarked: number}>}
+ */
+export const fetchAttendanceSummary = async (team, activeGroup, activeDate, { signal } = {}) => {
+  const response = await apiRequest(
+    "GET",
+    "/api/admin/attendance/summary",
+    { team, activeGroup, activeDate },
+    signal ? { signal } : undefined
+  );
+  if (!response || response.error || !response.data) {
+    throw new Error(response?.error || "Failed to fetch attendance summary");
+  }
+  return response.data;
+};
 
 // const table = "attendance2";
 export const addAttendance = async (attendance) => {

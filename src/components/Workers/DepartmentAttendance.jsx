@@ -8,7 +8,8 @@ import {
  fetchWorkers,
  removeWorker,
 } from "../../services/workers";
-import { addAttendance, invalidateAttendanceQueries } from "../../services/attendance";
+import { addAttendance, fetchAttendanceSummary, invalidateAttendanceQueries } from "../../services/attendance";
+import { applyPendingPicks } from "../../utils/attendanceSummary";
 import { FETCH_ALL_PAGE_LIMIT } from "../../utils/pagination";
 import { toast } from "react-toastify";
 import { getMonthSundaysThrough, getNextSunday, getSundayDisplayDate } from "../../utils/getDate";
@@ -328,18 +329,41 @@ export default function DepartmentAttendance() {
  if (tableError) toast.error(`Error loading attendance: ${tableError.message}`);
  }, [tableError]);
 
- // Admin summary counts every worker in scope, independently of the visible
- // page. Not refetched after saves: the saved statuses are written into this
- // cache (see saveAttendance), so re-downloading everyone isn't needed.
- const summaryQueryKey = [
+ // Admin summary counts come from one request; unsaved picks are added on
+ // top (see attendanceSummary below).
+ const summaryScope = [adminScope.apiTeam, adminScope.apiActiveGroup, selectedSunday].join("|");
+ const summaryCountsKey = [
+ "attendanceSummary",
+ adminScope.apiTeam,
+ adminScope.apiActiveGroup,
+ selectedSunday,
+ ];
+ const summaryQuery = useQuery({
+ queryKey: summaryCountsKey,
+ queryFn: ({ signal }) =>
+ fetchAttendanceSummary(adminScope.apiTeam, adminScope.apiActiveGroup, selectedSunday, { signal }),
+ enabled: isAdminMember,
+ });
+
+ // Status each worker had when first picked, and the summary scope they were
+ // picked in, so unsaved picks can be added to the server's counts.
+ const [pickedFrom, setPickedFrom] = useState(() => new Map());
+
+ // The unmarked-by-department breakdown needs every worker in scope, so it
+ // only downloads when asked for, and resets when the scope changes. Not
+ // refetched after saves: the saved statuses are written into this cache
+ // (see saveAttendance), so re-downloading everyone isn't needed.
+ const [breakdownScope, setBreakdownScope] = useState(null);
+ const showBreakdown = breakdownScope === summaryScope;
+ const breakdownQueryKey = [
  "attendanceSummaryRows",
  adminScope.apiTeam,
  adminScope.apiActiveGroup,
  selectedSunday,
  adminScope.permissionsForApi.join(","),
  ];
- const summaryQuery = useQuery({
- queryKey: summaryQueryKey,
+ const breakdownQuery = useQuery({
+ queryKey: breakdownQueryKey,
  queryFn: async ({ signal }) => {
  const rows = await fetchAdminWorkers(
  adminScope.apiTeam,
@@ -351,9 +375,9 @@ export default function DepartmentAttendance() {
  );
  return Array.isArray(rows) ? rows : [];
  },
- enabled: isAdminMember,
+ enabled: isAdminMember && showBreakdown,
  });
- const summaryRows = summaryQuery.data ?? null;
+ const breakdownRows = breakdownQuery.data ?? null;
 
  useEffect(() => {
  if (summaryQuery.error) toast.error(`Error loading summary: ${summaryQuery.error.message}`);
@@ -465,11 +489,24 @@ export default function DepartmentAttendance() {
  }
  }, [currentPage, totalPages]);
 
- // Admin routes only have the current page in `data`; the summary loads independently.
- const summarySource = isAdminMember ? summaryRows : filteredData;
- const summaryReady = !isAdminMember || summaryRows !== null;
+ // Admin routes only have the current page in `data`; their counts come from
+ // the summary endpoint and the department breakdown loads on request.
+ const summarySource = isAdminMember ? breakdownRows : filteredData;
+ const summaryReady = !isAdminMember || summaryQuery.data != null;
+ const needsBreakdown = isAdminMember && !breakdownRows;
 
  const attendanceSummary = useMemo(() => {
+ if (isAdminMember) {
+ if (!summaryQuery.data) return { total: 0, present: 0, absent: 0, unfilled: 0 };
+ const { total, present, absent, unmarked } = applyPendingPicks(
+ summaryQuery.data,
+ attendance || [],
+ pickedFrom,
+ summaryScope
+ );
+ return { total, present, absent, unfilled: unmarked };
+ }
+
  if (!Array.isArray(summarySource)) {
  return { total: 0, present: 0, absent: 0, unfilled: 0 };
  }
@@ -501,7 +538,7 @@ export default function DepartmentAttendance() {
  const total = present + absent + unfilled;
 
  return { total, present, absent, unfilled };
- }, [summarySource, attendance]);
+ }, [isAdminMember, summaryQuery.data, pickedFrom, summaryScope, summarySource, attendance]);
 
  const unfilledDepartments = useMemo(() => {
  if (!Array.isArray(summarySource)) return [];
@@ -644,6 +681,11 @@ export default function DepartmentAttendance() {
  };
 
  const updateAttendance = useCallback((selected, person) => {
+ setPickedFrom((prev) =>
+ prev.has(person.id)
+ ? prev
+ : new Map(prev).set(person.id, { status: person.attendance, scope: summaryScope })
+ );
  setAttendance((prev) =>
  updateOrAddWorker(prev, {
  workerid: person.id,
@@ -654,16 +696,26 @@ export default function DepartmentAttendance() {
  attendancedate: dateForAttendance,
  })
  );
- }, [team.department, team.team, dateForAttendance]);
+ }, [team.department, team.team, dateForAttendance, summaryScope]);
 
  const saveAttendance = async () => {
  try {
  setAttendanceLoading(true);
  await addAttendance(attendance);
- // Write the saved statuses into the cached summary rows so it stays
+ // Move the saved picks into the cached counts so they stay right until
+ // the refetch below lands, then count from the saved statuses.
+ queryClient.setQueryData(summaryCountsKey, (counts) =>
+ counts ? applyPendingPicks(counts, attendance, pickedFrom, summaryScope) : counts
+ );
+ setPickedFrom((prev) => {
+ const next = new Map(prev);
+ attendance.forEach((a) => next.set(a.workerid, { status: a.attendance, scope: summaryScope }));
+ return next;
+ });
+ // Write the saved statuses into the cached breakdown rows so it stays
  // right without re-downloading every worker in scope.
  const savedById = new Map(attendance.map((a) => [a.workerid, a.attendance]));
- queryClient.setQueryData(summaryQueryKey, (rows) =>
+ queryClient.setQueryData(breakdownQueryKey, (rows) =>
  Array.isArray(rows)
  ? rows.map((r) => (savedById.has(r.id) ? { ...r, attendance: savedById.get(r.id) } : r))
  : rows
@@ -875,11 +927,35 @@ export default function DepartmentAttendance() {
  )}
  </div>
  )}
- {summaryReady && attendanceSummary.unfilled > 0 && unfilledDepartments.length > 0 && (
+ {summaryReady && attendanceSummary.unfilled > 0 && (needsBreakdown || unfilledDepartments.length > 0) && (
  <div className="mb-6 rounded-lg border border-mustard/30 bg-mustard/10 px-4 py-4">
  <h2 className="text-sm font-semibold text-mustard">
  Departments with unfilled attendance
  </h2>
+ {needsBreakdown ? (
+ breakdownQuery.isError && !breakdownQuery.isFetching ? (
+ <div className="mt-2 flex flex-wrap items-center gap-2">
+ <p role="alert" className="text-sm text-brick">Departments could not be loaded.</p>
+ <button
+ type="button"
+ onClick={() => breakdownQuery.refetch()}
+ className="px-3 py-1.5 rounded-md border border-ink-300 text-sm text-ink-700 bg-white hover:bg-cream"
+ >
+ Retry
+ </button>
+ </div>
+ ) : showBreakdown ? (
+ <p role="status" className="mt-2 text-sm text-mustard">Loading departments…</p>
+ ) : (
+ <button
+ type="button"
+ onClick={() => setBreakdownScope(summaryScope)}
+ className="mt-2 px-3 py-1.5 rounded-md border border-ink-300 text-sm text-ink-700 bg-white hover:bg-cream"
+ >
+ Show departments
+ </button>
+ )
+ ) : (
  <ul className="mt-2 text-sm text-mustard list-disc list-inside space-y-1">
  {unfilledDepartments.map(({ department, count }) => (
  <li key={department}>
@@ -890,6 +966,7 @@ export default function DepartmentAttendance() {
  </li>
  ))}
  </ul>
+ )}
  </div>
  )}
  {isLoading ? (

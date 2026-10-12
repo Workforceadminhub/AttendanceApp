@@ -32,10 +32,10 @@ export default function AttendanceLeaderboard({
 
  const { data: fetchedData, isLoading: isFetching } = useQuery({
  queryKey: usePermissions
- ? ["leaderboard", "permissions", permissions, startDate, endDate, limit]
+ ? ["leaderboard", "permissions", permissions, department, startDate, endDate, limit]
  : ["leaderboard", department, startDate, endDate, limit],
  queryFn: usePermissions
- ? () => fetchAttendanceLeaderboard(permissions, startDate, endDate, limit)
+ ? () => fetchAttendanceLeaderboard(permissions, startDate, endDate, limit, department)
  : () => fetchTopPerformers(department, startDate, endDate, limit),
  enabled: usePermissions
  ? !!startDate && !!endDate && !dataProp

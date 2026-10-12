@@ -3,10 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import Layout from "../../../components/Layout";
 import { Stat, Tag } from "../../../components/ui";
-import { useCanAction } from "../../../contexts/RBACContext";
+import { useCanAction, useScopeFilter } from "../../../contexts/RBACContext";
 import { fetchTrainings } from "../../../services/hub/trainings";
 import { getUserRole } from "../../../utils/getUserRole";
 import { asDate, kindLabel, statusTone } from "../../../utils/training";
+import { trainingConsoleCopy } from "./trainingConsoleCopy";
 import {
   CohortManagementDrawer,
   TrainingDetailDrawer,
@@ -36,6 +37,8 @@ export default function TrainingList() {
   const navigate = useNavigate();
   const userRoleInfo = useMemo(() => getUserRole(), []);
   const { isSuperAdmin, isChurchAdmin, isHOD, isAdmin, user } = userRoleInfo;
+  const scope = useScopeFilter();
+  const consoleCopy = trainingConsoleCopy(userRoleInfo, scope);
 
   // Determine active role view strictly based on authenticated permission level
   const activeRoleView = (isSuperAdmin || isChurchAdmin || isAdmin)
@@ -76,12 +79,12 @@ export default function TrainingList() {
             <>
               <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
                 <div>
-                  <div className="qc-eyebrow text-ink-500 font-semibold">Super Admin &amp; Church Admin Console</div>
+                  <div className="qc-eyebrow text-ink-500 font-semibold">{consoleCopy.label}</div>
                   <h1 className="mt-1 text-3xl font-medium text-ink-900 tracking-tight">
                     Learning Dashboard
                   </h1>
                   <p className="mt-1 text-sm text-ink-500">
-                    Manage organization-wide training modules, cohorts, and certification metrics.
+                    {consoleCopy.description}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2 shrink-0">

@@ -50,10 +50,13 @@ export default function DepartmentWorkers() {
  isTeamAdmin,
  isSubTeamAdmin,
  } = getUserRole();
+ // Team overview routes use the team name; department deep links must keep
+ // their department scope even when opened by a team admin.
+ const isTeamOverview = isTeamAdmin && !!auth?.team && isSameDepartment(decodedDepartment, auth.team);
  const canEditWorkers = isSuperAdmin || isChurchAdmin || isHOD || isTeamAdmin || isSubTeamAdmin;
  const canRequestDeleteWorkers = isSuperAdmin || isChurchAdmin || isHOD || isTeamAdmin; // exclude sub-team-admin
  const canSelectWorkers = canEditWorkers && !isSubTeamAdmin; // sub-team-admin should not see worker selection checkboxes
- const canManageDepartmentPage = canAccessDepartment(decodedDepartment);
+ const canManageDepartmentPage = isTeamOverview || canAccessDepartment(decodedDepartment);
 
  const {
  data: workersData,
@@ -71,7 +74,11 @@ export default function DepartmentWorkers() {
 
  // HOD view: order by role (HOD → Assistant HOD → Small Group Leader → Worker → blank), then by id within each role
  const sortedWorkers = useMemo(() => {
- const rawWorkers = (workersData || []).filter((w) => isSameDepartment(w.department, decodedDepartment));
+ const rawWorkers = (workersData || []).filter((w) =>
+ isTeamOverview
+ ? isSameDepartment(w.team, auth.team)
+ : isSameDepartment(w.department, decodedDepartment)
+ );
  const getRoleRank = (role) => {
  const r = (role || "").trim();
  const i = ROLE_ORDER.indexOf(r);
@@ -85,7 +92,7 @@ export default function DepartmentWorkers() {
  const idB = (b.id ?? b.workerId ?? 0).toString();
  return idA.localeCompare(idB, undefined, { numeric: true });
  });
- }, [workersData, decodedDepartment]);
+ }, [workersData, decodedDepartment, isTeamOverview, auth]);
 
  const queryClient = useQueryClient();
 
@@ -401,7 +408,9 @@ export default function DepartmentWorkers() {
  }
  };
 
- const departmentUrl = `/department/${departmentRoute || encodeURIComponent(decodedDepartment)}`;
+ const departmentUrl = isTeamOverview
+ ? `/department/admin/${encodeURIComponent(String(auth.team).toLowerCase().replaceAll(" ", ""))}`
+ : `/department/${departmentRoute || encodeURIComponent(decodedDepartment)}`;
 
  return (
  <div className="px-4 sm:px-6 lg:px-8 py-8">

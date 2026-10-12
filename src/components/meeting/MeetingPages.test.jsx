@@ -111,11 +111,11 @@ describe("admin report pages", () => {
     expect(teamCell).toHaveAttribute("tabindex", "0");
   });
 
-  it("confirmation report drops registrations that never responded", async () => {
+  it("confirmation report retains registrations that never responded", async () => {
     renderPage(LeadersMeetingReport);
     await waitFor(() => expect(screen.queryByText("Loading...")).not.toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "List View" }));
-    expect(screen.getByText(/2 of 2 registrations/)).toBeInTheDocument();
+    expect(screen.getByText(/3 of 3 registrations/)).toBeInTheDocument();
     expect(screen.getByLabelText("Directorate")).toBeInTheDocument();
   });
 

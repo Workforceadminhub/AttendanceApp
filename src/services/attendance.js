@@ -2,6 +2,7 @@ import { fetchAllPages, hasPaginationMeta, unwrapPaginated, extractPaginationMet
 import { ulid } from "ulid";
 import apiRequest from "../utils/apiClient";
 import { getNextSunday } from "../utils/getDate";
+import { isSameDepartment } from "../utils/routeObject";
 
 
 async function requestAttendancePages(endpoint, params, history = false) {
@@ -176,7 +177,7 @@ export function calculateTotals(data) {
  * @param {number} [limit=5] - Number of performers per section
  * @returns {Promise<{topPerformers: Array, bottomPerformers: Array}>}
  */
-export const fetchAttendanceLeaderboard = async (_permissions, startDate, endDate, limit = 5) => {
+export const fetchAttendanceLeaderboard = async (_permissions, startDate, endDate, limit = 5, department) => {
   const empty = { topPerformers: [], bottomPerformers: [] };
   try {
     const params = {};
@@ -193,12 +194,15 @@ export const fetchAttendanceLeaderboard = async (_permissions, startDate, endDat
     const raw = response.data ?? response;
 
     // Handle { topPerformers, bottomPerformers } or { top, bottom } shapes directly
-    if (raw?.topPerformers || raw?.top) return raw;
+    if (raw?.topPerformers || raw?.top) {
+      const inScope = (rows) => (rows || []).filter((worker) => !department || isSameDepartment(worker.department, department)).slice(0, limit);
+      return { topPerformers: inScope(raw.topPerformers ?? raw.top), bottomPerformers: inScope(raw.bottomPerformers ?? raw.bottom) };
+    }
 
     // Transform backend shape: { "Dept Name": { topPresent: [...], topAbsent: [...] } }
     // into { topPerformers: [...], bottomPerformers: [...] }
     const deptKeys = Object.keys(raw).filter(
-      (k) => raw[k]?.topPresent || raw[k]?.topAbsent
+      (k) => (!department || isSameDepartment(k, department)) && (raw[k]?.topPresent || raw[k]?.topAbsent)
     );
     if (deptKeys.length > 0) {
       // Count Sundays in the date range for attendance-rate calculation

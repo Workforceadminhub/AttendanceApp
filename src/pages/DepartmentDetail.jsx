@@ -39,7 +39,8 @@ export default function DepartmentDetail() {
  const authUser = getUser();
 
  // Role information (to detect sub-team-admin)
- const { isSubTeamAdmin, assignedDepartments, user: roleUser } = getUserRole();
+ const { isSubTeamAdmin, isTeamAdmin, assignedDepartments, user: roleUser } = getUserRole();
+ const isTeamOverview = isTeamAdmin && isSameDepartment(decodedDepartment, authUser?.team);
 
  // Sub-team-admin: load departments from API and keep only assigned/permission-based
  const {
@@ -112,6 +113,10 @@ export default function DepartmentDetail() {
  const forDept = list.filter((item) => {
  const name = item.department || item.department_name || "";
  const itemRoute = (item.route || item.department_route || item.departmentRoute || "").replace(/^\//, "").toLowerCase();
+ if (isTeamOverview) {
+ const entry = getEffectiveRouteList().find((department) => isSameDepartment(department.department, name));
+ return isSameDepartment(item.team || entry?.team, authUser.team);
+ }
  return isSameDepartment(name, decodedDepartment) || (normRoute && itemRoute === normRoute);
  });
  const present = forDept.reduce((s, item) => s + (item.present ?? 0), 0);
@@ -122,7 +127,7 @@ export default function DepartmentDetail() {
  points,
  rawBySunday: sundayAttendance.map(({ dateStr, list }) => ({ dateStr, list })),
  };
- }, [sundayAttendance, departmentRoute, decodedDepartment]);
+ }, [sundayAttendance, departmentRoute, decodedDepartment, isTeamOverview, authUser]);
 
  const {
  data: workersData,
@@ -421,7 +426,7 @@ export default function DepartmentDetail() {
  {/* Leaderboard - uses GET /api/attendance/trends with user permissions */}
  <div className="mb-8">
  <AttendanceLeaderboard
- department={decodedDepartment}
+ department={isTeamOverview ? undefined : decodedDepartment}
  startDate={leaderboardStartDate}
  endDate={leaderboardEndDate}
  limit={5}

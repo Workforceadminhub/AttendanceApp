@@ -1,6 +1,6 @@
 import { getUser } from "./getUser";
 import { ADMIN_ENUMS } from "./enums";
-import { getEffectiveRouteList } from "./routeObject";
+import { getEffectiveRouteList, isSameDepartment, routeObject } from "./routeObject";
 
 /**
  * Permission levels from the backend (new field on user object)
@@ -245,8 +245,15 @@ export function canAccessDepartment(departmentName) {
 
   // Team Admin - check if department belongs to their team
   if (isTeamAdmin && user?.team) {
-    const deptEntry = getEffectiveRouteList().find((r) => r.department === departmentName);
-    return deptEntry?.team === user.team;
+    const list = getEffectiveRouteList();
+    // Worker details can retain a legacy name after the directory renames a
+    // department. Resolve that name through its stable route, then authorize
+    // against the current team mapping, not the historical one.
+    const legacyEntry = routeObject.find((r) => isSameDepartment(r.department, departmentName));
+    const deptEntry = list.find((r) => isSameDepartment(r.department, departmentName)) ||
+      (legacyEntry && list.find((r) => r.route === legacyEntry.route));
+    const teamName = typeof user.team === "string" ? user.team : user.team?.name;
+    return Boolean(deptEntry && teamName && isSameDepartment(deptEntry.team, teamName));
   }
 
   // HOD - can only access their own department

@@ -5,7 +5,9 @@ import apiRequest from "../utils/apiClient";
 import { resolveDepartmentParams, departmentNameForApi } from "../utils/routeObject";
 // import { WORKER_STATUS } from "../utils/enums";
 
-export const fetchWorkers = async (department, activeDate, permissions, search = "") => {
+// Legacy positional permission arguments are ignored to keep existing callers compatible.
+// The API scopes every role using the Bearer access token.
+export const fetchWorkers = async (department, activeDate, _permissions, search = "") => {
   const dateForAttendance = activeDate || getNextSunday();
   const params = {
     department: departmentNameForApi(department),
@@ -13,9 +15,6 @@ export const fetchWorkers = async (department, activeDate, permissions, search =
     isAdmin: false,
   };
 
-  if (Array.isArray(permissions) && permissions.length > 0) {
-    params.permissions = permissions;
-  }
   
   // Add search parameter if provided
   if (search && search.trim()) {
@@ -37,13 +36,12 @@ export const fetchUnmarkedWorkers = async (team, activeDate) => {
  * Every admin worker in scope. Pass `first`, a page-1 result fetched with
  * FETCH_ALL_PAGE_LIMIT, to reuse it instead of requesting page 1 again.
  */
-export const fetchAdminWorkers = async (team, activeGroup, activeDate, search = "", permissions = [], { signal, first } = {}) => {
+export const fetchAdminWorkers = async (team, activeGroup, activeDate, search = "", _permissions = [], { signal, first } = {}) => {
   const params = {
     team,
     activeGroup,
     activeDate,
     isAdmin: true,
-    ...(Array.isArray(permissions) && permissions.length > 0 ? { permissions } : {}),
   };
   
   // Add search parameter if provided
@@ -59,7 +57,7 @@ export const fetchAdminWorkersPage = async (
   team,
   activeGroup,
   activeDate,
-  permissions = [],
+  _permissions = [],
   { page = 1, limit = FETCH_ALL_PAGE_LIMIT, search = "", signal } = {}
 ) => {
   const params = {
@@ -69,7 +67,6 @@ export const fetchAdminWorkersPage = async (
     isAdmin: true,
     page,
     limit,
-    ...(Array.isArray(permissions) && permissions.length > 0 ? { permissions } : {}),
     ...(search && search.trim() ? { search: search.trim() } : {}),
   };
   const response = await apiRequest("GET", "/api/workers", params, signal ? { signal } : undefined);
@@ -82,7 +79,7 @@ export const fetchAdminWorkersPage = async (
  * server's total instead of downloading every worker; walks all pages only
  * when the response carries no total.
  */
-export const countAdminWorkers = async (team, activeGroup, activeDate, permissions = []) => {
+export const countAdminWorkers = async (team, activeGroup, activeDate, _permissions = []) => {
   const params = {
     team,
     activeGroup,
@@ -90,14 +87,13 @@ export const countAdminWorkers = async (team, activeGroup, activeDate, permissio
     isAdmin: true,
     page: 1,
     limit: 1,
-    ...(Array.isArray(permissions) && permissions.length > 0 ? { permissions } : {}),
   };
   const response = await apiRequest("GET", "/api/workers", params);
   if (!response || response.error) throw new Error(response?.error || "Failed to fetch workers");
   const meta = extractPaginationMeta(response);
   const total = Number(meta?.total ?? meta?.count);
   if (meta && (meta.total != null || meta.count != null) && Number.isFinite(total)) return total;
-  const rows = await fetchAdminWorkers(team, activeGroup, activeDate, "", permissions);
+  const rows = await fetchAdminWorkers(team, activeGroup, activeDate, "");
   return rows.length;
 };
 
@@ -137,7 +133,7 @@ const filterByStatus = (workers, status) => {
   );
 };
 
-const requestPendingWorkers = async (status, page, limit, permissions) => {
+const requestPendingWorkers = async (status, page, limit) => {
   let result;
   try {
     // Some deployments use this path for all admin levels.
@@ -146,7 +142,6 @@ const requestPendingWorkers = async (status, page, limit, permissions) => {
       limit,
       page,
       sortBy: "team",
-      ...(Array.isArray(permissions) && permissions.length > 0 ? { permissions } : {}),
     });
   } catch (e) {
     // Fallback for deployments that expose a generic admin path.
@@ -155,7 +150,6 @@ const requestPendingWorkers = async (status, page, limit, permissions) => {
       limit,
       page,
       sortBy: "team",
-      ...(Array.isArray(permissions) && permissions.length > 0 ? { permissions } : {}),
     });
   }
 
@@ -163,8 +157,8 @@ const requestPendingWorkers = async (status, page, limit, permissions) => {
   return result;
 };
 
-const fetchPendingWorkers = async (status, page = 1, limit = 100, permissions = []) => {
-  const result = await requestPendingWorkers(status, page, limit, permissions);
+const fetchPendingWorkers = async (status, page = 1, limit = 100) => {
+  const result = await requestPendingWorkers(status, page, limit);
   const unwrapped = unwrapPaginated(result, { page, limit });
   const workers = unwrapped.data;
   const pendingWorkers = filterByStatus(workers, status);
@@ -186,16 +180,16 @@ const fetchPendingWorkers = async (status, page = 1, limit = 100, permissions = 
   };
 };
 
-export const fetchPendingAdd = (page = 1, limit = 100, permissions = []) =>
-  fetchPendingWorkers("PENDING_ADD", page, limit, permissions);
+export const fetchPendingAdd = (page = 1, limit = 100) =>
+  fetchPendingWorkers("PENDING_ADD", page, limit);
 
-export const fetchPendingRemove = (page = 1, limit = 100, permissions = []) =>
-  fetchPendingWorkers("PENDING_DELETE", page, limit, permissions);
+export const fetchPendingRemove = (page = 1, limit = 100) =>
+  fetchPendingWorkers("PENDING_DELETE", page, limit);
 
 
 /** Collect the active pending inbox for export, filtering after the page walk. */
-export async function fetchAllPending(status, permissions = []) {
-  const rows = await fetchAllPages(({ page, limit }) => requestPendingWorkers(status, page, limit, permissions));
+export async function fetchAllPending(status) {
+  const rows = await fetchAllPages(({ page, limit }) => requestPendingWorkers(status, page, limit));
   return filterByStatus(rows, status);
 }
 
@@ -272,13 +266,12 @@ async function requestAllWorkerPages(endpoint, baseParams, { signal, first } = {
   }, { signal, first });
 }
 
-async function requestSuperAdminWorkers({ page = 1, limit = DEFAULT_PAGE_LIMIT, search = "", team, department, status, sortBy = "team", permissions } = {}) {
+async function requestSuperAdminWorkers({ page = 1, limit = DEFAULT_PAGE_LIMIT, search = "", team, department, status, sortBy = "team" } = {}) {
   const params = { page, limit, sortBy };
   if (search && search.trim()) params.search = search.trim();
   if (team && team !== "All") params.team = team;
   if (department && department !== "All") params.department = department;
   if (status) params.status = status;
-  if (Array.isArray(permissions) && permissions.length > 0) params.permissions = permissions;
   const result = await apiRequest("GET", "/api/super/admin/workers", params);
   if (!result || result.error) throw new Error(result?.error || "Failed to fetch workers");
   return result;

@@ -118,10 +118,7 @@ export default function PendingWorkers() {
  await adminActionRequest(
  "DELETE",
  `/${workerId}/workers`,
- undefined,
- Array.isArray(permissions) && permissions.length > 0
- ? { params: { permissions: JSON.stringify(permissions) } }
- : undefined
+ undefined
  );
 
  toast.success("Worker deleted successfully");
@@ -227,10 +224,7 @@ export default function PendingWorkers() {
  await adminActionRequest(
  "PUT",
  `/${workerId}/workers/approve`,
- undefined,
- Array.isArray(permissions) && permissions.length > 0
- ? { params: { permissions: JSON.stringify(permissions) } }
- : undefined
+ undefined
  );
 
  toast.success("Worker approved successfully");
@@ -292,10 +286,7 @@ export default function PendingWorkers() {
  await adminActionRequest(
  "DELETE",
  `/${workerId}/workers`,
- undefined,
- Array.isArray(permissions) && permissions.length > 0
- ? { params: { permissions: JSON.stringify(permissions) } }
- : undefined
+ undefined
  );
  successCount++;
  } catch (error) {
@@ -340,10 +331,7 @@ export default function PendingWorkers() {
  await adminActionRequest(
  "PUT",
  `/${workerId}/workers/approve`,
- undefined,
- Array.isArray(permissions) && permissions.length > 0
- ? { params: { permissions: JSON.stringify(permissions) } }
- : undefined
+ undefined
  );
  successCount++;
  } catch (error) {

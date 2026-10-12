@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import DepartmentWorkers from "./DepartmentWorkers";
 import { fetchWorkers } from "../services/workers";
 import { getUser } from "../utils/getUser";
+import { setDynamicDepartments } from "../utils/routeObject";
 
 vi.mock("../components/Layout", () => ({ default: ({ children }) => children }));
 vi.mock("../utils/getUser", () => ({ getUser: vi.fn() }));
@@ -31,7 +32,7 @@ function openWorkers(route, state) {
 }
 
 describe("Department workers scope", () => {
-  afterEach(cleanup);
+  afterEach(() => { cleanup(); setDynamicDepartments(null); });
   beforeEach(() => {
     vi.clearAllMocks();
     getUser.mockReturnValue({ role: "admin", team: "Programs", department: "Programs", permissions: ["Programs"] });
@@ -63,6 +64,22 @@ describe("Department workers scope", () => {
     const edit = screen.getByRole("link", { name: "Edit" });
     const url = new URL(edit.getAttribute("href"), "https://example.com");
     expect(url.searchParams.get("returnTo")).toBe("/department/programs/workers?department=Sound");
+  });
+
+  it("keeps old and new worker names in the same renamed department filter", async () => {
+    setDynamicDepartments([{ name: "Ushering - Champions", route: "/usheringtosin", team: "Programs" }]);
+    fetchWorkers.mockResolvedValue([
+      { ...rows[0], department: "Ushering - Tosin" },
+      { ...rows[1], department: "Ushering - Champions" },
+      rows[2], rows[3],
+    ]);
+    openWorkers("/department/programs/workers?department=Ushering%20-%20Tosin");
+    expect(await screen.findByRole("heading", { name: "Workers (2)" })).toBeInTheDocument();
+    for (const filter of screen.getAllByRole("combobox")) expect(filter).toHaveValue("Ushering - Champions");
+    expect(screen.getByText("Ada Sound")).toBeInTheDocument();
+    expect(screen.getByText("Bola Protocol")).toBeInTheDocument();
+    expect(screen.queryByText("Chi Media")).not.toBeInTheDocument();
+    expect(screen.queryByText("Dee Care")).not.toBeInTheDocument();
   });
 
   it("uses the signed-in team for other team admins", async () => {

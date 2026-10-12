@@ -1,6 +1,6 @@
 import { getUser } from "./getUser";
 import { ADMIN_ENUMS } from "./enums";
-import { getEffectiveRouteList, isSameDepartment, routeObject } from "./routeObject";
+import { getDepartmentEntry, isSameDepartment } from "./routeObject";
 
 /**
  * Permission levels from the backend (new field on user object)
@@ -22,8 +22,7 @@ export const PERMISSION_LEVELS = {
  *
  * @returns {Object} Role information object
  */
-export function getUserRole() {
-  const user = getUser();
+export function getUserRole(user = getUser()) {
 
   if (!user) {
     return {
@@ -194,70 +193,30 @@ export function getUserRole() {
  * @param {string} departmentName - The department name to check access for
  * @returns {boolean} Whether the user can access the department
  */
-export function canAccessDepartment(departmentName) {
+export function canAccessDepartment(departmentName, userParam = getUser()) {
   const { isSuperAdmin, isChurchAdmin, isTeamAdmin, isSubTeamAdmin, assignedDepartments, user } =
-    getUserRole();
+    getUserRole(userParam);
 
-  // Super Admin and Church Admin can access everything
   if (isSuperAdmin || isChurchAdmin) return true;
+  if (!user || !String(departmentName ?? "").trim()) return false;
 
-  // Sub Team Admin - check assigned departments
   if (isSubTeamAdmin) {
-    const raw = (departmentName ?? "").toString();
-    const name = raw.trim();
-    if (!name) return false;
-
-    // For sub-team-admin, backend may provide either:
-    // - assignedDepartments (routes and/or names)
-    // - permissions (department names)
     const assigned = [
-      ...(Array.isArray(assignedDepartments) ? assignedDepartments : []),
-      ...(Array.isArray(user?.permissions) ? user.permissions : []),
-    ]
-      .map((d) => (d ?? "").toString().trim())
-      .filter(Boolean);
-
-    const normalize = (s) => s.toLowerCase();
-
-    const candidates = new Set();
-    candidates.add(name);
-    candidates.add(name.startsWith("/") ? name.slice(1) : name);
-    candidates.add(name.startsWith("/") ? name : `/${name}`);
-
-    // If given a department name, also add its route as a candidate
-    const list = getEffectiveRouteList();
-    const deptEntry =
-      list.find((r) => r.department === name) ||
-      list.find((r) => normalize(r.department) === normalize(name));
-    if (deptEntry?.route) {
-      const r = deptEntry.route.toString().trim();
-      candidates.add(r);
-      candidates.add(r.startsWith("/") ? r.slice(1) : r);
-      candidates.add(r.startsWith("/") ? r : `/${r}`);
-    }
-
-    const assignedSet = new Set(assigned.map(normalize));
-    for (const c of candidates) {
-      if (assignedSet.has(normalize(c))) return true;
-    }
-    return false;
+      ...assignedDepartments,
+      ...(Array.isArray(user.permissions) ? user.permissions : []),
+    ];
+    return assigned.some((entry) => isSameDepartment(entry, departmentName));
   }
 
-  // Team Admin - check if department belongs to their team
-  if (isTeamAdmin && user?.team) {
-    const list = getEffectiveRouteList();
-    // Worker details can retain a legacy name after the directory renames a
-    // department. Resolve that name through its stable route, then authorize
-    // against the current team mapping, not the historical one.
-    const legacyEntry = routeObject.find((r) => isSameDepartment(r.department, departmentName));
-    const deptEntry = list.find((r) => isSameDepartment(r.department, departmentName)) ||
-      (legacyEntry && list.find((r) => r.route === legacyEntry.route));
-    const teamName = typeof user.team === "string" ? user.team : user.team?.name;
-    return Boolean(deptEntry && teamName && isSameDepartment(deptEntry.team, teamName));
+  if (isTeamAdmin) {
+    const entry = getDepartmentEntry(departmentName);
+    const team = typeof user.team === "string" ? user.team : user.team?.name;
+    return Boolean(entry && team && isSameDepartment(entry.team, team));
   }
 
-  // HOD - can only access their own department
-  return user?.department === departmentName;
+  // HODs retain only their own department, including its historical name/route.
+  return [user.department, user.route].filter(Boolean)
+    .some((entry) => isSameDepartment(entry, departmentName));
 }
 
 /**
@@ -315,24 +274,7 @@ export function getUserRoleString(userParam) {
  * @returns {boolean} Whether the user can access the department
  */
 export function canAccessDepartmentByRoute(userParam, departmentRoute) {
-  const user = userParam ?? getUser();
-  const role = getUserRoleString(user);
-
-  if (role === "SUPER_ADMIN" || role === "CHURCH_ADMIN") return true;
-  if (role === "TEAM_ADMIN" && user?.team?.name) {
-    const deptEntry = getEffectiveRouteList().find(
-      (r) => r.route === departmentRoute || r.route === `/${departmentRoute}` || r.department === departmentRoute
-    );
-    return deptEntry?.team === user.team.name;
-  }
-  if (role === "SUB_TEAM_ADMIN") {
-    const normalized = departmentRoute?.startsWith("/") ? departmentRoute : `/${departmentRoute}`;
-    return user.assignedDepartments?.includes(departmentRoute) || user.assignedDepartments?.includes(normalized);
-  }
-  if (role === "HOD") {
-    return user.route === departmentRoute || user.route === `/${departmentRoute}`;
-  }
-  return false;
+  return canAccessDepartment(departmentRoute, userParam ?? getUser());
 }
 
 /**

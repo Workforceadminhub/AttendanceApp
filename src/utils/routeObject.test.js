@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { getAdminSelectOptions, setDynamicDepartments } from "./routeObject";
+import { getAdminSelectOptions, getDepartmentEntry, getDepartmentNameFromRoute, getDepartmentRoute, getTeamForDepartment, isSameDepartment, setDynamicDepartments } from "./routeObject";
 
 afterEach(() => setDynamicDepartments(null));
 
@@ -31,5 +31,30 @@ describe("admin department filter", () => {
     ]);
     expect(getAdminSelectOptions(false, { department: "Team Head", team: "New Team" }))
       .toEqual([{ value: "New Department", label: "New Department" }]);
+  });
+});
+
+describe("renamed department identity", () => {
+  it.each([
+    ["Ushering - Tosin", "Ushering - Champions", "/usheringtosin"],
+    ["Ushering - Bimpe", "Ushering - Bloom", "/usheringbimpe"],
+    ["Ushering - Queen", "Ushering - Emerald", "/usheringqueen"],
+    ["Ushering - Iyaanu", "Ushering - Alpha", "/usheringiyanu"],
+    ["Ushering - Kofoworola", "Ushering - Diamond", "/usheringkofo"],
+  ])("resolves %s to its current catalog entry", (oldName, newName, route) => {
+    setDynamicDepartments([{ name: newName, route, team: "Programs" }]);
+    expect(isSameDepartment(oldName, newName)).toBe(true);
+    expect(isSameDepartment(oldName, route.slice(1))).toBe(true);
+    expect(getDepartmentRoute(oldName)).toBe(route.slice(1));
+    expect(getDepartmentNameFromRoute(oldName)).toBe(newName);
+    expect(getTeamForDepartment(oldName)).toBe("Programs");
+    expect(isSameDepartment(oldName, "Workforce Admin")).toBe(false);
+  });
+
+  it("does not resurrect inactive departments through legacy routes", () => {
+    setDynamicDepartments([{ name: "Ushering - Champions", route: "/usheringtosin", team: "Programs", isactive: false }]);
+    expect(getDepartmentEntry("Ushering - Tosin")).toBeNull();
+    expect(getDepartmentEntry("usheringtosin")).toBeNull();
+    expect(isSameDepartment("Ushering - Tosin", "Ushering - Champions")).toBe(false);
   });
 });

@@ -306,6 +306,16 @@ export function nextSessionDate(sessions, { from = new Date() } = {}) {
   return dates.find((date) => date >= today) ?? null;
 }
 
+/** A completed training has no upcoming session, even if stale metadata remains. */
+export function upcomingTrainingSession(training, sessions = [], { from = new Date() } = {}) {
+  if (String(training?.status || "").toLowerCase() === "completed") return null;
+  const scheduled = nextSessionDate(sessions, { from });
+  const supplied = asDate(training?.next_session_date);
+  const today = asDate(from.toISOString());
+  const dates = [scheduled, supplied].filter((date) => date && date >= today).sort();
+  return dates[0] ?? null;
+}
+
 /**
  * Completion rule (BE-T7): a worker completes only when present for 100% of
  * sessions. Anything less - including unmarked sessions - is in progress.

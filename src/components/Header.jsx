@@ -636,18 +636,6 @@ export default function Header() {
           </NavGroup>
         )}
 
-        {/* Conference reports */}
-        {(isSuperAdmin || isChurchAdminRole) && (
-          <NavGroup label="Conference Reports">
-            <SheetLink
-              href="/admin/awakening-registrations"
-              onClick={() => setMobileOpen(false)}
-            >
-              Awakening Registrations
-            </SheetLink>
-          </NavGroup>
-        )}
-
 
         {settingsDropdown.length > 0 && (
           <NavGroup label="Manage">

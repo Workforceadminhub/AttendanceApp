@@ -6,7 +6,7 @@ import { Stat, Tag } from "../../../components/ui";
 import { useCanAction, useScopeFilter } from "../../../contexts/RBACContext";
 import { fetchTrainings } from "../../../services/hub/trainings";
 import { getUserRole } from "../../../utils/getUserRole";
-import { asDate, kindLabel, statusTone } from "../../../utils/training";
+import { upcomingTrainingSession, kindLabel, statusTone } from "../../../utils/training";
 import { trainingConsoleCopy } from "./trainingConsoleCopy";
 import {
   CohortManagementDrawer,
@@ -344,7 +344,7 @@ function TrainingRow({ training, activeRoleView, onManage, onOpen }) {
   const status = String(training.status ?? "").toLowerCase();
   const enrolled = training.number_of_enrollees ?? 0;
   const capacity = training.capacity;
-  const nextSession = asDate(training.next_session_date) || asDate(training.start_date);
+  const nextSession = upcomingTrainingSession(training);
   const progress = status === "completed" ? 100 : status === "ongoing" ? 60 : 0;
 
   return (
@@ -369,8 +369,8 @@ function TrainingRow({ training, activeRoleView, onManage, onOpen }) {
         </Tag>
       </td>
       <td className="px-4 py-3">
-        <div className="qc-num text-xs text-ink-700">{nextSession || "-"}</div>
-        <div className="qc-eyebrow text-ink-400">next session</div>
+        <div className="qc-num text-xs text-ink-700">{nextSession || "No upcoming session"}</div>
+        {nextSession && <div className="qc-eyebrow text-ink-400">next session</div>}
       </td>
       <td className="px-4 py-3 text-right qc-num">
         {activeRoleView === "worker" ? (

@@ -1,3 +1,5 @@
+import { Navigate } from "react-router-dom";
+import { getPostLoginPath } from "../../utils/routeObject";
 import { Fragment, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, Link } from "react-router-dom";
@@ -30,6 +32,12 @@ const PAGE_LIMIT = 20;
 const EMPTY_PAGINATION = { page: 1, limit: PAGE_LIMIT, total: 0, totalPages: 0, hasNext: false, hasPrev: false };
 
 export default function ChurchAdminWorkers() {
+ const { isChurchAdmin, isSuperAdmin, user } = getUserRole();
+ if (!isChurchAdmin && !isSuperAdmin) return <Navigate to={getPostLoginPath(user)} replace />;
+ return <ChurchAdminDirectory />;
+}
+
+function ChurchAdminDirectory() {
  const navigate = useNavigate();
  const location = useLocation();
  const queryClient = useQueryClient();

@@ -7,6 +7,7 @@ import Button from "../components/ui/Button";
 import Tag from "../components/ui/Tag";
 import Stat from "../components/ui/Stat";
 import { meetingPath } from "../utils/meetingLinks";
+import { getPostLoginPath } from "../utils/routeObject";
 import { getUserRole } from "../utils/getUserRole";
 import {
   getAllMeetings,
@@ -26,7 +27,7 @@ import {
 
 export default function MeetingSettings() {
   const navigate = useNavigate();
-  const { isSuperAdmin, isChurchAdmin } = getUserRole();
+  const { isSuperAdmin, isChurchAdmin, user } = getUserRole();
 
   const [activeTab, setActiveTab] = useState("leaders"); // "leaders" | "workers"
   const [meetings, setMeetings] = useState([]);
@@ -221,7 +222,7 @@ export default function MeetingSettings() {
 
           <div className="flex items-center gap-2">
             <Link
-              to="/dashboard"
+              to={getPostLoginPath(user)}
               className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-600 hover:text-ink-900 border border-ink-200 bg-white rounded-md px-3 py-1.5"
             >
               ← Back to Dashboard

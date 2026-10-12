@@ -4,8 +4,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import Layout from "../../../components/Layout";
 import { Tag } from "../../../components/ui";
-import { useCanAction } from "../../../contexts/RBACContext";
+import { useCanAction, useScopeFilter } from "../../../contexts/RBACContext";
 import { useEffectiveRouteList } from "../../../contexts/DepartmentsContext";
+import { nominationDepartments } from "../../../utils/nominationScope";
+import { isSameDepartment } from "../../../utils/routeObject";
 import { getUserRole } from "../../../utils/getUserRole";
 import { getNextSunday } from "../../../utils/getDate";
 import {
@@ -36,18 +38,12 @@ export default function NominateWorkers() {
   const { id } = useParams();
   const queryClient = useQueryClient();
   const canNominate = useCanAction("nominate_workers");
-  const { isSuperAdmin, isChurchAdmin, isAdmin, user } = getUserRole();
+  const role = getUserRole();
+  const scope = useScopeFilter();
   const routeList = useEffectiveRouteList();
-
-  const canPickAnyDepartment = isSuperAdmin || isChurchAdmin || isAdmin;
-  const departments = useMemo(() => {
-    if (!canPickAnyDepartment) return [user?.department].filter(Boolean);
-    return [...new Set(routeList.map((entry) => entry.department).filter(Boolean))].sort();
-  }, [canPickAnyDepartment, routeList, user]);
-
-  const [department, setDepartment] = useState(
-    canPickAnyDepartment ? "" : user?.department ?? ""
-  );
+  const departments = useMemo(() => nominationDepartments(role, routeList, scope), [role, routeList, scope]);
+  const [department, setDepartment] = useState(role.isHOD ? role.user?.department ?? "" : "");
+  const permittedDepartment = departments.find((name) => isSameDepartment(name, department));
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState([]);
   const [expiresInDays, setExpiresInDays] = useState("");
@@ -60,16 +56,18 @@ export default function NominateWorkers() {
 
   // The roster endpoint is department-scoped and needs an attendance date.
   const { data: workersData, isLoading: workersLoading } = useQuery({
-    queryKey: ["hub-workers-directory", department],
+    queryKey: ["hub-workers-directory", role.role, role.user?.id, departments, permittedDepartment],
     queryFn: () =>
       hubGetAll("/workers", {
-        department,
+        department: permittedDepartment,
         activeDate: getNextSunday(),
         isAdmin: false,
       }),
-    enabled: Boolean(department),
+    enabled: canNominate && Boolean(permittedDepartment),
   });
-  const workers = useMemo(() => unwrapData(workersData) ?? [], [workersData]);
+  const workers = useMemo(() => permittedDepartment
+    ? (unwrapData(workersData) ?? []).filter((worker) => isSameDepartment(worker.department, permittedDepartment))
+    : [], [workersData, permittedDepartment]);
 
   const {
     data: nominationsData,
@@ -96,6 +94,9 @@ export default function NominateWorkers() {
 
   const mutation = useMutation({
     mutationFn: (submittedWorkers) => {
+      if (!canNominate || !permittedDepartment || submittedWorkers.some((worker) => !workers.some((candidate) => String(workerIdOf(candidate)) === String(workerIdOf(worker))))) {
+        throw new Error("Selected workers are outside your authorized department. Refresh and try again.");
+      }
       const workerIds = submittedWorkers.map((w) => workerIdOf(w)).filter((workerId) => workerId != null);
       if (workerIds.length !== submittedWorkers.length) {
         throw new Error("One or more selected workers has no worker ID. Refresh the list and try again.");
@@ -175,7 +176,7 @@ export default function NominateWorkers() {
                   value={department}
                   onChange={(e) => { setDepartment(e.target.value); setSelected([]); }}
                   className="qc-input text-sm"
-                  disabled={!canPickAnyDepartment}
+                  disabled={!canNominate}
                 >
                   <option value="">Select a department</option>
                   {departments.map((dept) => (

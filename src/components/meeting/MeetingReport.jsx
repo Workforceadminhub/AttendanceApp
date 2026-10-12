@@ -15,7 +15,6 @@ import { teamsAndDepartments, getDistrictClusterName } from "../../utils/teams";
 import { getAllMeetings, formatMeetingDisplayDate } from "../../utils/meetingConfig";
 import { isMeetingDate } from "../../utils/meetingLinks";
 import useMeetingDate from "./useMeetingDate";
-import { getStoredTeamStrengths } from "../../utils/teamStrengthConfig";
 import { TEAM_STRUCTURE, EXCEL_COLORS, buildTeamNameLookup } from "../../utils/meeting/teamStructure";
 import { formatDate } from "../../utils/meeting/formatDate";
 import { DISTRICT_SUB_TEAM_OPTIONS } from "./atoms";
@@ -25,15 +24,13 @@ const MEETING_LABEL = { leaders: "Leaders", workers: "Workers" };
 const METRICS = {
   confirmed: {
     reportName: "Confirmation Report",
-    statusOptions: ["all", "confirmed", "not attending"],
-    respondedOnly: true,
+    statusOptions: ["all", "confirmed", "not attending", "no response"],
     summaryFile: "confirmation",
     listFile: "list",
   },
   present: {
     reportName: "Attendance Report",
     statusOptions: ["all", "present", "absent", "confirmed", "not attending"],
-    respondedOnly: false,
     summaryFile: "summary",
     listFile: "present_list",
   },
@@ -113,7 +110,7 @@ const confirmationLabel = (r) =>
  * @param {object} props
  * @param {"leaders"|"workers"} props.meetingType
  * @param {"confirmed"|"present"} props.metric
- *   confirmed: confirmation report (only registrations that responded are loaded).
+ *   confirmed: confirmation report (every registration, including nonrespondents).
  *   present:   attendance report (every registration is loaded, presence is the headline metric).
  */
 export default function MeetingReport({ meetingType, metric }) {
@@ -122,7 +119,6 @@ export default function MeetingReport({ meetingType, metric }) {
   const label = MEETING_LABEL[meetingType] || "Leaders";
 
   const navigate = useNavigate();
-  const [teamStrength] = useState(() => getStoredTeamStrengths());
   const { meetingDate: activeMeetingDate } = useMeetingDate(meetingType);
   const [searchParams, setSearchParams] = useSearchParams();
   const meetingDate = activeMeetingDate;
@@ -160,31 +156,29 @@ export default function MeetingReport({ meetingType, metric }) {
   }, [navigate, isSuperAdmin, isChurchAdmin, isTeamAdmin]);
 
   const loading =
-    !loaded || loaded.meetingDate !== meetingDate || loaded.reloadKey !== reloadKey;
+    !loaded || loaded.meetingDate !== meetingDate || loaded.reloadKey !== reloadKey || loaded.meetingType !== meetingType;
+  const loadError = !loading ? loaded.error : null;
 
   useEffect(() => {
     let active = true;
-    const respondedOnly = config.respondedOnly;
     getMeetingRegistrations(meetingDate, "all", meetingType)
       .then((res) => {
         if (!active) return;
         const cleaned = (res.data || [])
-          .filter((r) => !respondedOnly || r.is_confirmed === true || r.is_confirmed === false)
           .map((r) => ({ ...r, name: r.name ? r.name.replace(/\s+null$/i, "").trim() : "" }));
-        setLoaded({ meetingDate, reloadKey, registrations: cleaned });
+        setLoaded({ meetingDate, meetingType, reloadKey, registrations: cleaned });
       })
       .catch((err) => {
         if (!active) return;
         toast.error(err.message || "Failed to load meeting data.");
-        setLoaded({ meetingDate, reloadKey, registrations: [] });
+        setLoaded({ meetingDate, meetingType, reloadKey, registrations: [], error: err.message || "Failed to load meeting data." });
       });
     return () => {
       active = false;
     };
-  }, [meetingDate, reloadKey, meetingType, config.respondedOnly]);
+  }, [meetingDate, reloadKey, meetingType]);
 
-  const registrations = loaded?.meetingDate === meetingDate ? loaded.registrations : EMPTY;
-  const count = registrations.length;
+  const registrations = !loading && !loadError ? loaded.registrations : EMPTY;
 
   const handleSummaryClick = (directorate, teamName) => {
     setFilterDirectorate(directorate);
@@ -217,15 +211,17 @@ export default function MeetingReport({ meetingType, metric }) {
     [registrations, myTeam]
   );
 
+  const count = scopedRegistrations.length;
+
   const unassignedConfirmedDistricts = useMemo(
     () =>
-      registrations.filter(
+      scopedRegistrations.filter(
         (r) =>
           (r.team || "").toLowerCase().trim() === "districts" &&
           r.is_confirmed === true &&
           (!r.district_sub_team || String(r.district_sub_team).trim() === "")
       ),
-    [registrations]
+    [scopedRegistrations]
   );
 
   // Overall counts plus per-display-team tallies.
@@ -238,9 +234,9 @@ export default function MeetingReport({ meetingType, metric }) {
       else totals.noResponse++;
       if (isMarkedPresent(r)) totals.present++;
 
-      const matched = resolveTeamName(r);
-      if (!matched) return;
-      const t = tally[matched] || (tally[matched] = { confirmed: 0, notAttending: 0, present: 0 });
+      const matched = resolveTeamName(r) || "Unassigned";
+      const t = tally[matched] || (tally[matched] = { total: 0, confirmed: 0, notAttending: 0, present: 0 });
+      t.total++;
       if (r.is_confirmed === true) t.confirmed++;
       else if (r.is_confirmed === false) t.notAttending++;
       if (isMarkedPresent(r)) t.present++;
@@ -248,21 +244,8 @@ export default function MeetingReport({ meetingType, metric }) {
     return { stats: totals, byTeam: tally };
   }, [scopedRegistrations]);
 
-  const teamCounts = (t) => byTeam[t] || { confirmed: 0, notAttending: 0, present: 0 };
-
-  // A team's capacity is at least the number of people who have already responded / shown up.
-  const adjustedStrength = (t) => {
-    const c = teamCounts(t);
-    return Math.max(teamStrength[t] ?? 0, c.confirmed + c.notAttending, isPresent ? c.present : 0);
-  };
-
-  const effectiveStrength = (() => {
-    const all = () =>
-      TEAM_STRUCTURE.reduce((acc, entry) => acc + entry.teams.reduce((s, t) => s + adjustedStrength(t), 0), 0);
-    if (!myTeam) return all();
-    const entry = TEAM_STRUCTURE.find((t) => t.apiTeams.includes(myTeam));
-    return entry ? entry.teams.reduce((s, t) => s + adjustedStrength(t), 0) : all();
-  })();
+  const teamCounts = (t) => byTeam[t] || { total: 0, confirmed: 0, notAttending: 0, present: 0 };
+  const effectiveStrength = stats.total;
 
   const directorates = [...new Set(TEAM_STRUCTURE.map((t) => t.directorate))];
   const selectedApiTeams = useMemo(
@@ -337,7 +320,7 @@ export default function MeetingReport({ meetingType, metric }) {
   const [shownRows, setShownRows] = useState({ key: listKey, count: ROW_BATCH });
   const visibleCount = shownRows.key === listKey ? shownRows.count : ROW_BATCH;
 
-  const hasFilter = Boolean(filterDirectorate || filterTeam || filterDept || search.trim());
+  const hasFilter = view === "list";
 
   const filteredStats = useMemo(() => {
     const total = filtered.length;
@@ -356,7 +339,7 @@ export default function MeetingReport({ meetingType, metric }) {
       confirmed,
       declined,
       present,
-      unconfirmed: noResponse + declined,
+      unconfirmed: noResponse,
       absent: Math.max(total - present, 0),
       pctConfirmed: total ? `${Math.round((confirmed / total) * 100)}%` : "-",
       pctPresent: total ? `${((present / total) * 100).toFixed(1)}%` : "-",
@@ -368,7 +351,7 @@ export default function MeetingReport({ meetingType, metric }) {
     const mapped = TEAM_STRUCTURE.map(({ directorate, teams, apiTeams, bg, light }) => {
       const rows = teams.map((t) => {
         const c = teamCounts(t);
-        const strength = adjustedStrength(t);
+        const strength = c.total;
         return {
           team: t,
           total: strength,
@@ -392,11 +375,19 @@ export default function MeetingReport({ meetingType, metric }) {
         confirmed,
         notAttending: sum(rows, "notAttending"),
         present,
-        absent: isPresent ? sum(rows, "absent") : total - confirmed,
+        absent: sum(rows, "absent"),
         pct: pctOf(isPresent ? present : confirmed, total),
       };
     });
 
+    if (byTeam.Unassigned?.total) {
+      const c = byTeam.Unassigned;
+      const row = { team: "Unassigned", ...c,
+        absent: isPresent ? c.total - c.present : c.total - c.confirmed - c.notAttending,
+        pct: pctOf(isPresent ? c.present : c.confirmed, c.total) };
+      mapped.push({ directorate: "Unassigned", bg: "#64748b", light: "rgba(100,116,139,0.10)",
+        rows: [row], apiTeams: myTeam ? [myTeam] : [], ...row });
+    }
     const merged = [];
     mapped.forEach((g) => {
       const existing = merged.find((m) => m.directorate === g.directorate);
@@ -454,18 +445,18 @@ export default function MeetingReport({ meetingType, metric }) {
   // Summary table numeric columns for the current metric.
   const summaryColumns = isPresent
     ? [
-        { key: "total", header: "Total", tone: "text-ink-800", adminHidden: true },
+        { key: "total", header: "Registrations", tone: "text-ink-800" },
         { key: "confirmed", header: "Confirmed", tone: "text-forest font-medium" },
         { key: "present", header: "Present", tone: "text-forest font-medium" },
         { key: "pct", header: "% of Present", tone: "text-ink-800", isPct: true, adminHidden: true },
         { key: "absent", header: "Absent", tone: "text-brick font-medium" },
       ]
     : [
-        { key: "total", header: "Total", tone: "text-ink-800", adminHidden: true },
+        { key: "total", header: "Registrations", tone: "text-ink-800" },
         { key: "confirmed", header: "Confirmed", tone: "text-forest font-medium" },
         { key: "pct", header: "% Confirmed", tone: "text-ink-800", isPct: true, adminHidden: true },
         { key: "notAttending", header: "Not Attending", tone: "text-sienna font-medium" },
-        { key: "absent", header: "Unconfirmed", tone: "text-brick font-medium" },
+        { key: "absent", header: "Unconfirmed (No Response)", tone: "text-brick font-medium" },
       ];
   const visibleSummaryColumns = summaryColumns.filter((c) => !myTeam || !c.adminHidden);
   const summaryColSpan = (myTeam ? 1 : 2) + visibleSummaryColumns.length;
@@ -489,23 +480,23 @@ export default function MeetingReport({ meetingType, metric }) {
 
       const numericColumns = isPresent
         ? [
-            { header: "TOTAL", key: "total", width: 12 },
+            { header: "REGISTRATIONS", key: "total", width: 18 },
             { header: "CONFIRMED", key: "confirmed", width: 15, color: "FF059669" },
             { header: "PRESENT", key: "present", width: 15, color: "FF059669" },
             { header: "% OF PRESENT", key: "pct", width: 18, isPct: true },
             { header: "ABSENT", key: "absent", width: 15, color: "FFDC2626" },
           ]
         : [
-            { header: "TOTAL", key: "total", width: 12 },
+            { header: "REGISTRATIONS", key: "total", width: 18 },
             { header: "CONFIRMED", key: "confirmed", width: 15, color: "FF059669" },
             { header: "% CONFIRMED", key: "pct", width: 18, isPct: true },
             { header: "NOT ATTENDING", key: "notAttending", width: 18, color: "FFD97706" },
-            { header: "UNCONFIRMED", key: "absent", width: 15, color: "FFDC2626" },
+            { header: "UNCONFIRMED (NO RESPONSE)", key: "absent", width: 15, color: "FFDC2626" },
           ];
 
       worksheet.columns = [
-        { header: "DIRECTORATE", key: "directorate", width: 25 },
-        { header: "TEAM", key: "team", width: 25 },
+        { header: myTeam ? "TEAM" : "DIRECTORATE", key: "directorate", width: 25 },
+        { header: myTeam ? "DEPARTMENT" : "TEAM", key: "team", width: 30 },
         ...numericColumns.map(({ header, key, width }) => ({ header, key, width })),
       ];
 
@@ -533,7 +524,11 @@ export default function MeetingReport({ meetingType, metric }) {
       };
 
       let currentRow = 2;
-      grouped.forEach((g) => {
+      const exportGroups = myTeam
+        ? [{ directorate: myTeam, rows: groupedByDept.map((d) => ({ ...d, team: d.department,
+            pct: pctOf(isPresent ? d.present : d.confirmed, d.total) })) }]
+        : grouped;
+      exportGroups.forEach((g) => {
         const startRow = currentRow;
         const colors = EXCEL_COLORS[g.directorate];
 
@@ -563,7 +558,13 @@ export default function MeetingReport({ meetingType, metric }) {
         firstCell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
       });
 
-      const totalRow = worksheet.addRow({ directorate: "TOTAL", team: "", ...rowValues(grandTotal) });
+      const exportTotal = myTeam ? {
+        total: sum(groupedByDept, "total"), confirmed: sum(groupedByDept, "confirmed"),
+        notAttending: sum(groupedByDept, "notAttending"), present: sum(groupedByDept, "present"),
+        absent: sum(groupedByDept, "absent"),
+        pct: pctOf(isPresent ? stats.present : stats.confirmed, stats.total),
+      } : grandTotal;
+      const totalRow = worksheet.addRow({ directorate: "TOTAL", team: "", ...rowValues(exportTotal) });
       totalRow.height = 24;
       totalRow.eachCell((cell) => {
         cell.font = { bold: true, size: 10 };
@@ -748,8 +749,8 @@ export default function MeetingReport({ meetingType, metric }) {
               {formatMeetingDisplayDate(meetingDate)}
             </h1>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 bg-white border border-ink-200 rounded-lg px-3 py-1.5 shadow-sm">
+          <div className="flex w-full min-w-0 flex-wrap items-center gap-3 sm:w-auto">
+            <div className="flex w-full min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center bg-white border border-ink-200 rounded-lg px-3 py-1.5 shadow-sm">
               <label htmlFor="report-meeting" className="text-xs font-medium text-ink-500">
                 Select Meeting:
               </label>
@@ -757,7 +758,7 @@ export default function MeetingReport({ meetingType, metric }) {
                 id="report-meeting"
                 value={meetingDate}
                 onChange={(e) => selectMeetingDate(e.target.value)}
-                className="bg-transparent text-xs font-semibold text-ink-900 focus:outline-none cursor-pointer"
+                className="w-full min-w-0 max-w-full flex-1 bg-transparent text-xs font-semibold text-ink-900 focus:outline-none cursor-pointer"
               >
                 {!getAllMeetings(meetingType).some((m) => m.date === meetingDate) && (
                   <option value={meetingDate}>{formatMeetingDisplayDate(meetingDate)}</option>
@@ -769,7 +770,7 @@ export default function MeetingReport({ meetingType, metric }) {
                 ))}
               </select>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">
               <label htmlFor="report-date" className="text-xs font-medium text-ink-700">Meeting date</label>
               <input id="report-date" type="date" value={meetingDate}
                 onChange={(event) => selectMeetingDate(event.target.value)}
@@ -781,10 +782,20 @@ export default function MeetingReport({ meetingType, metric }) {
           </div>
         </div>
 
+        {loadError && (
+          <div role="alert" className="mb-6 rounded-lg border border-brick/30 bg-white p-4">
+            <h2 className="font-semibold text-brick">Unable to load this report</h2>
+            <p className="mt-2 text-sm text-ink-700">{loadError}</p>
+            <p className="mt-2 text-sm text-ink-700">Attendance and confirmation totals are unavailable until the report loads.</p>
+            <Button variant="secondary" className="mt-3" onClick={() => setReloadKey((k) => k + 1)}>Retry report</Button>
+          </div>
+        )}
+        {!loadError && <>
+        <p className="mb-4 text-sm text-ink-600">Totals cover fetched meeting registrations, not the full worker roster. Unconfirmed means no response; declined responses are counted separately.</p>
         {/* Summary cards */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-8">
           <Stat
-            eyebrow={`Total ${label}`}
+            eyebrow="Registrations"
             value={hasFilter ? filteredStats.total : effectiveStrength}
             loading={loading}
           />
@@ -836,8 +847,8 @@ export default function MeetingReport({ meetingType, metric }) {
                 loading={loading}
               />
               <Stat
-                eyebrow="Unconfirmed"
-                value={hasFilter ? filteredStats.unconfirmed : effectiveStrength - stats.confirmed}
+                eyebrow="Unconfirmed (No Response)"
+                value={hasFilter ? filteredStats.unconfirmed : stats.noResponse}
                 loading={loading}
                 footnote={
                   hasFilter
@@ -845,7 +856,7 @@ export default function MeetingReport({ meetingType, metric }) {
                       ? `${Math.round((filteredStats.unconfirmed / filteredStats.total) * 100)}%`
                       : undefined
                     : effectiveStrength
-                      ? `${Math.round(((effectiveStrength - stats.confirmed) / effectiveStrength) * 100)}%`
+                      ? `${Math.round(((stats.noResponse) / effectiveStrength) * 100)}%`
                       : undefined
                 }
               />
@@ -854,11 +865,12 @@ export default function MeetingReport({ meetingType, metric }) {
         </div>
 
         {/* View toggle + Export */}
-        <div className="flex items-center justify-end gap-2 mb-6">
+        <div className="flex flex-wrap items-center justify-end gap-2 mb-6">
           <button
             type="button"
             onClick={exportData}
-            className="px-3 py-1.5 rounded-md text-sm font-medium bg-forest text-white hover:bg-forest/90 transition mr-auto"
+            disabled={loading}
+            className="disabled:opacity-50 px-3 py-1.5 rounded-md text-sm font-medium bg-forest text-white hover:bg-forest/90 transition mr-auto"
           >
             {view === "summary" ? "Export Summary Sheet" : "Export Excel List"}
           </button>
@@ -1145,6 +1157,7 @@ export default function MeetingReport({ meetingType, metric }) {
             </Card>
           </>
         )}
+        </>}
       </Layout>
     </div>
   );

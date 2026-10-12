@@ -101,7 +101,9 @@ export default function Dashboard() {
     () => getRouteContext(pathname, authUser),
     [pathname, authUser]
   );
-  const summaryHref = authUser?.route
+  const summaryHref = isTeamAdmin
+    ? `/summary/admin/${String(typeof authUser?.team === "string" ? authUser.team : authUser?.team?.name || "").toLowerCase().replaceAll(" ", "")}`
+    : authUser?.route
     ? `/department/${authUser.route.replace(/^\//, "").replace(/^admin\//, "")}`
     : departmentInfo?.route
     ? `/department/${departmentInfo.route.replace(/^\//, "").replace(/^admin\//, "")}`

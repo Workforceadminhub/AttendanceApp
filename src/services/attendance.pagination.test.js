@@ -6,6 +6,19 @@ const pagination = page => ({ page, limit: 1, total: 2, totalPages: 2, hasNext: 
 
 describe("attendance page collection", () => {
   beforeEach(() => vi.resetAllMocks());
+  it("ranks only the selected department before applying the result limit", async () => {
+    apiRequest.mockResolvedValue({ data: {
+      Sound: { topPresent: [{ workerid: 1, name: 'Sound Person', count: 2 }], topAbsent: [] },
+      Protocol: { topPresent: [{ workerid: 2, name: 'Protocol Person', count: 4 }], topAbsent: [] },
+    } });
+    const result = await fetchAttendanceLeaderboard(['Programs'], '2026-09-01', '2026-09-30', 1, 'Sound');
+    expect(result.topPerformers).toHaveLength(1);
+    expect(result.topPerformers[0]).toMatchObject({ id: 1, department: 'Sound' });
+  });
+  it("scopes a flat leaderboard response to the selected department", async () => {
+    apiRequest.mockResolvedValue({ top: [{ id: 2, department: 'Protocol' }, { id: 1, department: 'Sound' }], bottom: [] });
+    expect((await fetchAttendanceLeaderboard([], '2026-09-01', '2026-09-30', 5, 'Sound')).topPerformers).toEqual([{ id: 1, department: 'Sound' }]);
+  });
   it.each([
     ['attendance', () => fetchAttendance('2026-09-13', '2026-09-01', '2026-09-30', ['Sound'])],
     ['admin attendance', () => fetchAdminAttendance('Sound', true, '2026-09-13', '2026-09-01', '2026-09-30', ['Super Admin'])],

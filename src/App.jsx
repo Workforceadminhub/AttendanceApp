@@ -45,6 +45,7 @@ const BulkEmailReport = lazy(() => import("./pages/BulkEmailReport"));
 const BulkSms = lazy(() => import("./pages/BulkSms"));
 const DepartmentDetail = lazy(() => import("./pages/DepartmentDetail"));
 const DepartmentWorkers = lazy(() => import("./pages/DepartmentWorkers"));
+const TeamWorkerPlacement = lazy(() => import("./pages/TeamWorkerPlacement"));
 const HODBulkAddWorker = lazy(() => import("./pages/HODBulkAddWorker"));
 const HODAddWorker = lazy(() => import("./pages/HODAddWorker"));
 const WorkerAttendanceHistory = lazy(() => import("./pages/WorkerAttendanceHistory"));
@@ -487,6 +488,8 @@ const AppRoutes = () => {
               }
             />
             {/* Team Admin workers overview */}
+            <Route path="/department/admin/:teamRoute/add-worker" element={<PrivateRoute><TeamWorkerPlacement /></PrivateRoute>} />
+            <Route path="/department/admin/:teamRoute/bulk-add" element={<PrivateRoute><TeamWorkerPlacement bulk /></PrivateRoute>} />
             <Route
               path="/workers/admin/:teamRoute"
               element={

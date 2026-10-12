@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
 import { toast } from "react-toastify";
 import { fetchPendingAdd, fetchPendingRemove, fetchAllPending } from "../services/workers";
@@ -25,15 +25,24 @@ const badgeCount = meta => meta.total ?? (meta.hasNext ? `${meta.pageCount}+` : 
 
 export default function PendingWorkers() {
  const navigate = useNavigate();
+ const [searchParams, setSearchParams] = useSearchParams();
+ const readPage = (key) => Math.max(1, Math.floor(Number(searchParams.get(key)) || 1));
  const queryClient = useQueryClient();
  // Page shown in each inbox tab.
- const [addPage, setAddPage] = useState(1);
- const [removePage, setRemovePage] = useState(1);
+ const addPage = readPage("addPage");
+ const removePage = readPage("removePage");
+ const setInboxParam = useCallback((key, value) => setSearchParams((current) => {
+ const next = new URLSearchParams(current);
+ next.set(key, String(value));
+ return next;
+ }, { replace: true }), [setSearchParams]);
+ const setAddPage = useCallback((page) => setInboxParam("addPage", page), [setInboxParam]);
+ const setRemovePage = useCallback((page) => setInboxParam("removePage", page), [setInboxParam]);
  const [isExporting, setIsExporting] = useState(false);
  const [isProcessing, setIsProcessing] = useState(false);
  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
  const [bulkDeleteConfirmText, setBulkDeleteConfirmText] = useState("");
- const [activeTab, setActiveTab] = useState("add");
+ const activeTab = searchParams.get("tab") === "remove" ? "remove" : "add";
  const [selectedWorkers, setSelectedWorkers] = useState(new Set());
  const [isSelectAll, setIsSelectAll] = useState(false);
  const [sortConfig, setSortConfig] = useState({
@@ -101,10 +110,14 @@ export default function PendingWorkers() {
 
  /** Back to page 1 of both inboxes, refetched. */
  const fetchAllPendingWorkers = useCallback(async () => {
- setAddPage(1);
- setRemovePage(1);
+ setSearchParams((current) => {
+ const next = new URLSearchParams(current);
+ next.set("addPage", "1");
+ next.set("removePage", "1");
+ return next;
+ }, { replace: true });
  await queryClient.invalidateQueries({ queryKey: ["pendingWorkers"] });
- }, [queryClient]);
+ }, [queryClient, setSearchParams]);
 
  // Delete single worker (permanent)
  const deleteWorker = async (workerId) => {
@@ -140,9 +153,13 @@ export default function PendingWorkers() {
 
  const handleTabChange = (tab) => {
  if (isBusy) return;
- setActiveTab(tab);
+ setSearchParams((current) => {
+ const next = new URLSearchParams(current);
+ next.set("tab", tab);
+ next.set(tab === "add" ? "addPage" : "removePage", "1");
+ return next;
+ }, { replace: true });
  clearSelection();
- (tab === "add" ? setAddPage : setRemovePage)(1);
  };
 
  // Multi-select functionality
@@ -869,7 +886,7 @@ export default function PendingWorkers() {
  <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-900">
  <div className="flex space-x-2">
  <button
- onClick={() => navigate(`/worker/${worker.id}?from=pending-workers`)}
+ onClick={() => navigate(`/worker/${worker.id}?from=pending-workers&returnTo=${encodeURIComponent(`/pending-workers?${searchParams}`)}`)}
  className="text-ink-900 hover:text-ink-900"
  title="View Details"
  >

@@ -199,7 +199,8 @@ const getHODCancelPath = () => {
  const from = urlParams.get("from");
 
  if (from === "pending-workers") {
- navigate("/pending-workers");
+ const returnTo = urlParams.get("returnTo");
+ navigate(returnTo?.startsWith("/pending-workers?") ? returnTo : "/pending-workers");
  return;
  }
 

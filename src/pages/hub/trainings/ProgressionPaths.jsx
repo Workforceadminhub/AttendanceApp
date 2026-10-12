@@ -11,7 +11,7 @@ import {
   updateProgressionPathSteps,
 } from "../../../services/hub/trainings";
 import { unwrapData } from "../../../utils/training";
-import { buildPathwayChain } from "./TrainingClassification";
+import { normalizePathwaySteps } from "./pathwaySteps";
 
 /**
  * Progression pathways - the ordered chains that progressive trainings sit on.
@@ -24,7 +24,7 @@ import { buildPathwayChain } from "./TrainingClassification";
 export default function ProgressionPaths() {
   const queryClient = useQueryClient();
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ name: "", description: "", stepIds: [] });
+  const [form, setForm] = useState({ name: "", description: "", steps: [] });
   const [editingId, setEditingId] = useState(null);
 
   const { data: pathsData, isLoading } = useQuery({
@@ -43,26 +43,7 @@ export default function ProgressionPaths() {
     () =>
       paths.map((path) => ({
         path,
-        chain: (() => {
-          const apiSteps = path.steps ?? path.levels ?? [];
-          if (!Array.isArray(apiSteps) || apiSteps.length === 0) {
-            return buildPathwayChain(trainings, { pathId: path.id });
-          }
-          return apiSteps
-            .map((step) => {
-              const trainingId =
-                step.training_program_id ??
-                step.training_id ??
-                step.training_program?.id ??
-                step.training?.id;
-              return (
-                step.training_program ??
-                step.training ??
-                trainings.find((training) => String(training.id) === String(trainingId))
-              );
-            })
-            .filter(Boolean);
-        })(),
+        chain: normalizePathwaySteps(path, trainings),
       })),
     [paths, trainings]
   );
@@ -72,7 +53,7 @@ export default function ProgressionPaths() {
     onSuccess: () => {
       toast.success("Progression pathway created");
       queryClient.invalidateQueries({ queryKey: ["hub-progression-paths"] });
-      setForm({ name: "", description: "", stepIds: [] });
+      setForm({ name: "", description: "", steps: [] });
       setAdding(false);
     },
     onError: (err) => toast.error(err.message || "Failed to create pathway"),
@@ -86,7 +67,7 @@ export default function ProgressionPaths() {
     onSuccess: () => {
       toast.success("Progression pathway updated");
       queryClient.invalidateQueries({ queryKey: ["hub-progression-paths"] });
-      setForm({ name: "", description: "", stepIds: [] });
+      setForm({ name: "", description: "", steps: [] });
       setEditingId(null);
       setAdding(false);
     },
@@ -108,9 +89,11 @@ export default function ProgressionPaths() {
       toast.error("Pathway name is required");
       return;
     }
-    const steps = form.stepIds.map((trainingProgramId) => ({
-      training_program_id: trainingProgramId,
-    }));
+    if (form.steps.some((step) => step.trainingId == null)) {
+      toast.error("Replace or remove levels with unavailable training references before saving.");
+      return;
+    }
+    const steps = form.steps.map((step) => ({ training_program_id: step.trainingId }));
     const payload = { name: form.name.trim(), steps };
     if (form.description.trim()) payload.description = form.description.trim();
     if (editingId) {
@@ -122,41 +105,36 @@ export default function ProgressionPaths() {
   };
 
   const beginEdit = (path) => {
-    const apiSteps = path.steps ?? path.levels ?? [];
-    const fallbackSteps = buildPathwayChain(trainings, { pathId: path.id });
-    const stepIds = (apiSteps.length > 0 ? apiSteps : fallbackSteps)
-      .map((step) =>
-        step.training_program_id ??
-        step.training_id ??
-        step.training_program?.id ??
-        step.training?.id ??
-        step.id
-      )
-      .filter((trainingId) => trainingId != null)
-      .map(String);
     setEditingId(path.id);
-    setForm({ name: path.name ?? "", description: path.description ?? "", stepIds });
+    setForm({
+      name: path.name ?? "",
+      description: path.description ?? "",
+      steps: normalizePathwaySteps(path, trainings),
+    });
     setAdding(true);
   };
 
   const cancelForm = () => {
     setAdding(false);
     setEditingId(null);
-    setForm({ name: "", description: "", stepIds: [] });
+    setForm({ name: "", description: "", steps: [] });
   };
 
   const addStep = (trainingId) => {
-    if (!trainingId || form.stepIds.includes(String(trainingId))) return;
-    setForm((current) => ({ ...current, stepIds: [...current.stepIds, String(trainingId)] }));
+    if (!trainingId || form.steps.some((step) => step.trainingId === String(trainingId))) return;
+    const training = trainings.find((item) => String(item.id) === String(trainingId));
+    setForm((current) => ({ ...current, steps: [...current.steps, {
+      key: `new-${trainingId}`, trainingId: String(trainingId), name: training?.name ?? "Unavailable training", status: training?.status,
+    }] }));
   };
 
   const moveStep = (index, offset) => {
     setForm((current) => {
       const target = index + offset;
-      if (target < 0 || target >= current.stepIds.length) return current;
-      const stepIds = [...current.stepIds];
-      [stepIds[index], stepIds[target]] = [stepIds[target], stepIds[index]];
-      return { ...current, stepIds };
+      if (target < 0 || target >= current.steps.length) return current;
+      const steps = [...current.steps];
+      [steps[index], steps[target]] = [steps[target], steps[index]];
+      return { ...current, steps };
     });
   };
 
@@ -212,36 +190,35 @@ export default function ProgressionPaths() {
             >
               <option value="">Add a training as a level...</option>
               {trainings
-                .filter((training) => !form.stepIds.includes(String(training.id)))
+                .filter((training) => !form.steps.some((step) => step.trainingId === String(training.id)))
                 .map((training) => (
                   <option key={training.id} value={training.id}>{training.name}</option>
                 ))}
             </select>
-            {form.stepIds.length > 0 && (
+            {form.steps.length > 0 && (
               <ol className="mt-3 rounded border border-ink-200 divide-y divide-ink-200">
-                {form.stepIds.map((trainingId, index) => {
-                  const training = trainings.find((item) => String(item.id) === String(trainingId));
+                {form.steps.map((step, index) => {
                   return (
-                    <li key={trainingId} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
+                    <li key={step.key} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
                       <span className="qc-num text-xs text-ink-500">{index + 1}</span>
                       <span className="flex-1 min-w-0 truncate text-sm text-ink-900">
-                        {training?.name ?? `Training ${trainingId}`}
+                        {step.name}
                       </span>
                       <button
                         type="button"
                         onClick={() => moveStep(index, -1)}
                         disabled={index === 0}
                         className="qc-btn-ghost px-2"
-                        aria-label={`Move ${training?.name ?? "level"} up`}
+                        aria-label={`Move ${step.name} up`}
                       >
                         Up
                       </button>
                       <button
                         type="button"
                         onClick={() => moveStep(index, 1)}
-                        disabled={index === form.stepIds.length - 1}
+                        disabled={index === form.steps.length - 1}
                         className="qc-btn-ghost px-2"
-                        aria-label={`Move ${training?.name ?? "level"} down`}
+                        aria-label={`Move ${step.name} down`}
                       >
                         Down
                       </button>
@@ -249,7 +226,7 @@ export default function ProgressionPaths() {
                         type="button"
                         onClick={() => setForm((current) => ({
                           ...current,
-                          stepIds: current.stepIds.filter((id) => id !== trainingId),
+                          steps: current.steps.filter((_, stepIndex) => stepIndex !== index),
                         }))}
                         className="text-xs font-medium text-brick hover:underline"
                       >
@@ -300,7 +277,7 @@ export default function ProgressionPaths() {
               ) : (
                 <ol className="mt-4 space-y-2">
                   {chain.map((step, index) => (
-                    <li key={step.id} className="flex items-center gap-3">
+                    <li key={step.key} className="flex items-center gap-3">
                       <span className="w-6 h-6 rounded-full bg-ink-200 text-ink-700 flex items-center justify-center qc-num text-xs shrink-0">
                         {index + 1}
                       </span>

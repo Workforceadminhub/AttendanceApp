@@ -6,7 +6,7 @@ import { loadExcelJS } from "../utils/loadExcelJS";
 import { saveAs } from "file-saver";
 import Layout from "../components/Layout";
 import LoadingState from "../components/LoadingState";
-import { getDepartmentRoute, getDepartmentNameFromRoute, isSameDepartment } from "../utils/routeObject";
+import { getDepartmentEntry, getDepartmentRoute, getDepartmentNameFromRoute, isSameDepartment } from "../utils/routeObject";
 import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
 import { fetchWorkers, removeWorker } from "../services/workers";
 import { getUser } from "../utils/getUser";
@@ -42,7 +42,8 @@ export default function DepartmentWorkers() {
  );
 
  const [searchParams, setSearchParams] = useSearchParams();
- const selectedDepartmentFilter = searchParams.get("department") || "All";
+ const requestedDepartmentFilter = searchParams.get("department") || "All";
+ const selectedDepartmentFilter = getDepartmentEntry(requestedDepartmentFilter)?.department || requestedDepartmentFilter;
  const setSelectedDepartmentFilter = (value) => setSearchParams((current) => {
  const next = new URLSearchParams(current);
  if (value === "All") next.delete("department"); else next.set("department", value);
@@ -134,7 +135,7 @@ export default function DepartmentWorkers() {
  if (!Array.isArray(sortedWorkers)) return [];
  const set = new Set();
  sortedWorkers.forEach((w) => {
- const d = (w?.department ?? "").trim();
+ const d = getDepartmentEntry(w?.department)?.department || (w?.department ?? "").trim();
  if (d) set.add(d);
  });
  return Array.from(set).sort();
@@ -158,7 +159,7 @@ export default function DepartmentWorkers() {
  if (
  selectedDepartmentFilter !== "All" &&
  departmentFilterOptions.length > 0 &&
- !departmentFilterOptions.includes(selectedDepartmentFilter)
+ !departmentFilterOptions.some((department) => isSameDepartment(department, selectedDepartmentFilter))
  ) {
  setSelectedDepartmentFilter("All");
  }
@@ -176,7 +177,7 @@ export default function DepartmentWorkers() {
  return sortedWorkers;
  }
  return sortedWorkers.filter(
- (w) => (w?.department ?? "").trim() === selectedDepartmentFilter
+ (w) => isSameDepartment(w?.department, selectedDepartmentFilter)
  );
  }, [isSubTeamAdmin, isTeamAdmin, selectedDepartmentFilter, sortedWorkers]);
 

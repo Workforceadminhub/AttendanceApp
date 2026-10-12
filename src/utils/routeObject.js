@@ -222,6 +222,8 @@ export function setDynamicDepartments(departments) {
       if (!active) {
         const name = d.name || d.department;
         if (name) inactive.add(String(name).toLowerCase().trim());
+        const route = normalizeRoute(d.route);
+        if (route) inactive.add(route.toLowerCase());
         return false;
       }
       return true;
@@ -266,14 +268,17 @@ export function getEffectiveRouteList() {
     base = [..._dynamicList, ...fallback];
   } else {
     base = routeObject.filter(
-      (s) => !_inactiveNames.has((s.department || "").toLowerCase().trim())
+      (s) => !_inactiveNames.has((s.department || "").toLowerCase().trim()) &&
+        !_inactiveNames.has((s.route || "").toLowerCase().trim())
     );
   }
 
   if (_sessionRoutes.length === 0) return base;
 
   const seen = new Set(base.map((d) => d.route));
-  const extra = _sessionRoutes.filter((s) => s.route && !seen.has(s.route));
+  const extra = _sessionRoutes.filter((s) => s.route && !seen.has(s.route) &&
+    !_inactiveNames.has(s.route.toLowerCase()) &&
+    !_inactiveNames.has((s.department || "").toLowerCase().trim()));
   return extra.length ? [...base, ...extra] : base;
 }
 
@@ -442,7 +447,7 @@ export const getDepartmentsForTeam = (teamName) => {
  */
 export const getTeamForDepartment = (departmentName) => {
   if (!departmentName) return null;
-  const entry = getEffectiveRouteList().find((r) => r.department === departmentName);
+  const entry = getDepartmentEntry(departmentName);
   return entry?.team ?? null;
 };
 
@@ -507,7 +512,7 @@ export const getAdminSelectOptions = (isChurchAdmin, team, authUser) => {
  * @param {string} d2
  * @returns {boolean}
  */
-export const isSameDepartment = (d1, d2) => {
+const departmentNamesMatch = (d1, d2) => {
   if (!d1 || !d2) return d1 === d2;
   if (d1 === d2) return true;
 
@@ -528,6 +533,28 @@ export const isSameDepartment = (d1, d2) => {
   return false;
 };
 
+/** Resolve names, legacy names and routes against the current department catalog. */
+export function getDepartmentEntry(value) {
+  if (!value) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  const route = normalizeRoute(raw).toLowerCase();
+  const list = getEffectiveRouteList();
+  const current = list.find((entry) =>
+    departmentNamesMatch(entry.department, raw) || entry.route?.toLowerCase() === route
+  );
+  if (current) return current;
+  const legacy = routeObject.find((entry) => departmentNamesMatch(entry.department, raw));
+  return legacy ? list.find((entry) => entry.route === legacy.route) ?? null : null;
+}
+
+export const isSameDepartment = (d1, d2) => {
+  if (departmentNamesMatch(d1, d2)) return true;
+  const first = getDepartmentEntry(d1);
+  const second = getDepartmentEntry(d2);
+  return Boolean(first && second && first.route === second.route);
+};
+
 /**
  * Phase 7: Get department route (without leading slash) from department name.
  * Uses exact match, then case-insensitive and alias matching so variants
@@ -537,12 +564,7 @@ export const isSameDepartment = (d1, d2) => {
  */
 export const getDepartmentRoute = (departmentName) => {
   if (!departmentName) return null;
-  const list = getEffectiveRouteList();
-  const entry = list.find((r) => r.department === departmentName);
-  if (entry) return entry.route.replace(/^\//, "");
-  const caseInsensitive = list.find((r) => r.department && isSameDepartment(r.department, departmentName));
-  if (caseInsensitive) return caseInsensitive.route.replace(/^\//, "");
-  return null;
+  return getDepartmentEntry(departmentName)?.route.replace(/^\//, "") ?? null;
 };
 
 /**

@@ -19,7 +19,7 @@ import ReactSelectDropdown from "../ReactSelect";
 // import TableLoadingState from "../TableLoadingState";
 import Layout from "../Layout";
 import { switchOffAttendance } from "../../utils/switchOffAttendance";
-import { filterPermissionsByTeam } from "../../utils/routeObject";
+import { filterPermissionsByTeam, isSameDepartment } from "../../utils/routeObject";
 import { useAdminSelectOptions } from "../../contexts/DepartmentsContext";
 import { checkAdminStatus } from "../../utils/checkAdminStatus";
 import { getUserRole, filterTeamFromPermissions } from "../../utils/getUserRole";
@@ -419,7 +419,7 @@ export default function DepartmentAttendance() {
  const filteredData = useMemo(() => {
  if (!Array.isArray(data)) return [];
  if (selectedDepartmentFilter === "All") return data;
- return data.filter((w) => w?.department === selectedDepartmentFilter);
+ return data.filter((w) => isSameDepartment(w?.department, selectedDepartmentFilter));
  }, [data, selectedDepartmentFilter]);
 
  const getSortableValue = (person, key) => {

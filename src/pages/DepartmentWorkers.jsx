@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { useParams, Link, useLocation, useNavigate } from "react-router-dom";
+import { useParams, Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import { loadExcelJS } from "../utils/loadExcelJS";
@@ -41,7 +41,13 @@ export default function DepartmentWorkers() {
  [permissions]
  );
 
- const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState("All");
+ const [searchParams, setSearchParams] = useSearchParams();
+ const selectedDepartmentFilter = searchParams.get("department") || "All";
+ const setSelectedDepartmentFilter = (value) => setSearchParams((current) => {
+ const next = new URLSearchParams(current);
+ if (value === "All") next.delete("department"); else next.set("department", value);
+ return next;
+ }, { replace: true });
 
  const {
  isSuperAdmin,
@@ -102,9 +108,9 @@ export default function DepartmentWorkers() {
  queryClient.invalidateQueries({
  queryKey: ["departmentWorkers", decodedDepartment],
  });
- navigate(location.pathname, { replace: true, state: {} });
+ navigate(`${location.pathname}${location.search}`, { replace: true, state: {} });
  }
- }, [location.state?.refresh, location.pathname, location.state, navigate, queryClient, decodedDepartment]);
+ }, [location.state?.refresh, location.pathname, location.search, location.state, navigate, queryClient, decodedDepartment]);
 
  const [selectedWorkers, setSelectedWorkers] = useState(new Set());
  const [isDeleting, setIsDeleting] = useState(false);
@@ -608,7 +614,7 @@ export default function DepartmentWorkers() {
  // View destination = attendance stats (read-only)
  const statsHref = `/worker/${worker.id}/attendance?department=${encodeURIComponent(worker.department || decodedDepartment || "")}&team=${encodeURIComponent(worker.team || "")}`;
  // Edit destination = the editable worker page
- const editHref = `/worker/${worker.id}?from=department:${encodeURIComponent(decodedDepartment)}`;
+ const editHref = `/worker/${worker.id}?from=department:${encodeURIComponent(decodedDepartment)}&returnTo=${encodeURIComponent(`${location.pathname}${location.search}`)}`;
  const detailItems = [
  { label: "Email", value: worker.email },
  { label: "Other Name", value: worker.othername },

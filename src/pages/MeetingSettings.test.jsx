@@ -5,7 +5,7 @@ import MeetingSettings from "./MeetingSettings";
 import useMeetingDate from "../components/meeting/useMeetingDate";
 import { createMeeting, getAllMeetings, resetMeetingsCache } from "../utils/meetingConfig";
 vi.mock("../components/Header", () => ({ default: () => null }));
-vi.mock("../utils/getUserRole", () => ({ getUserRole: () => ({ isSuperAdmin: true }) }));
+vi.mock("../utils/getUserRole", () => ({ getUserRole: () => ({ isSuperAdmin: true, user: { permissionLevel: "SUPER_ADMIN", department: "Super Admin" } }) }));
 vi.mock("react-toastify", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 vi.mock("../services/hub/client", () => ({
   hubGet: vi.fn().mockRejectedValue(new Error("Network unmocked")),
@@ -148,3 +148,8 @@ it("handles already exists error by loading and activating the existing meeting"
   });
 });
 
+
+it("returns to the Super Admin dashboard from settings", () => {
+ render(<MemoryRouter><MeetingSettings /></MemoryRouter>);
+ expect(screen.getByRole("link", { name: "← Back to Dashboard" })).toHaveAttribute("href", "/overview/super-admin");
+});

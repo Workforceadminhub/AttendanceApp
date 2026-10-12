@@ -25,7 +25,7 @@ import {
   initials,
   isProgressive,
   kindLabel,
-  nextSessionDate,
+  upcomingTrainingSession,
   progressTone,
   statusTone,
   trainingStatus,
@@ -127,7 +127,7 @@ export function TrainingDetailDrawer({ trainingId, fallbackTraining, onClose, on
   const status = trainingStatus(training);
   const enrolled = training.number_of_enrollees ?? workers.length;
   const capacity = training.capacity;
-  const nextSession = nextSessionDate(sessions) ?? asDate(training.start_date);
+  const nextSession = upcomingTrainingSession(training, sessions);
 
   // Chain view: what sits before and after this training on its pathway.
   const progressionPathId = training.progression_path_id;
@@ -185,7 +185,7 @@ export function TrainingDetailDrawer({ trainingId, fallbackTraining, onClose, on
               </div>
               <div>
                 <span className="qc-label">Next session</span>
-                <div className="qc-num text-sm text-ink-900">{display(nextSession)}</div>
+                <div className="qc-num text-sm text-ink-900">{nextSession || "No upcoming session"}</div>
               </div>
               <div>
                 <span className="qc-label">Sessions</span>

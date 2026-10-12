@@ -291,3 +291,19 @@ describe("buildPathwayChain", () => {
     expect(buildPathwayChain([blc, alc], { pathId: "" })).toEqual([]);
   });
 });
+
+// The start date is historical metadata, not evidence of an upcoming session.
+describe("upcoming training sessions", () => {
+  it("does not use a start date or stale next-session date for completed training", async () => {
+    const { upcomingTrainingSession } = await import('./training');
+    const from = new Date('2026-10-12T12:00:00Z');
+    expect(upcomingTrainingSession({ status: 'completed', start_date: '2026-08-24', next_session_date: '2026-11-01' }, [{ session_date: '2026-11-01' }], { from })).toBeNull();
+    expect(upcomingTrainingSession({ status: 'ongoing', start_date: '2026-08-24', next_session_date: '2026-09-01' }, [], { from })).toBeNull();
+  });
+  it("uses the earliest future session and preserves a valid supplied next date", async () => {
+    const { upcomingTrainingSession } = await import('./training');
+    const from = new Date('2026-10-12T12:00:00Z');
+    expect(upcomingTrainingSession({ status: 'ongoing', next_session_date: '2026-11-01' }, [{ session_date: '2026-10-15' }], { from })).toBe('2026-10-15');
+    expect(upcomingTrainingSession({ status: 'upcoming', next_session_date: '2026-10-12' }, [], { from })).toBe('2026-10-12');
+  });
+});

@@ -215,6 +215,11 @@ const getHODCancelPath = () => {
  }
 
  if (from?.startsWith("department:")) {
+ const returnTo = urlParams.get("returnTo");
+ if (returnTo && /^\/department\/[^/]+\/workers(?:\?|$)/.test(returnTo)) {
+ navigate(returnTo, { state: { refresh: true } });
+ return;
+ }
  const dept = decodeURIComponent(from.replace("department:", ""));
  const route = getDepartmentRoute(dept);
  navigate(`/department/${route || encodeURIComponent(dept)}/workers`, {
@@ -387,10 +392,11 @@ const getHODCancelPath = () => {
  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
  {/* First Name */}
  <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
+ <label htmlFor="worker-firstname" className="block text-sm font-medium text-ink-700 mb-2">
  First Name <span className="text-brick">*</span>
  </label>
  <input
+ id="worker-firstname"
  type="text"
  value={editedWorker.firstname || editedWorker.first_name || ""}
  onChange={(e) => handleInputChange("firstname", e.target.value)}
@@ -400,10 +406,11 @@ const getHODCancelPath = () => {
 
  {/* Last Name */}
  <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
+ <label htmlFor="worker-lastname" className="block text-sm font-medium text-ink-700 mb-2">
  Last Name <span className="text-brick">*</span>
  </label>
  <input
+ id="worker-lastname"
  type="text"
  value={editedWorker.lastname || editedWorker.last_name || ""}
  onChange={(e) => handleInputChange("lastname", e.target.value)}
@@ -413,10 +420,11 @@ const getHODCancelPath = () => {
 
  {/* Other Name */}
  <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
+ <label htmlFor="worker-othername" className="block text-sm font-medium text-ink-700 mb-2">
  Other Name
  </label>
  <input
+ id="worker-othername"
  type="text"
  value={editedWorker.othername || ""}
  onChange={(e) => handleInputChange("othername", e.target.value)}
@@ -426,10 +434,11 @@ const getHODCancelPath = () => {
 
  {/* Full Name */}
  <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
+ <label htmlFor="worker-fullname" className="block text-sm font-medium text-ink-700 mb-2">
  Full Name
  </label>
  <input
+ id="worker-fullname"
  type="text"
  value={editedWorker.fullname || ""}
  onChange={(e) => handleInputChange("fullname", e.target.value)}
@@ -439,10 +448,11 @@ const getHODCancelPath = () => {
 
  {/* Full Name Reverse */}
  <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
+ <label htmlFor="worker-fullnamereverse" className="block text-sm font-medium text-ink-700 mb-2">
  Full Name Reverse
  </label>
  <input
+ id="worker-fullnamereverse"
  type="text"
  value={editedWorker.fullnamereverse || ""}
  onChange={(e) => handleInputChange("fullnamereverse", e.target.value)}
@@ -452,10 +462,11 @@ const getHODCancelPath = () => {
 
  {/* Gender */}
  <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
+ <label htmlFor="worker-gender" className="block text-sm font-medium text-ink-700 mb-2">
  Gender <span className="text-brick">*</span>
  </label>
  <select
+ id="worker-gender"
  value={editedWorker.gender || ""}
  onChange={(e) => handleInputChange("gender", e.target.value)}
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
@@ -468,10 +479,11 @@ const getHODCancelPath = () => {
 
  {/* Phone Number */}
  <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
+ <label htmlFor="worker-phonenumber" className="block text-sm font-medium text-ink-700 mb-2">
  Phone Number <span className="text-brick">*</span>
  </label>
  <input
+ id="worker-phonenumber"
  type="tel"
  value={editedWorker.phonenumber || editedWorker.phone_number || editedWorker.phone || ""}
  onChange={(e) => handleInputChange("phonenumber", e.target.value.replace(/\D/g, "").slice(0, 11))}
@@ -483,10 +495,11 @@ const getHODCancelPath = () => {
 
  {/* Email */}
  <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
+ <label htmlFor="worker-email" className="block text-sm font-medium text-ink-700 mb-2">
  Email Address <span className="text-brick">*</span>
  </label>
  <input
+ id="worker-email"
  type="email"
  value={editedWorker.email || editedWorker.email_address || ""}
  onChange={(e) => handleInputChange("email", e.target.value)}
@@ -496,10 +509,11 @@ const getHODCancelPath = () => {
 
  {/* Team */}
  <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
+ <label htmlFor="worker-team" className="block text-sm font-medium text-ink-700 mb-2">
  Team <span className="text-brick">*</span>
  </label>
  <select
+ id="worker-team"
  value={editedWorker.team || ""}
  onChange={(e) => handleInputChange("team", e.target.value)}
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
@@ -516,10 +530,11 @@ const getHODCancelPath = () => {
  {/* District/Sub-team - always before Department when Districts */}
  {(editedWorker.team === "Districts" || editedWorker.team === "District") && (
  <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
+ <label htmlFor="worker-district_sub_team" className="block text-sm font-medium text-ink-700 mb-2">
  District/Sub-team <span className="text-brick">*</span>
  </label>
  <select
+ id="worker-district_sub_team"
  value={editedWorker.district_sub_team || ""}
  onChange={(e) => handleInputChange("district_sub_team", e.target.value)}
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
@@ -533,10 +548,11 @@ const getHODCancelPath = () => {
 
  {/* Department */}
  <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
+ <label htmlFor="worker-department" className="block text-sm font-medium text-ink-700 mb-2">
  Department <span className="text-brick">*</span>
  </label>
  <select
+ id="worker-department"
  value={editedWorker.department || ""}
  onChange={(e) => handleInputChange("department", e.target.value)}
  disabled={isDistrictsTeam(editedWorker.team) && !editedWorker.district_sub_team}
@@ -561,10 +577,11 @@ const getHODCancelPath = () => {
 
  {/* Worker Role */}
  <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
+ <label htmlFor="worker-workerrole" className="block text-sm font-medium text-ink-700 mb-2">
  Worker Role <span className="text-brick">*</span>
  </label>
  <select
+ id="worker-workerrole"
  value={editedWorker.workerrole || ""}
  onChange={(e) => handleInputChange("workerrole", e.target.value)}
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
@@ -593,10 +610,11 @@ const getHODCancelPath = () => {
 
  {/* Birth Date */}
  <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
+ <label htmlFor="worker-birthdate" className="block text-sm font-medium text-ink-700 mb-2">
  Birth Date <span className="text-brick">*</span>
  </label>
  <BirthDatePicker
+ id="worker-birthdate"
  value={editedWorker.birthdate || ""}
  onChange={(value) => handleInputChange("birthdate", value)}
  placeholder="Select birth date (e.g. 12th January)"
@@ -605,10 +623,11 @@ const getHODCancelPath = () => {
 
  {/* Marital Status */}
  <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
+ <label htmlFor="worker-maritalstatus" className="block text-sm font-medium text-ink-700 mb-2">
  Marital Status <span className="text-brick">*</span>
  </label>
  <select
+ id="worker-maritalstatus"
  value={editedWorker.maritalstatus || ""}
  onChange={(e) => handleInputChange("maritalstatus", e.target.value)}
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
@@ -624,10 +643,11 @@ const getHODCancelPath = () => {
 
  {/* Age Range */}
  <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
+ <label htmlFor="worker-agerange" className="block text-sm font-medium text-ink-700 mb-2">
  Age Range <span className="text-brick">*</span>
  </label>
  <select
+ id="worker-agerange"
  value={editedWorker.agerange || ""}
  onChange={(e) => handleInputChange("agerange", e.target.value)}
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
@@ -645,10 +665,11 @@ const getHODCancelPath = () => {
 
  {/* Employment Status */}
  <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
+ <label htmlFor="worker-employment" className="block text-sm font-medium text-ink-700 mb-2">
  Employment Status <span className="text-brick">*</span>
  </label>
  <select
+ id="worker-employment"
  value={editedWorker.employment || ""}
  onChange={(e) => handleInputChange("employment", e.target.value)}
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
@@ -663,10 +684,11 @@ const getHODCancelPath = () => {
 
  {/* Occupation */}
  <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
+ <label htmlFor="worker-occupation" className="block text-sm font-medium text-ink-700 mb-2">
  Occupation
  </label>
  <input
+ id="worker-occupation"
  type="text"
  value={editedWorker.occupation || ""}
  onChange={(e) => handleInputChange("occupation", e.target.value)}
@@ -676,10 +698,11 @@ const getHODCancelPath = () => {
 
  {/* Address */}
  <div className="md:col-span-2">
- <label className="block text-sm font-medium text-ink-700 mb-2">
+ <label htmlFor="worker-address" className="block text-sm font-medium text-ink-700 mb-2">
  Address <span className="text-brick">*</span>
  </label>
  <textarea
+ id="worker-address"
  value={editedWorker.address || ""}
  onChange={(e) => handleInputChange("address", e.target.value)}
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"

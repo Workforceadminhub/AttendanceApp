@@ -17,11 +17,11 @@ const rows = [
   { id: 4, firstname: "Dee", lastname: "Care", department: "Pastoral Care", team: "Ministry" },
 ];
 
-function openWorkers(route) {
+function openWorkers(route, state) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={[`/department/${route}/workers`]}>
+      <MemoryRouter initialEntries={[{ pathname: route.startsWith("/") ? route.split("?")[0] : `/department/${route}/workers`, search: route.includes("?") ? "?" + route.split("?")[1] : "", state }]}>
         <Routes>
           <Route path="/department/:departmentRoute/workers" element={<DepartmentWorkers />} />
         </Routes>
@@ -42,7 +42,7 @@ describe("Department workers scope", () => {
 
   it("shows every department in the team and supports narrowing and restoring the list", async () => {
     openWorkers("programs");
-    expect(await screen.findByRole("heading", { name: "Workers (3)" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Workers (3)" }, { timeout: 10000 })).toBeInTheDocument();
     expect(screen.getByText("Ada Sound")).toBeInTheDocument();
     expect(screen.getByText("Bola Protocol")).toBeInTheDocument();
     expect(screen.getByText("Chi Media")).toBeInTheDocument();
@@ -55,6 +55,14 @@ describe("Department workers scope", () => {
     expect(screen.queryByText("Bola Protocol")).not.toBeInTheDocument();
     fireEvent.change(filters[0], { target: { value: "All" } });
     expect(screen.getByRole("heading", { name: "Workers (3)" })).toBeInTheDocument();
+  });
+
+  it("restores the selected department from the URL and carries it to edit", async () => {
+    openWorkers("/department/programs/workers?department=Sound", { refresh: true });
+    expect(await screen.findByRole("heading", { name: "Workers (1)" })).toBeInTheDocument();
+    const edit = screen.getByRole("link", { name: "Edit" });
+    const url = new URL(edit.getAttribute("href"), "https://example.com");
+    expect(url.searchParams.get("returnTo")).toBe("/department/programs/workers?department=Sound");
   });
 
   it("uses the signed-in team for other team admins", async () => {

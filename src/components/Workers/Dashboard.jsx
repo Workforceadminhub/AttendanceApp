@@ -208,16 +208,12 @@ export default function Dashboard() {
     [filteredAttendance]
   );
   const unmarkedCount = useMemo(() => {
-    const dept = departmentInfo?.department;
-    if (dept == null) return null;
-    const deptItem = (filteredAttendance ?? []).find(
-      (item) => (item.department || item.department_name) === dept
-    );
-    const n = deptItem?.unfilled;
-    if (typeof n === "number") return n;
-    if (Array.isArray(n)) return n.length;
-    return 0;
-  }, [filteredAttendance, departmentInfo]);
+    if (!departmentInfo) return null;
+    return departmentSummaryRows.reduce((total, item) => {
+      const count = Array.isArray(item.unfilled) ? item.unfilled.length : Number(item.unfilled);
+      return total + (Number.isFinite(count) ? count : 0);
+    }, 0);
+  }, [departmentSummaryRows, departmentInfo]);
 
   const debouncedSetActiveGroup = useMemo(
     () => debounce((value) => setActiveGroup(value), DEBOUNCE_INTERVAL),

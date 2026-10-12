@@ -37,7 +37,7 @@ import {
   isWorkerTrainingCompleted,
   isTrainingFull,
   kindLabel,
-  nextSessionDate,
+  upcomingTrainingSession,
   progressTone,
   statusTone,
   trainingStatus,
@@ -293,7 +293,7 @@ export default function TrainingDetail() {
   const requests = unwrapData(requestsData) ?? [];
   const certificates = unwrapData(certsData) ?? [];
   const tabs = isAdminView ? ADMIN_TABS : WORKER_TABS;
-  const nextSession = nextSessionDate(sessions) ?? asDate(training.start_date);
+  const nextSession = upcomingTrainingSession(training, sessions);
 
   return (
     <>
@@ -491,7 +491,7 @@ export default function TrainingDetail() {
             </div>
             <div>
               <span className="qc-label">Next session</span>
-              <div className="qc-num text-sm text-ink-900">{display(nextSession)}</div>
+              <div className="qc-num text-sm text-ink-900">{nextSession || "No upcoming session"}</div>
             </div>
             <div>
               <span className="qc-label">Enrolled</span>

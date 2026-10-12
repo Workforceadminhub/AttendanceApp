@@ -109,7 +109,7 @@ export const fetchAdminAttendance = async (
   activeDate,
   startDate,
   endDate,
-  permissions = []
+  _permissions = []
 ) => {
   const dateForAttendance = activeDate || getNextSunday();
   const params = {
@@ -117,9 +117,6 @@ export const fetchAdminAttendance = async (
     activeDate: dateForAttendance,
     isChurchAdmin,
   };
-  if (Array.isArray(permissions) && permissions.length > 0) {
-    params.permissions = permissions;
-  }
   if (startDate) params.startDate = startDate;
   if (endDate) params.endDate = endDate;
 
@@ -128,13 +125,10 @@ export const fetchAdminAttendance = async (
   return requestAttendancePages("/api/attendance/admin", params);
 };
 
-export const fetchAttendance = async (activeDate, startDate, endDate, permissions = []) => {
+export const fetchAttendance = async (activeDate, startDate, endDate, _permissions = []) => {
   const dateForAttendance = activeDate || getNextSunday();
 
   const params = { activeDate: dateForAttendance };
-  if (Array.isArray(permissions) && permissions.length > 0) {
-    params.permissions = permissions;
-  }
   if (startDate) params.startDate = startDate;
   if (endDate) params.endDate = endDate;
 
@@ -173,22 +167,19 @@ export function calculateTotals(data) {
 // ========== Phase 7 - Date Range Functions ==========
 
 /**
- * Fetches attendance leaderboard data for a set of departments via the
+ * Fetches attendance leaderboard data within the access token scope via the
  * GET /api/attendance/trends endpoint.
  *
- * @param {string[]} permissions - Array of department names the user has access to
+ * @param {string[]} _permissions - Ignored legacy argument; authorization uses the access token
  * @param {string} startDate - ISO date string for range start
  * @param {string} endDate - ISO date string for range end
  * @param {number} [limit=5] - Number of performers per section
  * @returns {Promise<{topPerformers: Array, bottomPerformers: Array}>}
  */
-export const fetchAttendanceLeaderboard = async (permissions, startDate, endDate, limit = 5) => {
+export const fetchAttendanceLeaderboard = async (_permissions, startDate, endDate, limit = 5) => {
   const empty = { topPerformers: [], bottomPerformers: [] };
   try {
     const params = {};
-    if (Array.isArray(permissions) && permissions.length > 0) {
-      params.permissions = permissions;
-    }
     if (startDate) params.startDate = startDate;
     if (endDate) params.endDate = endDate;
     if (limit) params.limit = limit;
@@ -282,17 +273,14 @@ function countSundaysInRange(startStr, endStr) {
 }
 
 /**
- * Fetches attendance history records for a set of departments.
- * @param {string[]} permissions - Array of department names the user has access to
+ * Fetches attendance history records within the access token scope.
+ * @param {string[]} _permissions - Ignored legacy argument; authorization uses the access token
  * @param {string} [fromDate] - Start date filter (ISO yyyy-MM-dd)
  * @param {string} [toDate] - End date filter (ISO yyyy-MM-dd)
  * @returns {Promise<Array>} Array of history records
  */
-export const fetchAttendanceHistory = async (permissions, fromDate, toDate) => {
+export const fetchAttendanceHistory = async (_permissions, fromDate, toDate) => {
   const params = {};
-  if (Array.isArray(permissions) && permissions.length > 0) {
-    params.permissions = permissions;
-  }
   if (fromDate) params.fromDate = fromDate;
   if (toDate) params.toDate = toDate;
 

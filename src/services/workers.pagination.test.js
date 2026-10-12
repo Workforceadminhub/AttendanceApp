@@ -1,11 +1,37 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import apiRequest from "../utils/apiClient";
-import { listSuperAdminWorkers, fetchWorkers, fetchAllSuperAdminWorkers, fetchAllPending, fetchPendingAdd, fetchAdminWorkers, fetchAdminWorkersPage } from "./workers";
+import { listSuperAdminWorkers, fetchWorkers, fetchAllSuperAdminWorkers, fetchAllPending, fetchPendingAdd, fetchPendingRemove, fetchAdminWorkers, fetchAdminWorkersPage, countAdminWorkers } from "./workers";
 vi.mock("../utils/apiClient", () => ({ default: vi.fn() }));
 const response = (page, totalPages = 2) => ({ data: [{ id: page, team: 'Programs', department: 'Sound' }], pagination: { page, limit: 50, total: totalPages * 50, totalPages, hasNext: page < totalPages, hasPrev: page > 1 } });
 
 describe("worker pagination", () => {
   beforeEach(() => vi.resetAllMocks());
+  it.each([
+    ['department roster', () => fetchWorkers('Sound', '2026-09-13', ['Sound'], 'Ada')],
+    ['admin roster', () => fetchAdminWorkers('Programs', 'Sound', '2026-09-13', 'Ada', ['Sound'])],
+    ['admin page', () => fetchAdminWorkersPage('Programs', 'Sound', '2026-09-13', ['Sound'])],
+    ['admin count and fallback', () => countAdminWorkers('Programs', 'Sound', '2026-09-13', ['Sound'])],
+    ['pending adds', () => fetchPendingAdd(1, 100, ['Sound'])],
+    ['pending deletes', () => fetchPendingRemove(1, 100, ['Sound'])],
+    ['pending export', () => fetchAllPending('PENDING_ADD', ['Sound'])],
+    ['super-admin page', () => listSuperAdminWorkers({ permissions: ['Super Admin'], department: 'Sound' })],
+    ['super-admin export', () => fetchAllSuperAdminWorkers({ permissions: ['Super Admin'], department: 'Sound' })],
+  ])("does not send permission query parameters for %s", async (_label, fetch) => {
+    apiRequest.mockResolvedValue({ data: [] });
+    await fetch();
+    expect(apiRequest).toHaveBeenCalled();
+    for (const [, , params, config] of apiRequest.mock.calls) {
+      expect(params).not.toHaveProperty('permissions');
+      expect(config?.params ?? {}).not.toHaveProperty('permissions');
+    }
+  });
+
+  it("omits permissions from both pending endpoint attempts", async () => {
+    apiRequest.mockRejectedValueOnce(new Error('Unavailable')).mockResolvedValueOnce({ data: [] });
+    await fetchPendingAdd(1, 100, ['Sound']);
+    expect(apiRequest.mock.calls.map(call => call[1])).toEqual(['/api/super/admin/workers', '/api/admin/workers']);
+    for (const [, , params] of apiRequest.mock.calls) expect(params).not.toHaveProperty('permissions');
+  });
   it("unwraps one directory page and sends search and placement filters", async () => {
     apiRequest.mockResolvedValue(response(2, 4));
     expect(await listSuperAdminWorkers({ page: 2, limit: 50, search: ' Alice ', team: 'Programs' })).toEqual(response(2, 4));

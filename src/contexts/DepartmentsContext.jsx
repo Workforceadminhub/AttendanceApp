@@ -19,7 +19,7 @@ const DepartmentsContext = createContext({
 
 // Bump this version any time the merge/shape logic in setDynamicDepartments
 // changes - guarantees a clean rehydrate for users with stale localStorage.
-const CACHE_KEY = "departmentsCache:v2";
+const CACHE_KEY = "departmentsCache:v3";
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h - depts barely change
 
 export const DEPARTMENTS_QUERY_KEY = ["departments"];

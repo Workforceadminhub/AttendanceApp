@@ -1,11 +1,4 @@
-import { ADMIN_ENUMS } from "./enums";
-
-/**
- * Static fallback list - used before the DepartmentsProvider has loaded
- * the live `/api/departments` response, and as a backstop for legacy
- * direct imports. Once the provider calls `setDynamicDepartments(...)`,
- * helpers in this file read from the merged effective list instead.
- */
+// Legacy public registration options; authenticated helpers below never read this list.
 export const routeObject = [
   { department: "Workforce Admin", route: "/wadata", team: "Ministry" },
   { department: "Ministry team leadership", route: "/subheadsmin", team: "Ministry" },
@@ -135,14 +128,11 @@ export const routeObject = [
   { department: "Special Ministries", route: "/sm", team: "Ministry" },
 ];
 
-// ─── Dynamic-departments machinery ────────────────────────────────
-// The DepartmentsProvider (src/contexts/DepartmentsContext.jsx) calls
-// setDynamicDepartments() once /api/departments resolves. Helpers below
-// transparently switch to the merged list (static ∪ dynamic) so newly
-// created departments work without redeploy.
 
-let _dynamicList = null; // null = not loaded yet → fall back to static
-let _sessionRoutes = []; // routes from the logged-in admin (before dept cache catches up)
+// Department names and mappings come only from the departments API. Routes
+// returned by sign-in are retained while the catalog request is loading.
+let _dynamicList = null;
+let _sessionRoutes = [];
 let _inactiveNames = new Set();
 
 export function isDepartmentActive(dept) {
@@ -239,46 +229,13 @@ export function setDynamicDepartments(departments) {
   _inactiveNames = inactive;
 }
 
-/**
- * Returns the effective list of departments to route through.
- * Prefers the live API list once loaded; falls back to the static array.
- * Also merges session routes so a newly created admin can navigate before
- * the departments cache refreshes.
- * @returns {Array<{ department: string, route: string, team: string }>}
- */
+/** Current API catalog plus routes returned by sign-in; no static departments. */
 export function getEffectiveRouteList() {
-  let base;
-  if (Array.isArray(_dynamicList) && _dynamicList.length > 0) {
-    const dynamicRoutes = new Set(_dynamicList.map((d) => d.route));
-    const dynamicNames = new Set(
-      _dynamicList.map((d) => (d.department || "").toLowerCase().trim())
-    );
-
-    const fallback = routeObject.filter((s) => {
-      const deptNorm = (s.department || "").toLowerCase().trim();
-      const routeNorm = (s.route || "").toLowerCase().trim().replace(/^\//, "");
-      if (_inactiveNames.has(deptNorm) || _inactiveNames.has(routeNorm) || _inactiveNames.has(`/${routeNorm}`)) {
-        return false;
-      }
-      if (dynamicRoutes.has(s.route) || dynamicNames.has(deptNorm)) {
-        return false;
-      }
-      return true;
-    });
-    base = [..._dynamicList, ...fallback];
-  } else {
-    base = routeObject.filter(
-      (s) => !_inactiveNames.has((s.department || "").toLowerCase().trim()) &&
-        !_inactiveNames.has((s.route || "").toLowerCase().trim())
-    );
-  }
-
-  if (_sessionRoutes.length === 0) return base;
-
-  const seen = new Set(base.map((d) => d.route));
-  const extra = _sessionRoutes.filter((s) => s.route && !seen.has(s.route) &&
-    !_inactiveNames.has(s.route.toLowerCase()) &&
-    !_inactiveNames.has((s.department || "").toLowerCase().trim()));
+  const base = _dynamicList ?? [];
+  const seen = new Set(base.map((entry) => entry.route));
+  const extra = _sessionRoutes.filter((entry) => entry.route && !seen.has(entry.route) &&
+    !_inactiveNames.has(entry.route.toLowerCase()) &&
+    !_inactiveNames.has((entry.department || "").toLowerCase().trim()));
   return extra.length ? [...base, ...extra] : base;
 }
 
@@ -390,37 +347,6 @@ export function registerAdminRoute({ department, route, team }) {
   }
 }
 
-export const attendanceRoutes = routeObject.map(
-  (item) => `/attendance${item.route}`
-);
-export const summaryRoutes = routeObject.map((item) => `/summary${item.route}`);
-export const dashboardRoutes = routeObject.map(
-  (item) => `/dashboard${item.route}`
-);
-
-const specialDepartmentsFromTeam = Array.from(
-  new Set(routeObject.map((item) => item.team))
-);
-
-export const specialDepartments = [
-  ...specialDepartmentsFromTeam,
-  ADMIN_ENUMS.ADMIN_DEPARTMENT,
-];
-export const adminRoutes = Array.from(
-  new Set(
-    routeObject.map(
-      (item) => `admin/${item.team.toLowerCase().trim().replaceAll(" ", "")}`
-    )
-  )
-);
-export const historyRoutes = Array.from(
-  new Set(
-    routeObject.map(
-      (item) => `history/admin/${item.team.toLowerCase().trim().replaceAll(" ", "")}`
-    )
-  )
-);
-
 /**
  * Returns all department names that belong to a given team.
  * @param {string} teamName
@@ -524,16 +450,10 @@ const departmentNamesMatch = (d1, d2) => {
   const norm2 = clean2.replace(/&/g, "and").replace(/[^a-z0-9]/g, "");
   if (norm1 === norm2) return true;
 
-  if (clean1.includes("directional") && clean1.includes("leader") &&
-      clean2.includes("directional") && clean2.includes("leader")) return true;
-
-  if (clean1.includes("pastoral") && clean1.includes("leader") &&
-      clean2.includes("pastoral") && clean2.includes("leader")) return true;
-
   return false;
 };
 
-/** Resolve names, legacy names and routes against the current department catalog. */
+/** Resolve only names and routes returned by the API catalog. */
 export function getDepartmentEntry(value) {
   if (!value) return null;
   const raw = String(value).trim();
@@ -544,8 +464,7 @@ export function getDepartmentEntry(value) {
     departmentNamesMatch(entry.department, raw) || entry.route?.toLowerCase() === route
   );
   if (current) return current;
-  const legacy = routeObject.find((entry) => departmentNamesMatch(entry.department, raw));
-  return legacy ? list.find((entry) => entry.route === legacy.route) ?? null : null;
+  return null;
 }
 
 export const isSameDepartment = (d1, d2) => {
@@ -609,22 +528,9 @@ export const resolveDepartmentParams = (value) => {
   return { departmentRoute: value.startsWith("/") ? value.slice(1) : value };
 };
 
-/**
- * Map UI department names to the form the API expects (e.g. "Pastoral Leaders" -> "Pastoral leader").
- * Use when sending department in request params/body.
- * @param {string} departmentName - Display name (e.g. "Pastoral Leaders")
- * @returns {string} Name to send to API (e.g. "Pastoral leader")
- */
-export const departmentNameForApi = (departmentName) => {
-  if (!departmentName) return departmentName;
-  const apiNames = {
-    "Pastoral leader": "Pastoral leader",
-    "Pastoral Leaders": "Pastoral leader",
-    "Directional leader": "Directional leader",
-    "Directional Leaders": "Directional leader",
-  };
-  return apiNames[departmentName] ?? departmentName;
-};
+/** Preserve the exact department name returned by the API. */
+export const departmentNameForApi = (departmentName) =>
+  getDepartmentEntry(departmentName)?.department ?? departmentName;
 
 function normalizeRole(value) {
   return (value ?? "")

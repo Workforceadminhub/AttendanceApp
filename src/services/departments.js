@@ -1,6 +1,6 @@
 import { fetchAllPages } from "../utils/pagination.js";
 import apiRequest from "../utils/apiClient";
-import { setDynamicDepartments, getEffectiveRouteList, isDepartmentActive } from "../utils/routeObject";
+import { setDynamicDepartments, isDepartmentActive } from "../utils/routeObject";
 import { DISTRICT_CLUSTER_LABELS } from "../utils/teams";
 import { fetchHubTeams } from "./hub/teams";
 
@@ -143,20 +143,6 @@ const loadTeamsAndDepartmentsForFilter = async () => {
       }
       const team = d?.team ?? d?.teamName;
       addDeptToTeam(team || "(No team)", name);
-    });
-  }
-
-  // Use the static route list only when the API returned nothing. Once the API
-  // has loaded, that list still holds static entries the API no longer returns
-  // (deleted departments), and adding them would bring those back as options.
-  if (!departmentsList?.length) {
-    getEffectiveRouteList().forEach((item) => {
-      if (
-        item.department &&
-        !inactiveDepartmentNames.has(String(item.department).trim().toLowerCase())
-      ) {
-        addDeptToTeam(item.team, item.department);
-      }
     });
   }
 

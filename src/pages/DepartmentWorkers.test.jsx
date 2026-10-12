@@ -35,6 +35,7 @@ describe("Department workers scope", () => {
   afterEach(() => { cleanup(); setDynamicDepartments(null); });
   beforeEach(() => {
     vi.clearAllMocks();
+    setDynamicDepartments([{name:"Sound", route:"/sound", team:"Programs"}, {name:"Protocol",route:"/protocol",team:"Programs"}, {name:"Media-Video",route:"/media-video",team:"Programs"}, {name:"Pastoral Care",route:"/pastoral-care",team:"Ministry"}]);
     getUser.mockReturnValue({ role: "admin", team: "Programs", department: "Programs", permissions: ["Programs"] });
     // Include another team and department to verify the page enforces scope
     // even if the endpoint returns a broader roster.
@@ -66,14 +67,14 @@ describe("Department workers scope", () => {
     expect(url.searchParams.get("returnTo")).toBe("/department/programs/workers?department=Sound");
   });
 
-  it("keeps old and new worker names in the same renamed department filter", async () => {
+  it("uses the current API department name in directory filters", async () => {
     setDynamicDepartments([{ name: "Ushering - Champions", route: "/usheringtosin", team: "Programs" }]);
     fetchWorkers.mockResolvedValue([
-      { ...rows[0], department: "Ushering - Tosin" },
+      { ...rows[0], department: "Ushering - Champions" },
       { ...rows[1], department: "Ushering - Champions" },
       rows[2], rows[3],
     ]);
-    openWorkers("/department/programs/workers?department=Ushering%20-%20Tosin");
+    openWorkers("/department/programs/workers?department=Ushering%20-%20Champions");
     expect(await screen.findByRole("heading", { name: "Workers (2)" })).toBeInTheDocument();
     for (const filter of screen.getAllByRole("combobox")) expect(filter).toHaveValue("Ushering - Champions");
     expect(screen.getByText("Ada Sound")).toBeInTheDocument();

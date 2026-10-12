@@ -6,6 +6,7 @@ import { loadExcelJS } from "../utils/loadExcelJS";
 import { saveAs } from "file-saver";
 import Layout from "../components/Layout";
 import LoadingState from "../components/LoadingState";
+import { useEffectiveRouteList } from "../contexts/DepartmentsContext";
 import { getDepartmentEntry, getDepartmentRoute, getDepartmentNameFromRoute, isSameDepartment } from "../utils/routeObject";
 import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
 import { fetchWorkers, removeWorker } from "../services/workers";
@@ -25,6 +26,7 @@ const ROLE_ORDER = [
 ];
 
 export default function DepartmentWorkers() {
+ useEffectiveRouteList();
  const { departmentRoute: routeParam } = useParams();
  const location = useLocation();
  const navigate = useNavigate();

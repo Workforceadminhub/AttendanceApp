@@ -1,6 +1,8 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { canAccessDepartment, canAccessDepartmentByRoute, getUserRole, PERMISSION_LEVELS } from "./getUserRole";
 import { setDynamicDepartments } from "./routeObject";
+
+beforeEach(() => setDynamicDepartments([{name:"Sound",route:"/sound",team:"Programs"}]));
 
 function setUser(user) {
   sessionStorage.setItem("authUser", JSON.stringify(user));
@@ -28,10 +30,10 @@ describe("team administrator worker department access", () => {
     setUser({ role: "admin", department: "Programs", team });
   }
 
-  it("allows legacy worker names through the renamed department's stable route", () => {
+  it("uses only the name and route returned by the API", () => {
     programsAdmin();
     setDynamicDepartments([{ name: "Ushering - Champions", route: "/usheringtosin", team: "Programs" }]);
-    expect(canAccessDepartment("Ushering - Tosin")).toBe(true);
+    expect(canAccessDepartment("Ushering - Tosin")).toBe(false);
     expect(canAccessDepartment("Ushering - Champions")).toBe(true);
     expect(canAccessDepartment("Workforce Admin")).toBe(false);
   });
@@ -59,19 +61,19 @@ describe("team administrator worker department access", () => {
 
   it.each([
     { permissionLevel: "HOD", department: "Ushering - Tosin", route: "usheringtosin" },
-    { permissionLevel: "SUB_TEAM_ADMIN", assignedDepartments: ["Ushering - Tosin"] },
+    { permissionLevel: "SUB_TEAM_ADMIN", assignedDepartments: ["Ushering - Champions"] },
     { permissionLevel: "SUB_TEAM_ADMIN", assignedDepartments: ["/usheringtosin"] },
     { role: "admin", team: "Programs" },
     { permissionLevel: "TEAM_ADMIN", team: { name: "Programs" } },
-  ])("applies the same scope to old/new names and routes for $permissionLevel $role", (user) => {
+  ])("applies the same scope to API names and routes for $permissionLevel $role", (user) => {
     setDynamicDepartments([{ name: "Ushering - Champions", route: "/usheringtosin", team: "Programs" }]);
     setUser(user);
-    for (const value of ["Ushering - Tosin", "Ushering - Champions", "usheringtosin", "/usheringtosin"]) {
+    for (const value of ["Ushering - Champions", "usheringtosin", "/usheringtosin"]) {
       expect(canAccessDepartment(value)).toBe(true);
       expect(canAccessDepartmentByRoute(user, value)).toBe(true);
     }
     expect(canAccessDepartmentByRoute(user, "Workforce Admin")).toBe(false);
-    expect(canAccessDepartment("Sound")).toBe(Boolean(user.team));
+    expect(canAccessDepartment("Sound")).toBe(false);
   });
 
   it("rejects blank, unknown and inactive department routes for team admins", () => {

@@ -5,13 +5,13 @@ import Layout from "../components/Layout";
 import LoadingState from "../components/LoadingState";
 import { toast } from "react-toastify";
 import {
- teamsAndDepartments,
  normalizeWorkerRole,
  filterDepartmentsForDistrictSubTeam,
 } from "../utils/teams";
 import BirthDatePicker from "../components/BirthDatePicker";
-import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
+import { getUserRole } from "../utils/getUserRole";
 import { getDepartmentRoute, getEffectiveRouteList } from "../utils/routeObject";
+import { resolveWorkerForEditing } from "../services/workerEditAccess";
 import { fetchTeamsAndDepartmentsForFilter } from "../services/departments";
 import apiRequest from "../utils/apiClient";
 import {
@@ -36,9 +36,7 @@ export default function ViewWorker() {
  departments: [],
  departmentsByTeam: {},
  });
- const [teamOptions, setTeamOptions] = useState(
- teamsAndDepartments.map((t) => ({ value: t.team, label: t.team }))
- );
+ const [teamOptions, setTeamOptions] = useState([]);
  const [departmentOptions, setDepartmentOptions] = useState([]);
 
  const { isSuperAdmin, isChurchAdmin, isHOD, isTeamAdmin, isSubTeamAdmin } = getUserRole();
@@ -159,15 +157,12 @@ export default function ViewWorker() {
  workerData = responseData.worker;
  }
 
-    // For non-Super/Church Admin: verify worker is in accessible department
-    const { isSuperAdmin, isChurchAdmin } = getUserRole();
-    if (!isSuperAdmin && !isChurchAdmin) {
-      const workerDept = workerData.department || workerData.department_name;
-      if (!canAccessDepartment(workerDept)) {
-        toast.error("Access denied. This worker is not in a department you manage.");
-        navigate(getHODCancelPath());
-        return;
-      }
+    // Reconcile inconsistent details/roster placement by worker ID using API data.
+    workerData = await resolveWorkerForEditing(workerData);
+    if (!workerData) {
+      toast.error("Access denied. This worker is not in a department you manage.");
+      navigate(getHODCancelPath());
+      return;
     }
 
     setWorker(workerData);

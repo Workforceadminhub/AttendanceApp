@@ -21,11 +21,11 @@ import {
   getAwakeningDepartmentOptions,
 } from "../utils/awakeningRegistration";
 import { PUBLIC_SUBMIT_ERROR } from "../utils/safeMessages";
-import { getEffectiveRouteList } from "../utils/routeObject";
+import { routeObject } from "../utils/routeObject";
 import { teams, workerRoles } from "../utils/teams";
 import { CheckCircleIcon } from "@heroicons/react/24/outline";
 
-const DEPARTMENT_OPTIONS = getAwakeningDepartmentOptions(getEffectiveRouteList());
+const DEPARTMENT_OPTIONS = getAwakeningDepartmentOptions(routeObject);
 const TEAM_OPTIONS = teams.map((t) => t.value);
 
 // ── Small helpers ─────────────────────────────────────────────────────────────

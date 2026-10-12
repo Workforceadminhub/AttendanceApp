@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ViewWorker from './ViewWorker';
+vi.mock('../services/workerEditAccess', () => ({ resolveWorkerForEditing: vi.fn(async worker => worker) }));
 vi.mock('../components/Layout', () => ({ default: ({ children }) => children }));
 vi.mock('../utils/getUserRole', () => ({ getUserRole: () => ({ isSuperAdmin:true, user:{department:'Super Admin'} }), canAccessDepartment: () => true }));
 vi.mock('../services/departments', () => ({ fetchTeamsAndDepartmentsForFilter: vi.fn().mockResolvedValue({teams:[], departmentsByTeam:{}}) }));

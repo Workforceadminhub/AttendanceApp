@@ -1,20 +1,9 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowUpIcon, ArrowDownIcon } from "@heroicons/react/24/outline";
-import { getDepartmentRoute, getTeamForDepartment, routeObject } from "../../utils/routeObject";
+import { getDepartmentRoute, isSameDepartment } from "../../utils/routeObject";
 
-// Stable team order: use order from routeObject, then "Other" last
-const TEAM_ORDER = (() => {
-  const seen = new Set();
-  const order = [];
-  routeObject.forEach((r) => {
-    if (r.team && !seen.has(r.team)) {
-      seen.add(r.team);
-      order.push(r.team);
-    }
-  });
-  return order;
-})();
+import { useEffectiveRouteList } from "../../contexts/DepartmentsContext";
 
 function sortRows(items, sortConfig, getSortableValue) {
   if (!sortConfig?.key) return items;
@@ -37,6 +26,8 @@ function sortRows(items, sortConfig, getSortableValue) {
 }
 
 export default function AdminDepartmentSummaryTable({ rows, showLinks = true }) {
+  const catalog = useEffectiveRouteList();
+  const teamOrder = useMemo(() => [...new Set(catalog.map(entry => entry.team).filter(Boolean))], [catalog]);
   const [sortConfig, setSortConfig] = useState({
     key: null,
     direction: "asc",
@@ -71,28 +62,28 @@ export default function AdminDepartmentSummaryTable({ rows, showLinks = true }) 
     items.forEach((item) => {
       const dept = item.department || item.department_name;
       // Prefer the API's `team` field (always present) over a name-based lookup
-      // that depends on routeObject having the dept registered. The lookup
+      // that uses the API department catalog. The lookup
       // remains as a fallback for legacy rows that lack the team field.
-      const team = item.team || getTeamForDepartment(dept) || "Other";
+      const team = item.team || catalog.find(entry => isSameDepartment(entry.department, dept))?.team || "Other";
       if (!map.has(team)) map.set(team, []);
       map.get(team).push({ ...item, department: dept });
     });
     return map;
-  }, [rows]);
+  }, [rows, catalog]);
 
   const orderedTeams = useMemo(() => {
     const teams = Array.from(rowsByTeam.keys());
     return teams.sort((a, b) => {
       if (a === "Other") return 1;
       if (b === "Other") return -1;
-      const i = TEAM_ORDER.indexOf(a);
-      const j = TEAM_ORDER.indexOf(b);
+      const i = teamOrder.indexOf(a);
+      const j = teamOrder.indexOf(b);
       if (i === -1 && j === -1) return String(a).localeCompare(String(b));
       if (i === -1) return 1;
       if (j === -1) return -1;
       return i - j;
     });
-  }, [rowsByTeam]);
+  }, [rowsByTeam, teamOrder]);
 
   const handleSort = (columnKey) => {
     setSortConfig((prev) => {

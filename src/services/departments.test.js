@@ -35,11 +35,11 @@ describe("fetchTeamsAndDepartmentsForFilter", () => {
     expect(departments.map((d) => d.value)).not.toContain("Bethel Community");
   });
 
-  it("falls back to the built-in list when the API returns no departments", async () => {
+  it("leaves department options empty when the API returns no departments", async () => {
     apiRequestMock.mockResolvedValue({ data: [] });
 
     const { departmentsByTeam } = await fetchTeamsAndDepartmentsForFilter();
 
-    expect(departmentsByTeam.Districts).toContain("Bethel Community");
+    expect(departmentsByTeam).toEqual({});
   });
 });

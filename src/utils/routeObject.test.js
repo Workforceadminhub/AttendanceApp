@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { getAdminSelectOptions, getDepartmentEntry, getDepartmentNameFromRoute, getDepartmentRoute, getTeamForDepartment, isSameDepartment, setDynamicDepartments } from "./routeObject";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { getEffectiveRouteList, departmentNameForApi, getAdminSelectOptions, getDepartmentEntry, getDepartmentNameFromRoute, getDepartmentRoute, getTeamForDepartment, isSameDepartment, setDynamicDepartments } from "./routeObject";
 
 afterEach(() => setDynamicDepartments(null));
+beforeEach(() => setDynamicDepartments([{name:"Call Centre", route:"/api-call", team:"Ministry"}]));
 
 describe("admin department filter", () => {
   it("finds departments for legacy team accounts", () => {
@@ -34,27 +35,32 @@ describe("admin department filter", () => {
   });
 });
 
-describe("renamed department identity", () => {
-  it.each([
-    ["Ushering - Tosin", "Ushering - Champions", "/usheringtosin"],
-    ["Ushering - Bimpe", "Ushering - Bloom", "/usheringbimpe"],
-    ["Ushering - Queen", "Ushering - Emerald", "/usheringqueen"],
-    ["Ushering - Iyaanu", "Ushering - Alpha", "/usheringiyanu"],
-    ["Ushering - Kofoworola", "Ushering - Diamond", "/usheringkofo"],
-  ])("resolves %s to its current catalog entry", (oldName, newName, route) => {
-    setDynamicDepartments([{ name: newName, route, team: "Programs" }]);
-    expect(isSameDepartment(oldName, newName)).toBe(true);
-    expect(isSameDepartment(oldName, route.slice(1))).toBe(true);
-    expect(getDepartmentRoute(oldName)).toBe(route.slice(1));
-    expect(getDepartmentNameFromRoute(oldName)).toBe(newName);
-    expect(getTeamForDepartment(oldName)).toBe("Programs");
-    expect(isSameDepartment(oldName, "Workforce Admin")).toBe(false);
+describe("API department authority", () => {
+  it("uses arbitrary API names and routes without inferring legacy aliases", () => {
+    setDynamicDepartments([{ name: "API New Name", route: "/opaque-route", team: "API Team" }]);
+    expect(getEffectiveRouteList()).toEqual([{ department: "API New Name", route: "/opaque-route", team: "API Team" }]);
+    expect(getDepartmentNameFromRoute("opaque-route")).toBe("API New Name");
+    expect(getDepartmentRoute("API New Name")).toBe("opaque-route");
+    expect(getTeamForDepartment("API New Name")).toBe("API Team");
+    expect(isSameDepartment("API New Name", "/opaque-route")).toBe(true);
+    expect(getDepartmentEntry("Ushering - Tosin")).toBeNull();
+    expect(isSameDepartment("API New Name", "Old Name")).toBe(false);
   });
 
-  it("does not resurrect inactive departments through legacy routes", () => {
-    setDynamicDepartments([{ name: "Ushering - Champions", route: "/usheringtosin", team: "Programs", isactive: false }]);
-    expect(getDepartmentEntry("Ushering - Tosin")).toBeNull();
-    expect(getDepartmentEntry("usheringtosin")).toBeNull();
-    expect(isSameDepartment("Ushering - Tosin", "Ushering - Champions")).toBe(false);
+  it("keeps an empty API catalog empty, with no built-in department fallback", () => {
+    setDynamicDepartments([]);
+    expect(getEffectiveRouteList()).toEqual([]);
+    expect(getDepartmentEntry("Sound")).toBeNull();
+  });
+
+  it("preserves exact API names in outgoing requests", () => {
+    setDynamicDepartments([{name:"Pastoral Leaders", route:"/api-pastoral", team:"API Team"}]);
+    expect(departmentNameForApi("Pastoral Leaders")).toBe("Pastoral Leaders");
+  });
+
+  it("does not expose inactive API entries", () => {
+    setDynamicDepartments([{ name: "API New Name", route: "/opaque-route", team: "API Team", isactive: false }]);
+    expect(getDepartmentEntry("API New Name")).toBeNull();
+    expect(getDepartmentEntry("opaque-route")).toBeNull();
   });
 });

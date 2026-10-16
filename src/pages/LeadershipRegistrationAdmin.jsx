@@ -9,7 +9,7 @@ import { ChevronLeftIcon, ChevronRightIcon, ArrowLeftIcon } from "@heroicons/rea
 
 const CAMPUSES = [
   "All Campuses", "Gbagada", "Magodo", "Ikorodu", "Jericho", "Yaba",
-  "Ilupeju", "Akobo", "Port Harcourt", "Oluyole", "Surulere", "Ogba", "Toronto",
+  "Ilupeju", "Akobo", "Apapa", "Port Harcourt", "Oluyole", "Surulere", "Ogba", "Toronto",
 ];
 
 const COURSES = ["All Courses", "BLC", "ALC"];

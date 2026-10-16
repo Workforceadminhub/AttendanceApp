@@ -122,7 +122,7 @@ export const leadershipRegistrationSchema = z.object({
   }),
   leadershipRole: z.string().optional(),
   campus: z.enum(
-    ["Gbagada", "Magodo", "Ikorodu", "Jericho", "Yaba", "Ilupeju", "Akobo", "Port Harcourt", "Oluyole", "Surulere", "Ogba", "Toronto"],
+    ["Gbagada", "Magodo", "Ikorodu", "Jericho", "Yaba", "Ilupeju", "Akobo", "Apapa", "Port Harcourt", "Oluyole", "Surulere", "Ogba", "Toronto"],
     { error: "Campus is required" }
   ),
   course: z.enum(["BLC", "ALC"], { error: "Course is required" }),

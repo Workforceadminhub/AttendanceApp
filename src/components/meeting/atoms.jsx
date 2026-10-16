@@ -5,7 +5,7 @@ import SuccessMark from "../ui/SuccessMark";
 export const inputClass =
   "w-full rounded-lg border border-ink-200 bg-white px-3 py-2.5 text-sm text-ink placeholder-ink-500 focus:outline-none focus:ring-2 focus:ring-ink focus:border-transparent transition";
 
-export const selectClass = `${inputClass} appearance-none`;
+export const selectClass = `${inputClass} appearance-none pr-10 cursor-pointer`;
 
 export const primaryButtonClass =
   "w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg bg-ink px-8 py-3 text-sm font-medium text-cream transition hover:bg-ink/90 disabled:opacity-60 disabled:cursor-not-allowed";

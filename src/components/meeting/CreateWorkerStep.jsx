@@ -32,6 +32,7 @@ export const LEADERS_MEETING_CAMPUSES = [
   "Yaba",
   "Ilupeju",
   "Akobo",
+  "Apapa",
   "Port Harcourt",
   "Oluyole",
   "Surulere",

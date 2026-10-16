@@ -9,7 +9,7 @@ import { CheckCircleIcon, MagnifyingGlassIcon, UserCircleIcon } from "@heroicons
 
 const CAMPUSES = [
   "Gbagada", "Magodo", "Ikorodu", "Jericho", "Yaba",
-  "Ilupeju", "Akobo", "Port Harcourt", "Oluyole", "Surulere", "Ogba", "Toronto",
+  "Ilupeju", "Akobo", "Apapa", "Port Harcourt", "Oluyole", "Surulere", "Ogba", "Toronto",
 ];
 
 const LEADERSHIP_ROLES = [

@@ -78,6 +78,7 @@ export default function CreateWorkerStep({
     phone: "",
     gender: "",
     role: "",
+    customRole: "",
     birthdate: "",
     maritalstatus: "",
     agerange: "",
@@ -85,8 +86,10 @@ export default function CreateWorkerStep({
     employment: "",
     occupation: "",
     team: "",
+    customTeam: "",
     district_sub_team: "",
     department: "",
+    customDepartment: "",
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -109,14 +112,74 @@ export default function CreateWorkerStep({
   };
   const set = (field) => (e) => setField(field, e.target.value);
 
+  const setCampus = (e) => {
+    const nextCampus = e.target.value;
+    const returningToGbagada = nextCampus === "Gbagada";
+    setForm((prev) => ({
+      ...prev,
+      campus: nextCampus,
+      role: returningToGbagada && prev.role === "Others" ? "" : prev.role,
+      customRole: returningToGbagada ? "" : prev.customRole,
+      team: returningToGbagada && prev.team === "Others" ? "" : prev.team,
+      customTeam: returningToGbagada ? "" : prev.customTeam,
+      department: returningToGbagada && prev.department === "Others" ? "" : prev.department,
+      customDepartment: returningToGbagada ? "" : prev.customDepartment,
+    }));
+    setErrors((prev) => ({
+      ...prev,
+      campus: undefined,
+      role: undefined,
+      customRole: undefined,
+      team: undefined,
+      customTeam: undefined,
+      department: undefined,
+      customDepartment: undefined,
+    }));
+  };
+
+  const setRole = (e) => {
+    const nextRole = e.target.value;
+    setForm((prev) => ({
+      ...prev,
+      role: nextRole,
+      customRole: nextRole === "Others" ? prev.customRole : "",
+    }));
+    setErrors((prev) => ({ ...prev, role: undefined, customRole: undefined }));
+  };
+
   const setTeam = (e) => {
-    setForm((prev) => ({ ...prev, team: e.target.value, district_sub_team: "", department: "" }));
-    setErrors((prev) => ({ ...prev, team: undefined, district_sub_team: undefined, department: undefined }));
+    const nextTeam = e.target.value;
+    setForm((prev) => ({
+      ...prev,
+      team: nextTeam,
+      customTeam: nextTeam === "Others" ? prev.customTeam : "",
+      district_sub_team: "",
+      department: isOtherCampus && nextTeam === "Others" ? "Others" : "",
+      customDepartment: "",
+    }));
+    setErrors((prev) => ({
+      ...prev,
+      team: undefined,
+      customTeam: undefined,
+      district_sub_team: undefined,
+      department: undefined,
+      customDepartment: undefined,
+    }));
+  };
+
+  const setDepartment = (e) => {
+    const nextDepartment = e.target.value;
+    setForm((prev) => ({
+      ...prev,
+      department: nextDepartment,
+      customDepartment: nextDepartment === "Others" ? prev.customDepartment : "",
+    }));
+    setErrors((prev) => ({ ...prev, department: undefined, customDepartment: undefined }));
   };
 
   const setDistrictSubTeam = (e) => {
-    setForm((prev) => ({ ...prev, district_sub_team: e.target.value, department: "" }));
-    setErrors((prev) => ({ ...prev, district_sub_team: undefined, department: undefined }));
+    setForm((prev) => ({ ...prev, district_sub_team: e.target.value, department: "", customDepartment: "" }));
+    setErrors((prev) => ({ ...prev, district_sub_team: undefined, department: undefined, customDepartment: undefined }));
   };
 
   const setPhone = (e) => {
@@ -135,9 +198,18 @@ export default function CreateWorkerStep({
     else if (isPresent && !isValidPresentPhone(form.phone)) errs.phone = PRESENT_PHONE_MESSAGE;
     else if (!isPresent && !isElevenDigitPhone(form.phone)) errs.phone = ELEVEN_DIGIT_PHONE_MESSAGE;
     if (!form.role) errs.role = "Worker role is required";
+    else if (isOtherCampus && form.role === "Others" && !form.customRole.trim()) {
+      errs.customRole = "Please enter your worker role";
+    }
     if (!form.team) errs.team = "Team is required";
+    else if (isOtherCampus && form.team === "Others" && !form.customTeam.trim()) {
+      errs.customTeam = "Please enter your team";
+    }
     if (districts && !form.district_sub_team) errs.district_sub_team = "District/Sub-team is required";
     if (!form.department) errs.department = "Department is required";
+    else if (isOtherCampus && form.department === "Others" && !form.customDepartment.trim()) {
+      errs.customDepartment = "Please enter your department";
+    }
 
     if (!isOtherCampus) {
       if (!form.email.trim()) errs.email = "Email is required";
@@ -163,13 +235,17 @@ export default function CreateWorkerStep({
     setIsSubmitting(true);
     try {
       if (isOtherCampus) {
+        const resolvedRole = form.role === "Others" ? form.customRole.trim() : form.role;
+        const resolvedTeam = form.team === "Others" ? form.customTeam.trim() : form.team;
+        const resolvedDepartment =
+          form.department === "Others" ? form.customDepartment.trim() : form.department;
         const payload = {
           firstname: form.firstname.trim(),
           lastname: form.lastname.trim(),
           phone: phoneDigits(form.phone),
-          department: form.department,
-          team: form.team,
-          role: form.role,
+          department: resolvedDepartment,
+          team: resolvedTeam,
+          role: resolvedRole,
           campus: form.campus,
           meeting_date: meetingDate,
         };
@@ -224,7 +300,7 @@ export default function CreateWorkerStep({
         {isLeadersPresent && (
           <div className="sm:col-span-2">
             <Label htmlFor="create-campus" required>Campus</Label>
-            <select id="create-campus" value={form.campus} onChange={set("campus")} className={selectClass}>
+            <select id="create-campus" value={form.campus} onChange={setCampus} className={selectClass}>
               {LEADERS_MEETING_CAMPUSES.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
@@ -291,11 +367,28 @@ export default function CreateWorkerStep({
 
         <div>
           <Label htmlFor="create-role" required>Worker Role</Label>
-          <select id="create-role" value={form.role} onChange={set("role")} className={selectClass}>
+          <select id="create-role" value={form.role} onChange={setRole} className={selectClass}>
             <option value="">Select Worker Role</option>
             {DROPDOWN_OPTIONS["Worker Role"].map((o) => <option key={o}>{o}</option>)}
+            {isOtherCampus && !DROPDOWN_OPTIONS["Worker Role"].includes("Others") && (
+              <option value="Others">Others</option>
+            )}
           </select>
           <FieldError message={errors.role} />
+          {isOtherCampus && form.role === "Others" && (
+            <div className="mt-3">
+              <Label htmlFor="create-custom-role" required>Specify Worker Role</Label>
+              <input
+                id="create-custom-role"
+                type="text"
+                placeholder="Enter your worker role"
+                value={form.customRole}
+                onChange={set("customRole")}
+                className={inputClass}
+              />
+              <FieldError message={errors.customRole} />
+            </div>
+          )}
         </div>
 
         {!isOtherCampus && (
@@ -354,8 +447,25 @@ export default function CreateWorkerStep({
             {teamOptions.map((t) => (
               <option key={t} value={t}>{t}</option>
             ))}
+            {isOtherCampus && !teamOptions.includes("Others") && (
+              <option value="Others">Others</option>
+            )}
           </select>
           <FieldError message={errors.team} />
+          {isOtherCampus && form.team === "Others" && (
+            <div className="mt-3">
+              <Label htmlFor="create-custom-team" required>Specify Team</Label>
+              <input
+                id="create-custom-team"
+                type="text"
+                placeholder="Enter your team"
+                value={form.customTeam}
+                onChange={set("customTeam")}
+                className={inputClass}
+              />
+              <FieldError message={errors.customTeam} />
+            </div>
+          )}
         </div>
 
         {/* District/Sub-team always comes before Department when the team is Districts */}
@@ -375,7 +485,7 @@ export default function CreateWorkerStep({
             <select
               id="create-department"
               value={form.department}
-              onChange={set("department")}
+              onChange={setDepartment}
               className={selectClass}
               disabled={districts && !form.district_sub_team}
             >
@@ -387,8 +497,25 @@ export default function CreateWorkerStep({
               {departmentOptions.map((d) => (
                 <option key={d} value={d}>{d}</option>
               ))}
+              {isOtherCampus && !departmentOptions.includes("Others") && (
+                <option value="Others">Others</option>
+              )}
             </select>
             <FieldError message={errors.department} />
+            {isOtherCampus && form.department === "Others" && (
+              <div className="mt-3">
+                <Label htmlFor="create-custom-department" required>Specify Department</Label>
+                <input
+                  id="create-custom-department"
+                  type="text"
+                  placeholder="Enter your department"
+                  value={form.customDepartment}
+                  onChange={set("customDepartment")}
+                  className={inputClass}
+                />
+                <FieldError message={errors.customDepartment} />
+              </div>
+            )}
           </div>
         )}
 

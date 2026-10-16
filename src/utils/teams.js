@@ -202,16 +202,16 @@ export const teamsAndDepartments = [
       "Sound",
       "Traffic",
       "Unveil",
-      "Ushering - Bimpe",
-      "Ushering - Iyaanu",
-      "Ushering - Kofoworola",
-      "Ushering - Queen",
-      "Ushering - Tosin",
-      "Venue Management - Boluwatife team",
-      "Venue Management - Emmanuel team",
-      "Venue Management - Feyisayo Phillip team",
-      "Venue Management - Tosin Agbetuyi team",
-      "Venue Management - Zeina team",
+      "Ushering - Alpha",
+      "Ushering - Bloom",
+      "Ushering - Champions",
+      "Ushering - Diamond",
+      "Ushering - Emerald",
+      "Venue Management - Canaan",
+      "Venue Management - Eden",
+      "Venue Management - Goshen",
+      "Venue Management - Immanuel",
+      "Venue Management - Zion",
     ],
   },
   {
@@ -336,6 +336,7 @@ export const filterDepartmentsForDistrictSubTeam = (
   const teamName = String(team || "").trim();
   const isDistricts =
     teamName === "Districts" || teamName === "District";
+  const seen = new Set();
   const list = (Array.isArray(departments) ? departments : [])
     .map((d) => (typeof d === "string" ? d : d?.value ?? d?.label ?? ""))
     .map((d) => String(d || "").trim())
@@ -344,7 +345,13 @@ export const filterDepartmentsForDistrictSubTeam = (
       (d) =>
         !isDistrictClusterLabel(d) &&
         d.toLowerCase() !== teamName.toLowerCase()
-    );
+    )
+    .filter((d) => {
+      const key = d.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 
   if (!isDistricts) return list;
 

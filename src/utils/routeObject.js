@@ -95,16 +95,14 @@ export const routeObject = [
   { department: "Quality Assurance", route: "/qa", team: "Programs" },
   { department: "Unveil", route: "/unveildance", team: "Programs" },
   { department: "Traffic", route: "/traffic", team: "Programs" },
-  { department: "Ushering - Bimpe", route: "/usheringbimpe", team: "Programs" },
-  { department: "Ushering - Queen", route: "/usheringqueen", team: "Programs" },
-  { department: "Ushering - Iyaanu", route: "/usheringiyanu", team: "Programs" },
-  { department: "Ushering - Tosin", route: "/usheringtosin", team: "Programs" },
-  { department: "Ushering - Kofoworola", route: "/usheringkofo", team: "Programs" },
+  { department: "Ushering - Bloom", route: "/usheringbimpe", team: "Programs" },
+  { department: "Ushering - Emerald", route: "/usheringqueen", team: "Programs" },
+  { department: "Ushering - Alpha", route: "/usheringiyanu", team: "Programs" },
+  { department: "Ushering - Champions", route: "/usheringtosin", team: "Programs" },
+  { department: "Ushering - Diamond", route: "/usheringkofo", team: "Programs" },
   // { department: "Venue Management", route: "/venuemgt", team: "Programs" },
   { department: "Programs Admin Team", route: "/programsadminteam", team: "Programs" },
   { department: "Sub team-Missions", route: "/subtmission", team: "Mission" },
-  { department: "Anagkazo Community", route: "/anagkazo", team: "Districts" },
-  { department: "Sunrise Community", route: "/sunrise", team: "Districts" },
   { department: "Target Missions", route: "/targetmissions", team: "Mission" },
   { department: "Reach and Partnership - Stirhouse", route: "/rpstirhouse", team: "Next Gen" },
   { department: "Learning and Development - Stirhouse", route: "/ldstirhouse", team: "Next Gen" },
@@ -115,11 +113,11 @@ export const routeObject = [
   { department: "Administration - Kidszone", route: "/adminkidszone", team: "Next Gen" },
   { department: "Programming and Environment - Kidszone", route: "/progkidszone", team: "Next Gen" },
   { department: "Learning and Development - Kidszone", route: "/learnkidszone", team: "Next Gen" },
-  { department: "Venue Management - Zeina team", route: "/vmgtzeina", team: "Programs" },
-  { department: "Venue Management - Tosin Agbetuyi team", route: "/vmgttosin", team: "Programs" },
-  { department: "Venue Management - Emmanuel team", route: "/vmgtemma", team: "Programs" },
-  { department: "Venue Management - Boluwatife team", route: "/vmgtbolu", team: "Programs" },
-  { department: "Venue Management - Feyisayo Phillip team", route: "/vmgtfeyi", team: "Programs" },
+  { department: "Venue Management - Zion", route: "/vmgtzeina", team: "Programs" },
+  { department: "Venue Management - Canaan", route: "/vmgttosin", team: "Programs" },
+  { department: "Venue Management - Immanuel", route: "/vmgtemma", team: "Programs" },
+  { department: "Venue Management - Goshen", route: "/vmgtbolu", team: "Programs" },
+  { department: "Venue Management - Eden", route: "/vmgtfeyi", team: "Programs" },
   { department: "Pastoral Leaders", route: "/pastoralleader", team: "Senior Leadership" },
   { department: "Directional Leaders", route: "/directionalleader", team: "Senior Leadership" },
   // Sub-team-admin aggregate routes
@@ -427,6 +425,14 @@ export const getAdminSelectOptions = (isChurchAdmin, team, authUser) => {
         })
       : options.filter((opt) => permissions.some((permission) => isSameDepartment(permission, opt.value)));
   }
+
+  const seenValues = new Set();
+  options = options.filter((opt) => {
+    const key = String(opt?.value || "").trim().toLowerCase();
+    if (!key || seenValues.has(key)) return false;
+    seenValues.add(key);
+    return true;
+  });
 
   return options;
 };

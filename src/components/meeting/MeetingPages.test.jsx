@@ -135,6 +135,41 @@ describe("public confirm / present pages", () => {
     expect(createMeetingWorker).not.toHaveBeenCalled();
   });
 
+  it("allows selecting Others and typing custom Role, Team, and Department for non-Gbagada campus registration", async () => {
+    renderPage(LeadersMeetingPresent);
+    fireEvent.change(screen.getByLabelText(/Your Full Name/), { target: { value: "Ada Okeke" } });
+    fireEvent.click(screen.getByRole("button", { name: /Find Me/ }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Add yourself as a new worker/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /Add yourself as a new worker/i }));
+
+    fireEvent.change(screen.getByLabelText(/Campus/), { target: { value: "Apapa" } });
+    fireEvent.change(screen.getByLabelText(/Phone Number/), { target: { value: "08012345678" } });
+
+    fireEvent.change(screen.getByLabelText(/^Worker Role/), { target: { value: "Others" } });
+    fireEvent.change(screen.getByLabelText(/Specify Worker Role/), { target: { value: "Campus Coordinator" } });
+
+    fireEvent.change(screen.getByLabelText(/^Team/), { target: { value: "Others" } });
+    fireEvent.change(screen.getByLabelText(/Specify Team/), { target: { value: "Campus Operations" } });
+
+    expect(screen.getByLabelText(/^Department/)).toHaveValue("Others");
+    fireEvent.change(screen.getByLabelText(/Specify Department/), { target: { value: "Logistics" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /Add & Mark Present/i }));
+
+    await waitFor(() =>
+      expect(createLeadersCampusRegistration).toHaveBeenCalledWith({
+        firstname: "Ada",
+        lastname: "Okeke",
+        phone: "08012345678",
+        department: "Logistics",
+        team: "Campus Operations",
+        role: "Campus Coordinator",
+        campus: "Apapa",
+        meeting_date: "2026-10-17",
+      })
+    );
+  });
+
   it("does not show campus selector on LeadersMeetingConfirm", async () => {
     renderPage(LeadersMeetingConfirm);
     fireEvent.change(screen.getByLabelText(/Your Full Name/), { target: { value: "Ada Okeke" } });

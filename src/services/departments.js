@@ -97,10 +97,13 @@ const loadTeamsAndDepartmentsForFilter = async () => {
     if (!isHiddenTeam(normTeam)) {
       teamNamesSet.add(normTeam);
     }
-    allDepartmentNames.add(normDept);
+    const normDeptLower = normDept.toLowerCase();
+    if (![...allDepartmentNames].some((d) => d.toLowerCase() === normDeptLower)) {
+      allDepartmentNames.add(normDept);
+    }
 
     if (!departmentsByTeam[normTeam]) departmentsByTeam[normTeam] = [];
-    if (!departmentsByTeam[normTeam].includes(normDept)) {
+    if (!departmentsByTeam[normTeam].some((d) => d.toLowerCase() === normDeptLower)) {
       departmentsByTeam[normTeam].push(normDept);
     }
 
@@ -108,7 +111,7 @@ const loadTeamsAndDepartmentsForFilter = async () => {
     const origTeam = String(teamKey).trim();
     if (origTeam !== normTeam && !isHiddenTeam(origTeam)) {
       if (!departmentsByTeam[origTeam]) departmentsByTeam[origTeam] = [];
-      if (!departmentsByTeam[origTeam].includes(normDept)) {
+      if (!departmentsByTeam[origTeam].some((d) => d.toLowerCase() === normDeptLower)) {
         departmentsByTeam[origTeam].push(normDept);
       }
     }

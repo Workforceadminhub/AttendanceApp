@@ -259,15 +259,6 @@
     }
   }
 
-  select.appearance-none {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B6B66' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.75' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
-    background-position: right 0.75rem center;
-    background-repeat: no-repeat;
-    background-size: 1.25rem 1.25rem;
-    padding-right: 2.5rem;
-    cursor: pointer;
-  }
-
   /* Focus: visible, ink-colored ring on a hairline */
   :focus-visible {
     outline: 2px solid theme("colors.ink.900");
@@ -425,4 +416,23 @@
 .sunday-only-calendar .react-datepicker__day--disabled.sunday-day {
   color: #c7c7c2 !important;
   font-weight: 400;
+}
+
+/* ============================================================
+   Global dropdown chevron indicator for all <select> elements
+   ============================================================ */
+select:not([multiple]):not([size]) {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%234A4F5E' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.75' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+  background-position: right 0.75rem center;
+  background-repeat: no-repeat;
+  background-size: 1.25rem 1.25rem;
+  padding-right: 2.5rem !important;
+  cursor: pointer;
+}
+
+select:not([multiple]):not([size]):disabled {
+  cursor: not-allowed;
 }

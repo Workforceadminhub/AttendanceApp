@@ -2,7 +2,7 @@ import { useState } from "react";
 import { toast } from "react-toastify";
 import BirthDatePicker from "../BirthDatePicker";
 import { DROPDOWN_OPTIONS } from "../../utils/sampleWorkersExcel";
-import { createMeetingWorker } from "../../services/meeting";
+import { createMeetingWorker, createLeadersCampusRegistration } from "../../services/meeting";
 import {
   BackButton,
   DistrictSubTeamField,
@@ -23,6 +23,21 @@ import {
   phoneDigits,
   splitWorkerName,
 } from "../../utils/meeting/validation";
+
+export const LEADERS_MEETING_CAMPUSES = [
+  "Gbagada",
+  "Magodo",
+  "Ikorodu",
+  "Jericho",
+  "Yaba",
+  "Ilupeju",
+  "Akobo",
+  "Port Harcourt",
+  "Oluyole",
+  "Surulere",
+  "Ogba",
+  "Toronto",
+];
 
 const COPY = {
   confirm: {
@@ -57,6 +72,7 @@ export default function CreateWorkerStep({
   const initialNames = splitWorkerName({ name: searchedName });
   const [form, setForm] = useState({
     ...initialNames,
+    campus: "Gbagada",
     email: "",
     phone: "",
     gender: "",
@@ -73,14 +89,18 @@ export default function CreateWorkerStep({
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { teamOptions, departmentOptions } = useLiveTeamDepartments(
-    form.team,
-    form.district_sub_team
-  );
 
   const isPresent = mode === "present";
+  const isLeadersPresent = isPresent && meetingType === "leaders";
+  const isOtherCampus = isLeadersPresent && Boolean(form.campus) && form.campus !== "Gbagada";
   const copy = COPY[mode] || COPY.confirm;
-  const districts = isDistrictsTeam(form.team);
+  const districts = !isOtherCampus && isDistrictsTeam(form.team);
+
+  const { teamOptions, departmentOptions } = useLiveTeamDepartments(
+    form.team,
+    form.district_sub_team,
+    { requireDistrictSubTeam: !isOtherCampus }
+  );
 
   const setField = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -107,24 +127,28 @@ export default function CreateWorkerStep({
 
   const validate = () => {
     const errs = {};
+    if (isLeadersPresent && !form.campus) errs.campus = "Campus is required";
     if (!form.firstname.trim()) errs.firstname = "First name is required";
     if (!form.lastname.trim()) errs.lastname = "Last name is required";
-    if (!form.email.trim()) errs.email = "Email is required";
-    else if (!isValidEmail(form.email)) errs.email = "Invalid email address";
     if (!form.phone.trim()) errs.phone = "Phone number is required";
     else if (isPresent && !isValidPresentPhone(form.phone)) errs.phone = PRESENT_PHONE_MESSAGE;
     else if (!isPresent && !isElevenDigitPhone(form.phone)) errs.phone = ELEVEN_DIGIT_PHONE_MESSAGE;
-    if (!form.gender) errs.gender = "Gender is required";
     if (!form.role) errs.role = "Worker role is required";
-    if (!form.birthdate) errs.birthdate = "Date of birth is required";
-    if (!form.maritalstatus) errs.maritalstatus = "Marital status is required";
-    if (!form.agerange) errs.agerange = "Age range is required";
-    if (!form.employment) errs.employment = "Employment status is required";
-    if (!form.occupation.trim()) errs.occupation = "Occupation is required";
-    if (!form.address.trim()) errs.address = "Address is required";
     if (!form.team) errs.team = "Team is required";
     if (districts && !form.district_sub_team) errs.district_sub_team = "District/Sub-team is required";
     if (!form.department) errs.department = "Department is required";
+
+    if (!isOtherCampus) {
+      if (!form.email.trim()) errs.email = "Email is required";
+      else if (!isValidEmail(form.email)) errs.email = "Invalid email address";
+      if (!form.gender) errs.gender = "Gender is required";
+      if (!form.birthdate) errs.birthdate = "Date of birth is required";
+      if (!form.maritalstatus) errs.maritalstatus = "Marital status is required";
+      if (!form.agerange) errs.agerange = "Age range is required";
+      if (!form.employment) errs.employment = "Employment status is required";
+      if (!form.occupation.trim()) errs.occupation = "Occupation is required";
+      if (!form.address.trim()) errs.address = "Address is required";
+    }
     return errs;
   };
 
@@ -137,33 +161,47 @@ export default function CreateWorkerStep({
     }
     setIsSubmitting(true);
     try {
-      const payload = {
-        firstname: form.firstname.trim(),
-        lastname: form.lastname.trim(),
-        othername: form.othername.trim() || undefined,
-        email: form.email.trim(),
-        phone: phoneDigits(form.phone),
-        gender: form.gender,
-        role: form.role,
-        birthdate: form.birthdate,
-        maritalstatus: form.maritalstatus,
-        agerange: form.agerange,
-        address: form.address.trim(),
-        employment: form.employment,
-        occupation: form.occupation.trim(),
-        team: form.team,
-        district_sub_team: districts ? form.district_sub_team : undefined,
-        department: form.department,
-        meeting_date: meetingDate,
-      };
-      if (isPresent) {
-        // The leaders and workers endpoints historically received different flag names.
-        if (meetingType === "workers") payload.is_present = true;
-        else payload.present = true;
+      if (isOtherCampus) {
+        const payload = {
+          firstname: form.firstname.trim(),
+          lastname: form.lastname.trim(),
+          phone: phoneDigits(form.phone),
+          department: form.department,
+          team: form.team,
+          role: form.role,
+          campus: form.campus,
+          meeting_date: meetingDate,
+        };
+        await createLeadersCampusRegistration(payload);
       } else {
-        payload.is_confirmed = true;
+        const payload = {
+          firstname: form.firstname.trim(),
+          lastname: form.lastname.trim(),
+          othername: form.othername.trim() || undefined,
+          email: form.email.trim(),
+          phone: phoneDigits(form.phone),
+          gender: form.gender,
+          role: form.role,
+          birthdate: form.birthdate,
+          maritalstatus: form.maritalstatus,
+          agerange: form.agerange,
+          address: form.address.trim(),
+          employment: form.employment,
+          occupation: form.occupation.trim(),
+          team: form.team,
+          district_sub_team: districts ? form.district_sub_team : undefined,
+          department: form.department,
+          meeting_date: meetingDate,
+        };
+        if (isPresent) {
+          // The leaders and workers endpoints historically received different flag names.
+          if (meetingType === "workers") payload.is_present = true;
+          else payload.present = true;
+        } else {
+          payload.is_confirmed = true;
+        }
+        await createMeetingWorker(payload, token, meetingType);
       }
-      await createMeetingWorker(payload, token, meetingType);
       onDone("create");
     } catch (err) {
       toast.error(err.message || "Failed to add worker. Please try again.");
@@ -182,6 +220,18 @@ export default function CreateWorkerStep({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {isLeadersPresent && (
+          <div className="sm:col-span-2">
+            <Label htmlFor="create-campus" required>Campus</Label>
+            <select id="create-campus" value={form.campus} onChange={set("campus")} className={selectClass}>
+              {LEADERS_MEETING_CAMPUSES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <FieldError message={errors.campus} />
+          </div>
+        )}
+
         <div>
           <Label htmlFor="create-firstname" required>First Name</Label>
           <input id="create-firstname" type="text" placeholder="Enter first name"
@@ -196,20 +246,24 @@ export default function CreateWorkerStep({
           <FieldError message={errors.lastname} />
         </div>
 
-        <div>
-          <Label htmlFor="create-othername">Other Name</Label>
-          <input id="create-othername" type="text" placeholder="Optional"
-            value={form.othername} onChange={set("othername")} className={inputClass} />
-        </div>
+        {!isOtherCampus && (
+          <>
+            <div>
+              <Label htmlFor="create-othername">Other Name</Label>
+              <input id="create-othername" type="text" placeholder="Optional"
+                value={form.othername} onChange={set("othername")} className={inputClass} />
+            </div>
 
-        <div>
-          <Label htmlFor="create-gender" required>Gender</Label>
-          <select id="create-gender" value={form.gender} onChange={set("gender")} className={selectClass}>
-            <option value="">Select Gender</option>
-            {DROPDOWN_OPTIONS.Gender.map((o) => <option key={o}>{o}</option>)}
-          </select>
-          <FieldError message={errors.gender} />
-        </div>
+            <div>
+              <Label htmlFor="create-gender" required>Gender</Label>
+              <select id="create-gender" value={form.gender} onChange={set("gender")} className={selectClass}>
+                <option value="">Select Gender</option>
+                {DROPDOWN_OPTIONS.Gender.map((o) => <option key={o}>{o}</option>)}
+              </select>
+              <FieldError message={errors.gender} />
+            </div>
+          </>
+        )}
 
         <div>
           <Label htmlFor="create-phone" required>Phone Number</Label>
@@ -225,12 +279,14 @@ export default function CreateWorkerStep({
           <FieldError message={errors.phone} />
         </div>
 
-        <div>
-          <Label htmlFor="create-email" required>Email Address</Label>
-          <input id="create-email" type="email" placeholder="you@example.com"
-            value={form.email} onChange={set("email")} className={inputClass} />
-          <FieldError message={errors.email} />
-        </div>
+        {!isOtherCampus && (
+          <div>
+            <Label htmlFor="create-email" required>Email Address</Label>
+            <input id="create-email" type="email" placeholder="you@example.com"
+              value={form.email} onChange={set("email")} className={inputClass} />
+            <FieldError message={errors.email} />
+          </div>
+        )}
 
         <div>
           <Label htmlFor="create-role" required>Worker Role</Label>
@@ -241,50 +297,54 @@ export default function CreateWorkerStep({
           <FieldError message={errors.role} />
         </div>
 
-        <div>
-          <Label htmlFor="create-birthdate" required>Date of Birth (day and month)</Label>
-          <BirthDatePicker
-            id="create-birthdate"
-            value={form.birthdate}
-            onChange={(value) => setField("birthdate", value)}
-            placeholder="e.g. 15th May"
-          />
-          <FieldError message={errors.birthdate} />
-        </div>
+        {!isOtherCampus && (
+          <>
+            <div>
+              <Label htmlFor="create-birthdate" required>Date of Birth (day and month)</Label>
+              <BirthDatePicker
+                id="create-birthdate"
+                value={form.birthdate}
+                onChange={(value) => setField("birthdate", value)}
+                placeholder="e.g. 15th May"
+              />
+              <FieldError message={errors.birthdate} />
+            </div>
 
-        <div>
-          <Label htmlFor="create-maritalstatus" required>Marital Status</Label>
-          <select id="create-maritalstatus" value={form.maritalstatus} onChange={set("maritalstatus")} className={selectClass}>
-            <option value="">Select Marital Status</option>
-            {DROPDOWN_OPTIONS["Marital Status"].map((o) => <option key={o}>{o}</option>)}
-          </select>
-          <FieldError message={errors.maritalstatus} />
-        </div>
+            <div>
+              <Label htmlFor="create-maritalstatus" required>Marital Status</Label>
+              <select id="create-maritalstatus" value={form.maritalstatus} onChange={set("maritalstatus")} className={selectClass}>
+                <option value="">Select Marital Status</option>
+                {DROPDOWN_OPTIONS["Marital Status"].map((o) => <option key={o}>{o}</option>)}
+              </select>
+              <FieldError message={errors.maritalstatus} />
+            </div>
 
-        <div>
-          <Label htmlFor="create-agerange" required>Age Range</Label>
-          <select id="create-agerange" value={form.agerange} onChange={set("agerange")} className={selectClass}>
-            <option value="">Select Age Range</option>
-            {DROPDOWN_OPTIONS["Age Range"].map((o) => <option key={o}>{o}</option>)}
-          </select>
-          <FieldError message={errors.agerange} />
-        </div>
+            <div>
+              <Label htmlFor="create-agerange" required>Age Range</Label>
+              <select id="create-agerange" value={form.agerange} onChange={set("agerange")} className={selectClass}>
+                <option value="">Select Age Range</option>
+                {DROPDOWN_OPTIONS["Age Range"].map((o) => <option key={o}>{o}</option>)}
+              </select>
+              <FieldError message={errors.agerange} />
+            </div>
 
-        <div>
-          <Label htmlFor="create-employment" required>Employment Status</Label>
-          <select id="create-employment" value={form.employment} onChange={set("employment")} className={selectClass}>
-            <option value="">Select Employment Status</option>
-            {DROPDOWN_OPTIONS["Employment Status"].map((o) => <option key={o}>{o}</option>)}
-          </select>
-          <FieldError message={errors.employment} />
-        </div>
+            <div>
+              <Label htmlFor="create-employment" required>Employment Status</Label>
+              <select id="create-employment" value={form.employment} onChange={set("employment")} className={selectClass}>
+                <option value="">Select Employment Status</option>
+                {DROPDOWN_OPTIONS["Employment Status"].map((o) => <option key={o}>{o}</option>)}
+              </select>
+              <FieldError message={errors.employment} />
+            </div>
 
-        <div>
-          <Label htmlFor="create-occupation" required>Occupation</Label>
-          <input id="create-occupation" type="text" placeholder="Enter occupation"
-            value={form.occupation} onChange={set("occupation")} className={inputClass} />
-          <FieldError message={errors.occupation} />
-        </div>
+            <div>
+              <Label htmlFor="create-occupation" required>Occupation</Label>
+              <input id="create-occupation" type="text" placeholder="Enter occupation"
+                value={form.occupation} onChange={set("occupation")} className={inputClass} />
+              <FieldError message={errors.occupation} />
+            </div>
+          </>
+        )}
 
         <div className="sm:col-span-2">
           <Label htmlFor="create-team" required>Team</Label>
@@ -331,18 +391,20 @@ export default function CreateWorkerStep({
           </div>
         )}
 
-        <div className="sm:col-span-2">
-          <Label htmlFor="create-address" required>Address</Label>
-          <textarea
-            id="create-address"
-            rows={3}
-            placeholder="Enter address"
-            value={form.address}
-            onChange={set("address")}
-            className={inputClass}
-          />
-          <FieldError message={errors.address} />
-        </div>
+        {!isOtherCampus && (
+          <div className="sm:col-span-2">
+            <Label htmlFor="create-address" required>Address</Label>
+            <textarea
+              id="create-address"
+              rows={3}
+              placeholder="Enter address"
+              value={form.address}
+              onChange={set("address")}
+              className={inputClass}
+            />
+            <FieldError message={errors.address} />
+          </div>
+        )}
       </div>
 
       <div className="pt-2">

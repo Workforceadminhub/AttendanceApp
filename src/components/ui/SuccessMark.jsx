@@ -6,7 +6,7 @@ export default function SuccessMark({ className = "h-14 w-14 text-forest" }) {
 
   useEffect(() => {
     const path = pathRef.current;
-    if (path) {
+    if (path && typeof path.getTotalLength === "function") {
       const length = path.getTotalLength();
       path.style.strokeDasharray = length;
       path.style.strokeDashoffset = length;

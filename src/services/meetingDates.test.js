@@ -1,7 +1,14 @@
 import { beforeEach, expect, it, vi } from "vitest";
 vi.mock("../utils/apiClient", () => ({ default: vi.fn() }));
 import apiRequest from "../utils/apiClient";
-import { searchMeetingWorkers, createMeetingWorker, updateMeetingWorker, markMeetingWorkerPresent, getMeetingRegistrations } from "./meeting";
+import {
+  searchMeetingWorkers,
+  createMeetingWorker,
+  createLeadersCampusRegistration,
+  updateMeetingWorker,
+  markMeetingWorkerPresent,
+  getMeetingRegistrations,
+} from "./meeting";
 beforeEach(() => {
   apiRequest.mockReset();
   apiRequest.mockImplementation(async (_method, path) => path === "/api/meeting/auth/session" ? { api_key: "test-session" } : { data: [] });
@@ -18,6 +25,27 @@ it.each(["leaders", "workers"])("passes the selected date on every %s meeting AP
   expect(apiRequest).toHaveBeenLastCalledWith("POST", `/api/meeting/${type}/workers/1/present`, { meeting_date: date }, expect.any(Object), false);
   await getMeetingRegistrations(date, "all", type);
   expect(apiRequest).toHaveBeenLastCalledWith("GET", `/api/super/admin/meeting/${type}/registrations`, { meeting_date: date, status: "all" }, undefined, true);
+});
+
+it("posts non-Gbagada campus registration to /api/meeting/leaders/campus-registration", async () => {
+  const payload = {
+    firstname: "Ada",
+    lastname: "Okeke",
+    phone: "08012345678",
+    department: "Sound",
+    team: "Programs",
+    role: "Cell Leader",
+    campus: "Yaba",
+    meeting_date: "2026-10-11",
+  };
+  await createLeadersCampusRegistration(payload);
+  expect(apiRequest).toHaveBeenLastCalledWith(
+    "POST",
+    "/api/meeting/leaders/campus-registration",
+    payload,
+    expect.objectContaining({ headers: { "x-api-key": "test-session" } }),
+    false
+  );
 });
 
 it("activates a new default meeting on devices that stored an older one", async () => {

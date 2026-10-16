@@ -151,6 +151,27 @@ export async function createMeetingWorker(data, ...args) {
 }
 
 /**
+ * Registers a leader from a non-Gbagada campus for the Leaders Meeting.
+ * Transparently attaches x-api-key.
+ */
+export async function createLeadersCampusRegistration(data) {
+  const endpoint = "/api/meeting/leaders/campus-registration";
+  return executeMeetingCall("leaders", async (apiKey) => {
+    const response = await apiRequest(
+      "POST",
+      endpoint,
+      data,
+      { headers: { "x-api-key": apiKey }, suppressConsoleError: true },
+      false
+    );
+    if (!response || response.error) {
+      throw new Error(response?.error || response?.message || "Failed to add worker.");
+    }
+    return response;
+  });
+}
+
+/**
  * Updates worker info / confirmation status for a meeting. Transparently attaches x-api-key.
  */
 export async function updateMeetingWorker(workerId, data, ...args) {

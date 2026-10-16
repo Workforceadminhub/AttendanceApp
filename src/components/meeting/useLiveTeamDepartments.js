@@ -14,7 +14,11 @@ const isCampusPlaceholder = (val) => {
  * with a static fallback. Department options for Districts are narrowed by the
  * selected District/Sub-team cluster.
  */
-export default function useLiveTeamDepartments(selectedTeam, districtSubTeam = "") {
+export default function useLiveTeamDepartments(
+  selectedTeam,
+  districtSubTeam = "",
+  { requireDistrictSubTeam = true } = {}
+) {
   const [filterData, setFilterData] = useState({ departmentsByTeam: {}, teams: [] });
 
   useEffect(() => {
@@ -44,14 +48,27 @@ export default function useLiveTeamDepartments(selectedTeam, districtSubTeam = "
       byTeam[selectedTeam] ||
       (isDistrictsTeam(selectedTeam) ? byTeam.District || byTeam.Districts : null) ||
       [];
-    const source = fromApi.length
-      ? fromApi
-      : getEffectiveRouteList()
-          .filter((r) => r.team === selectedTeam || (isDistrictsTeam(selectedTeam) && isDistrictsTeam(r.team)))
-          .map((r) => r.department)
-          .filter(Boolean);
+    const fromDynamic = getEffectiveRouteList()
+      .filter((r) => r.team === selectedTeam || (isDistrictsTeam(selectedTeam) && isDistrictsTeam(r.team)))
+      .map((r) => r.department)
+      .filter(Boolean);
+    const fromStatic =
+      teamsAndDepartments.find(
+        (t) => t.team === selectedTeam || (isDistrictsTeam(selectedTeam) && isDistrictsTeam(t.team))
+      )?.department || [];
+    const source = fromApi.length ? fromApi : fromDynamic.length ? fromDynamic : fromStatic;
+    if (!requireDistrictSubTeam && isDistrictsTeam(selectedTeam)) {
+      return Array.from(
+        new Set(
+          source
+            .map((d) => (typeof d === "string" ? d : d?.value ?? d?.label ?? ""))
+            .map((d) => String(d || "").trim())
+            .filter(Boolean)
+        )
+      ).sort();
+    }
     return filterDepartmentsForDistrictSubTeam(source, selectedTeam, districtSubTeam);
-  }, [selectedTeam, districtSubTeam, filterData]);
+  }, [selectedTeam, districtSubTeam, filterData, requireDistrictSubTeam]);
 
   return { teamOptions, departmentOptions };
 }

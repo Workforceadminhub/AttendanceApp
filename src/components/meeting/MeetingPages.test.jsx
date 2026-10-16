@@ -7,6 +7,7 @@ vi.mock("react-toastify", () => ({ toast: { error: vi.fn(), success: vi.fn() } }
 vi.mock("../../services/meeting", () => ({
   searchMeetingWorkers: vi.fn().mockResolvedValue([]),
   createMeetingWorker: vi.fn().mockResolvedValue({}),
+  createLeadersCampusRegistration: vi.fn().mockResolvedValue({}),
   updateMeetingWorker: vi.fn().mockResolvedValue({}),
   markMeetingWorkerPresent: vi.fn().mockResolvedValue({}),
   getMeetingRegistrations: vi.fn().mockResolvedValue({
@@ -66,7 +67,12 @@ import LeadersMeetingPresentReport from "../../pages/LeadersMeetingPresentReport
 import WorkersMeetingPresentReport from "../../pages/WorkersMeetingPresentReport";
 import MeetingSettings from "../../pages/MeetingSettings";
 import { createMeeting, resetMeetingsCache } from "../../utils/meetingConfig";
-import { getMeetingRegistrations, searchMeetingWorkers } from "../../services/meeting";
+import {
+  getMeetingRegistrations,
+  searchMeetingWorkers,
+  createMeetingWorker,
+  createLeadersCampusRegistration,
+} from "../../services/meeting";
 
 const renderPage = (Page) => render(<MemoryRouter><Page /></MemoryRouter>);
 
@@ -91,6 +97,51 @@ describe("public confirm / present pages", () => {
     expect(screen.getAllByText(title).length).toBeGreaterThan(0);
     expect(screen.getByLabelText(/Your Full Name/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Find Me/ })).toBeDisabled();
+  });
+
+  it("submits non-Gbagada campus registration on LeadersMeetingPresent with simplified payload", async () => {
+    renderPage(LeadersMeetingPresent);
+    fireEvent.change(screen.getByLabelText(/Your Full Name/), { target: { value: "Ada Okeke" } });
+    fireEvent.click(screen.getByRole("button", { name: /Find Me/ }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Add yourself as a new worker/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /Add yourself as a new worker/i }));
+
+    const campusSelect = screen.getByLabelText(/Campus/);
+    expect(campusSelect).toHaveValue("Gbagada");
+    expect(screen.getByLabelText(/Email Address/)).toBeInTheDocument();
+
+    fireEvent.change(campusSelect, { target: { value: "Yaba" } });
+    expect(screen.queryByLabelText(/Email Address/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Address/)).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Phone Number/), { target: { value: "08012345678" } });
+    fireEvent.change(screen.getByLabelText(/Worker Role/), { target: { value: "Cell Leader" } });
+    fireEvent.change(screen.getByLabelText(/^Team/), { target: { value: "Programs" } });
+    fireEvent.change(screen.getByLabelText(/^Department/), { target: { value: "Sound" } });
+    fireEvent.click(screen.getByRole("button", { name: /Add & Mark Present/i }));
+
+    await waitFor(() =>
+      expect(createLeadersCampusRegistration).toHaveBeenCalledWith({
+        firstname: "Ada",
+        lastname: "Okeke",
+        phone: "08012345678",
+        department: "Sound",
+        team: "Programs",
+        role: "Cell Leader",
+        campus: "Yaba",
+        meeting_date: "2026-10-17",
+      })
+    );
+    expect(createMeetingWorker).not.toHaveBeenCalled();
+  });
+
+  it("does not show campus selector on LeadersMeetingConfirm", async () => {
+    renderPage(LeadersMeetingConfirm);
+    fireEvent.change(screen.getByLabelText(/Your Full Name/), { target: { value: "Ada Okeke" } });
+    fireEvent.click(screen.getByRole("button", { name: /Find Me/ }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Add yourself as a new worker/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /Add yourself as a new worker/i }));
+    expect(screen.queryByLabelText(/Campus/)).not.toBeInTheDocument();
   });
 });
 

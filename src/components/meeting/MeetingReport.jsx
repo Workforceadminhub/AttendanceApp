@@ -18,6 +18,19 @@ import useMeetingDate from "./useMeetingDate";
 import { TEAM_STRUCTURE, EXCEL_COLORS, buildTeamNameLookup } from "../../utils/meeting/teamStructure";
 import { formatDate } from "../../utils/meeting/formatDate";
 import { DISTRICT_SUB_TEAM_OPTIONS } from "./atoms";
+import { LEADERS_MEETING_CAMPUSES } from "./CreateWorkerStep";
+
+const CAMPUS_LOOKUP = Object.fromEntries(
+  LEADERS_MEETING_CAMPUSES.map((c) => [c.toLowerCase(), c])
+);
+
+function normalizeRegistrationCampus(rawCampus) {
+  const trimmed = typeof rawCampus === "string" ? rawCampus.trim() : "";
+  if (!trimmed) return "Gbagada";
+  const lower = trimmed.toLowerCase().replace(/\s+campus$/i, "").trim();
+  if (!lower || lower === "gbagada") return "Gbagada";
+  return CAMPUS_LOOKUP[lower] || trimmed;
+}
 
 const MEETING_LABEL = { leaders: "Leaders", workers: "Workers" };
 
@@ -134,6 +147,7 @@ export default function MeetingReport({ meetingType, metric }) {
   const [view, setView] = useState("summary"); // summary | list
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
+  const [filterCampus, setFilterCampus] = useState("");
   const [filterDirectorate, setFilterDirectorate] = useState("");
   const [filterTeam, setFilterTeam] = useState("");
   const [filterSubTeam, setFilterSubTeam] = useState("");
@@ -164,8 +178,24 @@ export default function MeetingReport({ meetingType, metric }) {
     getMeetingRegistrations(meetingDate, "all", meetingType)
       .then((res) => {
         if (!active) return;
-        const cleaned = (res.data || [])
-          .map((r) => ({ ...r, name: r.name ? r.name.replace(/\s+null$/i, "").trim() : "" }));
+        const mainRows = Array.isArray(res?.data)
+          ? res.data
+          : Array.isArray(res?.data?.registrations)
+            ? res.data.registrations
+            : [];
+        const extraCampusRows = Array.isArray(res?.campus_registrations)
+          ? res.campus_registrations
+          : Array.isArray(res?.data?.campus_registrations)
+            ? res.data.campus_registrations
+            : [];
+        const cleaned = [...mainRows, ...extraCampusRows].map((r) => {
+          const rawName = r.name || [r.firstname, r.lastname].filter(Boolean).join(" ");
+          return {
+            ...r,
+            name: rawName ? String(rawName).replace(/\s+null$/i, "").trim() : "",
+            campus: normalizeRegistrationCampus(r.campus ?? r.campus_name),
+          };
+        });
         setLoaded({ meetingDate, meetingType, reloadKey, registrations: cleaned });
       })
       .catch((err) => {
@@ -206,10 +236,26 @@ export default function MeetingReport({ meetingType, metric }) {
   };
 
   // Team admins only see their own team.
-  const scopedRegistrations = useMemo(
+  const teamScopedRegistrations = useMemo(
     () => (myTeam ? registrations.filter((r) => r.team === myTeam) : registrations),
     [registrations, myTeam]
   );
+
+  const campusOptions = useMemo(() => {
+    const extra = teamScopedRegistrations
+      .map((r) => r.campus)
+      .filter((c) => c && !LEADERS_MEETING_CAMPUSES.includes(c))
+      .sort();
+    return [...LEADERS_MEETING_CAMPUSES, ...new Set(extra)];
+  }, [teamScopedRegistrations]);
+
+  const scopedRegistrations = useMemo(() => {
+    if (!filterCampus) return teamScopedRegistrations;
+    if (filterCampus === "__other__") {
+      return teamScopedRegistrations.filter((r) => r.campus !== "Gbagada");
+    }
+    return teamScopedRegistrations.filter((r) => r.campus === filterCampus);
+  }, [teamScopedRegistrations, filterCampus]);
 
   const count = scopedRegistrations.length;
 
@@ -247,21 +293,30 @@ export default function MeetingReport({ meetingType, metric }) {
   const teamCounts = (t) => byTeam[t] || { total: 0, confirmed: 0, notAttending: 0, present: 0 };
   const effectiveStrength = stats.total;
 
-  const directorates = [...new Set(TEAM_STRUCTURE.map((t) => t.directorate))];
+  const directorates = [
+    ...new Set(TEAM_STRUCTURE.map((t) => t.directorate)),
+    ...(byTeam.Unassigned?.total ? ["Unassigned"] : []),
+  ];
   const selectedApiTeams = useMemo(
     () =>
-      filterDirectorate
+      filterDirectorate && filterDirectorate !== "Unassigned"
         ? TEAM_STRUCTURE.filter((t) => t.directorate === filterDirectorate).flatMap((t) => t.apiTeams)
         : [],
     [filterDirectorate]
   );
+
+  const matchesDirectorate = (r) => {
+    if (!filterDirectorate) return true;
+    if (filterDirectorate === "Unassigned") return !resolveTeamName(r);
+    return selectedApiTeams.includes(r.team);
+  };
 
   const apiTeamOptions = useMemo(
     () =>
       [
         ...new Set(
           scopedRegistrations
-            .filter((r) => !filterDirectorate || selectedApiTeams.includes(r.team))
+            .filter(matchesDirectorate)
             .map((r) => r.team)
             .filter(Boolean)
         ),
@@ -274,7 +329,7 @@ export default function MeetingReport({ meetingType, metric }) {
       [
         ...new Set(
           scopedRegistrations
-            .filter((r) => !filterDirectorate || selectedApiTeams.includes(r.team))
+            .filter(matchesDirectorate)
             .filter((r) => !filterTeam || r.team === filterTeam)
             .map((r) => r.department)
             .filter(Boolean)
@@ -288,7 +343,7 @@ export default function MeetingReport({ meetingType, metric }) {
   const deferredSearch = useDeferredValue(search);
 
   const filtered = useMemo(() => scopedRegistrations.filter((r) => {
-    if (filterDirectorate && !selectedApiTeams.includes(r.team)) return false;
+    if (!matchesDirectorate(r)) return false;
     if (filterTeam && r.team !== filterTeam) return false;
     if (filterSubTeam === "Unassigned") {
       if (r.district_sub_team) return false;
@@ -308,7 +363,8 @@ export default function MeetingReport({ meetingType, metric }) {
       if (
         !r.name?.toLowerCase().includes(q) &&
         !r.department?.toLowerCase().includes(q) &&
-        !r.team?.toLowerCase().includes(q)
+        !r.team?.toLowerCase().includes(q) &&
+        !r.campus?.toLowerCase().includes(q)
       )
         return false;
     }
@@ -316,7 +372,7 @@ export default function MeetingReport({ meetingType, metric }) {
   }), [scopedRegistrations, filterDirectorate, selectedApiTeams, filterTeam, filterSubTeam, filterDept, status, deferredSearch]);
 
   // Render the list in batches; any filter change starts again from the first.
-  const listKey = [filterDirectorate, filterTeam, filterSubTeam, filterDept, status, deferredSearch].join("|");
+  const listKey = [filterCampus, filterDirectorate, filterTeam, filterSubTeam, filterDept, status, deferredSearch].join("|");
   const [shownRows, setShownRows] = useState({ key: listKey, count: ROW_BATCH });
   const visibleCount = shownRows.key === listKey ? shownRows.count : ROW_BATCH;
 
@@ -467,10 +523,13 @@ export default function MeetingReport({ meetingType, metric }) {
   const showTeamCol = !filterTeam && !myTeam;
   const showReason = status === "all" || status === "not attending";
   const listColSpan =
-    3 + (showTeamCol ? 1 : 0) + (!filterDept ? 1 : 0) + (showCluster ? 1 : 0) +
+    4 + (showTeamCol ? 1 : 0) + (!filterDept ? 1 : 0) + (showCluster ? 1 : 0) +
     (status === "all" ? (isPresent ? 2 : 1) : 0) + (showReason ? 1 : 0);
 
-  const fileBase = `${meetingType}_meeting`;
+  const campusFileSlug = filterCampus
+    ? `_${(filterCampus === "__other__" ? "other_campuses" : filterCampus).toLowerCase().replace(/[^a-z0-9]+/g, "_")}`
+    : "";
+  const fileBase = `${meetingType}_meeting${campusFileSlug}`;
 
   const exportSummarySheet = async () => {
     try {
@@ -623,6 +682,7 @@ export default function MeetingReport({ meetingType, metric }) {
           { header: "#", key: "index", width: 6 },
           { header: "Name", key: "name", width: 30 },
           { header: "Phone Number", key: "phone", width: 16 },
+          { header: "Campus", key: "campus", width: 18 },
           { header: "Directorate", key: "directorate", width: 20 },
           { header: "Team", key: "team", width: 25 },
           { header: "Department", key: "department", width: 30 },
@@ -657,8 +717,9 @@ export default function MeetingReport({ meetingType, metric }) {
             index: idx + 1,
             name: person.name || "",
             phone: person.phone || person.phonenumber || person.phone_number || "",
+            campus: person.campus || "Gbagada",
             directorate: matchedDir ? matchedDir.directorate : "Others",
-            team: teamName,
+            team: teamName === "Unassigned" ? person.team || "Unassigned" : teamName,
             department: person.department || "",
             role: person.role || "",
             status: confirmationLabel(person),
@@ -750,6 +811,26 @@ export default function MeetingReport({ meetingType, metric }) {
             </h1>
           </div>
           <div className="flex w-full min-w-0 flex-wrap items-center gap-3 sm:w-auto">
+            <div className="flex w-full min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center bg-white border border-ink-200 rounded-lg px-3 py-1.5 shadow-sm">
+              <label htmlFor="report-campus" className="text-xs font-medium text-ink-500">
+                Campus:
+              </label>
+              <select
+                id="report-campus"
+                aria-label="Campus"
+                value={filterCampus}
+                onChange={(e) => setFilterCampus(e.target.value)}
+                className="w-full min-w-0 max-w-full flex-1 bg-transparent text-xs font-semibold text-ink-900 focus:outline-none cursor-pointer"
+              >
+                <option value="">All Campuses</option>
+                <option value="__other__">Other Campuses</option>
+                {campusOptions.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="flex w-full min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center bg-white border border-ink-200 rounded-lg px-3 py-1.5 shadow-sm">
               <label htmlFor="report-meeting" className="text-xs font-medium text-ink-500">
                 Select Meeting:
@@ -1088,6 +1169,7 @@ export default function MeetingReport({ meetingType, metric }) {
                   <tr>
                     <th className={th}>#</th>
                     <th className={th}>Name</th>
+                    <th className={th}>Campus</th>
                     {showTeamCol && <th className={th}>Team</th>}
                     {!filterDept && <th className={th}>Department</th>}
                     {showCluster && <th className={th}>Cluster</th>}
@@ -1115,6 +1197,7 @@ export default function MeetingReport({ meetingType, metric }) {
                       <tr key={r.id} className="hover:bg-cream-100">
                         <td className={td}>{i + 1}</td>
                         <td className={`${td} font-medium`}>{r.name}</td>
+                        <td className={td}>{r.campus || "Gbagada"}</td>
                         {showTeamCol && <td className={td}>{r.team || "-"}</td>}
                         {!filterDept && <td className={td}>{r.department || "-"}</td>}
                         {showCluster && (

@@ -141,4 +141,48 @@ describe("Programs meeting report consistency", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(card("Absent")).toHaveTextContent("2");
   });
+
+  it("filters summary, list view, and Excel export by campus and includes Campus column", async () => {
+    registrations.mockResolvedValueOnce({
+      data: [
+        { id: 1, name: "Gbagada Leader", team: "Programs", department: "Sound", is_confirmed: true, is_present: true },
+        { id: 2, firstname: "Ada", lastname: "Okeke", team: "Programs", department: "Sound", campus: "Yaba", is_confirmed: true, is_present: true },
+        { id: 3, name: "Apapa Leader", team: "Programs", department: "Media", campus: "Apapa", is_confirmed: true, is_present: true },
+      ],
+    });
+    show("present", "leaders");
+    await loaded();
+
+    // All Campuses by default
+    expect(card("Registrations")).toHaveTextContent("3");
+    expect(card("Present")).toHaveTextContent("3");
+
+    // Filter to Yaba
+    fireEvent.change(screen.getByLabelText("Campus"), { target: { value: "Yaba" } });
+    expect(card("Registrations")).toHaveTextContent("1");
+    expect(card("Present")).toHaveTextContent("1");
+
+    // Filter to Other Campuses (non-Gbagada)
+    fireEvent.change(screen.getByLabelText("Campus"), { target: { value: "__other__" } });
+    expect(card("Registrations")).toHaveTextContent("2");
+
+    // Switch to List View and verify Campus column and rows
+    fireEvent.click(screen.getByRole("button", { name: "List View" }));
+    expect(screen.getByRole("columnheader", { name: "Campus" })).toBeInTheDocument();
+    expect(screen.getByText("Ada Okeke")).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "Yaba" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "Apapa" })).toBeInTheDocument();
+    expect(screen.queryByText("Gbagada Leader")).not.toBeInTheDocument();
+
+    // Export Excel List and verify campus field in exported rows
+    exportRows.length = 0;
+    fireEvent.click(screen.getByRole("button", { name: "Export Excel List" }));
+    await waitFor(() => expect(saveAs).toHaveBeenCalledOnce());
+    expect(exportRows.find((r) => r.name === "Ada Okeke")).toMatchObject({
+      name: "Ada Okeke",
+      campus: "Yaba",
+      department: "Sound",
+    });
+  });
 });
+

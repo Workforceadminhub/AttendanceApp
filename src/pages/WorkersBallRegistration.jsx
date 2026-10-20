@@ -536,7 +536,7 @@ function EmailTemplatesModal({
   const confirmHtml = buildWorkersBallConfirmationEmail({
     firstName,
     fullName,
-    accessCode: accessCode || "WB26-GBG-AO2419",
+    accessCode: accessCode || "HGWB-AO2419",
     role: workerProfile?.role || "Cell Leader",
     department: workerProfile?.department || "Leadership Training",
     team: workerProfile?.team || "Ministry",

@@ -262,7 +262,7 @@ export async function searchWorkersBallMock(query = "") {
 }
 
 /**
- * Generate a deterministic, ceremonial Workers Ball 2026 access code.
+ * Generate a deterministic, ceremonial Workers Ball 2026 access code (HGWB-XXXXXX).
  */
 export function generateWorkersBallCode(worker) {
   const seedStr = `${worker.firstName || ""}${worker.lastName || ""}${worker.phone || ""}`;
@@ -272,7 +272,7 @@ export function generateWorkersBallCode(worker) {
   }
   const num = String(1000 + (hash % 9000)).padStart(4, "0");
   const initials = `${(worker.firstName || "H")[0]}${(worker.lastName || "W")[0]}`.toUpperCase();
-  return `WB26-GBG-${initials}${num}`;
+  return `HGWB-${initials}${num}`;
 }
 
 export function getAllRoleOptions() {

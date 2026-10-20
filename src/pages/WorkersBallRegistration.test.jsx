@@ -86,7 +86,7 @@ describe("WorkersBallRegistration (/wb26)", () => {
         { timeout: 3000 }
       )
     ).toBeInTheDocument();
-    expect(screen.getAllByText(/WB26-GBG-/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/HGWB-/i).length).toBeGreaterThanOrEqual(1);
     expect(
       screen.getByRole("button", { name: /Download Official Pass/i })
     ).toBeInTheDocument();
@@ -139,12 +139,12 @@ describe("WorkersBallRegistration (/wb26)", () => {
     const confirmHtml = buildWorkersBallConfirmationEmail({
       firstName: "Adebayo",
       fullName: "Adebayo Okafor",
-      accessCode: "WB26-GBG-AO2419",
+      accessCode: "HGWB-AO2419",
       role: "Cell Leader",
       department: "Leadership Training",
       team: "Ministry",
     });
-    expect(confirmHtml).toContain("WB26-GBG-AO2419");
+    expect(confirmHtml).toContain("HGWB-AO2419");
     expect(confirmHtml).toContain("Adebayo Okafor");
     expect(confirmHtml).toContain("Leadership Training");
   });

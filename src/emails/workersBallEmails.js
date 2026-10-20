@@ -136,7 +136,7 @@ export function buildWorkersBallOtpEmail({
 export function buildWorkersBallConfirmationEmail({
   firstName = "Worker",
   fullName = "Harvesters Worker",
-  accessCode = "WB26-GBG-0000",
+  accessCode = "HGWB-000000",
   role = "Worker",
   department = "Department",
   team = "Team",

@@ -236,50 +236,13 @@ function WorkersBallCrest({ className = "h-20 w-20" }) {
   );
 }
 
-const DECADE_YEARS = [
-  2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026,
-];
+const DECADE_YEARS = [2023, 2024, 2025, 2026];
 
 /**
  * Year-by-year archive of Workers Ball media (videos & photography).
- * Each year's media ONLY appears when the countdown is on that exact year,
- * and every showcase year (2022, 2023, 2024, 2025) gets 10 full seconds dedicated.
+ * Starts at 2023 -> 2024 -> 2025 (10 full seconds dedicated per year) -> lands on 2026.
  */
 const YEAR_PHOTOS = {
-  2016: [],
-  2017: [],
-  2018: [],
-  2019: [],
-  2020: [],
-  2021: [],
-  2022: [
-    {
-      type: "video",
-      src: "/wb22/reel-1.mp4",
-      poster: "/wb22/photo-1.jpg",
-      alt: "Harvesters Gbagada Workers Ball 2022 — Gala Highlights Reel",
-    },
-    {
-      type: "image",
-      src: "/wb22/photo-1.jpg",
-      alt: "Harvesters Gbagada Workers Ball 2022 — Red carpet gala arrival",
-    },
-    {
-      type: "image",
-      src: "/wb22/photo-2.jpg",
-      alt: "Harvesters Gbagada Workers Ball 2022 — Workforce celebration",
-    },
-    {
-      type: "image",
-      src: "/wb22/photo-3.jpg",
-      alt: "Harvesters Gbagada Workers Ball 2022 — Gala evening fashion",
-    },
-    {
-      type: "image",
-      src: "/wb22/photo-4.jpg",
-      alt: "Harvesters Gbagada Workers Ball 2022 — Joyful moments at the ball",
-    },
-  ],
   2023: [
     {
       type: "video",
@@ -374,8 +337,8 @@ const DECADE_SCHEDULE = (() => {
   let cursor = 0;
   return DECADE_YEARS.map((yr) => {
     const photos = YEAR_PHOTOS[yr] || [];
-    // Dedicated 10.0 seconds (10000ms) for each showcase year (2022, 2023, 2024, 2025);
-    // 2026 finale gets 1.8s; empty earlier years tick quickly at 350ms each.
+    // Dedicated 10.0 seconds (10000ms) for each showcase year (2023, 2024, 2025);
+    // 2026 finale gets 1.8s.
     const duration =
       yr === 2026 ? 1800 : photos.length > 0 ? 10000 : 350;
     const entry = {
@@ -391,16 +354,16 @@ const DECADE_SCHEDULE = (() => {
 })();
 
 const TOTAL_INTRO_MS =
-  DECADE_SCHEDULE[DECADE_SCHEDULE.length - 1]?.endMs || 44000;
+  DECADE_SCHEDULE[DECADE_SCHEDULE.length - 1]?.endMs || 31800;
 
 /**
  * Pre-Form Complete Full-Screen Opening Sequence ("Before the form even loads").
- * Edge-to-edge 100vw x 100dvh full-bleed canvas counting from 2016 -> 2026.
+ * Edge-to-edge 100vw x 100dvh full-bleed canvas counting from 2023 -> 2026.
  * Shows ONE full-screen image/video at a time (no grid, no tiny images, no center box blocking the view),
- * with 10 full seconds dedicated to each of 2022, 2023, 2024, and 2025 before landing on 2026.
+ * with 10 full seconds dedicated to each of 2023, 2024, and 2025 before landing on 2026.
  */
 function IntroCurtain({ onEnter }) {
-  const [yearCounter, setYearCounter] = useState(2016);
+  const [yearCounter, setYearCounter] = useState(2023);
   const [yearProgress, setYearProgress] = useState(0);
 
   // Preload all year photos immediately so full-screen transitions are instant

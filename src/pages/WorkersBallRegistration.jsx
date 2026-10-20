@@ -238,6 +238,7 @@ const YEAR_PHOTOS = {
       src: "/wb23/reel-1.mp4",
       poster: "/wb23/photo-1.jpg",
       alt: "Harvesters Gbagada Workers Ball 2023 — Red Carpet Reel",
+      label: "Red Carpet Reel",
       durationMs: 10000,
     },
     {
@@ -290,6 +291,14 @@ const YEAR_PHOTOS = {
     },
   ],
   2024: [
+    {
+      type: "video",
+      src: "/wb24/reel-1.mp4",
+      poster: "/wb24/photo-1.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2024 — Owambe Glitz & Glamour Celebration Reel",
+      label: "Owambe Celebration Reel",
+      durationMs: 10000,
+    },
     {
       type: "image",
       src: "/wb24/photo-1.jpg",
@@ -353,6 +362,14 @@ const YEAR_PHOTOS = {
   ],
   2025: [
     {
+      type: "video",
+      src: "/wb25/reel-1.mp4",
+      poster: "/wb25/photo-1.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2025 — Denim & Diamonds Workers Ball Reel",
+      label: "Workers Ball Reel",
+      durationMs: 10000,
+    },
+    {
       type: "image",
       src: "/wb25/photo-1.jpg",
       alt: "Harvesters Gbagada Workers Ball 2025 — Squad in Denim and Diamonds",
@@ -389,7 +406,7 @@ const YEAR_PHOTOS = {
 /**
  * Robust video renderer ensuring cross-browser muted autoplay and clean fallback.
  */
-function ShowcaseVideo({ src, poster, isActive }) {
+function ShowcaseVideo({ src, poster, isActive, label = "Workers Ball Reel" }) {
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -443,11 +460,11 @@ function ShowcaseVideo({ src, poster, isActive }) {
         preload="auto"
         className="w-screen h-dvh object-cover object-center"
       />
-      {/* Red Carpet Reel live indicator badge */}
+      {/* Video Reel live indicator badge */}
       <div className="absolute top-20 left-5 sm:left-10 z-20 pointer-events-none">
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md text-white text-xs font-mono tracking-wider uppercase border border-white/20 shadow-lg">
           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-          Red Carpet Reel
+          {label}
         </span>
       </div>
     </div>
@@ -623,6 +640,7 @@ function IntroCurtain({ onEnter }) {
                     src={item.src}
                     poster={item.poster}
                     isActive={isActive}
+                    label={item.label || "Workers Ball Reel"}
                   />
                 ) : (
                   <img

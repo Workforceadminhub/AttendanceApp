@@ -16,6 +16,7 @@ import SuccessMark from "../components/ui/SuccessMark";
 import { downloadWorkersBallPassPng } from "../utils/workersBallPass";
 import {
   confirmWorkersBallRegistration,
+  decodeQrCodeDataUrl,
   requestWorkersBallOtp,
   searchWorkersBall,
   updateWorkersBallEmail,
@@ -950,7 +951,14 @@ function IntroCurtain({ onEnter }) {
 /**
  * Interactive 3D-Tilt Gala Pass Card shown on registration confirmation.
  */
-function CeremonialPassCard({ profile, accessCode, onDownload, onCopy, copied }) {
+function CeremonialPassCard({
+  profile,
+  accessCode,
+  qrCode,
+  onDownload,
+  onCopy,
+  copied,
+}) {
   const cardRef = useRef(null);
   const [tilt, setTilt] = useState({ rx: 0, ry: 0 });
   const decodedCode = useScrambledText(accessCode, true, 900);
@@ -1114,29 +1122,40 @@ function CeremonialPassCard({ profile, accessCode, onDownload, onCopy, copied })
                 </button>
               </div>
               <p className="text-2xs text-ink-400">
-                Present this code at the Workers Ball accreditation desk.
+                Present this code or QR at the accreditation desk.
               </p>
             </div>
 
-            {/* Geometric Verification Matrix */}
-            <div className="self-start sm:self-center bg-cream p-2.5 rounded-lg border border-ink-700 shrink-0">
-              <div
-                className="grid grid-cols-7 gap-0.5 w-16 h-16"
-                aria-label={`Verification matrix for ${accessCode}`}
-              >
-                {matrixCells.map((cell) => (
-                  <span
-                    key={cell.key}
-                    className={` rounded-[1px] ${
-                      cell.active
-                        ? cell.isCorner
-                          ? "bg-sienna"
-                          : "bg-ink-900"
-                        : "bg-cream-200"
-                    }`}
-                  />
-                ))}
-              </div>
+            {/* Scannable Accreditation QR Code or Geometric Verification Matrix */}
+            <div className="self-start sm:self-center bg-cream p-2.5 rounded-lg border border-ink-700 shrink-0 flex flex-col items-center justify-center">
+              {qrCode ? (
+                <img
+                  src={qrCode}
+                  alt={`Accreditation QR code for ${accessCode}`}
+                  className="w-20 h-20 sm:w-24 sm:h-24 object-contain rounded bg-white p-1"
+                />
+              ) : (
+                <div
+                  className="grid grid-cols-7 gap-0.5 w-16 h-16 sm:w-20 sm:h-20"
+                  aria-label={`Verification matrix for ${accessCode}`}
+                >
+                  {matrixCells.map((cell) => (
+                    <span
+                      key={cell.key}
+                      className={` rounded-[1px] ${
+                        cell.active
+                          ? cell.isCorner
+                            ? "bg-sienna"
+                            : "bg-ink-900"
+                          : "bg-cream-200"
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
+              <span className="text-[10px] font-mono uppercase tracking-widest text-ink-600 mt-1 font-semibold">
+                Accreditation QR
+              </span>
             </div>
           </div>
         </div>
@@ -1412,9 +1431,24 @@ export default function WorkersBallRegistration() {
         selectedWorker.id,
         cleaned
       );
-      setAccessCode(result.accessCode || "");
+      const code =
+        result.accessCode ||
+        `HGWB-${String(selectedWorker.id).padStart(6, "0")}`;
+      setAccessCode(code);
       setQrCode(result.qrCode || null);
       setSelectedWorker((prev) => (prev ? { ...prev, registered: true } : prev));
+
+      // Asynchronously attempt to decode the true access code from the QR code data URL
+      if (result.qrCode && typeof decodeQrCodeDataUrl === "function") {
+        decodeQrCodeDataUrl(result.qrCode)
+          .then((decoded) => {
+            if (decoded && /^HGWB-[A-Z0-9]+$/i.test(decoded.trim())) {
+              setAccessCode(decoded.trim().toUpperCase());
+            }
+          })
+          .catch(() => {});
+      }
+
       transitionTo("mintingPass", "forward");
       setTimeout(() => {
         transitionTo("confirmed", "forward");
@@ -1458,10 +1492,17 @@ export default function WorkersBallRegistration() {
     }
   };
 
+  const effectiveAccessCode =
+    accessCode ||
+    (selectedWorker?.id
+      ? `HGWB-${String(selectedWorker.id).padStart(6, "0")}`
+      : "HGWB-2026");
+
   const handleCopyAccessCode = async () => {
-    if (!accessCode) return;
+    const codeToCopy = effectiveAccessCode;
+    if (!codeToCopy) return;
     try {
-      await navigator.clipboard.writeText(accessCode);
+      await navigator.clipboard.writeText(codeToCopy);
       setCodeCopied(true);
       toast.success("Workers Ball access code copied!");
       setTimeout(() => setCodeCopied(false), 2000);
@@ -1470,12 +1511,17 @@ export default function WorkersBallRegistration() {
     }
   };
 
-  const handleDownloadPass = () => {
-    downloadWorkersBallPassPng({
-      ...profileForm,
-      accessCode,
-    });
-    toast.success("Downloading your Workers Ball 2026 Pass...");
+  const handleDownloadPass = async () => {
+    try {
+      await downloadWorkersBallPassPng({
+        ...profileForm,
+        accessCode: effectiveAccessCode,
+        qrCode,
+      });
+      toast.success("Downloading your Workers Ball 2026 Pass...");
+    } catch {
+      toast.error("Could not generate pass download.");
+    }
   };
 
   const handleStartOver = () => {
@@ -2237,61 +2283,52 @@ export default function WorkersBallRegistration() {
                   ))}
                 </div>
 
-                {/* Confirmation Header Card */}
-                <div className="qc-card p-6 sm:p-7 text-center space-y-3">
-                  <SuccessMark className="mx-auto h-14 w-14 text-forest" />
+                {/* Confirmation Header Banner */}
+                <div className="qc-card p-6 sm:p-7 text-center space-y-2">
+                  <SuccessMark className="mx-auto h-12 w-12 text-forest" />
                   <span className="block text-2xs font-mono uppercase tracking-tag text-forest font-semibold">
-                    Registration Confirmed &middot; Workers Ball 2026
+                    Accreditation Confirmed &middot; Workers Ball 2026
                   </span>
-                  <h2 className="text-2xl font-semibold text-ink-900">
+                  <h2 className="text-2xl sm:text-3xl font-semibold text-ink-900 tracking-tight">
                     See you at Workers Ball, {profileForm.firstName}!
                   </h2>
-                  <p className="text-sm text-ink-600 max-w-md mx-auto leading-relaxed">
-                    You&rsquo;re registered.
-                    {accessCode ? (
-                      <>
-                        {" "}Your access code is{" "}
-                        <strong className="font-mono qc-num text-ink-900">
-                          {accessCode}
-                        </strong>
-                        .
-                      </>
-                    ) : (
-                      " Your HGWB access code is in your email."
-                    )}
+                  <p className="text-sm text-ink-600 max-w-lg mx-auto leading-relaxed">
+                    Your official Gala Pass is ready. Present this pass or your access code at the accreditation desk on the night of the ball.
                   </p>
+                </div>
 
-                  {qrCode && (
-                    <img
-                      src={qrCode}
-                      alt={`QR code for ${accessCode || "your Workers Ball pass"}`}
-                      className="mx-auto h-40 w-40 rounded-md border border-ink-200 bg-white p-2"
-                    />
-                  )}
+                {/* Hero Interactive 3D-Tilt Gala Pass & Download */}
+                <CeremonialPassCard
+                  profile={profileForm}
+                  accessCode={effectiveAccessCode}
+                  qrCode={qrCode}
+                  onDownload={handleDownloadPass}
+                  onCopy={handleCopyAccessCode}
+                  copied={codeCopied}
+                />
 
-                  {/* Email Notification Notice */}
-                  <div className="mt-4 rounded-md border border-ink-200 bg-cream px-4 py-3 flex items-center gap-3 text-left">
-                    <EnvelopeIcon className="h-5 w-5 text-sienna shrink-0" />
-                    <p className="text-xs text-ink-700 leading-relaxed">
-                      We&rsquo;ve emailed your access code and QR code to{" "}
+                {/* Email Delivery Confirmation Card */}
+                <div className="rounded-xl border border-ink-200 bg-cream p-4 sm:p-5 flex items-start sm:items-center gap-3.5 shadow-xs">
+                  <div className="rounded-full bg-sienna/10 p-2 text-sienna shrink-0">
+                    <EnvelopeIcon className="h-5 w-5" />
+                  </div>
+                  <div className="text-xs text-ink-700 leading-relaxed">
+                    <p className="font-semibold text-ink-900">
+                      Pass Sent to Your Inbox
+                    </p>
+                    <p className="mt-0.5">
+                      We&rsquo;ve dispatched your unique access code (
+                      <span className="font-mono font-semibold text-ink-900">
+                        {effectiveAccessCode}
+                      </span>
+                      ) and scannable QR pass to{" "}
                       <strong className="text-ink-900 font-mono">
                         {profileForm.email}
                       </strong>
-                      . Show it at the accreditation desk.
+                      . Save your pass to your photos or take a screenshot for seamless check-in.
                     </p>
                   </div>
                 </div>
-
-                {/* Interactive 3D-Tilt Pass & Download (only when the API returned the code) */}
-                {accessCode && (
-                  <CeremonialPassCard
-                    profile={profileForm}
-                    accessCode={accessCode}
-                    onDownload={handleDownloadPass}
-                    onCopy={handleCopyAccessCode}
-                    copied={codeCopied}
-                  />
-                )}
 
                 {/* Start Over Footer Action */}
                 <div className="flex items-center justify-end pt-2 text-xs text-ink-500">

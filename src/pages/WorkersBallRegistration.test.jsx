@@ -13,6 +13,7 @@ vi.mock("../services/workersBall", () => ({
   updateWorkersBallEmail: vi.fn(),
   requestWorkersBallOtp: vi.fn(),
   confirmWorkersBallRegistration: vi.fn(),
+  decodeQrCodeDataUrl: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock("../services/departments", () => ({
@@ -104,6 +105,38 @@ describe("WorkersBallRegistration (/wb26)", () => {
       await screen.findByText(/See you at Workers Ball, Chidi!/i, {}, { timeout: 3000 })
     ).toBeInTheDocument();
     expect(screen.getAllByText(/HGWB-CB1234/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/Download Official Pass \(PNG\)/i)).toBeInTheDocument();
+  });
+
+  it("always renders the CeremonialPassCard and download button on confirmation even if API only returns qrCode", async () => {
+    searchWorkersBall.mockResolvedValue([worker()]);
+    confirmWorkersBallRegistration.mockResolvedValue({
+      accessCode: "",
+      qrCode: "data:image/png;base64,sampleQr",
+    });
+
+    await search("chidi");
+    fireEvent.click(await screen.findByText(/Chidi Bede Enwereji/i));
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Send Verification Code/i })
+    );
+    await waitFor(() => expect(requestWorkersBallOtp).toHaveBeenCalledWith(18));
+
+    const otpInput = await screen.findByLabelText(/6-Digit Verification Code/i);
+    fireEvent.change(otpInput, { target: { value: "123456" } });
+
+    await waitFor(() =>
+      expect(confirmWorkersBallRegistration).toHaveBeenCalledWith(18, "123456")
+    );
+
+    expect(
+      await screen.findByText(/See you at Workers Ball, Chidi!/i, {}, { timeout: 3000 })
+    ).toBeInTheDocument();
+
+    expect(screen.getByText(/Download Official Pass \(PNG\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Accreditation QR/i)).toBeInTheDocument();
+    expect(screen.getByAltText(/Accreditation QR code/i)).toBeInTheDocument();
   });
 
   it("saves a new email via PUT before sending the OTP when none is on record", async () => {

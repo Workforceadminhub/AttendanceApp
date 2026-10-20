@@ -1,7 +1,7 @@
 /**
  * Render and trigger a high-DPI PNG download of the worker's official Workers Ball 2026 Pass.
  */
-export function downloadWorkersBallPassPng({
+export async function downloadWorkersBallPassPng({
   firstName,
   lastName,
   email,
@@ -10,6 +10,7 @@ export function downloadWorkersBallPassPng({
   department,
   team,
   accessCode,
+  qrCode,
 }) {
   if (typeof document === "undefined") return;
 
@@ -176,7 +177,7 @@ export function downloadWorkersBallPassPng({
   ctx.font = "700 22px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.fillText(accessCode || "HGWB-CONFIRMED", rightCenter, cardY + 134);
 
-  // Deterministic Verification Matrix (QR-inspired geometric grid)
+  // Deterministic Verification Matrix or real QR Code
   const codeForMatrix = accessCode || "HGWB-PASS";
   const gridSize = 9;
   const cellSize = 16;
@@ -189,22 +190,63 @@ export function downloadWorkersBallPassPng({
   ctx.roundRect(matrixX - 16, matrixY - 16, matrixW + 32, matrixW + 32, 8);
   ctx.fill();
 
-  for (let r = 0; r < gridSize; r++) {
-    for (let c = 0; c < gridSize; c++) {
-      const isCorner =
-        (r < 3 && c < 3) ||
-        (r < 3 && c >= gridSize - 3) ||
-        (r >= gridSize - 3 && c < 3);
-      const charCode = codeForMatrix.charCodeAt((r * gridSize + c) % codeForMatrix.length) || 65;
-      const bit = isCorner || (charCode + r * 7 + c * 13) % 3 === 0;
-      if (bit) {
-        ctx.fillStyle = isCorner ? "#B5471F" : "#0A0E1A";
-        ctx.fillRect(
-          matrixX + c * cellSize + 1,
-          matrixY + r * cellSize + 1,
-          cellSize - 2,
-          cellSize - 2
-        );
+  let qrRendered = false;
+  if (qrCode) {
+    try {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      await new Promise((resolve) => {
+        let settled = false;
+        const done = (success) => {
+          if (settled) return;
+          settled = true;
+          qrRendered = success;
+          resolve();
+        };
+
+        img.onload = () => {
+          try {
+            ctx.drawImage(img, matrixX - 10, matrixY - 10, matrixW + 20, matrixW + 20);
+            done(true);
+          } catch {
+            done(false);
+          }
+        };
+        img.onerror = () => done(false);
+        img.src = qrCode;
+
+        if (img.complete && img.naturalWidth > 0) {
+          try {
+            ctx.drawImage(img, matrixX - 10, matrixY - 10, matrixW + 20, matrixW + 20);
+            done(true);
+          } catch {
+            done(false);
+          }
+        }
+      });
+    } catch {
+      qrRendered = false;
+    }
+  }
+
+  if (!qrRendered) {
+    for (let r = 0; r < gridSize; r++) {
+      for (let c = 0; c < gridSize; c++) {
+        const isCorner =
+          (r < 3 && c < 3) ||
+          (r < 3 && c >= gridSize - 3) ||
+          (r >= gridSize - 3 && c < 3);
+        const charCode = codeForMatrix.charCodeAt((r * gridSize + c) % codeForMatrix.length) || 65;
+        const bit = isCorner || (charCode + r * 7 + c * 13) % 3 === 0;
+        if (bit) {
+          ctx.fillStyle = isCorner ? "#B5471F" : "#0A0E1A";
+          ctx.fillRect(
+            matrixX + c * cellSize + 1,
+            matrixY + r * cellSize + 1,
+            cellSize - 2,
+            cellSize - 2
+          );
+        }
       }
     }
   }

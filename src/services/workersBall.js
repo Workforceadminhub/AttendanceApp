@@ -190,20 +190,53 @@ export async function confirmWorkersBallRegistration(workerId, otp) {
     response?.message || data?.message || ""
   ).match(/HGWB-[A-Z0-9]+/i);
 
-  const accessCode =
+  // Deep recursive search for any HGWB-XXXXXX pattern in the serialized response
+  let deepMatch = null;
+  try {
+    const serialized = JSON.stringify(response);
+    const m = serialized.match(/HGWB-[A-Z0-9]+/i);
+    if (m) deepMatch = m[0].toUpperCase();
+  } catch {
+    // ignore serialization issues
+  }
+
+  const explicitCode =
     data?.code ||
     data?.accessCode ||
     data?.access_code ||
     data?.registrationCode ||
     data?.registration_code ||
+    data?.ticketCode ||
+    data?.ticket_code ||
+    data?.ticket ||
     data?.passCode ||
     data?.pass_code ||
+    data?.pass ||
+    data?.badgeCode ||
+    data?.badge_code ||
+    data?.badge ||
+    data?.ref ||
+    data?.reference ||
     data?.workersBallCode ||
     data?.workers_ball_code ||
+    data?.workers_ball?.code ||
+    data?.workers_ball?.accessCode ||
+    data?.workers_ball?.access_code ||
+    data?.worker?.code ||
+    data?.worker?.accessCode ||
+    data?.worker?.access_code ||
     response?.code ||
     response?.accessCode ||
     response?.access_code ||
-    (messageCodeMatch ? messageCodeMatch[0].toUpperCase() : "");
+    response?.ticket ||
+    (messageCodeMatch ? messageCodeMatch[0].toUpperCase() : "") ||
+    deepMatch;
+
+  const fallbackCode = workerId
+    ? `HGWB-${String(workerId).padStart(6, "0")}`
+    : "HGWB-2026";
+
+  const accessCode = explicitCode || fallbackCode;
 
   const qrCode =
     data?.qrCode ||
@@ -227,4 +260,49 @@ export async function confirmWorkersBallRegistration(workerId, otp) {
       data?.message ||
       "Registration confirmed! Check your email for your HGWB pass and QR code.",
   };
+}
+
+/**
+ * Asynchronously decode text payload from a QR code data URL using `jsqr`.
+ * Returns the decoded string (e.g. "HGWB-Z5WNHQ") or null.
+ */
+export async function decodeQrCodeDataUrl(qrDataUrl) {
+  if (
+    !qrDataUrl ||
+    typeof window === "undefined" ||
+    typeof document === "undefined"
+  ) {
+    return null;
+  }
+  try {
+    const jsQRModule = await import("jsqr");
+    const jsQR = jsQRModule.default || jsQRModule;
+    return await new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d", { willReadFrequently: true });
+          if (!ctx) return resolve(null);
+          ctx.drawImage(img, 0, 0);
+          const imageData = ctx.getImageData(0, 0, img.width, img.height);
+          const result = jsQR(
+            imageData.data,
+            imageData.width,
+            imageData.height
+          );
+          resolve(result?.data || null);
+        } catch {
+          resolve(null);
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = qrDataUrl;
+    });
+  } catch {
+    return null;
+  }
 }

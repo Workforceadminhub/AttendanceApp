@@ -96,6 +96,30 @@ describe("workersBall service", () => {
     expect(result.accessCode).toBe("HGWB-ABC123");
   });
 
+  it("falls back to workerId-derived HGWB code when API only returns qrCode", async () => {
+    apiRequest.mockResolvedValue({
+      success: true,
+      message: "Your HGWB access code is in your email.",
+      data: { qrCode: "data:image/png;base64,sampleQR" },
+    });
+    const result = await confirmWorkersBallRegistration(42, "654321");
+    expect(result.accessCode).toBe("HGWB-000042");
+    expect(result.qrCode).toBe("data:image/png;base64,sampleQR");
+  });
+
+  it("extracts nested HGWB code from serialized response", async () => {
+    apiRequest.mockResolvedValue({
+      success: true,
+      data: {
+        registration: {
+          badge: "HGWB-Z5WNHQ",
+        },
+      },
+    });
+    const result = await confirmWorkersBallRegistration(99, "111222");
+    expect(result.accessCode).toBe("HGWB-Z5WNHQ");
+  });
+
   it("propagates 409 from confirm", async () => {
     const err = Object.assign(new Error("Already registered"), { status: 409 });
     apiRequest.mockRejectedValue(err);

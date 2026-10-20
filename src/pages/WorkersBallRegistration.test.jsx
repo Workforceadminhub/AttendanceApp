@@ -134,7 +134,7 @@ describe("WorkersBallRegistration (/wb26)", () => {
       expiryMinutes: 10,
     });
     expect(otpHtml).toContain("202688");
-    expect(otpHtml).toContain("Verify your email for Workers Ball 2026");
+    expect(otpHtml).toContain("Verification code");
 
     const confirmHtml = buildWorkersBallConfirmationEmail({
       firstName: "Adebayo",

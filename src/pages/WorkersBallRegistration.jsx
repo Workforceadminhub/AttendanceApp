@@ -241,10 +241,9 @@ const DECADE_YEARS = [
 ];
 
 /**
- * Year-by-year archive of Workers Ball photography.
- * Each year's photos ONLY appear when the countdown is on that exact year.
- * Add photos to 2016..2023 as they become available and the timeline will
- * automatically give those years full showcase time.
+ * Year-by-year archive of Workers Ball media (videos & photography).
+ * Each year's media ONLY appears when the countdown is on that exact year,
+ * and every showcase year (2022, 2023, 2024, 2025) gets 10 full seconds dedicated.
  */
 const YEAR_PHOTOS = {
   2016: [],
@@ -253,69 +252,117 @@ const YEAR_PHOTOS = {
   2019: [],
   2020: [],
   2021: [],
-  2022: [],
+  2022: [
+    {
+      type: "video",
+      src: "/wb22/reel-1.mp4",
+      poster: "/wb22/photo-1.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2022 — Gala Highlights Reel",
+    },
+    {
+      type: "image",
+      src: "/wb22/photo-1.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2022 — Red carpet gala arrival",
+    },
+    {
+      type: "image",
+      src: "/wb22/photo-2.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2022 — Workforce celebration",
+    },
+    {
+      type: "image",
+      src: "/wb22/photo-3.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2022 — Gala evening fashion",
+    },
+    {
+      type: "image",
+      src: "/wb22/photo-4.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2022 — Joyful moments at the ball",
+    },
+  ],
   2023: [
     {
+      type: "video",
+      src: "/wb23/reel-1.mp4",
+      poster: "/wb23/photo-1.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2023 — Red Carpet Reel",
+    },
+    {
+      type: "image",
       src: "/wb23/photo-1.jpg",
       alt: "Harvesters Gbagada Workers Ball 2023 — All White Edition stage moment",
     },
     {
+      type: "image",
       src: "/wb23/photo-2.jpg",
       alt: "Harvesters Gbagada Workers Ball 2023 — Workforce celebrating in all white",
     },
     {
+      type: "image",
       src: "/wb23/photo-3.jpg",
       alt: "Harvesters Gbagada Workers Ball 2023 — Joyful laughter at the banquet table",
     },
     {
+      type: "image",
       src: "/wb23/photo-4.jpg",
       alt: "Harvesters Gbagada Workers Ball 2023 — Applause in white",
     },
     {
+      type: "image",
       src: "/wb23/photo-5.jpg",
       alt: "Harvesters Gbagada Workers Ball 2023 — Special Recognition Award presentation",
     },
   ],
   2024: [
     {
+      type: "image",
       src: "/wb24/photo-1.jpg",
       alt: "Harvesters Gbagada Workers Ball 2024 — Applause in gold and black agbada",
     },
     {
+      type: "image",
       src: "/wb24/photo-2.jpg",
       alt: "Harvesters Gbagada Workers Ball 2024 — Couple in white agbada and orange gown",
     },
     {
+      type: "image",
       src: "/wb24/photo-3.jpg",
       alt: "Harvesters Gbagada Workers Ball 2024 — Stage performance",
     },
     {
+      type: "image",
       src: "/wb24/photo-4.jpg",
       alt: "Harvesters Gbagada Workers Ball 2024 — Joyful celebration in blue and gold lace",
     },
     {
+      type: "image",
       src: "/wb24/photo-5.jpg",
       alt: "Harvesters Gbagada Workers Ball 2024 — Shimmering aso-oke portrait",
     },
   ],
   2025: [
     {
+      type: "image",
       src: "/wb25/photo-1.jpg",
       alt: "Harvesters Gbagada Workers Ball 2025 — Squad in Denim and Diamonds",
     },
     {
+      type: "image",
       src: "/wb25/photo-2.jpg",
       alt: "Harvesters Gbagada Workers Ball 2025 — Red carpet portrait",
     },
     {
+      type: "image",
       src: "/wb25/photo-3.jpg",
       alt: "Harvesters Gbagada Workers Ball 2025 — Family moment on the carpet",
     },
     {
+      type: "image",
       src: "/wb25/photo-4.jpg",
       alt: "Harvesters Gbagada Workers Ball 2025 — Workforce fashion",
     },
     {
+      type: "image",
       src: "/wb25/photo-5.jpg",
       alt: "Harvesters Gbagada Workers Ball 2025 — Worker portrait",
     },
@@ -327,10 +374,10 @@ const DECADE_SCHEDULE = (() => {
   let cursor = 0;
   return DECADE_YEARS.map((yr) => {
     const photos = YEAR_PHOTOS[yr] || [];
-    // Years with photos get a generous 5.0 seconds so every photo can be appreciated;
-    // 2026 finale gets 1.8s; empty earlier years tick at 600ms each.
+    // Dedicated 10.0 seconds (10000ms) for each showcase year (2022, 2023, 2024, 2025);
+    // 2026 finale gets 1.8s; empty earlier years tick quickly at 350ms each.
     const duration =
-      yr === 2026 ? 1800 : photos.length > 0 ? 5000 : 600;
+      yr === 2026 ? 1800 : photos.length > 0 ? 10000 : 350;
     const entry = {
       year: yr,
       photos,
@@ -344,25 +391,26 @@ const DECADE_SCHEDULE = (() => {
 })();
 
 const TOTAL_INTRO_MS =
-  DECADE_SCHEDULE[DECADE_SCHEDULE.length - 1]?.endMs || 15000;
+  DECADE_SCHEDULE[DECADE_SCHEDULE.length - 1]?.endMs || 44000;
 
 /**
  * Pre-Form Complete Full-Screen Opening Sequence ("Before the form even loads").
- * Edge-to-edge 100vw x 100dvh canvas counting from 2016 -> 2026.
- * Shows 2024 photos strictly during 2024 and 2025 photos strictly during 2025.
+ * Edge-to-edge 100vw x 100dvh full-bleed canvas counting from 2016 -> 2026.
+ * Shows ONE full-screen image/video at a time (no grid, no tiny images, no center box blocking the view),
+ * with 10 full seconds dedicated to each of 2022, 2023, 2024, and 2025 before landing on 2026.
  */
 function IntroCurtain({ onEnter }) {
   const [yearCounter, setYearCounter] = useState(2016);
   const [yearProgress, setYearProgress] = useState(0);
 
-  // Preload all year photos immediately so transitions are instant
+  // Preload all year photos immediately so full-screen transitions are instant
   useEffect(() => {
     Object.values(YEAR_PHOTOS)
       .flat()
-      .forEach((photo) => {
-        if (typeof Image !== "undefined") {
+      .forEach((item) => {
+        if (item.type !== "video" && typeof Image !== "undefined") {
           const img = new Image();
-          img.src = photo.src;
+          img.src = item.src;
         }
       });
   }, []);
@@ -414,154 +462,234 @@ function IntroCurtain({ onEnter }) {
     : -1;
 
   return (
-    <div className="fixed inset-0 z-50 w-screen h-dvh bg-cream text-ink-900 overflow-hidden select-none">
-      {/* FULL-SCREEN EDGE-TO-EDGE PHOTO CANVAS (only when current year has photos, e.g. 2024 & 2025) */}
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        width: "100vw",
+        height: "100dvh",
+      }}
+      className="fixed inset-0 z-[100] w-screen h-dvh bg-ink-900 text-ink-900 overflow-hidden select-none"
+    >
+      {/* TRUE 100% FULL-SCREEN SINGLE-SLIDE/VIDEO SHOWCASE (2022, 2023, 2024, 2025) */}
       {hasPhotosForYear && (
         <div
-          key={`photos-${yearCounter}`}
-          className="absolute inset-0 w-screen h-dvh grid grid-cols-2 sm:grid-cols-5 bg-ink-900"
+          key={`media-stage-${yearCounter}`}
+          className="absolute inset-0 w-screen h-dvh bg-ink-900 overflow-hidden"
         >
-          {currentYearPhotos.map((photo, idx) => {
-            // Stagger each panel in smoothly during the first 40% of the year's 5s window
-            const revealThreshold = idx * 0.09;
-            const isRevealed = yearProgress >= revealThreshold;
-            const isSpotlight = activePhotoIdx === idx;
+          {currentYearPhotos.map((item, idx) => {
+            const isActive = idx === activePhotoIdx;
             return (
               <div
-                key={photo.src}
-                className={`relative h-full w-full overflow-hidden border-r border-white/10 last:border-r-0 transition-all duration-700 ${
-                  idx === 4 ? "col-span-2 sm:col-span-1" : ""
-                } ${isRevealed ? "opacity-100" : "opacity-0 translate-y-4"}`}
+                key={item.src}
+                className={`absolute inset-0 w-screen h-dvh transition-opacity duration-700 ease-out ${
+                  isActive
+                    ? "opacity-100 z-10"
+                    : "opacity-0 z-0 pointer-events-none"
+                }`}
               >
-                <img
-                  src={photo.src}
-                  alt={photo.alt}
-                  style={{
-                    transform: isSpotlight
-                      ? "scale(1.07)"
-                      : isRevealed
-                        ? "scale(1.01)"
-                        : "scale(1.12)",
-                  }}
-                  className={`h-full w-full object-cover object-top transition-all duration-1000 ease-out ${
-                    isSpotlight
-                      ? "brightness-100 saturate-105"
-                      : "brightness-75 saturate-90"
-                  }`}
-                />
-                {/* Subtle top/bottom vignette for contrast */}
-                <div
-                  className="pointer-events-none absolute inset-0 bg-gradient-to-b from-ink-900/40 via-transparent to-ink-900/70"
-                  aria-hidden="true"
-                />
+                {item.type === "video" ? (
+                  <video
+                    src={item.src}
+                    poster={item.poster}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    preload="auto"
+                    className="w-screen h-dvh object-cover object-center"
+                  />
+                ) : (
+                  <img
+                    src={item.src}
+                    alt={item.alt}
+                    style={{
+                      transform: isActive ? "scale(1.05)" : "scale(1.0)",
+                      transition:
+                        "transform 3500ms cubic-bezier(0.22, 1, 0.36, 1)",
+                    }}
+                    className="w-screen h-dvh object-cover object-[center_20%]"
+                  />
+                )}
               </div>
             );
           })}
+
+          {/* Subtle top & bottom cinema gradients for legibility without covering the center */}
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/60 via-black/20 to-transparent z-20"
+            aria-hidden="true"
+          />
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black/85 via-black/45 to-transparent z-20"
+            aria-hidden="true"
+          />
         </div>
       )}
 
-      {/* Full-Viewport Giant Year Watermark (shown on years without photos) */}
+      {/* Full-Viewport Cream Editorial Canvas (for 2016..2021 fast tick & 2026 finale) */}
       {!hasPhotosForYear && (
-        <div
-          className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden"
-          aria-hidden="true"
-        >
-          <span
-            key={`wm-${yearCounter}`}
-            className="wb26-year-tick font-mono qc-num font-bold text-[30vw] leading-none tracking-tighter text-ink-900/[0.05]"
+        <div className="absolute inset-0 w-screen h-dvh bg-cream flex flex-col items-center justify-center px-6">
+          <div
+            className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden"
+            aria-hidden="true"
           >
-            {yearCounter}
-          </span>
+            <span
+              key={`wm-${yearCounter}`}
+              className="wb26-year-tick font-mono qc-num font-bold text-[30vw] leading-none tracking-tighter text-ink-900/[0.06]"
+            >
+              {yearCounter}
+            </span>
+          </div>
+
+          <div className="relative z-20 text-center">
+            <img
+              src="/logo.jpg"
+              alt="Harvesters"
+              className="h-14 sm:h-20 w-auto mx-auto mb-5 select-none mix-blend-multiply"
+            />
+            <h1 className="text-5xl sm:text-7xl md:text-8xl font-semibold tracking-tight text-ink-900 leading-none">
+              Workers Ball{" "}
+              <span
+                key={yearCounter}
+                className={`wb26-year-tick inline-block qc-num font-mono font-bold ${
+                  yearCounter === 2026 ? "text-sienna" : "text-ink-800"
+                }`}
+              >
+                {yearCounter}
+              </span>
+            </h1>
+          </div>
         </div>
       )}
 
-      {/* Subtle Skip Button in Top-Right Corner */}
-      <div className="absolute top-6 right-6 sm:top-8 sm:right-10 z-30">
+      {/* Top Bar: Official Logo Badge (Top-Left on media years) + Skip Intro (Top-Right) */}
+      <div className="absolute inset-x-0 top-0 z-30 flex items-center justify-between px-5 py-5 sm:px-10 sm:py-7 pointer-events-none">
+        {hasPhotosForYear ? (
+          <div className="bg-cream/95 backdrop-blur-md px-3.5 py-2 rounded-xl shadow-sheet flex items-center gap-2.5">
+            <img
+              src="/logo.jpg"
+              alt="Harvesters"
+              className="h-7 sm:h-9 w-auto object-contain select-none mix-blend-multiply"
+            />
+          </div>
+        ) : (
+          <div />
+        )}
+
         <button
           type="button"
           onClick={onEnter}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-mono uppercase tracking-tag transition-colors cursor-pointer ${
+          className={`pointer-events-auto px-4 py-2 rounded-full text-xs font-mono uppercase tracking-tag transition-colors cursor-pointer ${
             hasPhotosForYear
-              ? "bg-cream/90 text-ink-900 hover:bg-cream shadow-sheet"
-              : "bg-ink-900/5 text-ink-700 hover:bg-ink-900/10 hover:text-ink-900"
+              ? "bg-cream/95 text-ink-900 hover:bg-cream shadow-sheet"
+              : "bg-ink-900/10 text-ink-800 hover:bg-ink-900/15 hover:text-ink-900"
           }`}
         >
           Skip Intro &rarr;
         </button>
       </div>
 
-      {/* Central Full-Screen Overlay: Official Logo + Year */}
-      <div className="relative z-20 w-full h-full flex flex-col items-center justify-center px-6 pointer-events-none">
-        <div
-          className={`px-8 py-6 sm:px-12 sm:py-8 rounded-2xl text-center transition-all duration-500 ${
-            hasPhotosForYear
-              ? "bg-cream/90 backdrop-blur-md border border-white/40 shadow-modal"
-              : ""
-          }`}
-        >
-          <img
-            src="/logo.jpg"
-            alt="Harvesters"
-            className="h-12 sm:h-16 w-auto mx-auto mb-4 select-none mix-blend-multiply"
-          />
-
-          <h1 className="text-4xl sm:text-6xl md:text-7xl font-semibold tracking-tight text-ink-900 leading-none">
-            Workers Ball{" "}
-            <span
-              key={yearCounter}
-              className={`wb26-year-tick inline-block qc-num font-mono font-bold ${
-                yearCounter === 2026 || hasPhotosForYear
-                  ? "text-sienna"
-                  : "text-ink-800"
-              }`}
-            >
-              {yearCounter}
-            </span>
-          </h1>
-        </div>
-      </div>
-
-      {/* Minimal Bottom Decade Timeline Strip (2016 -> 2026) */}
-      <div className="absolute inset-x-0 bottom-6 sm:bottom-8 z-30 px-6 sm:px-12">
-        <div
-          className={`max-w-3xl mx-auto px-4 py-2.5 rounded-full transition-colors duration-500 ${
-            hasPhotosForYear
-              ? "bg-cream/90 backdrop-blur-md shadow-sheet"
-              : "bg-cream/80"
-          }`}
-        >
-          <div className="flex items-center justify-between gap-1">
-            {DECADE_YEARS.map((yr) => {
-              const reached = yearCounter >= yr;
-              const isCurrent = yearCounter === yr;
-              return (
-                <div
-                  key={yr}
-                  className="flex flex-col items-center gap-1 flex-1"
-                >
+      {/* Bottom Full-Width Overlay: Year Title (on media years) + Decade Timeline Strip */}
+      <div className="absolute inset-x-0 bottom-0 z-30 px-5 pb-5 sm:px-10 sm:pb-8 pointer-events-none">
+        <div className="max-w-6xl mx-auto flex flex-col gap-4">
+          {hasPhotosForYear && (
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+              <div>
+                <h1 className="text-4xl sm:text-6xl md:text-7xl font-semibold tracking-tight text-white leading-none drop-shadow-[0_4px_24px_rgba(0,0,0,0.75)]">
+                  Workers Ball{" "}
                   <span
-                    className={`h-2 w-2 rounded-full transition-all duration-300 ${
-                      isCurrent
-                        ? "bg-sienna scale-150 ring-4 ring-sienna/20"
-                        : reached
-                          ? "bg-ink-900"
-                          : "bg-ink-300"
-                    }`}
-                  />
-                  <span
-                    className={`text-[10px] sm:text-2xs font-mono qc-num transition-colors duration-300 ${
-                      isCurrent
-                        ? "text-sienna font-bold"
-                        : reached
-                          ? "text-ink-900 font-medium"
-                          : "text-ink-400 hidden sm:inline"
-                    }`}
+                    key={yearCounter}
+                    className="wb26-year-tick inline-block qc-num font-mono font-bold text-[#F6B042]"
                   >
-                    {yr}
+                    {yearCounter}
                   </span>
-                </div>
-              );
-            })}
+                </h1>
+              </div>
+
+              {/* Per-slide progress pills for the 10-second showcase */}
+              <div className="flex items-center gap-1.5 sm:pb-2">
+                {currentYearPhotos.map((item, idx) => {
+                  const isActive = idx === activePhotoIdx;
+                  const isPast = idx < activePhotoIdx;
+                  return (
+                    <span
+                      key={item.src}
+                      className={`h-1.5 rounded-full transition-all duration-300 ${
+                        isActive
+                          ? "w-8 bg-[#F6B042]"
+                          : isPast
+                            ? "w-3 bg-white/85"
+                            : "w-3 bg-white/30"
+                      }`}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Decade Timeline Strip (2016 -> 2026) with 10s progress bar */}
+          <div
+            className={`w-full px-4 py-2.5 rounded-2xl transition-colors duration-500 ${
+              hasPhotosForYear
+                ? "bg-black/55 backdrop-blur-md border border-white/15"
+                : "bg-cream/90 border border-ink-200/70"
+            }`}
+          >
+            {hasPhotosForYear && (
+              <div className="w-full h-1 bg-white/15 rounded-full overflow-hidden mb-2">
+                <div
+                  className="h-full bg-[#F6B042] transition-all duration-100 ease-linear"
+                  style={{ width: `${Math.round(yearProgress * 100)}%` }}
+                />
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-1">
+              {DECADE_YEARS.map((yr) => {
+                const reached = yearCounter >= yr;
+                const isCurrent = yearCounter === yr;
+                return (
+                  <div
+                    key={yr}
+                    className="flex flex-col items-center gap-1 flex-1"
+                  >
+                    <span
+                      className={`h-2 w-2 rounded-full transition-all duration-300 ${
+                        isCurrent
+                          ? hasPhotosForYear
+                            ? "bg-[#F6B042] scale-150 ring-4 ring-[#F6B042]/30"
+                            : "bg-sienna scale-150 ring-4 ring-sienna/20"
+                          : reached
+                            ? hasPhotosForYear
+                              ? "bg-white"
+                              : "bg-ink-900"
+                            : hasPhotosForYear
+                              ? "bg-white/30"
+                              : "bg-ink-300"
+                      }`}
+                    />
+                    <span
+                      className={`text-[10px] sm:text-2xs font-mono qc-num transition-colors duration-300 ${
+                        isCurrent
+                          ? hasPhotosForYear
+                            ? "text-[#F6B042] font-bold"
+                            : "text-sienna font-bold"
+                          : reached
+                            ? hasPhotosForYear
+                              ? "text-white font-medium"
+                              : "text-ink-900 font-medium"
+                            : hasPhotosForYear
+                              ? "text-white/40 hidden sm:inline"
+                              : "text-ink-400 hidden sm:inline"
+                      }`}
+                    >
+                      {yr}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>

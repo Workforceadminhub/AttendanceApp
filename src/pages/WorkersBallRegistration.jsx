@@ -647,81 +647,6 @@ function IntroCurtain({ onEnter }) {
 }
 
 /**
- * Step Progress Rail with tabular numbers and active states.
- */
-const JOURNEY_STEPS = [
-  { id: "lookup", num: "01", label: "Find Profile" },
-  { id: "verify", num: "02", label: "Email & OTP" },
-  { id: "pass", num: "03", label: "Gala Pass" },
-];
-
-function StepProgressRail({ currentStage }) {
-  const stageToIndex = {
-    search: 0,
-    results: 0,
-    collectEmail: 1,
-    sendingOtp: 1,
-    verifyOtp: 1,
-    mintingPass: 2,
-    confirmed: 2,
-    alreadyRegistered: 2,
-  };
-  const activeIdx = stageToIndex[currentStage] ?? 0;
-
-  return (
-    <nav aria-label="Registration progress" className="mb-8">
-      <ol className="grid grid-cols-3 gap-2">
-        {JOURNEY_STEPS.map((s, idx) => {
-          const isDone = idx < activeIdx;
-          const isCurrent = idx === activeIdx;
-          return (
-            <li
-              key={s.id}
-              aria-current={isCurrent ? "step" : undefined}
-              className={`rounded-md border px-2.5 py-2 transition-all ${
-                isCurrent
-                  ? "border-ink-900 bg-ink-900 text-cream shadow-sheet"
-                  : isDone
-                    ? "border-forest/40 bg-forest-50 text-forest"
-                    : "border-ink-200 bg-white text-ink-400"
-              }`}
-            >
-              <div className="flex items-center justify-between gap-1">
-                <span
-                  className={`text-2xs font-mono font-semibold qc-num ${
-                    isCurrent
-                      ? "text-sienna-light"
-                      : isDone
-                        ? "text-forest"
-                        : "text-ink-400"
-                  }`}
-                >
-                  {isDone ? "✓" : s.num}
-                </span>
-                {isCurrent && (
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-sienna animate-live-pulse" />
-                )}
-              </div>
-              <p
-                className={`mt-0.5 text-xs font-medium truncate ${
-                  isCurrent
-                    ? "text-cream"
-                    : isDone
-                      ? "text-forest"
-                      : "text-ink-500"
-                }`}
-              >
-                {s.label}
-              </p>
-            </li>
-          );
-        })}
-      </ol>
-    </nav>
-  );
-}
-
-/**
  * Interactive 3D-Tilt Gala Pass Card shown on registration confirmation.
  */
 function CeremonialPassCard({ profile, accessCode, onDownload, onCopy, copied }) {
@@ -1370,9 +1295,6 @@ export default function WorkersBallRegistration() {
               </span>
             </div>
           </div>
-
-          {/* Step Progress Rail */}
-          <StepProgressRail currentStage={stage} />
 
           {/* View-Transition Stage Wrapper */}
           <div className="wb26-transition-stage">

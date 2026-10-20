@@ -254,7 +254,28 @@ const YEAR_PHOTOS = {
   2020: [],
   2021: [],
   2022: [],
-  2023: [],
+  2023: [
+    {
+      src: "/wb23/photo-1.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2023 — All White Edition stage moment",
+    },
+    {
+      src: "/wb23/photo-2.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2023 — Workforce celebrating in all white",
+    },
+    {
+      src: "/wb23/photo-3.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2023 — Joyful laughter at the banquet table",
+    },
+    {
+      src: "/wb23/photo-4.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2023 — Applause in white",
+    },
+    {
+      src: "/wb23/photo-5.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2023 — Special Recognition Award presentation",
+    },
+  ],
   2024: [
     {
       src: "/wb24/photo-1.jpg",

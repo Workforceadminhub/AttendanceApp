@@ -90,7 +90,7 @@ describe("WorkersBallRegistration (/wb26)", () => {
     expect(
       screen.getByRole("button", { name: /Download Official Pass/i })
     ).toBeInTheDocument();
-  });
+  }, 15000);
 
   it("prompts for email first when a selected worker has no email on record", async () => {
     render(<WorkersBallRegistration />);

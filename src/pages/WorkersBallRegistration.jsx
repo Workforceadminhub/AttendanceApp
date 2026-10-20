@@ -224,12 +224,12 @@ function WorkersBallCrest({ className = "h-20 w-20" }) {
         <circle cx="116" cy="60" r="2" fill="#A87B0F" />
       </svg>
 
-      {/* Inner circular badge with official Harvesters logo */}
-      <div className="relative h-[78%] w-[78%] rounded-full bg-cream border border-ink-200 shadow-sheet flex items-center justify-center p-2.5 overflow-hidden">
+      {/* Inner badge with transparent official Harvesters logo */}
+      <div className="relative h-[78%] w-[78%] rounded-full bg-transparent flex items-center justify-center p-2 overflow-hidden">
         <img
-          src="/logo.jpg"
+          src="/logo-transparent.png"
           alt="Harvesters"
-          className="w-full h-auto object-contain select-none mix-blend-multiply"
+          className="w-full h-auto object-contain select-none"
         />
       </div>
     </div>
@@ -507,9 +507,9 @@ function IntroCurtain({ onEnter }) {
 
           <div className="relative z-20 text-center">
             <img
-              src="/logo.jpg"
+              src="/logo-transparent.png"
               alt="Harvesters"
-              className="h-14 sm:h-20 w-auto mx-auto mb-5 select-none mix-blend-multiply"
+              className="h-14 sm:h-20 w-auto mx-auto mb-5 select-none"
             />
             <h1 className="text-5xl sm:text-7xl md:text-8xl font-semibold tracking-tight text-ink-900 leading-none">
               Workers Ball{" "}
@@ -526,16 +526,14 @@ function IntroCurtain({ onEnter }) {
         </div>
       )}
 
-      {/* Top Bar: Official Logo Badge (Top-Left on media years) + Skip Intro (Top-Right) */}
+      {/* Top Bar: Transparent Official Logo (Top-Left on media years) + Skip Intro (Top-Right) */}
       <div className="absolute inset-x-0 top-0 z-30 flex items-center justify-between px-5 py-5 sm:px-10 sm:py-7 pointer-events-none">
         {hasPhotosForYear ? (
-          <div className="bg-cream/95 backdrop-blur-md px-3.5 py-2 rounded-xl shadow-sheet flex items-center gap-2.5">
-            <img
-              src="/logo.jpg"
-              alt="Harvesters"
-              className="h-7 sm:h-9 w-auto object-contain select-none mix-blend-multiply"
-            />
-          </div>
+          <img
+            src="/logo-transparent.png"
+            alt="Harvesters"
+            className="h-8 sm:h-11 w-auto object-contain select-none drop-shadow-[0_1px_10px_rgba(255,255,255,0.75)]"
+          />
         ) : (
           <div />
         )}

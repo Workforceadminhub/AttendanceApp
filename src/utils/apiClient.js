@@ -23,6 +23,8 @@ const PUBLIC_PATHS = [
   "/set-password",
   "/leadership-registration",
   "/awakening",
+  "/wb26",
+  "/verify",
   "/new/worker",
   "/leadersmeeting/confirm",
   "/leaders-meeting",

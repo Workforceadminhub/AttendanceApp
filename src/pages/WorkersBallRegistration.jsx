@@ -17,7 +17,6 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import SuccessMark from "../components/ui/SuccessMark";
-import useLiveTeamDepartments from "../components/meeting/useLiveTeamDepartments";
 import {
   MOCK_OTP_CODE,
   downloadWorkersBallPassPng,
@@ -1051,21 +1050,13 @@ export default function WorkersBallRegistration() {
     };
   }, [stage, resendCooldown]);
 
-  // Dynamic Team & Department options (live API + static fallback)
-  const { teamOptions: liveTeams, departmentOptions: liveDepartments } =
-    useLiveTeamDepartments(profileForm.team, "", {
-      requireDistrictSubTeam: false,
-    });
-
+  // Team & Department options from Harvesters Gbagada workforce directory
   const roleOptions = useMemo(() => getAllRoleOptions(), []);
-  const teamOptions = useMemo(
-    () => (liveTeams?.length ? liveTeams : getAllTeamOptions()),
-    [liveTeams]
+  const teamOptions = useMemo(() => getAllTeamOptions(), []);
+  const departmentOptions = useMemo(
+    () => getDepartmentsForTeam(profileForm.team),
+    [profileForm.team]
   );
-  const departmentOptions = useMemo(() => {
-    if (liveDepartments?.length) return liveDepartments;
-    return getDepartmentsForTeam(profileForm.team);
-  }, [liveDepartments, profileForm.team]);
 
   // Transition helper
   const transitionTo = (nextStage, direction = "forward") => {

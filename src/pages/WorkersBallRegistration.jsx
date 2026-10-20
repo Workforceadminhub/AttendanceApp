@@ -263,6 +263,21 @@ const YEAR_PHOTOS = {
       src: "/wb23/photo-5.jpg",
       alt: "Harvesters Gbagada Workers Ball 2023 — Special Recognition Award presentation",
     },
+    {
+      type: "image",
+      src: "/wb23/photo-6.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2023 — Workforce celebration in all white",
+    },
+    {
+      type: "image",
+      src: "/wb23/photo-7.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2023 — Red carpet arrivals and laughter",
+    },
+    {
+      type: "image",
+      src: "/wb23/photo-8.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2023 — Workers Ball 2023 stage celebration",
+    },
   ],
   2024: [
     {
@@ -289,6 +304,31 @@ const YEAR_PHOTOS = {
       type: "image",
       src: "/wb24/photo-5.jpg",
       alt: "Harvesters Gbagada Workers Ball 2024 — Shimmering aso-oke portrait",
+    },
+    {
+      type: "image",
+      src: "/wb24/photo-6.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2024 — Owambe glamour portrait in gold",
+    },
+    {
+      type: "image",
+      src: "/wb24/photo-7.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2024 — Smiling worker celebration moment",
+    },
+    {
+      type: "image",
+      src: "/wb24/photo-8.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2024 — Workforce celebration at the banquet",
+    },
+    {
+      type: "image",
+      src: "/wb24/photo-9.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2024 — Glamorous agbada and lace portrait",
+    },
+    {
+      type: "image",
+      src: "/wb24/photo-10.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2024 — Elegance on the Workers Ball red carpet",
     },
   ],
   2025: [

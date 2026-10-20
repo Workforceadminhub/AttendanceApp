@@ -46,7 +46,12 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       // Skip redirect for login requests, public pages, and public meeting endpoints
       const url = error.config?.url || "";
-      if (!url.includes("/auth/signin") && !url.includes("/api/meeting/") && !isPublicPage()) {
+      if (
+        !url.includes("/auth/signin") &&
+        !url.includes("/api/meeting/") &&
+        !url.includes("/api/workers-ball/") &&
+        !isPublicPage()
+      ) {
         clearAuthTokens();
         // Redirect to login only if not already there
         if (window.location.pathname !== "/login") {
@@ -152,7 +157,14 @@ export async function apiRequest(
     // Non-login and non-meeting 401s are handled by the interceptor (session timeout → redirect).
     // Silently return so no toast/error flashes before the redirect.
     // Login and meeting 401s still need to throw so caller can handle/retry.
-    if (status === 401 && !url.includes("/auth/signin") && !url.includes("/api/meeting/")) return;
+    if (
+      status === 401 &&
+      !url.includes("/auth/signin") &&
+      !url.includes("/api/meeting/") &&
+      !url.includes("/api/workers-ball/") &&
+      !isPublicPage()
+    )
+      return;
 
     const responseData = error.response?.data;
     let message =

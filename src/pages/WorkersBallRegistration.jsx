@@ -12,7 +12,6 @@ import {
   LockClosedIcon,
   MagnifyingGlassIcon,
   SparklesIcon,
-  TicketIcon,
   UserCircleIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
@@ -20,14 +19,13 @@ import SuccessMark from "../components/ui/SuccessMark";
 import {
   MOCK_OTP_CODE,
   downloadWorkersBallPassPng,
-  generateWorkersBallCode,
-  getAllRoleOptions,
-  getAllTeamOptions,
-  getDepartmentsForTeam,
-  maskEmail,
-  maskPhone,
-  searchWorkersBallMock,
 } from "../utils/workersBallMock";
+import {
+  confirmWorkersBallRegistration,
+  requestWorkersBallOtp,
+  searchWorkersBall,
+  updateWorkersBallEmail,
+} from "../services/workersBall";
 import {
   buildWorkersBallConfirmationEmail,
   buildWorkersBallOtpEmail,
@@ -664,8 +662,7 @@ function IntroCurtain({ onEnter }) {
 const JOURNEY_STEPS = [
   { id: "lookup", num: "01", label: "Find Profile" },
   { id: "verify", num: "02", label: "Email & OTP" },
-  { id: "profile", num: "03", label: "Update Details" },
-  { id: "pass", num: "04", label: "Gala Pass" },
+  { id: "pass", num: "03", label: "Gala Pass" },
 ];
 
 function StepProgressRail({ currentStage }) {
@@ -675,15 +672,15 @@ function StepProgressRail({ currentStage }) {
     collectEmail: 1,
     sendingOtp: 1,
     verifyOtp: 1,
-    editProfile: 2,
-    mintingPass: 3,
-    confirmed: 3,
+    mintingPass: 2,
+    confirmed: 2,
+    alreadyRegistered: 2,
   };
   const activeIdx = stageToIndex[currentStage] ?? 0;
 
   return (
     <nav aria-label="Registration progress" className="mb-8">
-      <ol className="grid grid-cols-4 gap-2">
+      <ol className="grid grid-cols-3 gap-2">
         {JOURNEY_STEPS.map((s, idx) => {
           const isDone = idx < activeIdx;
           const isCurrent = idx === activeIdx;
@@ -731,24 +728,6 @@ function StepProgressRail({ currentStage }) {
         })}
       </ol>
     </nav>
-  );
-}
-
-/**
- * Required / Missing pill badge for empty worker fields.
- */
-function MissingRequiredBadge({ filled }) {
-  if (filled) {
-    return (
-      <span className="ml-1.5 inline-flex items-center gap-1 rounded bg-forest-50 px-1.5 py-0.5 text-2xs font-mono font-medium text-forest">
-        ✓ Ready
-      </span>
-    );
-  }
-  return (
-    <span className="ml-1.5 inline-flex items-center gap-1 rounded bg-mustard-50 px-1.5 py-0.5 text-2xs font-mono font-semibold text-mustard">
-      Update Required
-    </span>
   );
 }
 
@@ -1206,7 +1185,7 @@ export default function WorkersBallRegistration() {
   const [showIntro, setShowIntro] = useState(true);
 
   // Journey state machine:
-  // "search" | "results" | "collectEmail" | "sendingOtp" | "verifyOtp" | "editProfile" | "mintingPass" | "confirmed"
+  // "search" | "results" | "collectEmail" | "sendingOtp" | "verifyOtp" | "mintingPass" | "confirmed" | "alreadyRegistered"
   const [stage, setStage] = useState("search");
 
   // Search state
@@ -1218,29 +1197,20 @@ export default function WorkersBallRegistration() {
   // Selected worker & email/OTP state
   const [selectedWorker, setSelectedWorker] = useState(null);
   const [enteredEmail, setEnteredEmail] = useState("");
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [emailError, setEmailError] = useState("");
+  const [isSubmittingEmail, setIsSubmittingEmail] = useState(false);
+  const [otpDestination, setOtpDestination] = useState("");
   const [otpValue, setOtpValue] = useState("");
   const [otpError, setOtpError] = useState("");
   const [otpShake, setOtpShake] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [isResendingOtp, setIsResendingOtp] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
 
-  // Profile Update Form state
-  const [profileForm, setProfileForm] = useState({
-    firstName: "",
-    lastName: "",
-    phone: "",
-    email: "",
-    role: "",
-    team: "",
-    department: "",
-  });
-  // Track which fields were originally empty when the worker was selected
-  const [originallyMissing, setOriginallyMissing] = useState(new Set());
-  const [profileErrors, setProfileErrors] = useState({});
-
-  // Confirmed Pass state
+  // Confirmed Pass state (returned by POST /api/workers-ball/register/confirm)
   const [accessCode, setAccessCode] = useState("");
+  const [qrCode, setQrCode] = useState(null);
   const [codeCopied, setCodeCopied] = useState(false);
 
   // Email HTML Studio Modal state
@@ -1250,17 +1220,26 @@ export default function WorkersBallRegistration() {
   const otpFormRef = useRef(null);
   const otpInputRef = useRef(null);
   const emailFormRef = useRef(null);
-  const profileFormRef = useRef(null);
+  const verifyingRef = useRef(false);
+
+  // Pass profile derived from the selected worker (the API has no profile-update endpoint)
+  const profileForm = {
+    firstName: selectedWorker?.firstName || "",
+    lastName: selectedWorker?.lastName || "",
+    phone: selectedWorker?.phone || "",
+    email: otpDestination || selectedWorker?.email || "",
+    role: selectedWorker?.role || "Worker",
+    team: selectedWorker?.team || "",
+    department: selectedWorker?.department || "",
+  };
 
   // Initialize post-interaction validation fallback on forms
   useEffect(() => {
     const cleanEmail = UserInvalidFallback.init(emailFormRef.current);
-    const cleanProfile = UserInvalidFallback.init(profileFormRef.current);
     return () => {
       cleanEmail();
-      cleanProfile();
     };
-  }, [stage]);
+  }, [stage, isEditingEmail]);
 
   // Countdown timer for OTP resend
   useEffect(() => {
@@ -1298,14 +1277,6 @@ export default function WorkersBallRegistration() {
     };
   }, [stage, resendCooldown]);
 
-  // Team & Department options from Harvesters Gbagada workforce directory
-  const roleOptions = useMemo(() => getAllRoleOptions(), []);
-  const teamOptions = useMemo(() => getAllTeamOptions(), []);
-  const departmentOptions = useMemo(
-    () => getDepartmentsForTeam(profileForm.team),
-    [profileForm.team]
-  );
-
   // Transition helper
   const transitionTo = (nextStage, direction = "forward") => {
     runStageTransition(() => {
@@ -1313,68 +1284,94 @@ export default function WorkersBallRegistration() {
     }, direction);
   };
 
-  // Step 1: Execute search by Name or Phone Number (returns 10 results)
+  // 409 Conflict (or "already registered" message) means this worker already has a pass
+  const isAlreadyRegisteredError = (err) =>
+    err?.status === 409 || /already\s+registered/i.test(err?.message || "");
+
+  const shakeOtp = () => {
+    setOtpShake(true);
+    setTimeout(() => setOtpShake(false), 360);
+  };
+
+  // Step 1: Search by name — GET /api/workers-ball/search?name=...
   const executeSearch = async (queryOverride) => {
     const raw =
       typeof queryOverride === "string" ? queryOverride : searchQuery;
     const trimmed = raw.trim();
     if (!trimmed) {
-      toast.error("Please enter your name or phone number to search.");
+      toast.error("Please enter your name to search.");
       return;
     }
     setSearchQuery(trimmed);
     setIsSearching(true);
     try {
-      const results = await searchWorkersBallMock(trimmed);
+      const results = await searchWorkersBall(trimmed);
       setSearchResults(results);
       setLastSearchedQuery(trimmed);
       transitionTo("results", "forward");
+    } catch (err) {
+      toast.error(
+        err?.message || "We couldn't search the registry. Please try again."
+      );
     } finally {
       setIsSearching(false);
     }
   };
 
-  // Step 2: Select a worker from the 10 results
+  // Step 2: Select a worker from the results
   const handleSelectWorker = (worker) => {
     setSelectedWorker(worker);
-    const missingSet = new Set();
-    if (!worker.firstName?.trim()) missingSet.add("firstName");
-    if (!worker.lastName?.trim()) missingSet.add("lastName");
-    if (!worker.phone?.trim()) missingSet.add("phone");
-    if (!worker.role?.trim()) missingSet.add("role");
-    if (!worker.team?.trim()) missingSet.add("team");
-    if (!worker.department?.trim()) missingSet.add("department");
-    setOriginallyMissing(missingSet);
-
     setOtpValue("");
     setOtpError("");
+    setEmailError("");
+    setEnteredEmail("");
+    setAccessCode("");
+    setQrCode(null);
 
-    const hasEmail = Boolean(worker.email && worker.email.includes("@"));
-    if (hasEmail) {
-      setEnteredEmail(worker.email);
-      triggerOtpDispatch(worker, worker.email);
-    } else {
-      setEnteredEmail("");
-      setEmailError("");
-      transitionTo("collectEmail", "forward");
+    if (worker.registered) {
+      transitionTo("alreadyRegistered", "forward");
+      return;
     }
+    // No email on record → must enter one before an OTP can be sent
+    setIsEditingEmail(!worker.email);
+    transitionTo("collectEmail", "forward");
   };
 
-  // Dispatch OTP animation -> Verify OTP step
-  const triggerOtpDispatch = () => {
+  // Request the 6-digit OTP — POST /api/workers-ball/register { workerId }
+  const dispatchOtp = async (worker, destinationLabel) => {
     transitionTo("sendingOtp", "forward");
-    setTimeout(() => {
+    try {
+      await requestWorkersBallOtp(worker.id);
+      setOtpDestination(destinationLabel);
+      setOtpValue("");
+      setOtpError("");
       setResendCooldown(45);
       transitionTo("verifyOtp", "forward");
       setTimeout(() => {
         otpInputRef.current?.focus?.();
       }, 80);
-    }, 850);
+    } catch (err) {
+      if (isAlreadyRegisteredError(err)) {
+        transitionTo("alreadyRegistered", "forward");
+        return;
+      }
+      toast.error(
+        err?.message || "We couldn't send your verification code. Please try again."
+      );
+      transitionTo("collectEmail", "backward");
+    }
   };
 
-  // Step 2A: Submit missing email to receive OTP
-  const handleEmailSubmit = (e) => {
+  // Step 2A: Use email on record, or save a new one — PUT /api/workers-ball/workers/{id}/email
+  const handleEmailSubmit = async (e) => {
     e.preventDefault();
+    if (!selectedWorker || isSubmittingEmail) return;
+
+    if (!isEditingEmail && selectedWorker.email) {
+      await dispatchOtp(selectedWorker, selectedWorker.email);
+      return;
+    }
+
     const cleaned = enteredEmail.trim();
     const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleaned);
     if (!valid) {
@@ -1382,46 +1379,65 @@ export default function WorkersBallRegistration() {
       return;
     }
     setEmailError("");
-    triggerOtpDispatch(selectedWorker, cleaned);
+    setIsSubmittingEmail(true);
+    try {
+      await updateWorkersBallEmail(selectedWorker.id, cleaned);
+      const updated = { ...selectedWorker, email: cleaned };
+      setSelectedWorker(updated);
+      setIsEditingEmail(false);
+      await dispatchOtp(updated, cleaned);
+    } catch (err) {
+      if (isAlreadyRegisteredError(err)) {
+        transitionTo("alreadyRegistered", "forward");
+        return;
+      }
+      setEmailError(
+        err?.message || "We couldn't update your email. Please try again."
+      );
+    } finally {
+      setIsSubmittingEmail(false);
+    }
   };
 
-  // Step 2B: Verify 6-digit OTP
-  const verifyOtpCode = (codeToVerify) => {
+  // Step 2B: Confirm OTP — POST /api/workers-ball/register/confirm { workerId, otp }
+  const verifyOtpCode = async (codeToVerify) => {
+    if (verifyingRef.current || !selectedWorker) return;
     const cleaned = String(codeToVerify ?? otpValue)
       .replace(/\D/g, "")
       .slice(0, 6);
     if (cleaned.length !== 6) {
       setOtpError("Please enter all 6 digits of your verification code.");
-      setOtpShake(true);
-      setTimeout(() => setOtpShake(false), 360);
-      return;
-    }
-    // Allow testing error shake with 000000
-    if (cleaned === "000000") {
-      setOtpError("Invalid verification code. Try 202688.");
-      setOtpShake(true);
-      setTimeout(() => setOtpShake(false), 360);
+      shakeOtp();
       return;
     }
 
+    verifyingRef.current = true;
     setIsVerifyingOtp(true);
     setOtpError("");
-    setTimeout(() => {
+    try {
+      const result = await confirmWorkersBallRegistration(
+        selectedWorker.id,
+        cleaned
+      );
+      setAccessCode(result.accessCode || "");
+      setQrCode(result.qrCode || null);
+      setSelectedWorker((prev) => (prev ? { ...prev, registered: true } : prev));
+      transitionTo("mintingPass", "forward");
+      setTimeout(() => {
+        transitionTo("confirmed", "forward");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }, 900);
+    } catch (err) {
+      if (isAlreadyRegisteredError(err)) {
+        transitionTo("alreadyRegistered", "forward");
+        return;
+      }
+      setOtpError(err?.message || "Invalid or expired verification code.");
+      shakeOtp();
+    } finally {
+      verifyingRef.current = false;
       setIsVerifyingOtp(false);
-      // Populate profile form for review/update
-      setProfileForm({
-        firstName: selectedWorker?.firstName || "",
-        lastName: selectedWorker?.lastName || "",
-        phone: selectedWorker?.phone || "",
-        email: enteredEmail.trim(),
-        role: selectedWorker?.role || "",
-        team: selectedWorker?.team || "",
-        department: selectedWorker?.department || "",
-      });
-      setProfileErrors({});
-      transitionTo("editProfile", "forward");
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }, 550);
+    }
   };
 
   const handleOtpFormSubmit = (e) => {
@@ -1429,81 +1445,24 @@ export default function WorkersBallRegistration() {
     verifyOtpCode(otpValue);
   };
 
-  const handleResendOtp = () => {
-    if (resendCooldown > 0) return;
-    setOtpValue("");
-    setOtpError("");
-    setResendCooldown(45);
-    toast.info(`New verification code sent to ${enteredEmail}`);
-  };
-
-  // Step 3: Profile Form Field Updates & Completeness Calculation
-  const updateProfileField = (field, value) => {
-    setProfileForm((prev) => {
-      const next = { ...prev, [field]: value };
-      // Clear department if team changed and current department isn't in the new team
-      if (field === "team" && prev.team !== value) {
-        const nextDepts = getDepartmentsForTeam(value);
-        if (!nextDepts.includes(prev.department)) {
-          next.department = "";
-        }
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0 || isResendingOtp || !selectedWorker) return;
+    setIsResendingOtp(true);
+    try {
+      await requestWorkersBallOtp(selectedWorker.id);
+      setOtpValue("");
+      setOtpError("");
+      setResendCooldown(45);
+      toast.info(`New verification code sent to ${otpDestination}`);
+    } catch (err) {
+      if (isAlreadyRegisteredError(err)) {
+        transitionTo("alreadyRegistered", "forward");
+        return;
       }
-      return next;
-    });
-    setProfileErrors((prev) => ({ ...prev, [field]: undefined }));
-  };
-
-  const requiredFieldsList = [
-    "firstName",
-    "lastName",
-    "phone",
-    "role",
-    "team",
-    "department",
-  ];
-  const completedCount = requiredFieldsList.filter((f) =>
-    Boolean(String(profileForm[f] || "").trim())
-  ).length;
-  const completenessPct = Math.round(
-    (completedCount / requiredFieldsList.length) * 100
-  );
-
-  const handleSaveProfile = (e) => {
-    e.preventDefault();
-    const errs = {};
-    if (!profileForm.firstName.trim()) {
-      errs.firstName = "First name is required";
+      toast.error(err?.message || "We couldn't resend the code. Please try again.");
+    } finally {
+      setIsResendingOtp(false);
     }
-    if (!profileForm.lastName.trim()) {
-      errs.lastName = "Last name is required";
-    }
-    const cleanPhone = profileForm.phone.replace(/\D/g, "");
-    if (cleanPhone.length !== 11) {
-      errs.phone = "Enter a valid 11-digit Nigerian phone number";
-    }
-    if (!profileForm.role.trim()) {
-      errs.role = "Role must be selected";
-    }
-    if (!profileForm.team.trim()) {
-      errs.team = "Team must be selected";
-    }
-    if (!profileForm.department.trim()) {
-      errs.department = "Department must be selected";
-    }
-
-    if (Object.keys(errs).length > 0) {
-      setProfileErrors(errs);
-      toast.error("Please complete all required profile fields.");
-      return;
-    }
-
-    const code = generateWorkersBallCode(profileForm);
-    setAccessCode(code);
-    transitionTo("mintingPass", "forward");
-    setTimeout(() => {
-      transitionTo("confirmed", "forward");
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }, 1050);
   };
 
   const handleCopyAccessCode = async () => {
@@ -1530,7 +1489,11 @@ export default function WorkersBallRegistration() {
     setSelectedWorker(null);
     setOtpValue("");
     setOtpError("");
+    setOtpDestination("");
+    setEnteredEmail("");
+    setIsEditingEmail(false);
     setAccessCode("");
+    setQrCode(null);
     transitionTo("search", "backward");
   };
 
@@ -1634,12 +1597,12 @@ export default function WorkersBallRegistration() {
               <h1 className="text-2xl sm:text-3xl font-semibold text-ink-900 tracking-tight leading-snug">
                 {stage === "confirmed"
                   ? "Your Gala Pass is Ready"
-                  : stage === "editProfile"
-                    ? "Verify & Update Your Profile"
+                  : stage === "alreadyRegistered"
+                    ? "You're Already Registered"
                     : stage === "verifyOtp" || stage === "sendingOtp"
                       ? "Confirm Your Identity"
                       : stage === "collectEmail"
-                        ? "Add Your Email Address"
+                        ? "Confirm Your Email"
                         : "Workforce Accreditation"}
               </h1>
             </div>
@@ -1659,7 +1622,7 @@ export default function WorkersBallRegistration() {
           {/* View-Transition Stage Wrapper */}
           <div className="wb26-transition-stage">
             {/* ============================================================
-                STAGE 1A: SEARCH BY NAME OR PHONE NUMBER
+                STAGE 1A: SEARCH BY NAME
                ============================================================ */}
             {stage === "search" && (
               <section className="wb26-panel qc-card p-6 sm:p-8 space-y-6">
@@ -1669,10 +1632,8 @@ export default function WorkersBallRegistration() {
                     Find your name in the Gbagada registry
                   </h2>
                   <p className="text-sm text-ink-500 leading-relaxed">
-                    Search using your <strong>first name</strong>,{" "}
-                    <strong>surname</strong>, or{" "}
-                    <strong>11-digit phone number</strong>. We’ll display the top
-                    10 matching records.
+                    Search using your <strong>first name</strong> or{" "}
+                    <strong>surname</strong>, then pick your record from the list.
                   </p>
                 </div>
 
@@ -1688,26 +1649,25 @@ export default function WorkersBallRegistration() {
                       htmlFor={`${uid}-search`}
                       className="block text-sm font-medium text-ink-900 mb-1"
                     >
-                      Name or Phone Number <span className="text-sienna">*</span>
+                      Your Name <span className="text-sienna">*</span>
                     </label>
                     <p
                       id={`${uid}-search-hint`}
                       className="text-xs text-ink-500 mb-2"
                     >
-                      Example: &ldquo;Adebayo Okafor&rdquo;, &ldquo;Mayowa&rdquo;, or
-                      &ldquo;08034521908&rdquo;
+                      Example: &ldquo;Adebayo Okafor&rdquo; or &ldquo;Mayowa&rdquo;
                     </p>
                     <div className="flex flex-col sm:flex-row gap-2.5">
                       <input
                         id={`${uid}-search`}
-                        name="query"
+                        name="name"
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Enter name or phone number..."
+                        placeholder="Enter your name..."
                         aria-describedby={`${uid}-search-hint`}
+                        autoComplete="name"
                         autoCorrect="off"
-                        autoCapitalize="off"
                         spellCheck={false}
                         enterKeyHint="search"
                         disabled={isSearching}
@@ -1720,17 +1680,15 @@ export default function WorkersBallRegistration() {
                         className="qc-btn-primary px-6 cursor-pointer shrink-0"
                       >
                         <MagnifyingGlassIcon className="h-4 w-4" />
-                        {isSearching ? "Scanning..." : "Search Registry"}
+                        {isSearching ? "Searching..." : "Search Registry"}
                       </button>
                     </div>
                   </div>
 
-                  {/* Animated Radar Scan Indicator while searching */}
                   {isSearching && (
                     <div className="rounded-md border border-ink-200 bg-cream p-3.5 space-y-2">
                       <div className="flex items-center justify-between text-2xs font-mono uppercase tracking-tag text-ink-600">
                         <span>Querying Harvesters Gbagada Workforce...</span>
-                        <span className="text-sienna font-semibold">10 matches</span>
                       </div>
                       <div className="h-1 w-full bg-ink-200 rounded-full overflow-hidden">
                         <div className="h-full w-1/3 bg-sienna wb26-radar-bar rounded-full" />
@@ -1738,48 +1696,11 @@ export default function WorkersBallRegistration() {
                     </div>
                   )}
                 </form>
-
-                {/* Quick Demo Search Chips for instant exploration */}
-                <div className="pt-4 border-t border-ink-200 space-y-2.5">
-                  <p className="text-2xs font-mono uppercase tracking-tag text-ink-500">
-                    Interactive Mock Scenarios &middot; Tap to test any branch:
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      {
-                        label: "Adebayo (Has Email + Complete)",
-                        query: "Adebayo",
-                      },
-                      {
-                        label: "Mayowa (No Email + Missing Dept)",
-                        query: "Mayowa",
-                      },
-                      {
-                        label: "Temitope (Has Email + Missing Role)",
-                        query: "Temitope",
-                      },
-                      {
-                        label: "Search by Phone (0803)",
-                        query: "0803",
-                      },
-                    ].map((chip) => (
-                      <button
-                        key={chip.query}
-                        type="button"
-                        onClick={() => executeSearch(chip.query)}
-                        disabled={isSearching}
-                        className="rounded-md border border-ink-200 bg-cream px-2.5 py-1.5 text-xs font-medium text-ink-700 hover:border-ink-900 hover:bg-white hover:text-ink-900 transition cursor-pointer"
-                      >
-                        {chip.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </section>
             )}
 
             {/* ============================================================
-                STAGE 1B: 10 SEARCH RESULTS SHOWN (STAGGERED CASCADE)
+                STAGE 1B: SEARCH RESULTS (STAGGERED CASCADE)
                ============================================================ */}
             {stage === "results" && (
               <section className="wb26-panel space-y-4">
@@ -1793,20 +1714,19 @@ export default function WorkersBallRegistration() {
                       &larr; New Search
                     </button>
                     <span className="inline-flex items-center gap-1.5 rounded bg-ink-100 px-2.5 py-1 text-2xs font-mono uppercase tracking-tag text-ink-700 qc-num">
-                      Showing {searchResults.length} of 10 Results
+                      {searchResults.length}{" "}
+                      {searchResults.length === 1 ? "Result" : "Results"}
                     </span>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-                    <div>
-                      <h2 className="text-lg font-semibold text-ink-900">
-                        Select your name for &ldquo;{lastSearchedQuery}&rdquo;
-                      </h2>
-                      <p className="text-xs text-ink-500 mt-0.5">
-                        Tap your profile below. We’ll verify your email with a
-                        6-digit OTP before showing your full record.
-                      </p>
-                    </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-ink-900">
+                      Select your name for &ldquo;{lastSearchedQuery}&rdquo;
+                    </h2>
+                    <p className="text-xs text-ink-500 mt-0.5">
+                      Tap your record. We&rsquo;ll email you a 6-digit code to
+                      confirm it&rsquo;s you.
+                    </p>
                   </div>
 
                   {/* Inline quick refine search */}
@@ -1819,12 +1739,11 @@ export default function WorkersBallRegistration() {
                   >
                     <input
                       type="text"
-                      aria-label="Refine search by name or phone number"
+                      aria-label="Search another name"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search another name or phone..."
+                      placeholder="Search another name..."
                       autoCorrect="off"
-                      autoCapitalize="off"
                       spellCheck={false}
                       className="qc-input min-h-0 py-2 text-sm flex-1"
                     />
@@ -1833,87 +1752,96 @@ export default function WorkersBallRegistration() {
                       disabled={isSearching}
                       className="qc-btn-secondary min-h-0 py-2 px-4 text-xs font-mono uppercase tracking-tag cursor-pointer"
                     >
-                      {isSearching ? "..." : "Filter"}
+                      {isSearching ? "..." : "Search"}
                     </button>
                   </form>
                 </div>
 
-                {/* 10 Staggered Worker Cards */}
-                <ul
-                  className="divide-y divide-ink-200 rounded-md border border-ink-200 bg-white overflow-hidden shadow-sheet"
-                  aria-label="Matching workers"
-                >
-                  {searchResults.map((w, index) => {
-                    const hasEmail = Boolean(w.email && w.email.includes("@"));
-                    const hasIncompleteFields =
-                      !w.role || !w.team || !w.department;
-                    const deptTeamLine = [w.role, w.department, w.team]
-                      .filter(Boolean)
-                      .join(" · ");
+                {searchResults.length === 0 ? (
+                  <div className="qc-card p-6 text-center space-y-1.5">
+                    <p className="text-sm font-semibold text-ink-900">
+                      No workers found for &ldquo;{lastSearchedQuery}&rdquo;
+                    </p>
+                    <p className="text-xs text-ink-500">
+                      Try your first name only, or check the spelling. If you
+                      still can&rsquo;t find yourself, speak to your HOD.
+                    </p>
+                  </div>
+                ) : (
+                  <ul
+                    className="divide-y divide-ink-200 rounded-md border border-ink-200 bg-white overflow-hidden shadow-sheet"
+                    aria-label="Matching workers"
+                  >
+                    {searchResults.map((w, index) => {
+                      const deptTeamLine = [w.department, w.team]
+                        .filter(Boolean)
+                        .join(" · ");
 
-                    return (
-                      <li
-                        key={w.id}
-                        className="wb26-stagger-item"
-                        style={{ "--stagger-index": index }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => handleSelectWorker(w)}
-                          className="group w-full text-left px-4 sm:px-5 py-3.5 hover:bg-cream transition flex items-center justify-between gap-3 cursor-pointer"
+                      return (
+                        <li
+                          key={w.id}
+                          className="wb26-stagger-item"
+                          style={{ "--stagger-index": index }}
                         >
-                          <div className="flex items-center gap-3.5 min-w-0">
-                            <span className="font-mono qc-num text-xs font-semibold text-ink-400 group-hover:text-sienna w-6 shrink-0">
-                              {String(index + 1).padStart(2, "0")}
-                            </span>
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-semibold text-ink-900 truncate">
-                                  {w.firstName} {w.lastName}
+                          <button
+                            type="button"
+                            onClick={() => handleSelectWorker(w)}
+                            className="group w-full text-left px-4 sm:px-5 py-3.5 hover:bg-cream transition flex items-center justify-between gap-3 cursor-pointer"
+                          >
+                            <div className="flex items-center gap-3.5 min-w-0">
+                              <span className="font-mono qc-num text-xs font-semibold text-ink-400 group-hover:text-sienna w-6 shrink-0">
+                                {String(index + 1).padStart(2, "0")}
+                              </span>
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="text-sm font-semibold text-ink-900 truncate">
+                                    {w.name || `${w.firstName} ${w.lastName}`}
+                                  </p>
+                                  {w.phone && (
+                                    <span className="text-xs font-mono qc-num text-ink-500">
+                                      {w.phone}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-ink-500 truncate mt-0.5">
+                                  {deptTeamLine || "Workforce Member"}
                                 </p>
-                                <span className="text-xs font-mono qc-num text-ink-500">
-                                  {maskPhone(w.phone)}
-                                </span>
                               </div>
-                              <p className="text-xs text-ink-500 truncate mt-0.5">
-                                {deptTeamLine || "Workforce Member"}
-                              </p>
                             </div>
-                          </div>
 
-                          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 shrink-0">
-                            {hasIncompleteFields && (
-                              <span className="inline-flex items-center rounded bg-mustard-50 px-2 py-0.5 text-2xs font-mono font-medium text-mustard">
-                                Update Needed
+                            <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 shrink-0">
+                              {w.registered ? (
+                                <span className="inline-flex items-center gap-1 rounded bg-forest-50 px-2 py-0.5 text-2xs font-mono font-medium text-forest">
+                                  ✓ Registered
+                                </span>
+                              ) : w.email ? (
+                                <span className="inline-flex items-center gap-1 rounded bg-cream-200 px-2 py-0.5 text-2xs font-mono font-medium text-ink-700">
+                                  <EnvelopeIcon className="h-3 w-3" />
+                                  {w.email}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 rounded bg-sienna-50 px-2 py-0.5 text-2xs font-mono font-medium text-sienna">
+                                  + Add Email
+                                </span>
+                              )}
+                              <span
+                                className="hidden sm:inline-block text-ink-400 group-hover:text-ink-900 group-hover:translate-x-0.5 transition-transform ml-1"
+                                aria-hidden="true"
+                              >
+                                &rarr;
                               </span>
-                            )}
-                            {hasEmail ? (
-                              <span className="inline-flex items-center gap-1 rounded bg-forest-50 px-2 py-0.5 text-2xs font-mono font-medium text-forest">
-                                <EnvelopeIcon className="h-3 w-3" />
-                                {maskEmail(w.email)}
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 rounded bg-sienna-50 px-2 py-0.5 text-2xs font-mono font-medium text-sienna">
-                                + Add Email
-                              </span>
-                            )}
-                            <span
-                              className="hidden sm:inline-block text-ink-400 group-hover:text-ink-900 group-hover:translate-x-0.5 transition-transform ml-1"
-                              aria-hidden="true"
-                            >
-                              &rarr;
-                            </span>
-                          </div>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
+                            </div>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </section>
             )}
 
             {/* ============================================================
-                STAGE 2A: IF EMAIL DOES NOT EXIST, COLLECT EMAIL FIRST
+                STAGE 2A: CONFIRM OR UPDATE EMAIL, THEN SEND OTP
                ============================================================ */}
             {stage === "collectEmail" && selectedWorker && (
               <section className="wb26-panel qc-card p-6 sm:p-8 space-y-6">
@@ -1922,7 +1850,7 @@ export default function WorkersBallRegistration() {
                   onClick={() => transitionTo("results", "backward")}
                   className="inline-flex items-center gap-1.5 text-sm text-ink-500 hover:text-ink-900 transition cursor-pointer"
                 >
-                  &larr; Back to 10 results
+                  &larr; Back to results
                 </button>
 
                 {/* Selected Worker Banner */}
@@ -1930,27 +1858,32 @@ export default function WorkersBallRegistration() {
                   <UserCircleIcon className="h-6 w-6 text-ink-500 shrink-0" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-ink-900 truncate">
-                      {selectedWorker.firstName} {selectedWorker.lastName}
+                      {selectedWorker.name ||
+                        `${selectedWorker.firstName} ${selectedWorker.lastName}`}
                     </p>
-                    <p className="text-xs font-mono qc-num text-ink-500">
-                      {maskPhone(selectedWorker.phone)}
+                    <p className="text-xs text-ink-500 truncate">
+                      {[selectedWorker.department, selectedWorker.team]
+                        .filter(Boolean)
+                        .join(" · ") || "Workforce Member"}
                     </p>
                   </div>
-                  <span className="rounded bg-sienna-50 px-2 py-0.5 text-2xs font-mono font-semibold text-sienna">
-                    Email Missing
-                  </span>
+                  {!selectedWorker.email && (
+                    <span className="rounded bg-sienna-50 px-2 py-0.5 text-2xs font-mono font-semibold text-sienna">
+                      Email Missing
+                    </span>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
-                  <span className="qc-eyebrow">Step 02 &middot; Email Required</span>
+                  <span className="qc-eyebrow">Step 02 &middot; Email</span>
                   <h2 className="text-xl font-semibold text-ink-900">
-                    Where should we send your verification code?
+                    {isEditingEmail
+                      ? "Where should we send your code?"
+                      : "Send your code to this email?"}
                   </h2>
                   <p className="text-sm text-ink-500 leading-relaxed">
-                    We didn’t find an email address on your workforce profile.
-                    Enter your email below — we’ll send a 6-digit OTP to verify
-                    it, and later deliver your{" "}
-                    <strong>Workers Ball 2026 Pass</strong> there.
+                    We&rsquo;ll email a 6-digit code to confirm it&rsquo;s you.
+                    Your Workers Ball pass goes to the same address.
                   </p>
                 </div>
 
@@ -1960,54 +1893,91 @@ export default function WorkersBallRegistration() {
                   noValidate
                   className="space-y-4"
                 >
-                  <div>
-                    <label
-                      htmlFor={`${uid}-collect-email`}
-                      className="block text-sm font-medium text-ink-900 mb-1"
-                    >
-                      Your Active Email Address{" "}
-                      <span className="text-sienna">*</span>
-                    </label>
-                    {/* Format hint placed ABOVE input per modern-web-guidance */}
-                    <p
-                      id={`${uid}-collect-email-hint`}
-                      className="text-xs text-ink-500 mb-2"
-                    >
-                      Format: you@example.com — we will send a 6-digit OTP
-                      immediately.
-                    </p>
-                    <input
-                      id={`${uid}-collect-email`}
-                      name="email"
-                      type="email"
-                      required
-                      autoComplete="email"
-                      autoCorrect="off"
-                      autoCapitalize="off"
-                      spellCheck={false}
-                      value={enteredEmail}
-                      onChange={(e) => {
-                        setEnteredEmail(e.target.value);
-                        setEmailError("");
-                      }}
-                      placeholder="you@example.com"
-                      aria-describedby={`${uid}-collect-email-hint`}
-                      autoFocus
-                      className="qc-input wb26-field-input"
-                    />
-                    {emailError && (
-                      <p className="mt-1.5 text-xs text-brick font-medium" role="alert">
-                        {emailError}
+                  {isEditingEmail ? (
+                    <div>
+                      <label
+                        htmlFor={`${uid}-collect-email`}
+                        className="block text-sm font-medium text-ink-900 mb-1"
+                      >
+                        Email Address <span className="text-sienna">*</span>
+                      </label>
+                      <p
+                        id={`${uid}-collect-email-hint`}
+                        className="text-xs text-ink-500 mb-2"
+                      >
+                        Format: you@example.com
                       </p>
-                    )}
-                  </div>
+                      <input
+                        id={`${uid}-collect-email`}
+                        name="email"
+                        type="email"
+                        required
+                        autoComplete="email"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck={false}
+                        value={enteredEmail}
+                        onChange={(e) => {
+                          setEnteredEmail(e.target.value);
+                          setEmailError("");
+                        }}
+                        placeholder="you@example.com"
+                        aria-describedby={`${uid}-collect-email-hint`}
+                        disabled={isSubmittingEmail}
+                        autoFocus
+                        className="qc-input wb26-field-input"
+                      />
+                      {selectedWorker.email && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsEditingEmail(false);
+                            setEmailError("");
+                          }}
+                          className="mt-2 text-xs text-ink-600 hover:text-ink-900 underline underline-offset-2 cursor-pointer"
+                        >
+                          Use {selectedWorker.email} instead
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="rounded-md border border-ink-200 bg-white px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <EnvelopeIcon className="h-5 w-5 text-sienna shrink-0" />
+                        <span className="font-mono text-sm text-ink-900 truncate">
+                          {selectedWorker.email}
+                        </span>
+                      </div>
+                      {selectedWorker.emailEditable && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsEditingEmail(true);
+                            setEnteredEmail("");
+                          }}
+                          className="text-xs text-ink-600 hover:text-ink-900 underline underline-offset-2 cursor-pointer"
+                        >
+                          Change email
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {emailError && (
+                    <p className="text-xs text-brick font-medium" role="alert">
+                      {emailError}
+                    </p>
+                  )}
 
                   <button
                     type="submit"
+                    disabled={isSubmittingEmail}
                     className="qc-btn-primary w-full py-3 cursor-pointer"
                   >
                     <EnvelopeIcon className="h-4 w-4" />
-                    Send Verification Code (OTP)
+                    {isSubmittingEmail
+                      ? "Saving email..."
+                      : "Send Verification Code"}
                   </button>
                 </form>
               </section>
@@ -2023,12 +1993,14 @@ export default function WorkersBallRegistration() {
                 </div>
                 <div className="space-y-1.5">
                   <p className="text-2xs font-mono uppercase tracking-tag text-sienna font-semibold">
-                    Dispatching Security Token
+                    Sending Code
                   </p>
                   <h2 className="text-xl font-semibold text-ink-900">
-                    Sending 6-digit OTP to your email...
+                    Emailing your 6-digit code...
                   </h2>
-                  <p className="text-sm font-mono text-ink-600">{enteredEmail}</p>
+                  <p className="text-sm font-mono text-ink-600">
+                    {selectedWorker?.email}
+                  </p>
                 </div>
                 <div className="max-w-xs mx-auto h-1.5 bg-ink-200 rounded-full overflow-hidden">
                   <div className="h-full w-1/2 bg-sienna wb26-radar-bar rounded-full" />
@@ -2049,77 +2021,39 @@ export default function WorkersBallRegistration() {
                   >
                     &larr; Back to results
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => transitionTo("collectEmail", "backward")}
-                    className="text-xs text-ink-600 hover:text-ink-900 underline underline-offset-2 cursor-pointer"
-                  >
-                    Use a different email
-                  </button>
+                  {selectedWorker.emailEditable && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditingEmail(true);
+                        setEnteredEmail("");
+                        transitionTo("collectEmail", "backward");
+                      }}
+                      className="text-xs text-ink-600 hover:text-ink-900 underline underline-offset-2 cursor-pointer"
+                    >
+                      Use a different email
+                    </button>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
-                  <span className="qc-eyebrow">Step 02 &middot; OTP Confirmation</span>
+                  <span className="qc-eyebrow">Step 02 &middot; Verification</span>
                   <h2 className="text-xl font-semibold text-ink-900">
-                    Enter the 6-digit code sent to your email
+                    Enter the 6-digit code
                   </h2>
                   <p className="text-sm text-ink-500 leading-relaxed">
-                    We sent a one-time verification code to{" "}
+                    We sent it to{" "}
                     <strong className="text-ink-900 font-mono text-xs">
-                      {enteredEmail}
-                    </strong>{" "}
-                    for{" "}
-                    <strong className="text-ink-900">
-                      {selectedWorker.firstName} {selectedWorker.lastName}
+                      {otpDestination}
                     </strong>
-                    .
+                    . Check your spam folder if you don&rsquo;t see it.
                   </p>
-                </div>
-
-                {/* Mock Experience Helper Banner */}
-                <div className="rounded-md border border-sienna/30 bg-sienna-50/70 p-3.5 flex flex-wrap items-center justify-between gap-3">
-                  <div className="space-y-0.5">
-                    <p className="text-2xs font-mono uppercase tracking-tag text-sienna font-semibold">
-                      Mock Experience &middot; Instant OTP
-                    </p>
-                    <p className="text-xs text-ink-700">
-                      Your mock OTP code is{" "}
-                      <strong className="font-mono qc-num text-ink-900">
-                        {MOCK_OTP_CODE}
-                      </strong>{" "}
-                      (or enter <code className="font-mono">000000</code> to test error shake).
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOtpValue(MOCK_OTP_CODE);
-                        verifyOtpCode(MOCK_OTP_CODE);
-                      }}
-                      className="rounded bg-ink-900 px-3 py-1.5 text-xs font-mono font-medium text-cream hover:bg-ink-800 transition cursor-pointer"
-                    >
-                      Auto-Fill {MOCK_OTP_CODE}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEmailModalTab("otp");
-                        setEmailModalOpen(true);
-                      }}
-                      className="rounded border border-ink-300 bg-white px-2.5 py-1.5 text-xs font-mono text-ink-800 hover:bg-cream transition cursor-pointer"
-                    >
-                      View OTP Email
-                    </button>
-                  </div>
                 </div>
 
                 {/* Single Semantic OTP Input (`sms-otp-form` guide) with 6 Visual Slots */}
                 <form
                   ref={otpFormRef}
                   onSubmit={handleOtpFormSubmit}
-                  method="POST"
-                  action="/wb26/verify-otp"
                   noValidate
                   className="space-y-5"
                 >
@@ -2135,7 +2069,7 @@ export default function WorkersBallRegistration() {
                       id={`${uid}-otp-hint`}
                       className="text-xs text-ink-500 mb-3"
                     >
-                      Type or paste the 6-digit numeric code from your inbox.
+                      Type or paste the code from your inbox.
                     </p>
 
                     <div
@@ -2184,6 +2118,7 @@ export default function WorkersBallRegistration() {
                         required
                         aria-describedby={`${uid}-otp-hint`}
                         value={otpValue}
+                        disabled={isVerifyingOtp}
                         onChange={(e) => {
                           const digits = e.target.value
                             .replace(/\D/g, "")
@@ -2217,20 +2152,22 @@ export default function WorkersBallRegistration() {
                     >
                       <LockClosedIcon className="h-4 w-4" />
                       {isVerifyingOtp
-                        ? "Verifying Identity..."
-                        : "Verify & Unlock Profile"}
+                        ? "Confirming..."
+                        : "Confirm Registration"}
                     </button>
 
                     <button
                       type="button"
                       onClick={handleResendOtp}
-                      disabled={resendCooldown > 0}
+                      disabled={resendCooldown > 0 || isResendingOtp}
                       className="qc-btn-secondary py-3 px-4 text-xs font-mono cursor-pointer"
                     >
                       <ArrowPathIcon className="h-3.5 w-3.5" />
-                      {resendCooldown > 0
-                        ? `Resend in ${resendCooldown}s`
-                        : "Resend Code"}
+                      {isResendingOtp
+                        ? "Sending..."
+                        : resendCooldown > 0
+                          ? `Resend in ${resendCooldown}s`
+                          : "Resend Code"}
                     </button>
                   </div>
                 </form>
@@ -2238,303 +2175,40 @@ export default function WorkersBallRegistration() {
             )}
 
             {/* ============================================================
-                STAGE 3: REVIEW & UPDATE WORKER DETAILS
-                (First Name, Last Name, Phone, Role, Department, Team)
+                STAGE 2D: ALREADY REGISTERED (409)
                ============================================================ */}
-            {stage === "editProfile" && (
-              <section className="wb26-panel qc-card p-6 sm:p-8 space-y-6">
-                {/* Verified Identity Header */}
-                <div className="rounded-md border border-forest/30 bg-forest-50 px-4 py-3 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <CheckCircleIcon className="h-5 w-5 text-forest shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-forest">
-                        Email Verified via OTP
-                      </p>
-                      <p className="text-xs font-mono text-ink-600 truncate">
-                        {profileForm.email}
-                      </p>
-                    </div>
-                  </div>
+            {stage === "alreadyRegistered" && selectedWorker && (
+              <section className="wb26-panel qc-card p-6 sm:p-8 text-center space-y-4">
+                <CheckCircleIcon className="mx-auto h-12 w-12 text-forest" />
+                <span className="block text-2xs font-mono uppercase tracking-tag text-forest font-semibold">
+                  Already Registered
+                </span>
+                <h2 className="text-xl font-semibold text-ink-900">
+                  {selectedWorker.firstName}, you&rsquo;re already on the list.
+                </h2>
+                <p className="text-sm text-ink-600 max-w-md mx-auto leading-relaxed">
+                  Your Workers Ball 2026 pass (HGWB code and QR) was sent to
+                  your email when you registered. Search your inbox for
+                  &ldquo;Workers Ball&rdquo;.
+                </p>
+                <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
                   <button
                     type="button"
                     onClick={() => transitionTo("results", "backward")}
-                    className="text-xs text-ink-600 hover:text-ink-900 underline underline-offset-2 shrink-0 cursor-pointer"
+                    className="qc-btn-secondary py-2.5 px-4 text-sm cursor-pointer"
                   >
-                    Not you?
+                    &larr; Back to results
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleStartOver}
+                    className="qc-btn-primary py-2.5 px-4 text-sm cursor-pointer"
+                  >
+                    Register another worker
                   </button>
                 </div>
-
-                {/* Live Profile Completeness Bar */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-mono uppercase tracking-tag text-ink-500 text-2xs font-semibold">
-                      Step 03 &middot; Profile Completeness
-                    </span>
-                    <span
-                      className={`font-mono qc-num font-semibold ${
-                        completedCount === 6 ? "text-forest" : "text-sienna"
-                      }`}
-                    >
-                      {completedCount}/6 Fields Ready ({completenessPct}%)
-                    </span>
-                  </div>
-                  <div className="h-1.5 w-full bg-ink-200 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full transition-all duration-300 ${
-                        completedCount === 6 ? "bg-forest" : "bg-sienna"
-                      }`}
-                      style={{ width: `${completenessPct}%` }}
-                    />
-                  </div>
-                  {originallyMissing.size > 0 && (
-                    <p className="text-xs text-ink-500">
-                      Fields marked{" "}
-                      <span className="inline-block rounded bg-mustard-50 px-1.5 py-0.5 text-2xs font-mono font-semibold text-mustard">
-                        Update Required
-                      </span>{" "}
-                      were empty on your record and must be updated before saving.
-                    </p>
-                  )}
-                </div>
-
-                <form
-                  ref={profileFormRef}
-                  onSubmit={handleSaveProfile}
-                  noValidate
-                  className="space-y-5"
-                >
-                  {/* First Name & Last Name */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label
-                        htmlFor={`${uid}-firstName`}
-                        className="block text-sm font-medium text-ink-900 mb-1"
-                      >
-                        First Name <span className="text-sienna">*</span>
-                        {originallyMissing.has("firstName") && (
-                          <MissingRequiredBadge
-                            filled={Boolean(profileForm.firstName.trim())}
-                          />
-                        )}
-                      </label>
-                      <input
-                        id={`${uid}-firstName`}
-                        name="firstName"
-                        type="text"
-                        required
-                        autoComplete="given-name"
-                        value={profileForm.firstName}
-                        onChange={(e) =>
-                          updateProfileField("firstName", e.target.value)
-                        }
-                        className="qc-input wb26-field-input"
-                      />
-                      {profileErrors.firstName && (
-                        <p className="mt-1 text-xs text-brick">
-                          {profileErrors.firstName}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor={`${uid}-lastName`}
-                        className="block text-sm font-medium text-ink-900 mb-1"
-                      >
-                        Last Name <span className="text-sienna">*</span>
-                        {originallyMissing.has("lastName") && (
-                          <MissingRequiredBadge
-                            filled={Boolean(profileForm.lastName.trim())}
-                          />
-                        )}
-                      </label>
-                      <input
-                        id={`${uid}-lastName`}
-                        name="lastName"
-                        type="text"
-                        required
-                        autoComplete="family-name"
-                        value={profileForm.lastName}
-                        onChange={(e) =>
-                          updateProfileField("lastName", e.target.value)
-                        }
-                        className="qc-input wb26-field-input"
-                      />
-                      {profileErrors.lastName && (
-                        <p className="mt-1 text-xs text-brick">
-                          {profileErrors.lastName}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Phone Number */}
-                  <div>
-                    <label
-                      htmlFor={`${uid}-phone`}
-                      className="block text-sm font-medium text-ink-900 mb-1"
-                    >
-                      Phone Number (11 Digits) <span className="text-sienna">*</span>
-                      {originallyMissing.has("phone") && (
-                        <MissingRequiredBadge
-                          filled={
-                            profileForm.phone.replace(/\D/g, "").length === 11
-                          }
-                        />
-                      )}
-                    </label>
-                    <input
-                      id={`${uid}-phone`}
-                      name="phone"
-                      type="tel"
-                      inputMode="numeric"
-                      autoComplete="tel"
-                      maxLength={11}
-                      required
-                      value={profileForm.phone}
-                      onChange={(e) =>
-                        updateProfileField(
-                          "phone",
-                          e.target.value.replace(/\D/g, "").slice(0, 11)
-                        )
-                      }
-                      placeholder="08012345678"
-                      className="qc-input qc-num wb26-field-input"
-                    />
-                    {profileErrors.phone && (
-                      <p className="mt-1 text-xs text-brick">
-                        {profileErrors.phone}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Role */}
-                  <div>
-                    <label
-                      htmlFor={`${uid}-role`}
-                      className="block text-sm font-medium text-ink-900 mb-1"
-                    >
-                      Workforce Role <span className="text-sienna">*</span>
-                      {originallyMissing.has("role") && (
-                        <MissingRequiredBadge
-                          filled={Boolean(profileForm.role.trim())}
-                        />
-                      )}
-                    </label>
-                    <select
-                      id={`${uid}-role`}
-                      name="role"
-                      required
-                      value={profileForm.role}
-                      onChange={(e) => updateProfileField("role", e.target.value)}
-                      className="qc-input wb26-field-input"
-                    >
-                      <option value="">Select your role...</option>
-                      {roleOptions.map((r) => (
-                        <option key={r} value={r}>
-                          {r}
-                        </option>
-                      ))}
-                    </select>
-                    {profileErrors.role && (
-                      <p className="mt-1 text-xs text-brick">
-                        {profileErrors.role}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Team & Department */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label
-                        htmlFor={`${uid}-team`}
-                        className="block text-sm font-medium text-ink-900 mb-1"
-                      >
-                        Team <span className="text-sienna">*</span>
-                        {originallyMissing.has("team") && (
-                          <MissingRequiredBadge
-                            filled={Boolean(profileForm.team.trim())}
-                          />
-                        )}
-                      </label>
-                      <select
-                        id={`${uid}-team`}
-                        name="team"
-                        required
-                        value={profileForm.team}
-                        onChange={(e) => updateProfileField("team", e.target.value)}
-                        className="qc-input wb26-field-input"
-                      >
-                        <option value="">Select your team...</option>
-                        {teamOptions.map((t) => (
-                          <option key={t} value={t}>
-                            {t}
-                          </option>
-                        ))}
-                      </select>
-                      {profileErrors.team && (
-                        <p className="mt-1 text-xs text-brick">
-                          {profileErrors.team}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor={`${uid}-department`}
-                        className="block text-sm font-medium text-ink-900 mb-1"
-                      >
-                        Department <span className="text-sienna">*</span>
-                        {originallyMissing.has("department") && (
-                          <MissingRequiredBadge
-                            filled={Boolean(profileForm.department.trim())}
-                          />
-                        )}
-                      </label>
-                      <select
-                        id={`${uid}-department`}
-                        name="department"
-                        required
-                        disabled={!profileForm.team}
-                        value={profileForm.department}
-                        onChange={(e) =>
-                          updateProfileField("department", e.target.value)
-                        }
-                        className="qc-input wb26-field-input"
-                      >
-                        <option value="">
-                          {profileForm.team
-                            ? "Select department..."
-                            : "Select a team first"}
-                        </option>
-                        {departmentOptions.map((d) => (
-                          <option key={d} value={d}>
-                            {d}
-                          </option>
-                        ))}
-                      </select>
-                      {profileErrors.department && (
-                        <p className="mt-1 text-xs text-brick">
-                          {profileErrors.department}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="pt-3">
-                    <button
-                      type="submit"
-                      className="qc-btn-primary w-full py-3.5 text-base cursor-pointer"
-                    >
-                      <TicketIcon className="h-5 w-5" />
-                      Save &amp; Confirm Workers Ball Registration
-                    </button>
-                  </div>
-                </form>
               </section>
             )}
-
             {/* ============================================================
                 STAGE 4A: MINTING PASS MICRO-ANIMATION
                ============================================================ */}
@@ -2543,13 +2217,13 @@ export default function WorkersBallRegistration() {
                 <WorkersBallCrest className="h-20 w-20 mx-auto" />
                 <div className="space-y-1.5">
                   <p className="text-2xs font-mono uppercase tracking-tag text-sienna font-semibold">
-                    Generating Official Gala Pass
+                    Code Verified
                   </p>
                   <h2 className="text-xl font-semibold text-ink-900">
-                    Encoding your unique Workers Ball 2026 access code...
+                    Issuing your Workers Ball 2026 pass...
                   </h2>
                   <p className="text-xs font-mono text-ink-500">
-                    {accessCode} &middot; Dispatching confirmation to{" "}
+                    {accessCode ? `${accessCode} · ` : ""}Sending confirmation to{" "}
                     {profileForm.email}
                   </p>
                 </div>
@@ -2602,58 +2276,54 @@ export default function WorkersBallRegistration() {
                     See you at Workers Ball, {profileForm.firstName}!
                   </h2>
                   <p className="text-sm text-ink-600 max-w-md mx-auto leading-relaxed">
-                    Your workforce record has been updated and your registration
-                    is confirmed. Your unique access code is{" "}
-                    <strong className="font-mono qc-num text-ink-900">
-                      {accessCode}
-                    </strong>
-                    .
-                  </p>
-
-                  {/* Email Notification Notice */}
-                  <div className="mt-4 rounded-md border border-ink-200 bg-cream px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
-                    <div className="flex items-center gap-3">
-                      <EnvelopeIcon className="h-5 w-5 text-sienna shrink-0" />
-                      <p className="text-xs text-ink-700 leading-relaxed">
-                        A confirmation email with your access code and pass has
-                        been sent to{" "}
-                        <strong className="text-ink-900 font-mono">
-                          {profileForm.email}
+                    You&rsquo;re registered.
+                    {accessCode ? (
+                      <>
+                        {" "}Your access code is{" "}
+                        <strong className="font-mono qc-num text-ink-900">
+                          {accessCode}
                         </strong>
                         .
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEmailModalTab("confirm");
-                        setEmailModalOpen(true);
-                      }}
-                      className="shrink-0 rounded border border-ink-300 bg-white px-3 py-1.5 text-2xs font-mono uppercase tracking-tag font-semibold text-ink-800 hover:bg-cream-200 transition cursor-pointer"
-                    >
-                      Preview Email HTML
-                    </button>
+                      </>
+                    ) : (
+                      " Your HGWB access code is in your email."
+                    )}
+                  </p>
+
+                  {qrCode && (
+                    <img
+                      src={qrCode}
+                      alt={`QR code for ${accessCode || "your Workers Ball pass"}`}
+                      className="mx-auto h-40 w-40 rounded-md border border-ink-200 bg-white p-2"
+                    />
+                  )}
+
+                  {/* Email Notification Notice */}
+                  <div className="mt-4 rounded-md border border-ink-200 bg-cream px-4 py-3 flex items-center gap-3 text-left">
+                    <EnvelopeIcon className="h-5 w-5 text-sienna shrink-0" />
+                    <p className="text-xs text-ink-700 leading-relaxed">
+                      We&rsquo;ve emailed your access code and QR code to{" "}
+                      <strong className="text-ink-900 font-mono">
+                        {profileForm.email}
+                      </strong>
+                      . Show it at the accreditation desk.
+                    </p>
                   </div>
                 </div>
 
-                {/* Interactive 3D-Tilt Pass & Download */}
-                <CeremonialPassCard
-                  profile={profileForm}
-                  accessCode={accessCode}
-                  onDownload={handleDownloadPass}
-                  onCopy={handleCopyAccessCode}
-                  copied={codeCopied}
-                />
+                {/* Interactive 3D-Tilt Pass & Download (only when the API returned the code) */}
+                {accessCode && (
+                  <CeremonialPassCard
+                    profile={profileForm}
+                    accessCode={accessCode}
+                    onDownload={handleDownloadPass}
+                    onCopy={handleCopyAccessCode}
+                    copied={codeCopied}
+                  />
+                )}
 
-                {/* Start Over / Edit Again Footer Actions */}
-                <div className="flex items-center justify-between pt-2 text-xs text-ink-500">
-                  <button
-                    type="button"
-                    onClick={() => transitionTo("editProfile", "backward")}
-                    className="hover:text-ink-900 underline underline-offset-2 cursor-pointer"
-                  >
-                    &larr; Edit profile details
-                  </button>
+                {/* Start Over Footer Action */}
+                <div className="flex items-center justify-end pt-2 text-xs text-ink-500">
                   <button
                     type="button"
                     onClick={handleStartOver}

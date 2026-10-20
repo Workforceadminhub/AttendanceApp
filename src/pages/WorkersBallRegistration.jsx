@@ -279,33 +279,48 @@ function WorkersBallCrest({ className = "h-20 w-20" }) {
   );
 }
 
+const DECADE_YEARS = [
+  2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026,
+];
+
 /**
- * Pre-Form Ceremonial Opening Sequence ("Before the form even loads").
+ * Pre-Form Full-Screen Ceremonial Opening Sequence ("Before the form even loads").
+ * Counts deliberately from 10 years ago (2016) to 2026 across the entire viewport.
  */
 function IntroCurtain({ onEnter }) {
   const [progress, setProgress] = useState(0);
-  const [yearCounter, setYearCounter] = useState(1998);
-  const serialText = useScrambledText("HICC-GBG // WB-2026 // GALA PASS", true, 900);
+  const [yearCounter, setYearCounter] = useState(2016);
+  const serialText = useScrambledText(
+    "HICC-GBG // WB-2026 // GALA PASS",
+    true,
+    2400
+  );
 
   useEffect(() => {
-    const duration = 2200;
+    const duration = 7000; // 7 seconds deliberate decade count (2016 -> 2026)
     const start = performance.now();
     let rafId;
     let timerId;
 
     const step = (now) => {
       const elapsed = now - start;
-      const pct = Math.min(100, Math.round((elapsed / duration) * 100));
+      const ratio = Math.min(1, elapsed / duration);
+      const pct = Math.round(ratio * 100);
       setProgress(pct);
-      setYearCounter(Math.min(2026, 2000 + Math.floor((pct / 100) * 26)));
+
+      // Step through 2016 .. 2026 (10 years)
+      const nextYear = Math.min(2026, 2016 + Math.floor(ratio * 10.99));
+      setYearCounter(nextYear);
 
       if (elapsed < duration) {
         rafId = requestAnimationFrame(step);
       } else {
-        // Brief pause at 100% before parting the curtain
+        setYearCounter(2026);
+        setProgress(100);
+        // Hold on 2026 for 1.4s before parting the full-screen curtain
         timerId = setTimeout(() => {
           onEnter();
-        }, 260);
+        }, 1400);
       }
     };
 
@@ -317,8 +332,49 @@ function IntroCurtain({ onEnter }) {
   }, [onEnter]);
 
   return (
-    <div className="min-h-screen bg-cream text-ink-900 flex flex-col justify-between relative overflow-hidden select-none">
-      {/* Architectural Hairline Grid Lines */}
+    <div className="fixed inset-0 z-50 w-screen h-dvh bg-cream text-ink-900 flex flex-col justify-between overflow-hidden select-none">
+      {/* Full-Viewport Giant Year Watermark */}
+      <div
+        className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden"
+        aria-hidden="true"
+      >
+        <span
+          key={yearCounter}
+          className="wb26-year-tick font-mono qc-num font-bold text-[26vw] leading-none tracking-tighter text-ink-900/[0.045]"
+        >
+          {yearCounter}
+        </span>
+      </div>
+
+      {/* Full-Screen Orbital Geometry */}
+      <div
+        className="pointer-events-none absolute inset-0 flex items-center justify-center"
+        aria-hidden="true"
+      >
+        <svg
+          viewBox="0 0 600 600"
+          fill="none"
+          className="w-[82vmin] h-[82vmin] text-ink-200/80 wb26-orbit-slow"
+        >
+          <circle
+            cx="300"
+            cy="300"
+            r="280"
+            stroke="currentColor"
+            strokeWidth="1"
+            strokeDasharray="6 10"
+          />
+          <circle
+            cx="300"
+            cy="300"
+            r="220"
+            stroke="currentColor"
+            strokeWidth="1"
+          />
+        </svg>
+      </div>
+
+      {/* Architectural Full-Bleed Hairline Grid Lines */}
       <div
         className="pointer-events-none absolute inset-x-0 top-16 h-px bg-ink-200 wb26-line-x"
         aria-hidden="true"
@@ -336,8 +392,8 @@ function IntroCurtain({ onEnter }) {
         aria-hidden="true"
       />
 
-      {/* Top Telemetry Bar */}
-      <div className="relative z-10 max-w-5xl w-full mx-auto px-8 sm:px-16 h-16 flex items-center justify-between text-2xs font-mono uppercase tracking-tag text-ink-500">
+      {/* Top Full-Width Telemetry Bar */}
+      <div className="relative z-10 w-full px-8 sm:px-16 h-16 flex items-center justify-between text-2xs font-mono uppercase tracking-tag text-ink-500">
         <span className="inline-flex items-center gap-2">
           <span className="qc-live-dot" />
           <span>{serialText}</span>
@@ -351,42 +407,89 @@ function IntroCurtain({ onEnter }) {
         </button>
       </div>
 
-      {/* Central Ceremonial Greeting */}
-      <div className="relative z-10 max-w-2xl mx-auto px-8 py-12 text-center space-y-6">
+      {/* Central Full-Screen Ceremonial Greeting */}
+      <div className="relative z-10 w-full max-w-4xl mx-auto px-6 sm:px-12 py-6 text-center space-y-7">
         <div className="wb26-stagger-item" style={{ "--stagger-index": 0 }}>
-          <WorkersBallCrest className="h-28 w-28 mx-auto" />
+          <WorkersBallCrest className="h-28 w-28 sm:h-36 sm:w-36 mx-auto" />
         </div>
 
-        <div className="space-y-3 wb26-stagger-item" style={{ "--stagger-index": 2 }}>
+        <div
+          className="space-y-3 wb26-stagger-item"
+          style={{ "--stagger-index": 2 }}
+        >
           <p className="text-2xs sm:text-xs font-mono uppercase tracking-tag text-sienna font-semibold">
             Harvesters International Christian Centre &middot; Gbagada
           </p>
-          <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight text-ink-900">
+          <h1 className="text-4xl sm:text-6xl md:text-7xl font-semibold tracking-tight text-ink-900">
             Workers Ball{" "}
-            <span className="qc-num font-mono font-normal text-ink-700">
+            <span
+              key={yearCounter}
+              className={`wb26-year-tick qc-num font-mono font-semibold ${
+                yearCounter === 2026 ? "text-sienna" : "text-ink-700"
+              }`}
+            >
               {yearCounter}
             </span>
           </h1>
-          <p className="text-sm sm:text-base text-ink-600 max-w-md mx-auto leading-relaxed">
-            A Night of Honour, Excellence &amp; Thanksgiving. Verify your workforce
-            profile and claim your official gala pass.
+          <p className="text-sm sm:text-lg text-ink-600 max-w-xl mx-auto leading-relaxed">
+            Ten years of faithful service, honour, and celebration (2016 &ndash; 2026).
+            Verify your workforce profile and claim your official gala pass.
           </p>
         </div>
 
-        {/* Animated Loader Rail */}
+        {/* 10-Year Timeline Strip (2016 -> 2026) */}
         <div
-          className="max-w-xs mx-auto pt-4 space-y-2.5 wb26-stagger-item"
+          className="max-w-2xl mx-auto pt-2 space-y-3 wb26-stagger-item"
           style={{ "--stagger-index": 4 }}
         >
-          <div className="flex items-center justify-between text-2xs font-mono uppercase tracking-tag text-ink-500">
-            <span>Initializing Accreditation Desk</span>
-            <span className="qc-num text-ink-900 font-semibold">{progress}%</span>
+          <div className="flex items-center justify-between gap-1 px-1">
+            {DECADE_YEARS.map((yr) => {
+              const reached = yearCounter >= yr;
+              const isCurrent = yearCounter === yr;
+              return (
+                <div
+                  key={yr}
+                  className="flex flex-col items-center gap-1.5 flex-1"
+                >
+                  <span
+                    className={`h-2 w-2 rounded-full transition-all duration-300 ${
+                      isCurrent
+                        ? "bg-sienna scale-150 ring-4 ring-sienna/20"
+                        : reached
+                          ? "bg-ink-900"
+                          : "bg-ink-200"
+                    }`}
+                  />
+                  <span
+                    className={`text-[10px] sm:text-2xs font-mono qc-num transition-colors duration-300 ${
+                      isCurrent
+                        ? "text-sienna font-bold"
+                        : reached
+                          ? "text-ink-900 font-medium"
+                          : "text-ink-400 hidden sm:inline"
+                    }`}
+                  >
+                    {yr}
+                  </span>
+                </div>
+              );
+            })}
           </div>
-          <div className="h-1.5 w-full bg-ink-200 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-ink-900 transition-all duration-100 ease-out"
-              style={{ width: `${progress}%` }}
-            />
+
+          {/* Progress Bar */}
+          <div className="space-y-2 max-w-md mx-auto pt-1">
+            <div className="flex items-center justify-between text-2xs font-mono uppercase tracking-tag text-ink-500">
+              <span>Initializing Accreditation Desk</span>
+              <span className="qc-num text-ink-900 font-semibold">
+                {yearCounter} &middot; {progress}%
+              </span>
+            </div>
+            <div className="h-1.5 w-full bg-ink-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-ink-900 transition-all duration-200 ease-out"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
           </div>
         </div>
 
@@ -394,17 +497,17 @@ function IntroCurtain({ onEnter }) {
           <button
             type="button"
             onClick={onEnter}
-            className="qc-btn-primary px-6 py-2.5 text-xs font-mono uppercase tracking-tag cursor-pointer"
+            className="qc-btn-primary px-7 py-3 text-xs font-mono uppercase tracking-tag cursor-pointer"
           >
             Enter Registration Desk &rarr;
           </button>
         </div>
       </div>
 
-      {/* Bottom Corner Telemetry */}
-      <div className="relative z-10 max-w-5xl w-full mx-auto px-8 sm:px-16 h-16 flex items-center justify-between text-2xs font-mono uppercase tracking-tag text-ink-400">
+      {/* Bottom Full-Width Telemetry */}
+      <div className="relative z-10 w-full px-8 sm:px-16 h-16 flex items-center justify-between text-2xs font-mono uppercase tracking-tag text-ink-400">
         <span>GBAGADA CAMPUS WORKFORCE</span>
-        <span>EDITION XXVI &middot; ADMIT ONE</span>
+        <span>2016 &ndash; 2026 &middot; ADMIT ONE</span>
       </div>
     </div>
   );

@@ -6,30 +6,20 @@ import {
   CheckCircleIcon,
   ClipboardDocumentCheckIcon,
   ClipboardDocumentIcon,
-  CodeBracketIcon,
   EnvelopeIcon,
-  EyeIcon,
   LockClosedIcon,
   MagnifyingGlassIcon,
   SparklesIcon,
   UserCircleIcon,
-  XMarkIcon,
 } from "@heroicons/react/24/outline";
 import SuccessMark from "../components/ui/SuccessMark";
-import {
-  MOCK_OTP_CODE,
-  downloadWorkersBallPassPng,
-} from "../utils/workersBallMock";
+import { downloadWorkersBallPassPng } from "../utils/workersBallMock";
 import {
   confirmWorkersBallRegistration,
   requestWorkersBallOtp,
   searchWorkersBall,
   updateWorkersBallEmail,
 } from "../services/workersBall";
-import {
-  buildWorkersBallConfirmationEmail,
-  buildWorkersBallOtpEmail,
-} from "../emails/workersBallEmails";
 
 /**
  * Progressive enhancement helper for directional View Transitions
@@ -732,225 +722,6 @@ function StepProgressRail({ currentStage }) {
 }
 
 /**
- * Email Templates Studio Modal: Lets the user preview both the OTP Email HTML
- * and the Registration Confirmation Email HTML (and copy or download them).
- */
-function EmailTemplatesModal({
-  isOpen,
-  onClose,
-  initialTab = "otp",
-  workerProfile,
-  accessCode,
-}) {
-  const [activeTab, setActiveTab] = useState(initialTab);
-  const [viewMode, setViewMode] = useState("preview"); // "preview" | "source"
-  const [copied, setCopied] = useState(false);
-
-  if (!isOpen) return null;
-
-  const firstName = workerProfile?.firstName || "Adebayo";
-  const fullName =
-    `${workerProfile?.firstName || "Adebayo"} ${workerProfile?.lastName || "Okafor"}`.trim();
-
-  const otpHtml = buildWorkersBallOtpEmail({
-    firstName,
-    otpCode: MOCK_OTP_CODE,
-    expiryMinutes: 10,
-    year: "2026",
-  });
-
-  const confirmHtml = buildWorkersBallConfirmationEmail({
-    firstName,
-    fullName,
-    accessCode: accessCode || "HGWB-AO2419",
-    role: workerProfile?.role || "Cell Leader",
-    department: workerProfile?.department || "Leadership Training",
-    team: workerProfile?.team || "Ministry",
-    phone: workerProfile?.phone || "08034521908",
-    email: workerProfile?.email || "adebayo.okafor@harvestersng.org",
-    passUrl:
-      typeof window !== "undefined"
-        ? `${window.location.origin}/wb26`
-        : "https://workers.hiccgbagada.com/wb26",
-    year: "2026",
-  });
-
-  const currentHtml = activeTab === "otp" ? otpHtml : confirmHtml;
-  const filename =
-    activeTab === "otp"
-      ? "workers-ball-2026-otp-email.html"
-      : "workers-ball-2026-confirmation-email.html";
-
-  const handleCopyHtml = async () => {
-    try {
-      await navigator.clipboard.writeText(currentHtml);
-      setCopied(true);
-      toast.success("Email HTML copied to clipboard!");
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error("Could not copy HTML.");
-    }
-  };
-
-  const handleDownloadHtml = () => {
-    const blob = new Blob([currentHtml], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/60 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="wb26-email-modal-title"
-    >
-      <div className="wb26-panel bg-cream border border-ink-200 rounded-xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-pop overflow-hidden">
-        {/* Modal Header */}
-        <div className="bg-white border-b border-ink-200 px-5 py-4 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-2xs font-mono uppercase tracking-tag text-sienna font-semibold">
-              Workers Ball 2026 &middot; Transactional Email Templates
-            </p>
-            <h2
-              id="wb26-email-modal-title"
-              className="text-lg font-semibold text-ink-900"
-            >
-              Email HTML Preview &amp; Source
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close email preview"
-            className="p-2 rounded-md text-ink-500 hover:text-ink-900 hover:bg-cream-200 transition cursor-pointer"
-          >
-            <XMarkIcon className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Toolbar */}
-        <div className="bg-cream-200 border-b border-ink-200 px-5 py-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="inline-flex rounded-md border border-ink-200 bg-white p-0.5">
-            <button
-              type="button"
-              onClick={() => setActiveTab("otp")}
-              className={`px-3 py-1.5 text-xs font-medium rounded transition cursor-pointer ${
-                activeTab === "otp"
-                  ? "bg-ink-900 text-cream"
-                  : "text-ink-600 hover:text-ink-900"
-              }`}
-            >
-              1. OTP Verification Email
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("confirm")}
-              className={`px-3 py-1.5 text-xs font-medium rounded transition cursor-pointer ${
-                activeTab === "confirm"
-                  ? "bg-ink-900 text-cream"
-                  : "text-ink-600 hover:text-ink-900"
-              }`}
-            >
-              2. Confirmation &amp; Pass Email
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="inline-flex rounded-md border border-ink-200 bg-white p-0.5">
-              <button
-                type="button"
-                onClick={() => setViewMode("preview")}
-                className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded transition cursor-pointer ${
-                  viewMode === "preview"
-                    ? "bg-ink-100 text-ink-900"
-                    : "text-ink-500 hover:text-ink-900"
-                }`}
-              >
-                <EyeIcon className="h-3.5 w-3.5" />
-                Rendered
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode("source")}
-                className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded transition cursor-pointer ${
-                  viewMode === "source"
-                    ? "bg-ink-100 text-ink-900"
-                    : "text-ink-500 hover:text-ink-900"
-                }`}
-              >
-                <CodeBracketIcon className="h-3.5 w-3.5" />
-                HTML Code
-              </button>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleCopyHtml}
-              className="qc-btn-secondary py-1.5 px-3 min-h-0 text-xs cursor-pointer"
-            >
-              {copied ? (
-                <>
-                  <ClipboardDocumentCheckIcon className="h-4 w-4 text-forest" />
-                  Copied
-                </>
-              ) : (
-                <>
-                  <ClipboardDocumentIcon className="h-4 w-4" />
-                  Copy HTML
-                </>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleDownloadHtml}
-              className="qc-btn-primary py-1.5 px-3 min-h-0 text-xs cursor-pointer"
-            >
-              <ArrowDownTrayIcon className="h-4 w-4" />
-              Download .html
-            </button>
-          </div>
-        </div>
-
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-cream">
-          {viewMode === "preview" ? (
-            <div
-              className="rounded-lg border border-ink-200 bg-cream overflow-hidden shadow-sheet"
-              dangerouslySetInnerHTML={{ __html: currentHtml }}
-            />
-          ) : (
-            <pre className="rounded-lg border border-ink-200 bg-ink-900 text-cream p-4 text-xs font-mono overflow-x-auto leading-relaxed">
-              <code>{currentHtml}</code>
-            </pre>
-          )}
-        </div>
-
-        {/* Footer file path hint */}
-        <div className="bg-white border-t border-ink-200 px-5 py-3 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-500 font-mono">
-          <span>
-            Template file:{" "}
-            <strong className="text-ink-800">
-              {activeTab === "otp"
-                ? "src/emails/workers-ball-otp-email.html"
-                : "src/emails/workers-ball-confirmation-email.html"}
-            </strong>
-          </span>
-          <span>600px table layout &middot; 100% inline CSS</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
  * Interactive 3D-Tilt Gala Pass Card shown on registration confirmation.
  */
 function CeremonialPassCard({ profile, accessCode, onDownload, onCopy, copied }) {
@@ -1212,10 +983,6 @@ export default function WorkersBallRegistration() {
   const [accessCode, setAccessCode] = useState("");
   const [qrCode, setQrCode] = useState(null);
   const [codeCopied, setCodeCopied] = useState(false);
-
-  // Email HTML Studio Modal state
-  const [emailModalOpen, setEmailModalOpen] = useState(false);
-  const [emailModalTab, setEmailModalTab] = useState("otp");
 
   const otpFormRef = useRef(null);
   const otpInputRef = useRef(null);
@@ -1558,18 +1325,6 @@ export default function WorkersBallRegistration() {
             <button
               type="button"
               onClick={() => {
-                setEmailModalTab(stage === "confirmed" ? "confirm" : "otp");
-                setEmailModalOpen(true);
-              }}
-              className="qc-btn-secondary min-h-0 py-1.5 px-3 text-xs font-mono cursor-pointer"
-            >
-              <EnvelopeIcon className="h-3.5 w-3.5 text-sienna" />
-              <span className="hidden xs:inline">Email HTML</span>
-              <span className="xs:hidden">Emails</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
                 runStageTransition(() => {
                   setShowIntro(true);
                 }, "backward");
@@ -1603,7 +1358,7 @@ export default function WorkersBallRegistration() {
                       ? "Confirm Your Identity"
                       : stage === "collectEmail"
                         ? "Confirm Your Email"
-                        : "Workforce Accreditation"}
+                        : "Workforce Lookup"}
               </h1>
             </div>
             <div className="hidden sm:flex flex-col items-end text-right shrink-0">
@@ -2342,16 +2097,6 @@ export default function WorkersBallRegistration() {
       <footer className="border-t border-ink-200 py-5 px-5 sm:px-8 text-center text-xs text-ink-500 relative z-10 bg-cream">
         Harvesters International Christian Centre, Gbagada Campus &middot; Workers Ball 2026
       </footer>
-
-      {/* Built-in Email HTML Studio Modal */}
-      <EmailTemplatesModal
-        key={emailModalTab}
-        isOpen={emailModalOpen}
-        onClose={() => setEmailModalOpen(false)}
-        initialTab={emailModalTab}
-        workerProfile={profileForm.firstName ? profileForm : selectedWorker}
-        accessCode={accessCode}
-      />
     </div>
   );
 }

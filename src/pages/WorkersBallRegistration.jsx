@@ -196,11 +196,13 @@ function useScrambledText(targetText, active = true, durationMs = 650) {
 }
 
 /**
- * Ceremonial SVG Crest Emblem for Workers Ball 2026.
+ * Ceremonial Harvesters Emblem for Workers Ball 2026 (uses official /logo.jpg).
  */
 function WorkersBallCrest({ className = "h-20 w-20" }) {
   return (
-    <div className={`relative inline-flex items-center justify-center ${className}`}>
+    <div
+      className={`relative inline-flex items-center justify-center ${className}`}
+    >
       {/* Outer slow rotating orbital ring */}
       <svg
         viewBox="0 0 120 120"
@@ -211,70 +213,25 @@ function WorkersBallCrest({ className = "h-20 w-20" }) {
         <circle
           cx="60"
           cy="60"
-          r="54"
+          r="56"
           stroke="currentColor"
           strokeWidth="1"
           strokeDasharray="4 6"
         />
-        <circle cx="60" cy="6" r="2.5" fill="#B5471F" />
-        <circle cx="60" cy="114" r="2.5" fill="#0A0E1A" />
-        <circle cx="6" cy="60" r="2" fill="#A87B0F" />
-        <circle cx="114" cy="60" r="2" fill="#A87B0F" />
+        <circle cx="60" cy="4" r="2.5" fill="#B5471F" />
+        <circle cx="60" cy="116" r="2.5" fill="#0A0E1A" />
+        <circle cx="4" cy="60" r="2" fill="#A87B0F" />
+        <circle cx="116" cy="60" r="2" fill="#A87B0F" />
       </svg>
 
-      {/* Inner reverse orbital geometry */}
-      <svg
-        viewBox="0 0 120 120"
-        fill="none"
-        className="absolute inset-0 h-full w-full wb26-orbit-reverse text-ink-200"
-        aria-hidden="true"
-      >
-        <rect
-          x="23"
-          y="23"
-          width="74"
-          height="74"
-          rx="4"
-          stroke="currentColor"
-          strokeWidth="1"
-          transform="rotate(45 60 60)"
+      {/* Inner circular badge with official Harvesters logo */}
+      <div className="relative h-[78%] w-[78%] rounded-full bg-cream border border-ink-200 shadow-sheet flex items-center justify-center p-2.5 overflow-hidden">
+        <img
+          src="/logo.jpg"
+          alt="Harvesters"
+          className="w-full h-auto object-contain select-none mix-blend-multiply"
         />
-      </svg>
-
-      {/* Central drawn crest */}
-      <svg
-        viewBox="0 0 120 120"
-        fill="none"
-        className="relative h-full w-full text-ink-900"
-        aria-hidden="true"
-      >
-        <path
-          d="M60 16 L71 45 L102 48 L77 68 L85 98 L60 81 L35 98 L43 68 L18 48 L49 45 Z"
-          stroke="currentColor"
-          strokeWidth="1.75"
-          strokeLinejoin="round"
-          className="wb26-draw-path"
-        />
-        <circle
-          cx="60"
-          cy="60"
-          r="16"
-          fill="#0A0E1A"
-          stroke="#B5471F"
-          strokeWidth="1.5"
-        />
-        <text
-          x="60"
-          y="64"
-          textAnchor="middle"
-          fill="#FAFAF7"
-          fontSize="10"
-          fontWeight="700"
-          fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
-        >
-          ’26
-        </text>
-      </svg>
+      </div>
     </div>
   );
 }
@@ -283,78 +240,139 @@ const DECADE_YEARS = [
   2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026,
 ];
 
-const WB25_PHOTOS = [
-  {
-    src: "/wb25/photo-1.jpg",
-    alt: "Harvesters Gbagada Workers Ball 2025 — Squad in Denim and Diamonds",
-    caption: "WB ’25 · Denim & Diamonds",
-    tilt: "-2.5deg",
-  },
-  {
-    src: "/wb25/photo-2.jpg",
-    alt: "Harvesters Gbagada Workers Ball 2025 — Red carpet portrait",
-    caption: "WB ’25 · Red Carpet",
-    tilt: "2deg",
-  },
-  {
-    src: "/wb25/photo-3.jpg",
-    alt: "Harvesters Gbagada Workers Ball 2025 — Family moment on the carpet",
-    caption: "WB ’25 · Celebration",
-    tilt: "-1.5deg",
-  },
-  {
-    src: "/wb25/photo-4.jpg",
-    alt: "Harvesters Gbagada Workers Ball 2025 — Workforce fashion",
-    caption: "WB ’25 · The Drip",
-    tilt: "2.5deg",
-  },
-  {
-    src: "/wb25/photo-5.jpg",
-    alt: "Harvesters Gbagada Workers Ball 2025 — Worker portrait",
-    caption: "WB ’25 · Honour",
-    tilt: "-2deg",
-  },
-];
+/**
+ * Year-by-year archive of Workers Ball photography.
+ * Each year's photos ONLY appear when the countdown is on that exact year.
+ * Add photos to 2016..2023 as they become available and the timeline will
+ * automatically give those years full showcase time.
+ */
+const YEAR_PHOTOS = {
+  2016: [],
+  2017: [],
+  2018: [],
+  2019: [],
+  2020: [],
+  2021: [],
+  2022: [],
+  2023: [],
+  2024: [
+    {
+      src: "/wb24/photo-1.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2024 — Applause in gold and black agbada",
+    },
+    {
+      src: "/wb24/photo-2.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2024 — Couple in white agbada and orange gown",
+    },
+    {
+      src: "/wb24/photo-3.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2024 — Stage performance",
+    },
+    {
+      src: "/wb24/photo-4.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2024 — Joyful celebration in blue and gold lace",
+    },
+    {
+      src: "/wb24/photo-5.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2024 — Shimmering aso-oke portrait",
+    },
+  ],
+  2025: [
+    {
+      src: "/wb25/photo-1.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2025 — Squad in Denim and Diamonds",
+    },
+    {
+      src: "/wb25/photo-2.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2025 — Red carpet portrait",
+    },
+    {
+      src: "/wb25/photo-3.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2025 — Family moment on the carpet",
+    },
+    {
+      src: "/wb25/photo-4.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2025 — Workforce fashion",
+    },
+    {
+      src: "/wb25/photo-5.jpg",
+      alt: "Harvesters Gbagada Workers Ball 2025 — Worker portrait",
+    },
+  ],
+  2026: [],
+};
+
+const DECADE_SCHEDULE = (() => {
+  let cursor = 0;
+  return DECADE_YEARS.map((yr) => {
+    const photos = YEAR_PHOTOS[yr] || [];
+    // Years with photos get a generous 5.0 seconds so every photo can be appreciated;
+    // 2026 finale gets 1.8s; empty earlier years tick at 600ms each.
+    const duration =
+      yr === 2026 ? 1800 : photos.length > 0 ? 5000 : 600;
+    const entry = {
+      year: yr,
+      photos,
+      startMs: cursor,
+      endMs: cursor + duration,
+      durationMs: duration,
+    };
+    cursor += duration;
+    return entry;
+  });
+})();
+
+const TOTAL_INTRO_MS =
+  DECADE_SCHEDULE[DECADE_SCHEDULE.length - 1]?.endMs || 15000;
 
 /**
- * Pre-Form Full-Screen Ceremonial Opening Sequence ("Before the form even loads").
- * Counts deliberately from 10 years ago (2016) to 2026 across the entire viewport
- * while revealing the 2025 Workers Ball photography.
+ * Pre-Form Complete Full-Screen Opening Sequence ("Before the form even loads").
+ * Edge-to-edge 100vw x 100dvh canvas counting from 2016 -> 2026.
+ * Shows 2024 photos strictly during 2024 and 2025 photos strictly during 2025.
  */
 function IntroCurtain({ onEnter }) {
-  const [progress, setProgress] = useState(0);
   const [yearCounter, setYearCounter] = useState(2016);
-  const serialText = useScrambledText(
-    "HICC-GBG // WB-2026 // GALA PASS",
-    true,
-    2400
-  );
+  const [yearProgress, setYearProgress] = useState(0);
+
+  // Preload all year photos immediately so transitions are instant
+  useEffect(() => {
+    Object.values(YEAR_PHOTOS)
+      .flat()
+      .forEach((photo) => {
+        if (typeof Image !== "undefined") {
+          const img = new Image();
+          img.src = photo.src;
+        }
+      });
+  }, []);
 
   useEffect(() => {
-    const duration = 7000; // 7 seconds deliberate decade count (2016 -> 2026)
     const start = performance.now();
     let rafId;
     let timerId;
 
     const step = (now) => {
       const elapsed = now - start;
-      const ratio = Math.min(1, elapsed / duration);
-      const pct = Math.round(ratio * 100);
-      setProgress(pct);
 
-      // Step through 2016 .. 2026 (10 years)
-      const nextYear = Math.min(2026, 2016 + Math.floor(ratio * 10.99));
-      setYearCounter(nextYear);
+      if (elapsed < TOTAL_INTRO_MS) {
+        const currentSlot =
+          DECADE_SCHEDULE.find(
+            (slot) => elapsed >= slot.startMs && elapsed < slot.endMs
+          ) || DECADE_SCHEDULE[DECADE_SCHEDULE.length - 1];
 
-      if (elapsed < duration) {
+        setYearCounter(currentSlot.year);
+        const localRatio = Math.min(
+          1,
+          Math.max(0, (elapsed - currentSlot.startMs) / currentSlot.durationMs)
+        );
+        setYearProgress(localRatio);
         rafId = requestAnimationFrame(step);
       } else {
         setYearCounter(2026);
-        setProgress(100);
-        // Hold on 2026 for 1.4s before parting the full-screen curtain
+        setYearProgress(1);
         timerId = setTimeout(() => {
           onEnter();
-        }, 1400);
+        }, 400);
       }
     };
 
@@ -365,162 +383,133 @@ function IntroCurtain({ onEnter }) {
     };
   }, [onEnter]);
 
-  // Active spotlight photo index cycling smoothly with the countdown
-  const activePhotoIdx = Math.min(
-    WB25_PHOTOS.length - 1,
-    Math.floor((progress / 100) * WB25_PHOTOS.length)
-  );
+  const currentYearPhotos = YEAR_PHOTOS[yearCounter] || [];
+  const hasPhotosForYear = currentYearPhotos.length > 0;
+  const activePhotoIdx = hasPhotosForYear
+    ? Math.min(
+        currentYearPhotos.length - 1,
+        Math.floor(yearProgress * currentYearPhotos.length)
+      )
+    : -1;
 
   return (
-    <div className="fixed inset-0 z-50 w-screen h-dvh bg-cream text-ink-900 flex flex-col justify-between overflow-hidden select-none">
-      {/* Full-Viewport Giant Year Watermark */}
-      <div
-        className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden"
-        aria-hidden="true"
-      >
-        <span
-          key={yearCounter}
-          className="wb26-year-tick font-mono qc-num font-bold text-[26vw] leading-none tracking-tighter text-ink-900/[0.045]"
+    <div className="fixed inset-0 z-50 w-screen h-dvh bg-cream text-ink-900 overflow-hidden select-none">
+      {/* FULL-SCREEN EDGE-TO-EDGE PHOTO CANVAS (only when current year has photos, e.g. 2024 & 2025) */}
+      {hasPhotosForYear && (
+        <div
+          key={`photos-${yearCounter}`}
+          className="absolute inset-0 w-screen h-dvh grid grid-cols-2 sm:grid-cols-5 bg-ink-900"
         >
-          {yearCounter}
-        </span>
-      </div>
+          {currentYearPhotos.map((photo, idx) => {
+            // Stagger each panel in smoothly during the first 40% of the year's 5s window
+            const revealThreshold = idx * 0.09;
+            const isRevealed = yearProgress >= revealThreshold;
+            const isSpotlight = activePhotoIdx === idx;
+            return (
+              <div
+                key={photo.src}
+                className={`relative h-full w-full overflow-hidden border-r border-white/10 last:border-r-0 transition-all duration-700 ${
+                  idx === 4 ? "col-span-2 sm:col-span-1" : ""
+                } ${isRevealed ? "opacity-100" : "opacity-0 translate-y-4"}`}
+              >
+                <img
+                  src={photo.src}
+                  alt={photo.alt}
+                  style={{
+                    transform: isSpotlight
+                      ? "scale(1.07)"
+                      : isRevealed
+                        ? "scale(1.01)"
+                        : "scale(1.12)",
+                  }}
+                  className={`h-full w-full object-cover object-top transition-all duration-1000 ease-out ${
+                    isSpotlight
+                      ? "brightness-100 saturate-105"
+                      : "brightness-75 saturate-90"
+                  }`}
+                />
+                {/* Subtle top/bottom vignette for contrast */}
+                <div
+                  className="pointer-events-none absolute inset-0 bg-gradient-to-b from-ink-900/40 via-transparent to-ink-900/70"
+                  aria-hidden="true"
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
 
-      {/* Full-Screen Orbital Geometry */}
-      <div
-        className="pointer-events-none absolute inset-0 flex items-center justify-center"
-        aria-hidden="true"
-      >
-        <svg
-          viewBox="0 0 600 600"
-          fill="none"
-          className="w-[82vmin] h-[82vmin] text-ink-200/80 wb26-orbit-slow"
+      {/* Full-Viewport Giant Year Watermark (shown on years without photos) */}
+      {!hasPhotosForYear && (
+        <div
+          className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden"
+          aria-hidden="true"
         >
-          <circle
-            cx="300"
-            cy="300"
-            r="280"
-            stroke="currentColor"
-            strokeWidth="1"
-            strokeDasharray="6 10"
-          />
-          <circle
-            cx="300"
-            cy="300"
-            r="220"
-            stroke="currentColor"
-            strokeWidth="1"
-          />
-        </svg>
-      </div>
+          <span
+            key={`wm-${yearCounter}`}
+            className="wb26-year-tick font-mono qc-num font-bold text-[30vw] leading-none tracking-tighter text-ink-900/[0.05]"
+          >
+            {yearCounter}
+          </span>
+        </div>
+      )}
 
-      {/* Architectural Full-Bleed Hairline Grid Lines */}
-      <div
-        className="pointer-events-none absolute inset-x-0 top-16 h-px bg-ink-200 wb26-line-x"
-        aria-hidden="true"
-      />
-      <div
-        className="pointer-events-none absolute inset-x-0 bottom-16 h-px bg-ink-200 wb26-line-x"
-        aria-hidden="true"
-      />
-      <div
-        className="pointer-events-none absolute inset-y-0 left-6 sm:left-12 w-px bg-ink-200 wb26-line-y"
-        aria-hidden="true"
-      />
-      <div
-        className="pointer-events-none absolute inset-y-0 right-6 sm:right-12 w-px bg-ink-200 wb26-line-y"
-        aria-hidden="true"
-      />
-
-      {/* Top Full-Width Telemetry Bar */}
-      <div className="relative z-10 w-full px-8 sm:px-16 h-16 flex items-center justify-between text-2xs font-mono uppercase tracking-tag text-ink-500">
-        <span className="inline-flex items-center gap-2">
-          <span className="qc-live-dot" />
-          <span>{serialText}</span>
-        </span>
+      {/* Subtle Skip Button in Top-Right Corner */}
+      <div className="absolute top-6 right-6 sm:top-8 sm:right-10 z-30">
         <button
           type="button"
           onClick={onEnter}
-          className="text-ink-600 hover:text-ink-900 underline underline-offset-4 cursor-pointer"
+          className={`px-3.5 py-1.5 rounded-full text-xs font-mono uppercase tracking-tag transition-colors cursor-pointer ${
+            hasPhotosForYear
+              ? "bg-cream/90 text-ink-900 hover:bg-cream shadow-sheet"
+              : "bg-ink-900/5 text-ink-700 hover:bg-ink-900/10 hover:text-ink-900"
+          }`}
         >
           Skip Intro &rarr;
         </button>
       </div>
 
-      {/* Central Full-Screen Ceremonial Greeting */}
-      <div className="relative z-10 w-full max-w-5xl mx-auto px-6 sm:px-12 py-4 text-center space-y-5">
-        <div className="wb26-stagger-item" style={{ "--stagger-index": 0 }}>
-          <WorkersBallCrest className="h-20 w-20 sm:h-24 sm:w-24 mx-auto" />
-        </div>
-
+      {/* Central Full-Screen Overlay: Official Logo + Year */}
+      <div className="relative z-20 w-full h-full flex flex-col items-center justify-center px-6 pointer-events-none">
         <div
-          className="space-y-2.5 wb26-stagger-item"
-          style={{ "--stagger-index": 1 }}
+          className={`px-8 py-6 sm:px-12 sm:py-8 rounded-2xl text-center transition-all duration-500 ${
+            hasPhotosForYear
+              ? "bg-cream/90 backdrop-blur-md border border-white/40 shadow-modal"
+              : ""
+          }`}
         >
-          <p className="text-2xs sm:text-xs font-mono uppercase tracking-tag text-sienna font-semibold">
-            Harvesters International Christian Centre &middot; Gbagada
-          </p>
-          <h1 className="text-4xl sm:text-6xl md:text-7xl font-semibold tracking-tight text-ink-900">
+          <img
+            src="/logo.jpg"
+            alt="Harvesters"
+            className="h-12 sm:h-16 w-auto mx-auto mb-4 select-none mix-blend-multiply"
+          />
+
+          <h1 className="text-4xl sm:text-6xl md:text-7xl font-semibold tracking-tight text-ink-900 leading-none">
             Workers Ball{" "}
             <span
               key={yearCounter}
-              className={`wb26-year-tick qc-num font-mono font-semibold ${
-                yearCounter === 2026 ? "text-sienna" : "text-ink-700"
+              className={`wb26-year-tick inline-block qc-num font-mono font-bold ${
+                yearCounter === 2026 || hasPhotosForYear
+                  ? "text-sienna"
+                  : "text-ink-800"
               }`}
             >
               {yearCounter}
             </span>
           </h1>
-          <p className="text-sm sm:text-base text-ink-600 max-w-lg mx-auto leading-relaxed">
-            Verify your workforce profile and claim your official gala pass.
-          </p>
         </div>
+      </div>
 
-        {/* 2025 Workers Ball ("Denim & Diamonds") 5-Photo Editorial Reel */}
+      {/* Minimal Bottom Decade Timeline Strip (2016 -> 2026) */}
+      <div className="absolute inset-x-0 bottom-6 sm:bottom-8 z-30 px-6 sm:px-12">
         <div
-          className="max-w-3xl mx-auto pt-1 wb26-stagger-item"
-          style={{ "--stagger-index": 2 }}
+          className={`max-w-3xl mx-auto px-4 py-2.5 rounded-full transition-colors duration-500 ${
+            hasPhotosForYear
+              ? "bg-cream/90 backdrop-blur-md shadow-sheet"
+              : "bg-cream/80"
+          }`}
         >
-          <div className="grid grid-cols-5 gap-2 sm:gap-3.5 items-center">
-            {WB25_PHOTOS.map((photo, idx) => {
-              const isRevealed = progress >= idx * 18;
-              const isSpotlight = activePhotoIdx === idx;
-              return (
-                <div
-                  key={photo.src}
-                  style={{
-                    transform: isRevealed
-                      ? `rotate(${photo.tilt}) scale(${isSpotlight ? 1.05 : 1})`
-                      : "translateY(20px) scale(0.92)",
-                  }}
-                  className={`group rounded-md bg-white p-1 sm:p-1.5 border transition-all duration-500 shadow-sheet ${
-                    isSpotlight
-                      ? "border-sienna ring-2 ring-sienna/20 z-10"
-                      : "border-ink-200"
-                  } ${isRevealed ? "opacity-100" : "opacity-20"}`}
-                >
-                  <div className="aspect-[4/5] w-full overflow-hidden rounded-sm bg-ink-100">
-                    <img
-                      src={photo.src}
-                      alt={photo.alt}
-                      className="h-full w-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
-                    />
-                  </div>
-                  <p className="hidden sm:block mt-1 text-[10px] font-mono text-ink-500 truncate">
-                    {photo.caption}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 10-Year Timeline Strip (2016 -> 2026) */}
-        <div
-          className="max-w-2xl mx-auto pt-1 space-y-2.5 wb26-stagger-item"
-          style={{ "--stagger-index": 4 }}
-        >
-          <div className="flex items-center justify-between gap-1 px-1">
+          <div className="flex items-center justify-between gap-1">
             {DECADE_YEARS.map((yr) => {
               const reached = yearCounter >= yr;
               const isCurrent = yearCounter === yr;
@@ -535,7 +524,7 @@ function IntroCurtain({ onEnter }) {
                         ? "bg-sienna scale-150 ring-4 ring-sienna/20"
                         : reached
                           ? "bg-ink-900"
-                          : "bg-ink-200"
+                          : "bg-ink-300"
                     }`}
                   />
                   <span
@@ -553,39 +542,7 @@ function IntroCurtain({ onEnter }) {
               );
             })}
           </div>
-
-          {/* Progress Bar */}
-          <div className="space-y-1.5 max-w-md mx-auto pt-1">
-            <div className="flex items-center justify-between text-2xs font-mono uppercase tracking-tag text-ink-500">
-              <span>Initializing Accreditation Desk</span>
-              <span className="qc-num text-ink-900 font-semibold">
-                {yearCounter} &middot; {progress}%
-              </span>
-            </div>
-            <div className="h-1.5 w-full bg-ink-200 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-ink-900 transition-all duration-200 ease-out"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
         </div>
-
-        <div className="pt-1 wb26-stagger-item" style={{ "--stagger-index": 5 }}>
-          <button
-            type="button"
-            onClick={onEnter}
-            className="qc-btn-primary px-7 py-3 text-xs font-mono uppercase tracking-tag cursor-pointer"
-          >
-            Enter Registration Desk &rarr;
-          </button>
-        </div>
-      </div>
-
-      {/* Bottom Full-Width Telemetry */}
-      <div className="relative z-10 w-full px-8 sm:px-16 h-16 flex items-center justify-between text-2xs font-mono uppercase tracking-tag text-ink-400">
-        <span>GBAGADA CAMPUS WORKFORCE</span>
-        <span>2016 &ndash; 2026 &middot; ADMIT ONE</span>
       </div>
     </div>
   );

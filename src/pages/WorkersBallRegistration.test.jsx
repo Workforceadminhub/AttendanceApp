@@ -24,11 +24,11 @@ describe("WorkersBallRegistration (/wb26)", () => {
     render(<WorkersBallRegistration />);
 
     expect(
-      screen.getByText(/Initializing Accreditation Desk/i)
+      screen.getByRole("heading", { name: /Workers Ball/i })
     ).toBeInTheDocument();
 
     fireEvent.click(
-      screen.getByRole("button", { name: /Enter Registration Desk/i })
+      screen.getByRole("button", { name: /Skip Intro/i })
     );
 
     expect(

@@ -448,7 +448,17 @@ function ShowcaseVideo({ src, poster, isActive, label = "Workers Ball Reel" }) {
   }, [isActive]);
 
   return (
-    <div className="relative w-screen h-dvh overflow-hidden bg-black">
+    <div className="relative w-screen h-dvh overflow-hidden bg-black flex items-center justify-center">
+      {/* Ambient background glow: fills widescreen displays with rich matching atmosphere */}
+      <img
+        src={poster}
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover scale-125 blur-3xl opacity-40 pointer-events-none select-none"
+        aria-hidden="true"
+      />
+      <div className="absolute inset-0 bg-black/40 pointer-events-none" aria-hidden="true" />
+
+      {/* Foreground video: displayed uncropped with object-contain so heads/awards are never cut off */}
       <video
         ref={videoRef}
         src={src}
@@ -458,7 +468,7 @@ function ShowcaseVideo({ src, poster, isActive, label = "Workers Ball Reel" }) {
         loop
         playsInline
         preload="auto"
-        className="w-screen h-dvh object-cover object-center"
+        className="relative z-10 max-h-[100dvh] max-w-[100vw] h-full w-auto object-contain mx-auto shadow-2xl drop-shadow-[0_10px_35px_rgba(0,0,0,0.8)]"
       />
       {/* Video Reel live indicator badge */}
       <div className="absolute top-20 left-5 sm:left-10 z-20 pointer-events-none">
@@ -643,16 +653,28 @@ function IntroCurtain({ onEnter }) {
                     label={item.label || "Workers Ball Reel"}
                   />
                 ) : (
-                  <img
-                    src={item.src}
-                    alt={item.alt}
-                    style={{
-                      transform: isActive ? "scale(1.05)" : "scale(1.0)",
-                      transition:
-                        "transform 4000ms cubic-bezier(0.22, 1, 0.36, 1)",
-                    }}
-                    className="w-screen h-dvh object-cover object-[center_20%]"
-                  />
+                  <div className="relative w-screen h-dvh overflow-hidden bg-black flex items-center justify-center">
+                    {/* Ambient blurred backdrop: fills widescreen viewports with the photo's matching tones */}
+                    <img
+                      src={item.src}
+                      alt=""
+                      className="absolute inset-0 w-full h-full object-cover scale-125 blur-3xl opacity-40 pointer-events-none select-none"
+                      aria-hidden="true"
+                    />
+                    <div className="absolute inset-0 bg-black/40 pointer-events-none" aria-hidden="true" />
+
+                    {/* Uncropped foreground photo: full head-to-toe view */}
+                    <img
+                      src={item.src}
+                      alt={item.alt}
+                      style={{
+                        transform: isActive ? "scale(1.03)" : "scale(1.0)",
+                        transition:
+                          "transform 4000ms cubic-bezier(0.22, 1, 0.36, 1)",
+                      }}
+                      className="relative z-10 max-h-[100dvh] max-w-[100vw] h-full w-auto object-contain mx-auto shadow-2xl drop-shadow-[0_10px_35px_rgba(0,0,0,0.8)]"
+                    />
+                  </div>
                 )}
               </div>
             );

@@ -13,7 +13,7 @@ import {
   UserCircleIcon,
 } from "@heroicons/react/24/outline";
 import SuccessMark from "../components/ui/SuccessMark";
-import { downloadWorkersBallPassPng } from "../utils/workersBallMock";
+import { downloadWorkersBallPassPng } from "../utils/workersBallPass";
 import {
   confirmWorkersBallRegistration,
   requestWorkersBallOtp,

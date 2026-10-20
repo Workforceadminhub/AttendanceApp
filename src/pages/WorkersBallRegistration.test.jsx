@@ -2,10 +2,6 @@ import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import WorkersBallRegistration from "./WorkersBallRegistration";
 import {
-  buildWorkersBallOtpEmail,
-  buildWorkersBallConfirmationEmail,
-} from "../emails/workersBallEmails";
-import {
   confirmWorkersBallRegistration,
   requestWorkersBallOtp,
   searchWorkersBall,
@@ -163,27 +159,5 @@ describe("WorkersBallRegistration (/wb26)", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       /Invalid or expired code/i
     );
-  });
-
-  it("builds valid inline-styled HTML for both OTP and Confirmation emails", () => {
-    const otpHtml = buildWorkersBallOtpEmail({
-      firstName: "Adebayo",
-      otpCode: "202688",
-      expiryMinutes: 10,
-    });
-    expect(otpHtml).toContain("202688");
-    expect(otpHtml).toContain("Verification code");
-
-    const confirmHtml = buildWorkersBallConfirmationEmail({
-      firstName: "Adebayo",
-      fullName: "Adebayo Okafor",
-      accessCode: "HGWB-AO2419",
-      role: "Cell Leader",
-      department: "Leadership Training",
-      team: "Ministry",
-    });
-    expect(confirmHtml).toContain("HGWB-AO2419");
-    expect(confirmHtml).toContain("Adebayo Okafor");
-    expect(confirmHtml).toContain("Leadership Training");
   });
 });

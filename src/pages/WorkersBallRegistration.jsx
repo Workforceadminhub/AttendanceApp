@@ -283,9 +283,43 @@ const DECADE_YEARS = [
   2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026,
 ];
 
+const WB25_PHOTOS = [
+  {
+    src: "/wb25/photo-1.jpg",
+    alt: "Harvesters Gbagada Workers Ball 2025 — Squad in Denim and Diamonds",
+    caption: "WB ’25 · Denim & Diamonds",
+    tilt: "-2.5deg",
+  },
+  {
+    src: "/wb25/photo-2.jpg",
+    alt: "Harvesters Gbagada Workers Ball 2025 — Red carpet portrait",
+    caption: "WB ’25 · Red Carpet",
+    tilt: "2deg",
+  },
+  {
+    src: "/wb25/photo-3.jpg",
+    alt: "Harvesters Gbagada Workers Ball 2025 — Family moment on the carpet",
+    caption: "WB ’25 · Celebration",
+    tilt: "-1.5deg",
+  },
+  {
+    src: "/wb25/photo-4.jpg",
+    alt: "Harvesters Gbagada Workers Ball 2025 — Workforce fashion",
+    caption: "WB ’25 · The Drip",
+    tilt: "2.5deg",
+  },
+  {
+    src: "/wb25/photo-5.jpg",
+    alt: "Harvesters Gbagada Workers Ball 2025 — Worker portrait",
+    caption: "WB ’25 · Honour",
+    tilt: "-2deg",
+  },
+];
+
 /**
  * Pre-Form Full-Screen Ceremonial Opening Sequence ("Before the form even loads").
- * Counts deliberately from 10 years ago (2016) to 2026 across the entire viewport.
+ * Counts deliberately from 10 years ago (2016) to 2026 across the entire viewport
+ * while revealing the 2025 Workers Ball photography.
  */
 function IntroCurtain({ onEnter }) {
   const [progress, setProgress] = useState(0);
@@ -330,6 +364,12 @@ function IntroCurtain({ onEnter }) {
       if (timerId) clearTimeout(timerId);
     };
   }, [onEnter]);
+
+  // Active spotlight photo index cycling smoothly with the countdown
+  const activePhotoIdx = Math.min(
+    WB25_PHOTOS.length - 1,
+    Math.floor((progress / 100) * WB25_PHOTOS.length)
+  );
 
   return (
     <div className="fixed inset-0 z-50 w-screen h-dvh bg-cream text-ink-900 flex flex-col justify-between overflow-hidden select-none">
@@ -408,14 +448,14 @@ function IntroCurtain({ onEnter }) {
       </div>
 
       {/* Central Full-Screen Ceremonial Greeting */}
-      <div className="relative z-10 w-full max-w-4xl mx-auto px-6 sm:px-12 py-6 text-center space-y-7">
+      <div className="relative z-10 w-full max-w-5xl mx-auto px-6 sm:px-12 py-4 text-center space-y-5">
         <div className="wb26-stagger-item" style={{ "--stagger-index": 0 }}>
-          <WorkersBallCrest className="h-28 w-28 sm:h-36 sm:w-36 mx-auto" />
+          <WorkersBallCrest className="h-20 w-20 sm:h-24 sm:w-24 mx-auto" />
         </div>
 
         <div
-          className="space-y-3 wb26-stagger-item"
-          style={{ "--stagger-index": 2 }}
+          className="space-y-2.5 wb26-stagger-item"
+          style={{ "--stagger-index": 1 }}
         >
           <p className="text-2xs sm:text-xs font-mono uppercase tracking-tag text-sienna font-semibold">
             Harvesters International Christian Centre &middot; Gbagada
@@ -431,15 +471,53 @@ function IntroCurtain({ onEnter }) {
               {yearCounter}
             </span>
           </h1>
-          <p className="text-sm sm:text-lg text-ink-600 max-w-xl mx-auto leading-relaxed">
-            Ten years of faithful service, honour, and celebration (2016 &ndash; 2026).
+          <p className="text-sm sm:text-base text-ink-600 max-w-lg mx-auto leading-relaxed">
             Verify your workforce profile and claim your official gala pass.
           </p>
         </div>
 
+        {/* 2025 Workers Ball ("Denim & Diamonds") 5-Photo Editorial Reel */}
+        <div
+          className="max-w-3xl mx-auto pt-1 wb26-stagger-item"
+          style={{ "--stagger-index": 2 }}
+        >
+          <div className="grid grid-cols-5 gap-2 sm:gap-3.5 items-center">
+            {WB25_PHOTOS.map((photo, idx) => {
+              const isRevealed = progress >= idx * 18;
+              const isSpotlight = activePhotoIdx === idx;
+              return (
+                <div
+                  key={photo.src}
+                  style={{
+                    transform: isRevealed
+                      ? `rotate(${photo.tilt}) scale(${isSpotlight ? 1.05 : 1})`
+                      : "translateY(20px) scale(0.92)",
+                  }}
+                  className={`group rounded-md bg-white p-1 sm:p-1.5 border transition-all duration-500 shadow-sheet ${
+                    isSpotlight
+                      ? "border-sienna ring-2 ring-sienna/20 z-10"
+                      : "border-ink-200"
+                  } ${isRevealed ? "opacity-100" : "opacity-20"}`}
+                >
+                  <div className="aspect-[4/5] w-full overflow-hidden rounded-sm bg-ink-100">
+                    <img
+                      src={photo.src}
+                      alt={photo.alt}
+                      className="h-full w-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
+                    />
+                  </div>
+                  <p className="hidden sm:block mt-1 text-[10px] font-mono text-ink-500 truncate">
+                    {photo.caption}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* 10-Year Timeline Strip (2016 -> 2026) */}
         <div
-          className="max-w-2xl mx-auto pt-2 space-y-3 wb26-stagger-item"
+          className="max-w-2xl mx-auto pt-1 space-y-2.5 wb26-stagger-item"
           style={{ "--stagger-index": 4 }}
         >
           <div className="flex items-center justify-between gap-1 px-1">
@@ -449,7 +527,7 @@ function IntroCurtain({ onEnter }) {
               return (
                 <div
                   key={yr}
-                  className="flex flex-col items-center gap-1.5 flex-1"
+                  className="flex flex-col items-center gap-1 flex-1"
                 >
                   <span
                     className={`h-2 w-2 rounded-full transition-all duration-300 ${
@@ -477,7 +555,7 @@ function IntroCurtain({ onEnter }) {
           </div>
 
           {/* Progress Bar */}
-          <div className="space-y-2 max-w-md mx-auto pt-1">
+          <div className="space-y-1.5 max-w-md mx-auto pt-1">
             <div className="flex items-center justify-between text-2xs font-mono uppercase tracking-tag text-ink-500">
               <span>Initializing Accreditation Desk</span>
               <span className="qc-num text-ink-900 font-semibold">
@@ -493,7 +571,7 @@ function IntroCurtain({ onEnter }) {
           </div>
         </div>
 
-        <div className="pt-2 wb26-stagger-item" style={{ "--stagger-index": 6 }}>
+        <div className="pt-1 wb26-stagger-item" style={{ "--stagger-index": 5 }}>
           <button
             type="button"
             onClick={onEnter}

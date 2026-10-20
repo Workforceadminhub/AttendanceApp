@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import {
   ArrowDownTrayIcon,
@@ -228,7 +228,8 @@ const DECADE_YEARS = [2023, 2024, 2025, 2026];
 
 /**
  * Year-by-year archive of Workers Ball media (videos & photography).
- * Starts at 2023 -> 2024 -> 2025 (10 full seconds dedicated per year) -> lands on 2026.
+ * Each item has dedicated, comfortable viewing time (3.5s per photo, full 10s for the video reel).
+ * Interactive controls allow pause, play, next/prev slide, and jumping to any year.
  */
 const YEAR_PHOTOS = {
   2023: [
@@ -237,46 +238,55 @@ const YEAR_PHOTOS = {
       src: "/wb23/reel-1.mp4",
       poster: "/wb23/photo-1.jpg",
       alt: "Harvesters Gbagada Workers Ball 2023 — Red Carpet Reel",
+      durationMs: 10000,
     },
     {
       type: "image",
       src: "/wb23/photo-1.jpg",
       alt: "Harvesters Gbagada Workers Ball 2023 — All White Edition stage moment",
+      durationMs: 3500,
     },
     {
       type: "image",
       src: "/wb23/photo-2.jpg",
       alt: "Harvesters Gbagada Workers Ball 2023 — Workforce celebrating in all white",
+      durationMs: 3500,
     },
     {
       type: "image",
       src: "/wb23/photo-3.jpg",
       alt: "Harvesters Gbagada Workers Ball 2023 — Joyful laughter at the banquet table",
+      durationMs: 3500,
     },
     {
       type: "image",
       src: "/wb23/photo-4.jpg",
       alt: "Harvesters Gbagada Workers Ball 2023 — Applause in white",
+      durationMs: 3500,
     },
     {
       type: "image",
       src: "/wb23/photo-5.jpg",
       alt: "Harvesters Gbagada Workers Ball 2023 — Special Recognition Award presentation",
+      durationMs: 3500,
     },
     {
       type: "image",
       src: "/wb23/photo-6.jpg",
       alt: "Harvesters Gbagada Workers Ball 2023 — Workforce celebration in all white",
+      durationMs: 3500,
     },
     {
       type: "image",
       src: "/wb23/photo-7.jpg",
       alt: "Harvesters Gbagada Workers Ball 2023 — Red carpet arrivals and laughter",
+      durationMs: 3500,
     },
     {
       type: "image",
       src: "/wb23/photo-8.jpg",
       alt: "Harvesters Gbagada Workers Ball 2023 — Workers Ball 2023 stage celebration",
+      durationMs: 3500,
     },
   ],
   2024: [
@@ -284,51 +294,61 @@ const YEAR_PHOTOS = {
       type: "image",
       src: "/wb24/photo-1.jpg",
       alt: "Harvesters Gbagada Workers Ball 2024 — Applause in gold and black agbada",
+      durationMs: 3500,
     },
     {
       type: "image",
       src: "/wb24/photo-2.jpg",
       alt: "Harvesters Gbagada Workers Ball 2024 — Couple in white agbada and orange gown",
+      durationMs: 3500,
     },
     {
       type: "image",
       src: "/wb24/photo-3.jpg",
       alt: "Harvesters Gbagada Workers Ball 2024 — Stage performance",
+      durationMs: 3500,
     },
     {
       type: "image",
       src: "/wb24/photo-4.jpg",
       alt: "Harvesters Gbagada Workers Ball 2024 — Joyful celebration in blue and gold lace",
+      durationMs: 3500,
     },
     {
       type: "image",
       src: "/wb24/photo-5.jpg",
       alt: "Harvesters Gbagada Workers Ball 2024 — Shimmering aso-oke portrait",
+      durationMs: 3500,
     },
     {
       type: "image",
       src: "/wb24/photo-6.jpg",
       alt: "Harvesters Gbagada Workers Ball 2024 — Owambe glamour portrait in gold",
+      durationMs: 3500,
     },
     {
       type: "image",
       src: "/wb24/photo-7.jpg",
       alt: "Harvesters Gbagada Workers Ball 2024 — Smiling worker celebration moment",
+      durationMs: 3500,
     },
     {
       type: "image",
       src: "/wb24/photo-8.jpg",
       alt: "Harvesters Gbagada Workers Ball 2024 — Workforce celebration at the banquet",
+      durationMs: 3500,
     },
     {
       type: "image",
       src: "/wb24/photo-9.jpg",
       alt: "Harvesters Gbagada Workers Ball 2024 — Glamorous agbada and lace portrait",
+      durationMs: 3500,
     },
     {
       type: "image",
       src: "/wb24/photo-10.jpg",
       alt: "Harvesters Gbagada Workers Ball 2024 — Elegance on the Workers Ball red carpet",
+      durationMs: 3500,
     },
   ],
   2025: [
@@ -336,121 +356,240 @@ const YEAR_PHOTOS = {
       type: "image",
       src: "/wb25/photo-1.jpg",
       alt: "Harvesters Gbagada Workers Ball 2025 — Squad in Denim and Diamonds",
+      durationMs: 3500,
     },
     {
       type: "image",
       src: "/wb25/photo-2.jpg",
       alt: "Harvesters Gbagada Workers Ball 2025 — Red carpet portrait",
+      durationMs: 3500,
     },
     {
       type: "image",
       src: "/wb25/photo-3.jpg",
       alt: "Harvesters Gbagada Workers Ball 2025 — Family moment on the carpet",
+      durationMs: 3500,
     },
     {
       type: "image",
       src: "/wb25/photo-4.jpg",
       alt: "Harvesters Gbagada Workers Ball 2025 — Workforce fashion",
+      durationMs: 3500,
     },
     {
       type: "image",
       src: "/wb25/photo-5.jpg",
       alt: "Harvesters Gbagada Workers Ball 2025 — Worker portrait",
+      durationMs: 3500,
     },
   ],
   2026: [],
 };
 
-const DECADE_SCHEDULE = (() => {
-  let cursor = 0;
-  return DECADE_YEARS.map((yr) => {
-    const photos = YEAR_PHOTOS[yr] || [];
-    // Dedicated 10.0 seconds (10000ms) for each showcase year (2023, 2024, 2025);
-    // 2026 finale gets 1.8s.
-    const duration =
-      yr === 2026 ? 1800 : photos.length > 0 ? 10000 : 350;
-    const entry = {
-      year: yr,
-      photos,
-      startMs: cursor,
-      endMs: cursor + duration,
-      durationMs: duration,
-    };
-    cursor += duration;
-    return entry;
-  });
-})();
+/**
+ * Robust video renderer ensuring cross-browser muted autoplay and clean fallback.
+ */
+function ShowcaseVideo({ src, poster, isActive }) {
+  const videoRef = useRef(null);
 
-const TOTAL_INTRO_MS =
-  DECADE_SCHEDULE[DECADE_SCHEDULE.length - 1]?.endMs || 31800;
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+
+    el.defaultMuted = true;
+    el.muted = true;
+    el.playsInline = true;
+
+    if (isActive) {
+      try {
+        el.currentTime = 0;
+      } catch {
+        // ignore
+      }
+      const playPromise = el.play();
+      if (playPromise && typeof playPromise.catch === "function") {
+        playPromise.catch(() => {
+          // If browser policy blocks autoplay on initial mount, retry on first interaction
+          const retry = () => {
+            el.play().catch(() => {});
+            window.removeEventListener("touchstart", retry);
+            window.removeEventListener("click", retry);
+            window.removeEventListener("keydown", retry);
+          };
+          window.addEventListener("touchstart", retry, { once: true });
+          window.addEventListener("click", retry, { once: true });
+          window.addEventListener("keydown", retry, { once: true });
+        });
+      }
+    } else {
+      try {
+        el.pause();
+      } catch {
+        // ignore
+      }
+    }
+  }, [isActive]);
+
+  return (
+    <div className="relative w-screen h-dvh overflow-hidden bg-black">
+      <video
+        ref={videoRef}
+        src={src}
+        poster={poster}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        className="w-screen h-dvh object-cover object-center"
+      />
+      {/* Red Carpet Reel live indicator badge */}
+      <div className="absolute top-20 left-5 sm:left-10 z-20 pointer-events-none">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md text-white text-xs font-mono tracking-wider uppercase border border-white/20 shadow-lg">
+          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+          Red Carpet Reel
+        </span>
+      </div>
+    </div>
+  );
+}
 
 /**
  * Pre-Form Complete Full-Screen Opening Sequence ("Before the form even loads").
  * Edge-to-edge 100vw x 100dvh full-bleed canvas counting from 2023 -> 2026.
- * Shows ONE full-screen image/video at a time (no grid, no tiny images, no center box blocking the view),
- * with 10 full seconds dedicated to each of 2023, 2024, and 2025 before landing on 2026.
+ * Shows ONE full-screen image/video at a time with generous, unhurried time per slide (3.5s / photo, 10s / video).
+ * Includes interactive playback controls: Next/Prev, Pause/Play, and Year jump buttons.
  */
 function IntroCurtain({ onEnter }) {
-  const [yearCounter, setYearCounter] = useState(2023);
-  const [yearProgress, setYearProgress] = useState(0);
+  const [yearIdx, setYearIdx] = useState(0); // 0 -> 2023, 1 -> 2024, 2 -> 2025, 3 -> 2026
+  const [slideIdx, setSlideIdx] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [slideProgress, setSlideProgress] = useState(0);
 
-  // Preload all year photos immediately so full-screen transitions are instant
+  const currentYear = DECADE_YEARS[yearIdx];
+  const currentYearPhotos = YEAR_PHOTOS[currentYear] || [];
+  const hasPhotosForYear = currentYearPhotos.length > 0;
+  const currentItem = hasPhotosForYear ? currentYearPhotos[slideIdx] : null;
+
+  // Preload all year photos and videos immediately so full-screen transitions are instant
   useEffect(() => {
     Object.values(YEAR_PHOTOS)
       .flat()
       .forEach((item) => {
-        if (item.type !== "video" && typeof Image !== "undefined") {
+        if (item.type === "video") {
+          const v = document.createElement("video");
+          v.preload = "auto";
+          v.src = item.src;
+        } else if (typeof Image !== "undefined") {
           const img = new Image();
           img.src = item.src;
         }
       });
   }, []);
 
+  const goToNextSlide = useCallback(() => {
+    if (!hasPhotosForYear) {
+      if (yearIdx + 1 < DECADE_YEARS.length) {
+        setYearIdx((y) => y + 1);
+        setSlideIdx(0);
+        setSlideProgress(0);
+      } else {
+        onEnter();
+      }
+      return;
+    }
+
+    if (slideIdx + 1 < currentYearPhotos.length) {
+      setSlideIdx((s) => s + 1);
+      setSlideProgress(0);
+    } else if (yearIdx + 1 < DECADE_YEARS.length) {
+      setYearIdx((y) => y + 1);
+      setSlideIdx(0);
+      setSlideProgress(0);
+    } else {
+      onEnter();
+    }
+  }, [hasPhotosForYear, slideIdx, currentYearPhotos.length, yearIdx, onEnter]);
+
+  const goToPrevSlide = useCallback(() => {
+    if (slideIdx > 0) {
+      setSlideIdx((s) => s - 1);
+      setSlideProgress(0);
+    } else if (yearIdx > 0) {
+      const prevYear = DECADE_YEARS[yearIdx - 1];
+      const prevPhotos = YEAR_PHOTOS[prevYear] || [];
+      setYearIdx((y) => y - 1);
+      setSlideIdx(Math.max(0, prevPhotos.length - 1));
+      setSlideProgress(0);
+    }
+  }, [slideIdx, yearIdx]);
+
+  const goToYear = useCallback((targetYearIdx) => {
+    setYearIdx(targetYearIdx);
+    setSlideIdx(0);
+    setSlideProgress(0);
+  }, []);
+
+  // Keyboard navigation: Left/Right arrows and Space to pause/play
   useEffect(() => {
-    const start = performance.now();
-    let rafId;
-    let timerId;
+    const handleKeyDown = (e) => {
+      if (e.key === "ArrowRight") {
+        goToNextSlide();
+      } else if (e.key === "ArrowLeft") {
+        goToPrevSlide();
+      } else if (e.key === " ") {
+        e.preventDefault();
+        setIsPaused((p) => !p);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [goToNextSlide, goToPrevSlide]);
+
+  const progressRef = useRef(0);
+
+  // Slide playback timer with smooth progress updates
+  useEffect(() => {
+    progressRef.current = 0;
+
+    if (currentYear === 2026) {
+      const timer = setTimeout(() => {
+        onEnter();
+      }, 2400);
+      return () => clearTimeout(timer);
+    }
+
+    if (!currentItem) return;
+
+    const duration =
+      currentItem.durationMs ||
+      (currentItem.type === "video" ? 10000 : 3500);
+
+    let start = performance.now();
+    let animId;
 
     const step = (now) => {
+      if (isPaused) {
+        start = now - progressRef.current * duration;
+        animId = requestAnimationFrame(step);
+        return;
+      }
+
       const elapsed = now - start;
+      const progress = Math.min(1, Math.max(0, elapsed / duration));
+      progressRef.current = progress;
+      setSlideProgress(progress);
 
-      if (elapsed < TOTAL_INTRO_MS) {
-        const currentSlot =
-          DECADE_SCHEDULE.find(
-            (slot) => elapsed >= slot.startMs && elapsed < slot.endMs
-          ) || DECADE_SCHEDULE[DECADE_SCHEDULE.length - 1];
-
-        setYearCounter(currentSlot.year);
-        const localRatio = Math.min(
-          1,
-          Math.max(0, (elapsed - currentSlot.startMs) / currentSlot.durationMs)
-        );
-        setYearProgress(localRatio);
-        rafId = requestAnimationFrame(step);
+      if (progress >= 1) {
+        goToNextSlide();
       } else {
-        setYearCounter(2026);
-        setYearProgress(1);
-        timerId = setTimeout(() => {
-          onEnter();
-        }, 400);
+        animId = requestAnimationFrame(step);
       }
     };
 
-    rafId = requestAnimationFrame(step);
-    return () => {
-      cancelAnimationFrame(rafId);
-      if (timerId) clearTimeout(timerId);
-    };
-  }, [onEnter]);
-
-  const currentYearPhotos = YEAR_PHOTOS[yearCounter] || [];
-  const hasPhotosForYear = currentYearPhotos.length > 0;
-  const activePhotoIdx = hasPhotosForYear
-    ? Math.min(
-        currentYearPhotos.length - 1,
-        Math.floor(yearProgress * currentYearPhotos.length)
-      )
-    : -1;
+    animId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animId);
+  }, [currentYear, currentItem, isPaused, goToNextSlide, onEnter]);
 
   return (
     <div
@@ -462,14 +601,14 @@ function IntroCurtain({ onEnter }) {
       }}
       className="fixed inset-0 z-[100] w-screen h-dvh bg-ink-900 text-ink-900 overflow-hidden select-none"
     >
-      {/* TRUE 100% FULL-SCREEN SINGLE-SLIDE/VIDEO SHOWCASE (2022, 2023, 2024, 2025) */}
+      {/* TRUE 100% FULL-SCREEN SINGLE-SLIDE/VIDEO SHOWCASE (2023, 2024, 2025) */}
       {hasPhotosForYear && (
         <div
-          key={`media-stage-${yearCounter}`}
+          key={`media-stage-${currentYear}`}
           className="absolute inset-0 w-screen h-dvh bg-ink-900 overflow-hidden"
         >
           {currentYearPhotos.map((item, idx) => {
-            const isActive = idx === activePhotoIdx;
+            const isActive = idx === slideIdx;
             return (
               <div
                 key={item.src}
@@ -480,15 +619,10 @@ function IntroCurtain({ onEnter }) {
                 }`}
               >
                 {item.type === "video" ? (
-                  <video
+                  <ShowcaseVideo
                     src={item.src}
                     poster={item.poster}
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                    preload="auto"
-                    className="w-screen h-dvh object-cover object-center"
+                    isActive={isActive}
                   />
                 ) : (
                   <img
@@ -497,7 +631,7 @@ function IntroCurtain({ onEnter }) {
                     style={{
                       transform: isActive ? "scale(1.05)" : "scale(1.0)",
                       transition:
-                        "transform 3500ms cubic-bezier(0.22, 1, 0.36, 1)",
+                        "transform 4000ms cubic-bezier(0.22, 1, 0.36, 1)",
                     }}
                     className="w-screen h-dvh object-cover object-[center_20%]"
                   />
@@ -505,6 +639,55 @@ function IntroCurtain({ onEnter }) {
               </div>
             );
           })}
+
+          {/* Previous / Next side navigation chevrons */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              goToPrevSlide();
+            }}
+            aria-label="Previous photo"
+            className="pointer-events-auto absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 z-30 p-2.5 sm:p-3.5 rounded-full bg-black/45 hover:bg-black/75 text-white/80 hover:text-white backdrop-blur-md border border-white/20 transition-all hover:scale-110 active:scale-95 cursor-pointer shadow-2xl"
+          >
+            <svg
+              className="w-5 h-5 sm:w-6 sm:h-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2.5}
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              goToNextSlide();
+            }}
+            aria-label="Next photo"
+            className="pointer-events-auto absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 z-30 p-2.5 sm:p-3.5 rounded-full bg-black/45 hover:bg-black/75 text-white/80 hover:text-white backdrop-blur-md border border-white/20 transition-all hover:scale-110 active:scale-95 cursor-pointer shadow-2xl"
+          >
+            <svg
+              className="w-5 h-5 sm:w-6 sm:h-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2.5}
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </button>
 
           {/* Subtle top & bottom cinema gradients for legibility without covering the center */}
           <div
@@ -518,7 +701,7 @@ function IntroCurtain({ onEnter }) {
         </div>
       )}
 
-      {/* Full-Viewport Cream Editorial Canvas (for 2016..2021 fast tick & 2026 finale) */}
+      {/* Full-Viewport Cream Editorial Canvas (for 2026 finale) */}
       {!hasPhotosForYear && (
         <div className="absolute inset-0 w-screen h-dvh bg-cream flex flex-col items-center justify-center px-6">
           <div
@@ -526,10 +709,10 @@ function IntroCurtain({ onEnter }) {
             aria-hidden="true"
           >
             <span
-              key={`wm-${yearCounter}`}
+              key={`wm-${currentYear}`}
               className="wb26-year-tick font-mono qc-num font-bold text-[30vw] leading-none tracking-tighter text-ink-900/[0.06]"
             >
-              {yearCounter}
+              {currentYear}
             </span>
           </div>
 
@@ -542,19 +725,17 @@ function IntroCurtain({ onEnter }) {
             <h1 className="text-5xl sm:text-7xl md:text-8xl font-semibold tracking-tight text-ink-900 leading-none">
               Workers Ball{" "}
               <span
-                key={yearCounter}
-                className={`wb26-year-tick inline-block qc-num font-mono font-bold ${
-                  yearCounter === 2026 ? "text-sienna" : "text-ink-800"
-                }`}
+                key={currentYear}
+                className="wb26-year-tick inline-block qc-num font-mono font-bold text-sienna"
               >
-                {yearCounter}
+                {currentYear}
               </span>
             </h1>
           </div>
         </div>
       )}
 
-      {/* Top Bar: Transparent Official Logo (Top-Left on media years) + Skip Intro (Top-Right) */}
+      {/* Top Bar: Transparent Official Logo (Top-Left) + Pause & Skip Controls (Top-Right) */}
       <div className="absolute inset-x-0 top-0 z-30 flex items-center justify-between px-5 py-5 sm:px-10 sm:py-7 pointer-events-none">
         {hasPhotosForYear ? (
           <img
@@ -566,20 +747,50 @@ function IntroCurtain({ onEnter }) {
           <div />
         )}
 
-        <button
-          type="button"
-          onClick={onEnter}
-          className={`pointer-events-auto px-4 py-2 rounded-full text-xs font-mono uppercase tracking-tag transition-colors cursor-pointer ${
-            hasPhotosForYear
-              ? "bg-cream/95 text-ink-900 hover:bg-cream shadow-sheet"
-              : "bg-ink-900/10 text-ink-800 hover:bg-ink-900/15 hover:text-ink-900"
-          }`}
-        >
-          Skip Intro &rarr;
-        </button>
+        <div className="flex items-center gap-2 pointer-events-auto">
+          {hasPhotosForYear && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsPaused((p) => !p);
+              }}
+              className="px-3.5 py-2 rounded-full text-xs font-mono uppercase tracking-tag transition-colors cursor-pointer flex items-center gap-1.5 bg-black/45 hover:bg-black/70 text-white backdrop-blur-md border border-white/20 shadow-md"
+              title={isPaused ? "Resume slideshow (Space)" : "Pause slideshow (Space)"}
+            >
+              {isPaused ? (
+                <>
+                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                  <span>Play</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                  </svg>
+                  <span>Pause</span>
+                </>
+              )}
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onEnter}
+            className={`px-4 py-2 rounded-full text-xs font-mono uppercase tracking-tag transition-colors cursor-pointer ${
+              hasPhotosForYear
+                ? "bg-cream/95 text-ink-900 hover:bg-cream shadow-sheet"
+                : "bg-ink-900/10 text-ink-800 hover:bg-ink-900/15 hover:text-ink-900"
+            }`}
+          >
+            Skip Intro &rarr;
+          </button>
+        </div>
       </div>
 
-      {/* Bottom Full-Width Overlay: Year Title (on media years) + Decade Timeline Strip */}
+      {/* Bottom Full-Width Overlay: Year Title + Story-Style Progress Pills + Decade Timeline Strip */}
       <div className="absolute inset-x-0 bottom-0 z-30 px-5 pb-5 sm:px-10 sm:pb-8 pointer-events-none">
         <div className="max-w-6xl mx-auto flex flex-col gap-4">
           {hasPhotosForYear && (
@@ -588,63 +799,73 @@ function IntroCurtain({ onEnter }) {
                 <h1 className="text-4xl sm:text-6xl md:text-7xl font-semibold tracking-tight text-white leading-none drop-shadow-[0_4px_24px_rgba(0,0,0,0.75)]">
                   Workers Ball{" "}
                   <span
-                    key={yearCounter}
+                    key={currentYear}
                     className="wb26-year-tick inline-block qc-num font-mono font-bold text-[#F6B042]"
                   >
-                    {yearCounter}
+                    {currentYear}
                   </span>
                 </h1>
               </div>
 
-              {/* Per-slide progress pills for the 10-second showcase */}
-              <div className="flex items-center gap-1.5 sm:pb-2">
+              {/* Story-style individual slide progress pills */}
+              <div className="flex items-center gap-1.5 sm:pb-2 pointer-events-auto">
                 {currentYearPhotos.map((item, idx) => {
-                  const isActive = idx === activePhotoIdx;
-                  const isPast = idx < activePhotoIdx;
+                  const isCurrent = idx === slideIdx;
+                  const isDone = idx < slideIdx;
+                  const fillPct = isDone
+                    ? 100
+                    : isCurrent
+                      ? Math.round(slideProgress * 100)
+                      : 0;
                   return (
-                    <span
+                    <button
                       key={item.src}
-                      className={`h-1.5 rounded-full transition-all duration-300 ${
-                        isActive
-                          ? "w-8 bg-[#F6B042]"
-                          : isPast
-                            ? "w-3 bg-white/85"
-                            : "w-3 bg-white/30"
-                      }`}
-                    />
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSlideIdx(idx);
+                        setSlideProgress(0);
+                      }}
+                      className="h-2 rounded-full overflow-hidden bg-white/25 hover:bg-white/45 transition-all cursor-pointer relative"
+                      style={{ width: isCurrent ? "2.5rem" : "1.25rem" }}
+                      title={`Photo ${idx + 1} of ${currentYearPhotos.length}`}
+                    >
+                      <div
+                        className="h-full bg-[#F6B042] transition-none"
+                        style={{ width: `${fillPct}%` }}
+                      />
+                    </button>
                   );
                 })}
               </div>
             </div>
           )}
 
-          {/* Decade Timeline Strip (2016 -> 2026) with 10s progress bar */}
+          {/* Decade Timeline Strip (2023 -> 2026) with clickable year buttons */}
           <div
-            className={`w-full px-4 py-2.5 rounded-2xl transition-colors duration-500 ${
+            className={`w-full px-4 py-2.5 rounded-2xl transition-colors duration-500 pointer-events-auto ${
               hasPhotosForYear
-                ? "bg-black/55 backdrop-blur-md border border-white/15"
+                ? "bg-black/55 backdrop-blur-md border border-white/15 shadow-xl"
                 : "bg-cream/90 border border-ink-200/70"
             }`}
           >
-            {hasPhotosForYear && (
-              <div className="w-full h-1 bg-white/15 rounded-full overflow-hidden mb-2">
-                <div
-                  className="h-full bg-[#F6B042] transition-all duration-100 ease-linear"
-                  style={{ width: `${Math.round(yearProgress * 100)}%` }}
-                />
-              </div>
-            )}
             <div className="flex items-center justify-between gap-1">
-              {DECADE_YEARS.map((yr) => {
-                const reached = yearCounter >= yr;
-                const isCurrent = yearCounter === yr;
+              {DECADE_YEARS.map((yr, idx) => {
+                const reached = yearIdx >= idx;
+                const isCurrent = yearIdx === idx;
                 return (
-                  <div
+                  <button
                     key={yr}
-                    className="flex flex-col items-center gap-1 flex-1"
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      goToYear(idx);
+                    }}
+                    className="flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-transform hover:scale-105"
+                    title={`Jump to ${yr}`}
                   >
                     <span
-                      className={`h-2 w-2 rounded-full transition-all duration-300 ${
+                      className={`h-2.5 w-2.5 rounded-full transition-all duration-300 ${
                         isCurrent
                           ? hasPhotosForYear
                             ? "bg-[#F6B042] scale-150 ring-4 ring-[#F6B042]/30"
@@ -675,7 +896,7 @@ function IntroCurtain({ onEnter }) {
                     >
                       {yr}
                     </span>
-                  </div>
+                  </button>
                 );
               })}
             </div>

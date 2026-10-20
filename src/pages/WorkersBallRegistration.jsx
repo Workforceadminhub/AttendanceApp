@@ -1574,16 +1574,10 @@ export default function WorkersBallRegistration() {
                     <div>
                       <label
                         htmlFor={`${uid}-collect-email`}
-                        className="block text-sm font-medium text-ink-900 mb-1"
+                        className="block text-sm font-medium text-ink-900 mb-2"
                       >
                         Email Address <span className="text-sienna">*</span>
                       </label>
-                      <p
-                        id={`${uid}-collect-email-hint`}
-                        className="text-xs text-ink-500 mb-2"
-                      >
-                        Format: you@example.com
-                      </p>
                       <input
                         id={`${uid}-collect-email`}
                         name="email"
@@ -1599,7 +1593,6 @@ export default function WorkersBallRegistration() {
                           setEmailError("");
                         }}
                         placeholder="you@example.com"
-                        aria-describedby={`${uid}-collect-email-hint`}
                         disabled={isSubmittingEmail}
                         autoFocus
                         className="qc-input wb26-field-input"

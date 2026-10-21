@@ -9,6 +9,7 @@ import {
   EnvelopeIcon,
   LockClosedIcon,
   MagnifyingGlassIcon,
+  QrCodeIcon,
   SparklesIcon,
   UserCircleIcon,
 } from "@heroicons/react/24/outline";
@@ -1594,6 +1595,14 @@ export default function WorkersBallRegistration() {
           </div>
 
           <div className="flex items-center gap-2">
+            <a
+              href="/wb26/scan"
+              className="qc-btn-ghost min-h-0 py-1.5 px-2.5 text-xs font-mono text-ink-600 hover:text-ink-900 transition inline-flex items-center gap-1.5"
+              title="Accreditation Desk Pass Scanner"
+            >
+              <QrCodeIcon className="h-3.5 w-3.5 text-forest" />
+              <span className="hidden sm:inline">Scanner Desk</span>
+            </a>
             <button
               type="button"
               onClick={() => {
@@ -2348,7 +2357,17 @@ export default function WorkersBallRegistration() {
 
       {/* Footer */}
       <footer className="border-t border-ink-200 py-5 px-5 sm:px-8 text-center text-xs text-ink-500 relative z-10 bg-cream">
-        Harvesters International Christian Centre, Gbagada Campus &middot; Workers Ball 2026
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2.5">
+          <span>
+            Harvesters International Christian Centre, Gbagada Campus &middot; Workers Ball 2026
+          </span>
+          <a
+            href="/wb26/scan"
+            className="font-mono text-2xs text-ink-400 hover:text-ink-700 underline underline-offset-2 transition"
+          >
+            Accreditation Desk Scanner &rarr;
+          </a>
+        </div>
       </footer>
     </div>
   );

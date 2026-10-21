@@ -24,6 +24,8 @@ const PUBLIC_PATHS = [
   "/leadership-registration",
   "/awakening",
   "/wb26",
+  "/wb26/scan",
+  "/scan/wb26",
   "/verify",
   "/new/worker",
   "/leadersmeeting/confirm",

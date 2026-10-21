@@ -306,3 +306,91 @@ export async function decodeQrCodeDataUrl(qrDataUrl) {
     return null;
   }
 }
+
+/**
+ * 5. Scan a Workers Ball pass at the accreditation desk (public, no auth).
+ * POST /api/workers-ball/scan with { "scan": "HGWB-AB23CD" }
+ * Sets the worker as attended and returns attended: true with their name.
+ * Scanning the same code again returns "Already attended" and does not check them in a second time.
+ */
+export async function scanWorkersBallPass(scanText) {
+  const cleanedScan = String(scanText || "").trim();
+  if (!cleanedScan) {
+    throw new Error("Please scan a valid pass or enter an access code.");
+  }
+
+  // Extract HGWB-XXXXXX if the scanner returned a URL or formatted text
+  const match = cleanedScan.match(/HGWB-[A-Z0-9]+/i);
+  const scanPayload = match ? match[0].toUpperCase() : cleanedScan.toUpperCase();
+
+  try {
+    const response = await apiRequest(
+      "POST",
+      "/api/workers-ball/scan",
+      { scan: scanPayload },
+      undefined,
+      false
+    );
+
+    if (response?.success === false) {
+      const msg = response?.message || "Accreditation check-in failed.";
+      if (/already\s+attended/i.test(msg)) {
+        return {
+          success: true,
+          attended: true,
+          alreadyAttended: true,
+          code: scanPayload,
+          name: response?.data?.name || response?.name || "",
+          message: "Already attended",
+          raw: response,
+        };
+      }
+      throw new Error(msg);
+    }
+
+    const data = response?.data ?? response ?? {};
+    const message = String(response?.message || data?.message || "");
+    const isAlreadyAttended =
+      /already\s+attended/i.test(message) ||
+      data?.alreadyAttended === true ||
+      data?.status === "already_attended";
+
+    const workerName =
+      data?.name ||
+      data?.workerName ||
+      data?.worker?.name ||
+      response?.name ||
+      "";
+
+    return {
+      success: true,
+      attended: Boolean(data?.attended ?? true),
+      alreadyAttended: isAlreadyAttended,
+      code: scanPayload,
+      name: workerName,
+      department: data?.department || data?.worker?.department || "",
+      team: data?.team || data?.worker?.team || "",
+      role: data?.role || data?.worker?.role || "",
+      message: message || (isAlreadyAttended ? "Already attended" : "Check-in confirmed"),
+      raw: response,
+    };
+  } catch (err) {
+    const errMsg = String(err?.message || "");
+    if (/already\s+attended/i.test(errMsg)) {
+      const respData = err?.responseData?.data || err?.responseData || {};
+      return {
+        success: true,
+        attended: true,
+        alreadyAttended: true,
+        code: scanPayload,
+        name: respData?.name || respData?.workerName || "",
+        department: respData?.department || "",
+        team: respData?.team || "",
+        role: respData?.role || "",
+        message: "Already attended",
+        raw: err?.responseData,
+      };
+    }
+    throw err;
+  }
+}

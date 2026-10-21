@@ -4,6 +4,7 @@ import {
   confirmWorkersBallRegistration,
   normalizeWorkersBallWorker,
   requestWorkersBallOtp,
+  scanWorkersBallPass,
   searchWorkersBall,
   updateWorkersBallEmail,
 } from "./workersBall";
@@ -132,6 +133,91 @@ describe("workersBall service", () => {
     expect(normalizeWorkersBallWorker({ id: 1, name: "Chidi" })).toMatchObject({
       firstName: "Chidi",
       lastName: "",
+    });
+  });
+
+  describe("scanWorkersBallPass", () => {
+    it("POSTs /api/workers-ball/scan with { scan: code } and marks attended", async () => {
+      apiRequest.mockResolvedValue({
+        success: true,
+        message: "Check-in confirmed",
+        data: {
+          attended: true,
+          name: "Ayodeji Eluwande",
+          department: "Technical",
+          team: "Media",
+        },
+      });
+
+      const result = await scanWorkersBallPass("HGWB-AB23CD");
+
+      expect(apiRequest).toHaveBeenCalledWith(
+        "POST",
+        "/api/workers-ball/scan",
+        { scan: "HGWB-AB23CD" },
+        undefined,
+        false
+      );
+      expect(result).toMatchObject({
+        success: true,
+        attended: true,
+        alreadyAttended: false,
+        name: "Ayodeji Eluwande",
+        code: "HGWB-AB23CD",
+      });
+    });
+
+    it("handles 'Already attended' in 200 response without error", async () => {
+      apiRequest.mockResolvedValue({
+        success: true,
+        message: "Already attended",
+        data: {
+          attended: true,
+          name: "Ayodeji Eluwande",
+        },
+      });
+
+      const result = await scanWorkersBallPass("HGWB-AB23CD");
+      expect(result.alreadyAttended).toBe(true);
+      expect(result.attended).toBe(true);
+      expect(result.name).toBe("Ayodeji Eluwande");
+    });
+
+    it("handles 'Already attended' when returned as an API error", async () => {
+      const err = Object.assign(new Error("Already attended"), {
+        status: 400,
+        responseData: {
+          message: "Already attended",
+          data: { name: "Ayodeji Eluwande" },
+        },
+      });
+      apiRequest.mockRejectedValue(err);
+
+      const result = await scanWorkersBallPass("HGWB-AB23CD");
+      expect(result.alreadyAttended).toBe(true);
+      expect(result.name).toBe("Ayodeji Eluwande");
+    });
+
+    it("extracts HGWB code from scanned URL or prefixed input", async () => {
+      apiRequest.mockResolvedValue({
+        success: true,
+        data: { attended: true, name: "Chidi" },
+      });
+
+      await scanWorkersBallPass("https://hicc.church/verify?code=HGWB-998877");
+      expect(apiRequest).toHaveBeenCalledWith(
+        "POST",
+        "/api/workers-ball/scan",
+        { scan: "HGWB-998877" },
+        undefined,
+        false
+      );
+    });
+
+    it("throws when pass scan string is empty", async () => {
+      await expect(scanWorkersBallPass("   ")).rejects.toThrow(
+        /valid pass or enter an access code/i
+      );
     });
   });
 });

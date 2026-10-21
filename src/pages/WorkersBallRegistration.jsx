@@ -1246,6 +1246,26 @@ export default function WorkersBallRegistration() {
     department: selectedWorker?.department || "",
   };
 
+  // Set dynamic browser tab title based on registration stage
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const prevTitle = document.title;
+    let title = "Workers Ball 2026 · Harvesters Gbagada";
+    if (stage === "confirmed") {
+      title = profileForm.firstName
+        ? `Gala Pass: ${profileForm.firstName} · Workers Ball 2026`
+        : "Your Gala Pass is Ready · Workers Ball 2026";
+    } else if (stage === "alreadyRegistered") {
+      title = "Already Registered · Workers Ball 2026";
+    } else if (stage === "verifyOtp" || stage === "sendingOtp") {
+      title = "Verify Identity · Workers Ball 2026";
+    }
+    document.title = title;
+    return () => {
+      document.title = prevTitle;
+    };
+  }, [stage, profileForm.firstName]);
+
   // Initialize post-interaction validation fallback on forms
   useEffect(() => {
     const cleanEmail = UserInvalidFallback.init(emailFormRef.current);

@@ -86,6 +86,7 @@ export default function WorkersBallScanner() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [manualCode, setManualCode] = useState("");
   const [isScanning, setIsScanning] = useState(false);
+  const isScanningRef = useRef(false);
   const [cameraError, setCameraError] = useState("");
   const [cameraFacing, setCameraFacing] = useState("environment"); // "environment" | "user"
   const [cameraRetryCount, setCameraRetryCount] = useState(0);
@@ -96,6 +97,16 @@ export default function WorkersBallScanner() {
 
   // Session history list
   const [history, setHistory] = useState([]);
+
+  // Browser tab title for accreditation desk
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const prevTitle = document.title;
+    document.title = "Accreditation Scanner · Workers Ball 2026";
+    return () => {
+      document.title = prevTitle;
+    };
+  }, []);
 
   // Camera video and canvas refs
   const videoRef = useRef(null);
@@ -124,8 +135,9 @@ export default function WorkersBallScanner() {
   const handleProcessScan = useCallback(
     async (rawCode) => {
       const trimmed = String(rawCode || "").trim();
-      if (!trimmed || isScanning) return;
+      if (!trimmed || isScanningRef.current) return;
 
+      isScanningRef.current = true;
       setIsScanning(true);
 
       try {
@@ -176,11 +188,12 @@ export default function WorkersBallScanner() {
           playAudioFeedback("error");
         }
       } finally {
+        isScanningRef.current = false;
         setIsScanning(false);
         setManualCode("");
       }
     },
-    [isScanning, soundEnabled]
+    [soundEnabled]
   );
 
   // Manual Check-In form submit
@@ -262,7 +275,7 @@ export default function WorkersBallScanner() {
             const qrCode = jsQR(imageData.data, imageData.width, imageData.height, {
               inversionAttempts: "dontInvert",
             });
-            if (qrCode?.data && !isScanning) {
+            if (qrCode?.data && !isScanningRef.current) {
               const now = Date.now();
               if (
                 qrCode.data !== lastScannedCodeRef.current ||

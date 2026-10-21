@@ -79,7 +79,7 @@ function playAudioFeedback(type = "success") {
 }
 
 /**
- * Main Page Component: Workers Ball 2026 Accreditation Scanner (`/wb26/scan` & `/scan/wb26`)
+ * Main Page Component: Workers Ball 2026 Accreditation Scanner (`/scan/wb26` & `/workers-ball/scan`)
  */
 export default function WorkersBallScanner() {
   const [activeTab, setActiveTab] = useState("camera"); // "camera" | "manual"

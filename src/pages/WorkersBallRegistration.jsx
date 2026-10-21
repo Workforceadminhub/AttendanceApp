@@ -1616,7 +1616,7 @@ export default function WorkersBallRegistration() {
 
           <div className="flex items-center gap-2">
             <a
-              href="/wb26/scan"
+              href="/scan/wb26"
               className="qc-btn-ghost min-h-0 py-1.5 px-2.5 text-xs font-mono text-ink-600 hover:text-ink-900 transition inline-flex items-center gap-1.5"
               title="Accreditation Desk Pass Scanner"
             >
@@ -2382,7 +2382,7 @@ export default function WorkersBallRegistration() {
             Harvesters International Christian Centre, Gbagada Campus &middot; Workers Ball 2026
           </span>
           <a
-            href="/wb26/scan"
+            href="/scan/wb26"
             className="font-mono text-2xs text-ink-400 hover:text-ink-700 underline underline-offset-2 transition"
           >
             Accreditation Desk Scanner &rarr;

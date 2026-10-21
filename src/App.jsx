@@ -156,8 +156,9 @@ const AppRoutes = () => {
             <Route path="/leadership-registration" element={<LeadershipRegistration />} />
             <Route path="/awakening" element={<AwakeningRegistration />} />
             <Route path="/wb26" element={<WorkersBallRegistration />} />
-            <Route path="/wb26/scan" element={<WorkersBallScanner />} />
             <Route path="/scan/wb26" element={<WorkersBallScanner />} />
+            <Route path="/workers-ball/scan" element={<WorkersBallScanner />} />
+            <Route path="/wb26/scan" element={<WorkersBallScanner />} />
             <Route path="/leadersmeeting/confirm" element={<LeadersMeetingConfirm />} />
             <Route path="/leaders-meeting" element={<LeadersMeetingPresent />} />
             <Route path="/workersmeeting/confirm" element={<WorkersMeetingConfirm />} />

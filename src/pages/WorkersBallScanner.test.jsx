@@ -26,7 +26,7 @@ afterEach(() => {
   cleanup();
 });
 
-describe("WorkersBallScanner (/wb26/scan)", () => {
+describe("WorkersBallScanner (/scan/wb26)", () => {
   it("renders the accreditation scanner header and mode toggles", () => {
     render(
       <MemoryRouter>

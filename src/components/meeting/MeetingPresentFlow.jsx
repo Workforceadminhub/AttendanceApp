@@ -133,7 +133,10 @@ function EditPresentStep({ worker, meetingType, meetingDate, token, onBack, onDo
         team: form.team,
         phone: form.phone.trim(),
       };
-      if (districts) payload.district_sub_team = form.district_sub_team;
+      if (districts && form.district_sub_team?.trim()) {
+        payload.district_sub_team = form.district_sub_team.trim();
+        payload.cluster = form.district_sub_team.trim();
+      }
       if (showEmail && form.email.trim()) payload.email = form.email.trim();
       await markMeetingWorkerPresent(worker.id, payload, token, meetingType);
       onDone();

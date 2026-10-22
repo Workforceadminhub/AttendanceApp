@@ -302,17 +302,47 @@ const biolaCommunitySet = new Set([
   "koinonia community",
 ]);
 
-export const isPastorIsaacCommunity = (deptOrSubTeam) => {
-  const norm = String(deptOrSubTeam || "").trim().toLowerCase();
-  if (!norm || isDistrictClusterLabel(norm)) return false;
-  return isaacCommunitySet.has(norm);
+/** Cluster values a district community can belong to (same values as a worker's district_sub_team). */
+export const DISTRICT_CLUSTERS = ["Pastor Biola Cluster", "Pastor Isaac Cluster"];
+
+/** Map any cluster spelling ("Pastor Isaac", "pastor isaac cluster") to its DISTRICT_CLUSTERS value, or "". */
+export const normalizeDistrictCluster = (value) => {
+  if (isIsaacDistrictSubTeam(value)) return "Pastor Isaac Cluster";
+  if (isBiolaDistrictSubTeam(value)) return "Pastor Biola Cluster";
+  return "";
 };
 
-export const isPastorBiolaCommunity = (deptOrSubTeam) => {
-  const norm = String(deptOrSubTeam || "").trim().toLowerCase();
-  if (!norm || isDistrictClusterLabel(norm)) return false;
-  return biolaCommunitySet.has(norm);
+// Clusters set on communities in Manage Departments (department.cluster from
+// /api/departments), keyed by lowercase name. These win over the built-in
+// lists above, which only cover communities that existed before the field.
+let departmentClusters = new Map();
+
+/** Replace the API cluster lookup. Pass the raw /api/departments list. */
+export const setDepartmentClusters = (departments) => {
+  const next = new Map();
+  (Array.isArray(departments) ? departments : []).forEach((d) => {
+    const name = String(d?.name ?? d?.department ?? "").trim().toLowerCase();
+    const cluster = normalizeDistrictCluster(d?.cluster) || (d?.cluster ? String(d.cluster).trim() : "");
+    if (name && cluster) next.set(name, cluster);
+  });
+  departmentClusters = next;
 };
+
+/** Cluster a community belongs to ("Pastor Isaac Cluster" / "Pastor Biola Cluster"), or "" if unknown. */
+export const getCommunityCluster = (dept) => {
+  const norm = String(dept || "").trim().toLowerCase();
+  if (!norm || isDistrictClusterLabel(norm)) return "";
+  if (departmentClusters.has(norm)) return departmentClusters.get(norm);
+  if (isaacCommunitySet.has(norm)) return "Pastor Isaac Cluster";
+  if (biolaCommunitySet.has(norm)) return "Pastor Biola Cluster";
+  return "";
+};
+
+export const isPastorIsaacCommunity = (deptOrSubTeam) =>
+  getCommunityCluster(deptOrSubTeam) === "Pastor Isaac Cluster";
+
+export const isPastorBiolaCommunity = (deptOrSubTeam) =>
+  getCommunityCluster(deptOrSubTeam) === "Pastor Biola Cluster";
 
 export const isIsaacDistrictSubTeam = (subTeam) => {
   const norm = String(subTeam || "").trim().toLowerCase();
@@ -367,8 +397,9 @@ export const filterDepartmentsForDistrictSubTeam = (
       .filter((d) => isPastorBiolaCommunity(d))
       .sort();
   }
-  // Sub-team not chosen yet: no department options (UI should disable select)
-  return [];
+  // Sub-team not chosen or omitted: all communities under Districts are selectable
+  const source = list.length > 0 ? list : [...PASTOR_ISAAC_COMMUNITIES, ...PASTOR_BIOLA_COMMUNITIES];
+  return Array.from(new Set(source)).sort();
 };
 
 

@@ -39,7 +39,7 @@ export function validateAuthenticatedWorker(worker, options = {}) {
     includePlacement = true,
     requireAddress = true,
     requireOccupation = false,
-    requireDistrictSubTeam = ["District", "Districts"].includes(worker?.team),
+    requireDistrictSubTeam = false,
   } = options;
 
   const requiredFields = ["firstname", "lastname", "email", "phonenumber"];

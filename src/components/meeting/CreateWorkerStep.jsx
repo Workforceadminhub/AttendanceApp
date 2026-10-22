@@ -205,7 +205,6 @@ export default function CreateWorkerStep({
     else if (isOtherCampus && form.team === "Others" && !form.customTeam.trim()) {
       errs.customTeam = "Please enter your team";
     }
-    if (districts && !form.district_sub_team) errs.district_sub_team = "District/Sub-team is required";
     if (!form.department) errs.department = "Department is required";
     else if (isOtherCampus && form.department === "Others" && !form.customDepartment.trim()) {
       errs.customDepartment = "Please enter your department";
@@ -266,7 +265,8 @@ export default function CreateWorkerStep({
           employment: form.employment,
           occupation: form.occupation.trim(),
           team: form.team,
-          district_sub_team: districts ? form.district_sub_team : undefined,
+          district_sub_team: districts && form.district_sub_team ? form.district_sub_team : undefined,
+          cluster: districts && form.district_sub_team ? form.district_sub_team : undefined,
           department: form.department,
           meeting_date: meetingDate,
         };
@@ -487,13 +487,8 @@ export default function CreateWorkerStep({
               value={form.department}
               onChange={setDepartment}
               className={selectClass}
-              disabled={districts && !form.district_sub_team}
             >
-              <option value="">
-                {districts && !form.district_sub_team
-                  ? "Select District/Sub-team first"
-                  : "Select Department"}
-              </option>
+              <option value="">Select Department</option>
               {departmentOptions.map((d) => (
                 <option key={d} value={d}>{d}</option>
               ))}

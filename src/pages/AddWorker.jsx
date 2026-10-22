@@ -8,6 +8,7 @@ import {
  teamsAndDepartments,
  normalizeWorkerRole,
  filterDepartmentsForDistrictSubTeam,
+ getCommunityCluster,
 } from "../utils/teams";
 import BirthDatePicker from "../components/BirthDatePicker";
 import apiRequest from "../utils/apiClient";
@@ -164,11 +165,19 @@ export default function AddWorker() {
 
  setIsLoading(true);
  try {
+ const clusterValue = (newWorker.cluster || newWorker.district_sub_team || "").trim();
  const workerToSend = {
  ...newWorker,
  email: newWorker.email.trim(),
  workerrole: normalizeWorkerRole(newWorker.workerrole),
  };
+ if (clusterValue) {
+ workerToSend.cluster = clusterValue;
+ workerToSend.district_sub_team = clusterValue;
+ } else {
+ delete workerToSend.cluster;
+ delete workerToSend.district_sub_team;
+ }
  await apiRequest("POST", "/api/super/admin/workers", workerToSend);
  toast.success("Worker added successfully");
  setFormErrors({});
@@ -386,10 +395,19 @@ export default function AddWorker() {
  for (let i = 0; i < parsedWorkers.length; i++) {
  const { _id, ...worker } = parsedWorkers[i];
 
- worker.workerrole = normalizeWorkerRole(worker.workerrole);
+ const workerToSend = { ...worker };
+ workerToSend.workerrole = normalizeWorkerRole(workerToSend.workerrole);
+ const clusterVal = (workerToSend.cluster || workerToSend.district_sub_team || "").trim();
+ if (clusterVal) {
+ workerToSend.cluster = clusterVal;
+ workerToSend.district_sub_team = clusterVal;
+ } else {
+ delete workerToSend.cluster;
+ delete workerToSend.district_sub_team;
+ }
 
  try {
- await apiRequest("POST", "/api/super/admin/workers", worker);
+ await apiRequest("POST", "/api/super/admin/workers", workerToSend);
 
  setBulkUploadProgress((prev) => ({
  ...prev,
@@ -638,20 +656,20 @@ export default function AddWorker() {
  </select>
  </div>
 
- {/* District/Sub-team - always before Department when Districts */}
+ {/* District/Sub-team - optional before Department when Districts */}
  {(newWorker.team === "Districts" || newWorker.team === "District") && (
  <div>
  <label className="block text-sm font-medium text-ink-700 mb-2">
- District/Sub-team <span className="text-brick">*</span>
+ District/Sub-team (Optional)
  </label>
  <select
  {...workerErrorProps(visibleErrors, "district_sub_team")}
- value={newWorker.district_sub_team}
+ value={newWorker.district_sub_team || newWorker.cluster || ""}
  onChange={(e) =>
  setNewWorker({
  ...newWorker,
  district_sub_team: e.target.value,
- department: "",
+ cluster: e.target.value,
  })
  }
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
@@ -672,22 +690,23 @@ export default function AddWorker() {
  {...workerErrorProps(visibleErrors, "department")}
  value={newWorker.department}
  onChange={(e) => {
-   setNewWorker({
-     ...newWorker,
-     department: e.target.value,
-   });
- }}
- disabled={
-   (newWorker.team === "Districts" || newWorker.team === "District") &&
-   !newWorker.district_sub_team
+ const selectedDept = e.target.value;
+ let autoCluster = newWorker.district_sub_team || newWorker.cluster || "";
+ if (!autoCluster && (newWorker.team === "Districts" || newWorker.team === "District")) {
+ autoCluster = getCommunityCluster(selectedDept) || "";
  }
+ setNewWorker({
+ ...newWorker,
+ department: selectedDept,
+ district_sub_team: autoCluster,
+ cluster: autoCluster,
+ });
+ }}
+ disabled={!newWorker.team}
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10 disabled:cursor-not-allowed disabled:bg-ink-100"
  >
  <option value="">
- {(newWorker.team === "Districts" || newWorker.team === "District") &&
- !newWorker.district_sub_team
- ? "Select District/Sub-team first"
- : "Select Department"}
+ {!newWorker.team ? "Select a team first" : "Select Department"}
  </option>
  {departmentOptions.map((dept) => (
  <option key={dept.value} value={dept.value}>

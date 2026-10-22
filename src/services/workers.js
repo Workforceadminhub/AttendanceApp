@@ -98,8 +98,17 @@ export const countAdminWorkers = async (team, activeGroup, activeDate, _permissi
 };
 
 export const addNewWorker = async (worker) => {
+  const payload = { ...worker };
+  const clusterVal = (worker?.cluster || worker?.district_sub_team || "").trim();
+  if (clusterVal) {
+    payload.cluster = clusterVal;
+    payload.district_sub_team = clusterVal;
+  } else {
+    delete payload.cluster;
+    delete payload.district_sub_team;
+  }
   // This is a public endpoint, no authentication required
-  const response = await apiRequest("POST", "/api/workers/add", worker, undefined, false);
+  const response = await apiRequest("POST", "/api/workers/add", payload, undefined, false);
   if (!response || response.error) {
     throw new Error(response?.error || response?.message || "Failed to add new worker");
   }

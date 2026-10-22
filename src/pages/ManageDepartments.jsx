@@ -15,6 +15,7 @@ import {
 import { fetchHubTeams } from "../services/hub/teams";
 import { useDepartmentsContext, useInvalidateDepartments } from "../contexts/DepartmentsContext";
 import { getUserRole } from "../utils/getUserRole";
+import { DISTRICT_CLUSTERS, getCommunityCluster } from "../utils/teams";
 import {
  PencilIcon,
  TrashIcon,
@@ -54,6 +55,20 @@ const selectStyles = {
  placeholder: (base) => ({ ...base, fontSize: "0.875rem", color: "#9ca3af" }),
 };
 
+const clusterOptions = DISTRICT_CLUSTERS.map((c) => ({ value: c, label: c }));
+
+// Communities sit under the Districts team and each belongs to one cluster.
+const isDistrictsTeam = (team) => team === "Districts" || team === "District";
+
+function ClusterNote({ name, cluster: directCluster }) {
+ const cluster = directCluster || getCommunityCluster(name);
+ return (
+ <div className={`mt-0.5 text-xs ${cluster ? "text-ink-500" : "text-brick"}`}>
+ {cluster || "No cluster set"}
+ </div>
+ );
+}
+
 export default function ManageDepartments() {
  const navigate = useNavigate();
  const { refetch: refetchDepartmentsContext } = useDepartmentsContext();
@@ -78,6 +93,7 @@ export default function ManageDepartments() {
  team: "",
  route: "",
  code: "",
+ cluster: "",
  isactive: true,
  });
 
@@ -141,6 +157,7 @@ export default function ManageDepartments() {
  team: "",
  route: "",
  code: "",
+ cluster: "",
  isactive: true,
  });
  setIsModalOpen(true);
@@ -154,6 +171,9 @@ export default function ManageDepartments() {
  team: department.team || "",
  route: department.route || "",
  code: department.code || "",
+ cluster:
+ department.cluster ||
+ (isDistrictsTeam(department.team) ? getCommunityCluster(department.name) : ""),
  isactive: department.isactive ?? true,
  });
  setIsModalOpen(true);
@@ -168,6 +188,7 @@ export default function ManageDepartments() {
  team: "",
  route: "",
  code: "",
+ cluster: "",
  isactive: true,
  });
  };
@@ -185,7 +206,6 @@ export default function ManageDepartments() {
  toast.error("Team is required");
  return;
  }
-
  // Auto-derive route from name if not supplied (kebab-case + leading slash)
  const derivedRoute =
  formData.route.trim() ||
@@ -200,6 +220,10 @@ export default function ManageDepartments() {
 
  if (formData.code && formData.code.trim()) {
  submission.code = formData.code.trim();
+ }
+
+ if (formData.cluster && formData.cluster.trim()) {
+ submission.cluster = formData.cluster.trim();
  }
 
  setIsSubmitting(true);
@@ -520,6 +544,9 @@ export default function ManageDepartments() {
  </td>
  <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-900">
  {department.name}
+ {isDistrictsTeam(department.team) && (
+ <ClusterNote name={department.name} cluster={department.cluster} />
+ )}
  </td>
  <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-900">
  {department.route}
@@ -661,6 +688,7 @@ export default function ManageDepartments() {
  setFormData((prev) => ({
  ...prev,
  team: opt?.value || "",
+ cluster: isDistrictsTeam(opt?.value) ? prev.cluster : "",
  }))
  }
  placeholder="Select a team"
@@ -672,6 +700,42 @@ export default function ManageDepartments() {
  />
  </div>
  </div>
+
+ {(isDistrictsTeam(formData.team) || formData.cluster) && (
+ <div>
+ <label
+ htmlFor="cluster"
+ className="block text-sm font-medium text-ink-700"
+ >
+ Cluster (Optional)
+ </label>
+ <div className="mt-1">
+ <Select
+ inputId="cluster"
+ options={clusterOptions}
+ value={
+ clusterOptions.find((c) => c.value === formData.cluster) ||
+ (formData.cluster ? { value: formData.cluster, label: formData.cluster } : null)
+ }
+ onChange={(opt) =>
+ setFormData((prev) => ({
+ ...prev,
+ cluster: opt?.value || "",
+ }))
+ }
+ placeholder="Select a cluster"
+ styles={selectStyles}
+ menuPlacement="auto"
+ menuPortalTarget={typeof document !== "undefined" ? document.body : null}
+ menuPosition="fixed"
+ isClearable
+ />
+ </div>
+ <p className="mt-1 text-xs text-ink-500">
+ Workers inherit this community&apos;s cluster if omitted on the worker.
+ </p>
+ </div>
+ )}
 
  <div>
  <label

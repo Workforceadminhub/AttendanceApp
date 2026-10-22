@@ -176,8 +176,8 @@ const Form = ({
           </Field>
 
           {(formData.team === "Districts" || formData.team === "District") && (
-            <Field id="district_sub_team" label="District / sub-team" required>
-              <select id="district_sub_team" className={inputClass} value={formData.district_sub_team || ""} onChange={(event) => updateField("district_sub_team", event.target.value, { department: "" })}>
+            <Field id="district_sub_team" label="District / sub-team (optional)">
+              <select id="district_sub_team" className={inputClass} value={formData.district_sub_team || formData.cluster || ""} onChange={(event) => updateField("district_sub_team", event.target.value)}>
                 <option value="">Select a district or sub-team</option>
                 <option value="Pastor Biola Cluster">Pastor Biola Cluster</option>
                 <option value="Pastor Isaac Cluster">Pastor Isaac Cluster</option>
@@ -186,9 +186,9 @@ const Form = ({
           )}
 
           <Field id="department" label="Department" required error={errors.department}>
-            <select id="department" className={inputClass} value={formData.department} onChange={(event) => updateField("department", event.target.value)} disabled={!formData.team || ((formData.team === "Districts" || formData.team === "District") && !formData.district_sub_team)} {...errorProps("department")}>
+            <select id="department" className={inputClass} value={formData.department} onChange={(event) => updateField("department", event.target.value)} disabled={!formData.team} {...errorProps("department")}>
               <option value="">
-                {!formData.team ? "Select a team first" : (formData.team === "Districts" || formData.team === "District") && !formData.district_sub_team ? "Select a district or sub-team first" : "Select a department"}
+                {!formData.team ? "Select a team first" : "Select a department"}
               </option>
               {departmentList.map((department) => <option key={department}>{department}</option>)}
             </select>

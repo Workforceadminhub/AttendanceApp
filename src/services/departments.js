@@ -210,6 +210,7 @@ const loadTeamsAndDepartmentsForFilter = async () => {
  * @param {string} data.team - Team name
  * @param {string} data.route - Route path
  * @param {string} data.code - Department code
+ * @param {string} [data.cluster] - District cluster, for communities under Districts
  * @param {boolean} data.isactive - Active status
  * @returns {Promise<Object>} Created department
  */
@@ -222,6 +223,9 @@ export const addDepartment = async (data) => {
   };
   if (data.code !== undefined && data.code !== null && String(data.code).trim() !== "") {
     payload.code = String(data.code).trim();
+  }
+  if (data.cluster !== undefined && data.cluster !== null && String(data.cluster).trim() !== "") {
+    payload.cluster = String(data.cluster).trim();
   }
   const response = await apiRequest("POST", "/api/departments", payload);
   if (!response || response.error) {
@@ -239,6 +243,7 @@ export const addDepartment = async (data) => {
  * @param {string} data.team - Team name
  * @param {string} data.route - Route path
  * @param {string} [data.code] - Department code
+ * @param {string} [data.cluster] - District cluster, for communities under Districts
  * @param {boolean} data.isactive - Active status
  * @returns {Promise<Object>} Updated department
  */
@@ -252,6 +257,9 @@ export const updateDepartment = async (data) => {
   };
   if (data.code !== undefined && data.code !== null && String(data.code).trim() !== "") {
     payload.code = String(data.code).trim();
+  }
+  if (data.cluster !== undefined && data.cluster !== null && String(data.cluster).trim() !== "") {
+    payload.cluster = String(data.cluster).trim();
   }
   const response = await apiRequest("PUT", "/api/departments", payload);
   if (!response || response.error) {

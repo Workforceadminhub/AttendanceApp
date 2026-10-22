@@ -58,7 +58,7 @@ export default function HODAddWorker() {
  const latestErrors = validateAuthenticatedWorker(worker, {
  includePlacement: false,
  requireOccupation: true,
- requireDistrictSubTeam: ["District", "Districts"].includes(team),
+ requireDistrictSubTeam: false,
  });
  return Object.fromEntries(
  Object.entries(current).filter(([field]) => latestErrors[field])
@@ -79,7 +79,7 @@ export default function HODAddWorker() {
  const nextErrors = validateAuthenticatedWorker(worker, {
  includePlacement: false,
  requireOccupation: true,
- requireDistrictSubTeam: ["District", "Districts"].includes(team),
+ requireDistrictSubTeam: false,
  });
  setFormErrors(nextErrors);
  setSubmitError("");
@@ -246,7 +246,7 @@ export default function HODAddWorker() {
   {(team === "Districts" || team === "District") && (
   <div>
   <label className="block text-sm font-medium text-ink-700 mb-2">
-  District/Sub-team <span className="text-brick">*</span>
+  District/Sub-team (Optional)
   </label>
   <select
   {...workerErrorProps(formErrors, "district_sub_team")}

@@ -1,3 +1,5 @@
+import { setDepartmentClusters } from "./teams";
+
 // Legacy public registration options; authenticated helpers below never read this list.
 export const routeObject = [
   { department: "Workforce Admin", route: "/wadata", team: "Ministry" },
@@ -193,10 +195,11 @@ function normalizeRoute(r) {
 
 /**
  * Replace the in-memory dynamic dept list. Pass the raw /api/departments
- * response (array of { id, name, team, route, isactive }).
+ * response (array of { id, name, team, route, isactive, cluster }).
  * @param {Array} departments
  */
 export function setDynamicDepartments(departments) {
+  setDepartmentClusters(departments);
   if (!Array.isArray(departments)) {
     _dynamicList = null;
     _inactiveNames = new Set();

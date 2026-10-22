@@ -165,6 +165,10 @@ export default function ViewWorker() {
       return;
     }
 
+    const cluster = workerData.cluster || workerData.district_sub_team || "";
+    workerData.cluster = cluster;
+    workerData.district_sub_team = cluster;
+
     setWorker(workerData);
     setEditedWorker(workerData);
   } catch (error) {
@@ -248,7 +252,7 @@ const getHODCancelPath = () => {
  const changedFields = {};
  const fieldsToCheck = [
  'firstname', 'lastname', 'othername', 'fullname', 'fullnamereverse', 'email', 'phonenumber',
- 'maritalstatus', 'department', 'team', 'district_sub_team', 'workerrole', 'birthdate',
+ 'maritalstatus', 'department', 'team', 'district_sub_team', 'cluster', 'workerrole', 'birthdate',
  'agerange', 'gender', 'address', 'occupation', 'employment'
  ];
 
@@ -269,6 +273,16 @@ const getHODCancelPath = () => {
  const fieldsToSend = { ...changedFields };
  if (fieldsToSend.workerrole !== undefined) {
  fieldsToSend.workerrole = normalizeWorkerRole(fieldsToSend.workerrole);
+ }
+ if (fieldsToSend.cluster !== undefined || fieldsToSend.district_sub_team !== undefined) {
+ const clusterVal = (fieldsToSend.cluster || fieldsToSend.district_sub_team || "").trim();
+ if (clusterVal) {
+ fieldsToSend.cluster = clusterVal;
+ fieldsToSend.district_sub_team = clusterVal;
+ } else {
+ delete fieldsToSend.cluster;
+ delete fieldsToSend.district_sub_team;
+ }
  }
 
  await apiRequest("PUT", "/api/super/admin/workers", {
@@ -291,7 +305,7 @@ const getHODCancelPath = () => {
  
  const fieldsToCheck = [
  'firstname', 'lastname', 'othername', 'fullname', 'fullnamereverse', 'email', 'phonenumber',
- 'maritalstatus', 'department', 'team', 'district_sub_team', 'workerrole', 'birthdate',
+ 'maritalstatus', 'department', 'team', 'district_sub_team', 'cluster', 'workerrole', 'birthdate',
  'agerange', 'gender', 'address', 'occupation', 'employment'
  ];
 
@@ -306,9 +320,15 @@ const getHODCancelPath = () => {
  [field]: value,
  };
 
+ if (field === "district_sub_team" || field === "cluster") {
+ newEditedWorker.district_sub_team = value;
+ newEditedWorker.cluster = value;
+ }
+
  if (field === "team") {
  if (!isDistrictsTeam(value)) {
  newEditedWorker.district_sub_team = "";
+ newEditedWorker.cluster = "";
  }
  newEditedWorker.department = "";
  }
@@ -522,15 +542,15 @@ const getHODCancelPath = () => {
  </select>
  </div>
 
- {/* District/Sub-team - always before Department when Districts */}
+ {/* District/Sub-team - optional before Department when Districts */}
  {(editedWorker.team === "Districts" || editedWorker.team === "District") && (
  <div>
  <label htmlFor="worker-district_sub_team" className="block text-sm font-medium text-ink-700 mb-2">
- District/Sub-team <span className="text-brick">*</span>
+ District/Sub-team (Optional)
  </label>
  <select
  id="worker-district_sub_team"
- value={editedWorker.district_sub_team || ""}
+ value={editedWorker.district_sub_team || editedWorker.cluster || ""}
  onChange={(e) => handleInputChange("district_sub_team", e.target.value)}
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
  >
@@ -550,13 +570,11 @@ const getHODCancelPath = () => {
  id="worker-department"
  value={editedWorker.department || ""}
  onChange={(e) => handleInputChange("department", e.target.value)}
- disabled={isDistrictsTeam(editedWorker.team) && !editedWorker.district_sub_team}
+ disabled={!editedWorker.team}
  className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10 disabled:cursor-not-allowed disabled:bg-ink-100"
  >
  <option value="">
-   {isDistrictsTeam(editedWorker.team) && !editedWorker.district_sub_team
-     ? "Select District/Sub-team first"
-     : "Select Department"}
+ {!editedWorker.team ? "Select a team first" : "Select Department"}
  </option>
  {departmentOptions.map((dept) => (
  <option key={dept.value} value={dept.value}>

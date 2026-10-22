@@ -12,7 +12,32 @@ vi.mock("./hub/teams", () => ({
   fetchHubTeams: vi.fn().mockResolvedValue([]),
 }));
 
-import { clearDepartmentsCache, fetchTeamsAndDepartmentsForFilter } from "./departments";
+import {
+  addDepartment,
+  clearDepartmentsCache,
+  fetchTeamsAndDepartmentsForFilter,
+  updateDepartment,
+} from "./departments";
+
+describe("department cluster", () => {
+  beforeEach(() => apiRequestMock.mockReset().mockResolvedValue({ data: {} }));
+
+  it("sends the cluster when a community is added or updated", async () => {
+    const community = { name: "New Community", team: "Districts", route: "/new", isactive: true, cluster: "Pastor Isaac Cluster" };
+
+    await addDepartment(community);
+    await updateDepartment({ id: 9, ...community });
+
+    expect(apiRequestMock).toHaveBeenNthCalledWith(1, "POST", "/api/departments", expect.objectContaining({ cluster: "Pastor Isaac Cluster" }));
+    expect(apiRequestMock).toHaveBeenNthCalledWith(2, "PUT", "/api/departments", expect.objectContaining({ id: 9, cluster: "Pastor Isaac Cluster" }));
+  });
+
+  it("leaves cluster out for departments that have none", async () => {
+    await addDepartment({ name: "Sound", team: "Programs", route: "/sound", isactive: true });
+
+    expect(apiRequestMock.mock.calls[0][2]).not.toHaveProperty("cluster");
+  });
+});
 
 describe("fetchTeamsAndDepartmentsForFilter", () => {
   beforeEach(() => {

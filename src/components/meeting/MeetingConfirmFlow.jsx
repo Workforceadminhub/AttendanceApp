@@ -131,6 +131,7 @@ function EditWorkerStep({ worker, meetingType, meetingDate, token, onBack, onDon
       if (!isConfirmed) payload.notes = declineReason.trim();
       if (showDistrictSubTeam && form.district_sub_team.trim()) {
         payload.district_sub_team = form.district_sub_team.trim();
+        payload.cluster = form.district_sub_team.trim();
       }
       if (hasMissing) {
         if (missing.has("email")) payload.email = form.email.trim();

@@ -33,9 +33,19 @@ describe("validateAuthenticatedWorker", () => {
     });
   });
 
-  it("requires a district/sub-team for either district team spelling", () => {
+  it("permits omitting district/sub-team so worker inherits matching department cluster", () => {
     for (const team of ["District", "Districts"]) {
-      expect(validateAuthenticatedWorker({ ...validWorker, team })).toMatchObject({
+      expect(
+        validateAuthenticatedWorker({ ...validWorker, team, department: "Trailblazer Community", district_sub_team: "" })
+      ).toEqual({});
+    }
+  });
+
+  it("requires a district/sub-team when explicitly requested via options", () => {
+    for (const team of ["District", "Districts"]) {
+      expect(
+        validateAuthenticatedWorker({ ...validWorker, team }, { requireDistrictSubTeam: true })
+      ).toMatchObject({
         district_sub_team: "Select a district or sub-team.",
       });
     }

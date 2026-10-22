@@ -1457,7 +1457,15 @@ export default function WorkersBallRegistration() {
         `HGWB-${String(selectedWorker.id).padStart(6, "0")}`;
       setAccessCode(code);
       setQrCode(result.qrCode || null);
-      setSelectedWorker((prev) => (prev ? { ...prev, registered: true } : prev));
+      setSelectedWorker((prev) =>
+        prev
+          ? {
+              ...prev,
+              registered: true,
+              ...(result.role ? { role: result.role } : {}),
+            }
+          : prev
+      );
 
       // Asynchronously attempt to decode the true access code from the QR code data URL
       if (result.qrCode && typeof decodeQrCodeDataUrl === "function") {

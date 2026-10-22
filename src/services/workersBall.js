@@ -1,4 +1,5 @@
 import apiRequest from "../utils/apiClient";
+import { getUser } from "../utils/getUser";
 
 /**
  * Split a full name string ("Chidi Bede Enwereji") into { firstName, lastName }.
@@ -34,6 +35,43 @@ export function normalizeWorkersBallWorker(raw = {}) {
     raw.registered ?? raw.is_registered ?? raw.isRegistered ?? false
   );
 
+  let role =
+    raw.role ||
+    raw.worker_role ||
+    raw.workerRole ||
+    raw.designation ||
+    raw.worker_designation ||
+    raw.position ||
+    raw.title ||
+    raw.leadership_role ||
+    raw.leadershipRole ||
+    "";
+
+  // If role is missing from public search, resolve from session user if it's the same person
+  if (!role && typeof window !== "undefined") {
+    try {
+      const authUser = getUser();
+      if (
+        authUser &&
+        (String(authUser.id) === String(raw.id ?? raw.worker_id) ||
+          (authUser.email && raw.email && authUser.email.toLowerCase() === raw.email.toLowerCase()) ||
+          (authUser.name && fullName && authUser.name.toLowerCase() === fullName.toLowerCase()))
+      ) {
+        role = authUser.role || (authUser.permissionLevel === "HOD" ? "HOD" : "");
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  const rawCode =
+    raw.reference_code ||
+    raw.referenceCode ||
+    raw.code ||
+    raw.access_code ||
+    raw.accessCode ||
+    "";
+
   return {
     id: raw.id ?? raw.worker_id ?? raw.workerId,
     name: fullName,
@@ -43,7 +81,8 @@ export function normalizeWorkersBallWorker(raw = {}) {
     email: raw.email ?? null,
     team: raw.team || raw.team_name || "",
     department: raw.department || raw.department_name || "",
-    role: raw.role || "Worker",
+    role: role || "Worker",
+    code: rawCode ? String(rawCode).trim().toUpperCase() : "",
     registered,
     emailEditable:
       raw.email_editable !== undefined
@@ -201,6 +240,10 @@ export async function confirmWorkersBallRegistration(workerId, otp) {
   }
 
   const explicitCode =
+    data?.reference_code ||
+    data?.referenceCode ||
+    data?.ref_code ||
+    data?.refCode ||
     data?.code ||
     data?.accessCode ||
     data?.access_code ||
@@ -222,9 +265,11 @@ export async function confirmWorkersBallRegistration(workerId, otp) {
     data?.workers_ball?.code ||
     data?.workers_ball?.accessCode ||
     data?.workers_ball?.access_code ||
+    data?.worker?.reference_code ||
     data?.worker?.code ||
     data?.worker?.accessCode ||
     data?.worker?.access_code ||
+    response?.reference_code ||
     response?.code ||
     response?.accessCode ||
     response?.access_code ||
@@ -237,6 +282,16 @@ export async function confirmWorkersBallRegistration(workerId, otp) {
     : "HGWB-2026";
 
   const accessCode = explicitCode || fallbackCode;
+
+  const role =
+    data?.role ||
+    data?.worker?.role ||
+    data?.worker?.worker_role ||
+    data?.worker_role ||
+    data?.designation ||
+    response?.role ||
+    response?.worker?.role ||
+    null;
 
   const qrCode =
     data?.qrCode ||
@@ -255,6 +310,7 @@ export async function confirmWorkersBallRegistration(workerId, otp) {
     data,
     accessCode,
     qrCode,
+    role,
     message:
       response?.message ||
       data?.message ||
@@ -441,6 +497,10 @@ export function normalizeWorkersBallRegistrationRow(raw = {}) {
       .trim();
 
   const rawCode =
+    raw.reference_code ||
+    raw.referenceCode ||
+    raw.ref_code ||
+    raw.refCode ||
     raw.code ||
     raw.accessCode ||
     raw.access_code ||
@@ -455,6 +515,8 @@ export function normalizeWorkersBallRegistrationRow(raw = {}) {
     raw.badge ||
     raw.ticket ||
     raw.pass ||
+    workerObj.reference_code ||
+    workerObj.referenceCode ||
     workerObj.code ||
     workerObj.accessCode ||
     workerObj.access_code ||
@@ -723,31 +785,42 @@ export function extractWorkersBallRegistrations(response) {
 
   const registrations = Array.from(merged.values());
 
+  const summary =
+    dataWrapper?.summary ||
+    root?.summary ||
+    {};
+
   const totalRegistered =
-    typeof root?.totalRegistered === "number"
-      ? root.totalRegistered
-      : typeof dataWrapper?.totalRegistered === "number"
-        ? dataWrapper.totalRegistered
-        : typeof root?.registeredCount === "number"
-          ? root.registeredCount
-          : typeof dataWrapper?.registeredCount === "number"
-            ? dataWrapper.registeredCount
-            : registeredArr.length > 0
-              ? registeredArr.length
-              : registrations.length;
+    typeof summary.total_registered === "number"
+      ? summary.total_registered
+      : typeof summary.total_confirmed === "number"
+        ? summary.total_confirmed
+        : typeof root?.totalRegistered === "number"
+          ? root.totalRegistered
+          : typeof dataWrapper?.totalRegistered === "number"
+            ? dataWrapper.totalRegistered
+            : typeof root?.registeredCount === "number"
+              ? root.registeredCount
+              : typeof dataWrapper?.registeredCount === "number"
+                ? dataWrapper.registeredCount
+                : registeredArr.length > 0
+                  ? registeredArr.length
+                  : registrations.length;
 
   const totalAttended =
-    typeof root?.totalAttended === "number"
-      ? root.totalAttended
-      : typeof dataWrapper?.totalAttended === "number"
-        ? dataWrapper.totalAttended
-        : typeof root?.attendedCount === "number"
-          ? root.attendedCount
-          : typeof dataWrapper?.attendedCount === "number"
-            ? dataWrapper.attendedCount
-            : attendedArr.length > 0
-              ? attendedArr.length
-              : registrations.filter((r) => r.attended).length;
+    typeof summary.total_attended === "number"
+      ? summary.total_attended
+      : typeof root?.totalAttended === "number"
+        ? root.totalAttended
+        : typeof dataWrapper?.totalAttended === "number"
+          ? dataWrapper.totalAttended
+          : typeof root?.attendedCount === "number"
+            ? root.attendedCount
+            : typeof dataWrapper?.attendedCount === "number"
+              ? dataWrapper.attendedCount
+              : attendedArr.length > 0
+                ? attendedArr.length
+                : registrations.filter((r) => r.attended).length;
 
   const total =
     typeof root?.total === "number"

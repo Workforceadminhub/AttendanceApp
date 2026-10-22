@@ -393,5 +393,90 @@ describe("workersBall service", () => {
       expect(result.totalRegistered).toBe(1);
       expect(result.totalAttended).toBe(0);
     });
+
+    it("parses the real production response with summary, registered, confirmed, and pending lists", () => {
+      const rawResponse = {
+        success: true,
+        message: "Workers Ball registrations",
+        data: {
+          summary: {
+            total_registered: 6,
+            total_confirmed: 5,
+            total_pending: 1,
+            total_attended: 1,
+            by_department: [{ name: "Workforce Admin", registered: 6, confirmed: 5, attended: 1 }],
+            by_team: [{ name: "Ministry", registered: 6, confirmed: 5, attended: 1 }],
+          },
+          registered: [
+            {
+              worker_id: 2,
+              name: "Ayodeji Cornelius Eluwande",
+              phone: "*******2753",
+              email: "a***@g***.com",
+              team: "Ministry",
+              department: "Workforce Admin",
+              role: "HOD",
+              cluster: null,
+              status: "registered",
+              reference_code: "HGWB-RSSSED",
+              attended: true,
+              checked_in_at: "2026-10-21T13:01:03.246Z",
+            },
+            {
+              worker_id: 5072,
+              name: "Cynthia Ogochukwu Uzoalu",
+              phone: "******5420",
+              email: "c***@g***.com",
+              team: "Ministry",
+              department: "Workforce Admin",
+              role: "Small Group Leader",
+              cluster: null,
+              status: "registered",
+              reference_code: "HGWB-YGUDGW",
+              attended: false,
+              checked_in_at: null,
+            },
+            {
+              worker_id: 15,
+              name: "Rebecca Funsho Adeeko",
+              phone: "******1321",
+              email: "f***@g***.com",
+              team: "Ministry",
+              department: "Workforce Admin",
+              role: "Small Group Leader",
+              cluster: null,
+              status: "pending",
+              reference_code: null,
+              attended: false,
+              checked_in_at: null,
+            },
+          ],
+          confirmed: [],
+          pending: [],
+        },
+      };
+
+      const result = extractWorkersBallRegistrations(rawResponse);
+      expect(result.registrations).toHaveLength(3);
+      expect(result.totalRegistered).toBe(6);
+      expect(result.totalAttended).toBe(1);
+
+      const ayodeji = result.registrations.find((r) => r.id === 2);
+      expect(ayodeji).toMatchObject({
+        name: "Ayodeji Cornelius Eluwande",
+        role: "HOD",
+        code: "HGWB-RSSSED",
+        attended: true,
+        attendedAt: "2026-10-21T13:01:03.246Z",
+      });
+
+      const cynthia = result.registrations.find((r) => r.id === 5072);
+      expect(cynthia).toMatchObject({
+        name: "Cynthia Ogochukwu Uzoalu",
+        role: "Small Group Leader",
+        code: "HGWB-YGUDGW",
+        attended: false,
+      });
+    });
   });
 });

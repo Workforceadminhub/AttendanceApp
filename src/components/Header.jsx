@@ -370,7 +370,13 @@ export default function Header() {
   // by at least one item).
   const mainSheetExtraItems = (() => {
     const seen = new Set(
-      [workersHref, approvalsItem?.href, attendanceItem.href].filter(Boolean)
+      [
+        homePage,
+        summaryHref,
+        workersHref,
+        approvalsItem?.href,
+        attendanceItem.href,
+      ].filter(Boolean)
     );
     const raw = [
       ...summaryDropdownItems,

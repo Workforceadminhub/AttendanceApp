@@ -39,6 +39,7 @@ const mockRegistrations = [
     team: "Media",
     role: "Lead",
     code: "HGWB-AYO001",
+    status: "attended",
     attended: true,
     attendedAt: "2026-10-22T19:30:00Z",
     registeredAt: "2026-10-15T10:00:00Z",
@@ -53,6 +54,7 @@ const mockRegistrations = [
     team: "Admin",
     role: "Coordinator",
     code: "HGWB-CHI002",
+    status: "registered",
     attended: false,
     attendedAt: null,
     registeredAt: "2026-10-16T12:00:00Z",
@@ -67,9 +69,25 @@ const mockRegistrations = [
     team: "Soprano",
     role: "Worker",
     code: "HGWB-GRA003",
+    status: "attended",
     attended: true,
     attendedAt: "2026-10-22T19:45:00Z",
     registeredAt: "2026-10-17T14:00:00Z",
+  },
+  {
+    id: 4,
+    workerId: 104,
+    name: "Rebecca Funsho",
+    email: "rebecca@example.com",
+    phone: "08012345678",
+    department: "Workforce",
+    team: "Admin",
+    role: "Small Group Leader",
+    code: "",
+    status: "pending",
+    attended: false,
+    attendedAt: null,
+    registeredAt: "2026-10-18T10:00:00Z",
   },
 ];
 
@@ -87,8 +105,10 @@ beforeEach(() => {
   });
   fetchWorkersBallRegistrations.mockResolvedValue({
     registrations: mockRegistrations,
-    total: 3,
+    total: 4,
     totalRegistered: 3,
+    totalConfirmed: 3,
+    totalPending: 1,
     totalAttended: 2,
   });
 });
@@ -138,15 +158,16 @@ describe("WorkersBallAdmin (/admin/workers-ball-registrations)", () => {
 
     // Page title and KPI metrics
     expect(screen.getByText(/Workers Ball 2026 Tracking/i)).toBeInTheDocument();
-    expect(screen.getByText("Total Registered")).toBeInTheDocument();
+    expect(screen.getAllByText("Registered").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("Attended").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText("Not Attended").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("Pending").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Turnout")).toBeInTheDocument();
 
     // Table rows rendered
     expect(screen.getByText("Ayodeji Eluwande")).toBeInTheDocument();
     expect(screen.getByText("Chidi Enwereji")).toBeInTheDocument();
     expect(screen.getByText("Grace Adebayo")).toBeInTheDocument();
+    expect(screen.getByText("Rebecca Funsho")).toBeInTheDocument();
 
     // Access codes rendered
     expect(screen.getByText("HGWB-AYO001")).toBeInTheDocument();
@@ -154,8 +175,9 @@ describe("WorkersBallAdmin (/admin/workers-ball-registrations)", () => {
     expect(screen.getByText("HGWB-GRA003")).toBeInTheDocument();
 
     // Status badges
-    expect(screen.getAllByText("ATTENDED").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText("NOT ATTENDED").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("ATTENDED").length).toBe(2);
+    expect(screen.getAllByText("REGISTERED").length).toBe(1);
+    expect(screen.getAllByText("PENDING").length).toBe(1);
   });
 
   it("filters registrations by search keyword (name or code)", async () => {
@@ -181,7 +203,7 @@ describe("WorkersBallAdmin (/admin/workers-ball-registrations)", () => {
     expect(screen.getByText("Ayodeji Eluwande")).toBeInTheDocument();
   });
 
-  it("filters registrations by status tab (Attended vs Not Attended)", async () => {
+  it("filters registrations by status tab (Attended vs Registered vs Pending)", async () => {
     render(
       <MemoryRouter>
         <WorkersBallAdmin />
@@ -192,23 +214,33 @@ describe("WorkersBallAdmin (/admin/workers-ball-registrations)", () => {
       expect(screen.getByText("Ayodeji Eluwande")).toBeInTheDocument();
     });
 
-    // Click "Not Attended" tab
-    const notAttendedTab = screen.getByRole("button", { name: /^Not Attended/i });
-    fireEvent.click(notAttendedTab);
+    // Click "Pending" tab
+    const pendingTab = screen.getByRole("button", { name: /^Pending/i });
+    fireEvent.click(pendingTab);
+
+    // Only Rebecca should be visible
+    expect(screen.getByText("Rebecca Funsho")).toBeInTheDocument();
+    expect(screen.queryByText("Ayodeji Eluwande")).not.toBeInTheDocument();
+    expect(screen.queryByText("Chidi Enwereji")).not.toBeInTheDocument();
+
+    // Click "Registered" tab
+    const registeredTab = screen.getByRole("button", { name: /^Registered/i });
+    fireEvent.click(registeredTab);
 
     // Only Chidi should be visible
     expect(screen.getByText("Chidi Enwereji")).toBeInTheDocument();
     expect(screen.queryByText("Ayodeji Eluwande")).not.toBeInTheDocument();
-    expect(screen.queryByText("Grace Adebayo")).not.toBeInTheDocument();
+    expect(screen.queryByText("Rebecca Funsho")).not.toBeInTheDocument();
 
     // Click "Attended" tab
     const attendedTab = screen.getByRole("button", { name: /^Attended/i });
     fireEvent.click(attendedTab);
 
-    // Ayodeji and Grace should be visible, Chidi hidden
+    // Ayodeji and Grace should be visible, others hidden
     expect(screen.getByText("Ayodeji Eluwande")).toBeInTheDocument();
     expect(screen.getByText("Grace Adebayo")).toBeInTheDocument();
     expect(screen.queryByText("Chidi Enwereji")).not.toBeInTheDocument();
+    expect(screen.queryByText("Rebecca Funsho")).not.toBeInTheDocument();
   });
 
   it("opens worker registration detail modal on click", async () => {

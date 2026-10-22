@@ -458,14 +458,18 @@ describe("workersBall service", () => {
 
       const result = extractWorkersBallRegistrations(rawResponse);
       expect(result.registrations).toHaveLength(3);
-      expect(result.totalRegistered).toBe(6);
+      expect(result.totalRegistered).toBe(5);
+      expect(result.totalConfirmed).toBe(5);
+      expect(result.totalPending).toBe(1);
       expect(result.totalAttended).toBe(1);
+      expect(result.total).toBe(6);
 
       const ayodeji = result.registrations.find((r) => r.id === 2);
       expect(ayodeji).toMatchObject({
         name: "Ayodeji Cornelius Eluwande",
         role: "HOD",
         code: "HGWB-RSSSED",
+        status: "attended",
         attended: true,
         attendedAt: "2026-10-21T13:01:03.246Z",
       });
@@ -475,6 +479,18 @@ describe("workersBall service", () => {
         name: "Cynthia Ogochukwu Uzoalu",
         role: "Small Group Leader",
         code: "HGWB-YGUDGW",
+        status: "registered",
+        isPending: false,
+        attended: false,
+      });
+
+      const rebecca = result.registrations.find((r) => r.id === 15);
+      expect(rebecca).toMatchObject({
+        name: "Rebecca Funsho Adeeko",
+        role: "Small Group Leader",
+        code: "",
+        status: "pending",
+        isPending: true,
         attended: false,
       });
     });

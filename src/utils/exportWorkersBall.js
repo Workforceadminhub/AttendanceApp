@@ -43,11 +43,18 @@ function populateSheet(sheet, rows) {
   sheet.views = [{ state: "frozen", ySplit: 1 }];
 
   rows.forEach((r, idx) => {
+    const isPending = r.status === "pending";
+    const statusText = r.attended
+      ? "Attended"
+      : isPending
+        ? "Pending"
+        : "Registered";
+
     const row = sheet.addRow({
       sn: idx + 1,
       name: r.name || "-",
-      code: r.code || r.accessCode || "-",
-      status: r.attended ? "Attended" : "Not Attended",
+      code: r.code || r.accessCode || (isPending ? "Pending" : "-"),
+      status: statusText,
       attendedAt: formatDateSafe(r.attendedAt),
       department: r.department || "-",
       team: r.team || "-",
@@ -64,8 +71,10 @@ function populateSheet(sheet, rows) {
     const statusCell = row.getCell("status");
     if (r.attended) {
       statusCell.font = { color: { argb: "FF065F46" }, bold: true }; // Emerald text
+    } else if (isPending) {
+      statusCell.font = { color: { argb: "FFB45309" }, italic: true }; // Amber italic text
     } else {
-      statusCell.font = { color: { argb: "FF92400E" } }; // Amber text
+      statusCell.font = { color: { argb: "FF1F2937" } }; // Slate text
     }
   });
 
@@ -96,8 +105,8 @@ export async function exportWorkersBallWorkbook({
   workbook.created = new Date();
 
   // Sheet 1: Master List
-  const allSheet = workbook.addWorksheet("All Registrations");
-  populateSheet(allSheet, rows, "All Registrations");
+  const allSheet = workbook.addWorksheet("All");
+  populateSheet(allSheet, rows, "All");
 
   // Sheet 2: Attended
   const attendedRows = rows.filter((r) => r.attended);
@@ -106,11 +115,18 @@ export async function exportWorkersBallWorkbook({
     populateSheet(attendedSheet, attendedRows, "Attended");
   }
 
-  // Sheet 3: Awaiting / Not Attended
-  const notAttendedRows = rows.filter((r) => !r.attended);
-  if (notAttendedRows.length > 0) {
-    const awaitingSheet = workbook.addWorksheet("Awaiting Arrival");
-    populateSheet(awaitingSheet, notAttendedRows, "Awaiting Arrival");
+  // Sheet 3: Registered (Confirmed, awaiting arrival)
+  const registeredRows = rows.filter((r) => !r.attended && r.status !== "pending");
+  if (registeredRows.length > 0) {
+    const registeredSheet = workbook.addWorksheet("Registered");
+    populateSheet(registeredSheet, registeredRows, "Registered");
+  }
+
+  // Sheet 4: Pending Confirmation
+  const pendingRows = rows.filter((r) => r.status === "pending");
+  if (pendingRows.length > 0) {
+    const pendingSheet = workbook.addWorksheet("Pending");
+    populateSheet(pendingSheet, pendingRows, "Pending");
   }
 
   const buffer = await workbook.xlsx.writeBuffer();

@@ -561,6 +561,25 @@ export function normalizeWorkersBallRegistrationRow(raw = {}) {
 
   const codeStr = String(rawCode || "").trim().toUpperCase();
 
+  const rawStatus = String(
+    raw.status || raw.registration_status || raw.registrationStatus || workerObj.status || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  let status;
+  if (attended) {
+    status = "attended";
+  } else if (rawStatus === "pending" || rawStatus === "unconfirmed") {
+    status = "pending";
+  } else if (rawStatus === "registered" || rawStatus === "confirmed") {
+    status = "registered";
+  } else if (!codeStr) {
+    status = rawStatus || "pending";
+  } else {
+    status = "registered";
+  }
+
   return {
     id: raw.id ?? raw.workerId ?? raw.worker_id ?? workerObj.id,
     workerId: raw.workerId ?? raw.worker_id ?? raw.id ?? workerObj.id,
@@ -592,6 +611,9 @@ export function normalizeWorkersBallRegistrationRow(raw = {}) {
     role: raw.role || raw.designation || workerObj.role || "Worker",
     code: codeStr,
     accessCode: codeStr,
+    status,
+    isPending: status === "pending",
+    isRegistered: status === "registered" || (!attended && status !== "pending"),
     attended,
     attendedAt,
     registeredAt,
@@ -790,22 +812,27 @@ export function extractWorkersBallRegistrations(response) {
     root?.summary ||
     {};
 
+  const totalPending =
+    typeof summary.total_pending === "number"
+      ? summary.total_pending
+      : registrations.filter((r) => r.status === "pending").length;
+
+  const totalConfirmed =
+    typeof summary.total_confirmed === "number"
+      ? summary.total_confirmed
+      : typeof summary.total_registered === "number" && typeof summary.total_pending === "number"
+        ? Math.max(0, summary.total_registered - summary.total_pending)
+        : registrations.filter((r) => r.status !== "pending").length;
+
+  // Registered count represents confirmed registrations (distinct from pending attempts)
   const totalRegistered =
-    typeof summary.total_registered === "number"
-      ? summary.total_registered
-      : typeof summary.total_confirmed === "number"
-        ? summary.total_confirmed
-        : typeof root?.totalRegistered === "number"
-          ? root.totalRegistered
-          : typeof dataWrapper?.totalRegistered === "number"
-            ? dataWrapper.totalRegistered
-            : typeof root?.registeredCount === "number"
-              ? root.registeredCount
-              : typeof dataWrapper?.registeredCount === "number"
-                ? dataWrapper.registeredCount
-                : registeredArr.length > 0
-                  ? registeredArr.length
-                  : registrations.length;
+    typeof summary.total_confirmed === "number"
+      ? summary.total_confirmed
+      : typeof root?.totalConfirmed === "number"
+        ? root.totalConfirmed
+        : typeof dataWrapper?.totalConfirmed === "number"
+          ? dataWrapper.totalConfirmed
+          : totalConfirmed;
 
   const totalAttended =
     typeof summary.total_attended === "number"
@@ -823,17 +850,22 @@ export function extractWorkersBallRegistrations(response) {
                 : registrations.filter((r) => r.attended).length;
 
   const total =
-    typeof root?.total === "number"
-      ? root.total
-      : typeof dataWrapper?.total === "number"
-        ? dataWrapper.total
-        : registrations.length;
+    typeof summary.total_registered === "number"
+      ? summary.total_registered
+      : typeof root?.total === "number"
+        ? root.total
+        : typeof dataWrapper?.total === "number"
+          ? dataWrapper.total
+          : registrations.length;
 
   return {
     registrations,
     total,
     totalRegistered,
+    totalConfirmed,
+    totalPending,
     totalAttended,
+    summary,
     pagination: root?.pagination || dataWrapper?.pagination || {
       page: 1,
       limit: Math.max(registrations.length, 1),

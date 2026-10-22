@@ -51,12 +51,14 @@ export default function WorkersBallAdmin() {
   const [serverMetrics, setServerMetrics] = useState({
     total: 0,
     totalRegistered: 0,
+    totalConfirmed: 0,
+    totalPending: 0,
     totalAttended: 0,
   });
 
   // Filter state
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all"); // 'all' | 'attended' | 'not_attended'
+  const [statusFilter, setStatusFilter] = useState("all"); // 'all' | 'attended' | 'registered' | 'pending'
   const [departmentFilter, setDepartmentFilter] = useState("All");
   const [teamFilter, setTeamFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
@@ -101,7 +103,17 @@ export default function WorkersBallAdmin() {
       setAllRegistrations(list);
       setServerMetrics({
         total: result.total || list.length,
-        totalRegistered: result.totalRegistered || list.length,
+        totalRegistered:
+          result.totalRegistered ??
+          result.totalConfirmed ??
+          list.filter((r) => r.status !== "pending").length,
+        totalConfirmed:
+          result.totalConfirmed ??
+          result.totalRegistered ??
+          list.filter((r) => r.status !== "pending").length,
+        totalPending:
+          result.totalPending ??
+          list.filter((r) => r.status === "pending").length,
         totalAttended:
           result.totalAttended ?? list.filter((r) => r.attended).length,
       });
@@ -131,7 +143,17 @@ export default function WorkersBallAdmin() {
         setAllRegistrations(list);
         setServerMetrics({
           total: result.total || list.length,
-          totalRegistered: result.totalRegistered || list.length,
+          totalRegistered:
+            result.totalRegistered ??
+            result.totalConfirmed ??
+            list.filter((r) => r.status !== "pending").length,
+          totalConfirmed:
+            result.totalConfirmed ??
+            result.totalRegistered ??
+            list.filter((r) => r.status !== "pending").length,
+          totalPending:
+            result.totalPending ??
+            list.filter((r) => r.status === "pending").length,
           totalAttended:
             result.totalAttended ?? list.filter((r) => r.attended).length,
         });
@@ -173,7 +195,13 @@ export default function WorkersBallAdmin() {
     return allRegistrations.filter((r) => {
       // Status filter
       if (statusFilter === "attended" && !r.attended) return false;
-      if (statusFilter === "not_attended" && r.attended) return false;
+      if (statusFilter === "pending" && r.status !== "pending") return false;
+      if (statusFilter === "registered" && (r.status === "pending" || r.attended)) {
+        return false;
+      }
+      if (statusFilter === "not_attended" && (r.attended || r.status === "pending")) {
+        return false;
+      }
 
       // Department filter
       if (departmentFilter !== "All" && r.department !== departmentFilter) {
@@ -185,7 +213,7 @@ export default function WorkersBallAdmin() {
         return false;
       }
 
-      // Search term (name, code, email, phone, role)
+      // Search term (name, code, email, phone, role, status)
       if (term) {
         const matchesName = String(r.name || "").toLowerCase().includes(term);
         const matchesCode = String(r.code || r.accessCode || "")
@@ -196,6 +224,7 @@ export default function WorkersBallAdmin() {
         const matchesRole = String(r.role || "").toLowerCase().includes(term);
         const matchesDept = String(r.department || "").toLowerCase().includes(term);
         const matchesTeam = String(r.team || "").toLowerCase().includes(term);
+        const matchesStatus = String(r.status || "").toLowerCase().includes(term);
 
         if (
           !matchesName &&
@@ -204,7 +233,8 @@ export default function WorkersBallAdmin() {
           !matchesPhone &&
           !matchesRole &&
           !matchesDept &&
-          !matchesTeam
+          !matchesTeam &&
+          !matchesStatus
         ) {
           return false;
         }
@@ -215,10 +245,14 @@ export default function WorkersBallAdmin() {
   }, [allRegistrations, search, statusFilter, departmentFilter, teamFilter]);
 
   // Derived counts
+  const totalPendingCount =
+    serverMetrics.totalPending ||
+    allRegistrations.filter((r) => r.status === "pending").length;
   const totalRegisteredCount =
-    serverMetrics.totalRegistered || allRegistrations.length;
+    serverMetrics.totalRegistered ||
+    allRegistrations.filter((r) => r.status !== "pending").length;
   const totalAttendedCount = allRegistrations.filter((r) => r.attended).length;
-  const totalNotAttendedCount = Math.max(
+  const totalAwaitingCount = Math.max(
     0,
     totalRegisteredCount - totalAttendedCount
   );
@@ -359,10 +393,10 @@ export default function WorkersBallAdmin() {
 
         {/* Metrics KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Total Registered */}
+          {/* Registered (Confirmed) */}
           <div className="rounded-xl border border-ink-200 bg-white p-5 shadow-xs">
             <span className="text-xs font-mono uppercase tracking-wider text-ink-500">
-              Total Registered
+              Registered
             </span>
             <div className="mt-3 text-3xl font-extrabold text-ink tracking-tight">
               {loading ? "..." : totalRegisteredCount.toLocaleString()}
@@ -379,13 +413,13 @@ export default function WorkersBallAdmin() {
             </div>
           </div>
 
-          {/* Not Attended */}
+          {/* Pending Confirmation */}
           <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-5 shadow-xs">
             <span className="text-xs font-mono uppercase tracking-wider text-amber-800 font-semibold">
-              Not Attended
+              Pending
             </span>
             <div className="mt-3 text-3xl font-extrabold text-amber-950 tracking-tight">
-              {loading ? "..." : totalNotAttendedCount.toLocaleString()}
+              {loading ? "..." : totalPendingCount.toLocaleString()}
             </div>
           </div>
 
@@ -427,7 +461,7 @@ export default function WorkersBallAdmin() {
               >
                 <span>All</span>
                 <span className="rounded-full bg-ink-100 px-1.5 py-0.2 text-2xs text-ink-700">
-                  {totalRegisteredCount}
+                  {allRegistrations.length}
                 </span>
               </button>
 
@@ -454,22 +488,43 @@ export default function WorkersBallAdmin() {
 
               <button
                 type="button"
-                onClick={() => handleStatusChange("not_attended")}
+                onClick={() => handleStatusChange("registered")}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md transition ${
-                  statusFilter === "not_attended"
+                  statusFilter === "registered"
+                    ? "bg-ink-800 text-white shadow-xs font-semibold"
+                    : "text-ink-600 hover:text-ink"
+                }`}
+              >
+                <span>Registered</span>
+                <span
+                  className={`rounded-full px-1.5 py-0.2 text-2xs ${
+                    statusFilter === "registered"
+                      ? "bg-ink-900 text-ink-100"
+                      : "bg-ink-100 text-ink-800"
+                  }`}
+                >
+                  {totalAwaitingCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleStatusChange("pending")}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md transition ${
+                  statusFilter === "pending"
                     ? "bg-amber-600 text-white shadow-xs font-semibold"
                     : "text-ink-600 hover:text-ink"
                 }`}
               >
-                <span>Not Attended</span>
+                <span>Pending</span>
                 <span
                   className={`rounded-full px-1.5 py-0.2 text-2xs ${
-                    statusFilter === "not_attended"
+                    statusFilter === "pending"
                       ? "bg-amber-700 text-amber-100"
                       : "bg-amber-100 text-amber-800"
                   }`}
                 >
-                  {totalNotAttendedCount}
+                  {totalPendingCount}
                 </span>
               </button>
             </div>
@@ -479,7 +534,7 @@ export default function WorkersBallAdmin() {
                 <strong className="text-ink">
                   {filteredRegistrations.length}
                 </strong>{" "}
-                of {totalRegisteredCount}
+                of {allRegistrations.length}
               </span>
               {hasActiveFilters && (
                 <button
@@ -651,6 +706,8 @@ export default function WorkersBallAdmin() {
                                 )}
                               </button>
                             </div>
+                          ) : row.status === "pending" ? (
+                            <span className="text-amber-700 font-mono text-2xs">Pending</span>
                           ) : (
                             <span className="text-ink-400 font-mono text-2xs">-</span>
                           )}
@@ -669,9 +726,13 @@ export default function WorkersBallAdmin() {
                                 </span>
                               )}
                             </div>
-                          ) : (
+                          ) : row.status === "pending" ? (
                             <span className="inline-flex items-center px-2 py-0.5 rounded text-2xs font-semibold font-mono bg-amber-50 text-amber-800 border border-amber-200 w-max">
-                              NOT ATTENDED
+                              PENDING
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-2xs font-semibold font-mono bg-ink-100 text-ink-800 border border-ink-200 w-max">
+                              REGISTERED
                             </span>
                           )}
                         </td>
@@ -786,8 +847,12 @@ export default function WorkersBallAdmin() {
                     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-2xs font-mono font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
                       ACCREDITED
                     </span>
-                  ) : (
+                  ) : selectedWorker.status === "pending" ? (
                     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-2xs font-mono font-semibold bg-amber-500/20 text-amber-300 border border-amber-400/30">
+                      PENDING
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-2xs font-mono font-semibold bg-sky-500/20 text-sky-300 border border-sky-400/30">
                       REGISTERED
                     </span>
                   )}
@@ -800,7 +865,7 @@ export default function WorkersBallAdmin() {
                       ACCREDITATION CODE
                     </span>
                     <div className="font-mono text-xl font-extrabold text-amber-300 tracking-wider">
-                      {selectedWorker.code || "-"}
+                      {selectedWorker.code || (selectedWorker.status === "pending" ? "PENDING" : "-")}
                     </div>
                   </div>
                   {selectedWorker.code && (
@@ -871,7 +936,11 @@ export default function WorkersBallAdmin() {
 
               {/* Actions Footer */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-                {!selectedWorker.attended ? (
+                {selectedWorker.status === "pending" ? (
+                  <span className="text-xs text-amber-700 font-medium">
+                    Pending confirmation
+                  </span>
+                ) : !selectedWorker.attended ? (
                   <Link
                     to="/scan/wb26"
                     state={{ from: "/admin/workers-ball-registrations" }}

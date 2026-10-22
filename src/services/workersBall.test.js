@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import apiRequest from "../utils/apiClient";
 import {
   confirmWorkersBallRegistration,
+  extractWorkersBallRegistrations,
   fetchWorkersBallRegistrations,
   normalizeWorkersBallRegistrationRow,
   normalizeWorkersBallWorker,
@@ -334,6 +335,63 @@ describe("workersBall service", () => {
       expect(row.department).toBe("Media");
       expect(row.team).toBe("Visuals");
       expect(row.code).toBe("HGWB-TEST99");
+    });
+
+    it("parses split { registered: [...], attended: [...] } response and cross-references attendance", () => {
+      const response = {
+        success: true,
+        data: {
+          registered: [
+            { id: 1, name: "Worker One", code: "HGWB-001" },
+            { id: 2, name: "Worker Two", code: "HGWB-002" },
+          ],
+          attended: [
+            { id: 1, name: "Worker One", code: "HGWB-001", attended_at: "2026-10-22T19:00:00Z" },
+          ],
+        },
+      };
+
+      const result = extractWorkersBallRegistrations(response);
+      expect(result.registrations).toHaveLength(2);
+      expect(result.totalRegistered).toBe(2);
+      expect(result.totalAttended).toBe(1);
+
+      const worker1 = result.registrations.find((r) => r.code === "HGWB-001");
+      const worker2 = result.registrations.find((r) => r.code === "HGWB-002");
+      expect(worker1.attended).toBe(true);
+      expect(worker1.attendedAt).toBe("2026-10-22T19:00:00Z");
+      expect(worker2.attended).toBe(false);
+    });
+
+    it("handles attended list as string code identifiers", () => {
+      const response = {
+        registered: [
+          { id: 10, name: "Ayo", code: "HGWB-AYO" },
+          { id: 20, name: "Bisi", code: "HGWB-BIS" },
+        ],
+        attended: ["HGWB-AYO"],
+      };
+
+      const result = extractWorkersBallRegistrations(response);
+      expect(result.registrations).toHaveLength(2);
+      expect(result.registrations.find((r) => r.code === "HGWB-AYO").attended).toBe(true);
+      expect(result.registrations.find((r) => r.code === "HGWB-BIS").attended).toBe(false);
+    });
+
+    it("unpacks stringified JSON / Lambda proxy body payload", () => {
+      const lambdaProxy = {
+        statusCode: 200,
+        body: JSON.stringify({
+          registered: [{ id: 99, name: "Proxy Worker", code: "HGWB-PRX" }],
+          attended: [],
+        }),
+      };
+
+      const result = extractWorkersBallRegistrations(lambdaProxy);
+      expect(result.registrations).toHaveLength(1);
+      expect(result.registrations[0].name).toBe("Proxy Worker");
+      expect(result.totalRegistered).toBe(1);
+      expect(result.totalAttended).toBe(0);
     });
   });
 });

@@ -399,12 +399,39 @@ export async function scanWorkersBallPass(scanText) {
  * Normalize an individual registration row returned by GET /api/workers-ball/registrations.
  */
 export function normalizeWorkersBallRegistrationRow(raw = {}) {
-  const workerObj = raw.worker || raw.worker_details || {};
+  if (typeof raw === "string" || typeof raw === "number") {
+    const code = String(raw).trim().toUpperCase();
+    return {
+      id: raw,
+      workerId: raw,
+      name: code,
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      department: "Unassigned",
+      team: "Unassigned",
+      role: "Worker",
+      code: code,
+      accessCode: code,
+      attended: true,
+      attendedAt: null,
+      registeredAt: null,
+      qrCode: null,
+      raw: { code },
+    };
+  }
+
+  const workerObj = raw.worker || raw.worker_details || raw.user || {};
   const fullName =
     raw.name ||
+    raw.fullName ||
+    raw.full_name ||
     raw.workerName ||
     raw.worker_name ||
     workerObj.name ||
+    workerObj.fullName ||
+    workerObj.full_name ||
     [
       raw.firstName || raw.first_name || workerObj.first_name || workerObj.firstName,
       raw.lastName || raw.last_name || workerObj.last_name || workerObj.lastName,
@@ -427,6 +454,7 @@ export function normalizeWorkersBallRegistrationRow(raw = {}) {
     raw.badge_code ||
     raw.badge ||
     raw.ticket ||
+    raw.pass ||
     workerObj.code ||
     workerObj.accessCode ||
     workerObj.access_code ||
@@ -511,6 +539,239 @@ export function normalizeWorkersBallRegistrationRow(raw = {}) {
 }
 
 /**
+ * Universal extractor for Workers Ball registrations and attendance.
+ * Normalizes single arrays, split `{ registered, attended }` objects, Lambda proxy payloads, etc.
+ */
+export function extractWorkersBallRegistrations(response) {
+  if (!response) {
+    return {
+      registrations: [],
+      total: 0,
+      totalRegistered: 0,
+      totalAttended: 0,
+      pagination: { page: 1, limit: 0, total: 0, totalPages: 1 },
+      raw: response,
+    };
+  }
+
+  // 1. Unpack stringified JSON (e.g. text/plain Axios response or Lambda proxy body)
+  let root = response;
+  if (typeof root === "string") {
+    try {
+      root = JSON.parse(root);
+    } catch {
+      return {
+        registrations: [],
+        total: 0,
+        totalRegistered: 0,
+        totalAttended: 0,
+        pagination: { page: 1, limit: 0, total: 0, totalPages: 1 },
+        raw: response,
+      };
+    }
+  }
+
+  if (root && typeof root.body === "string") {
+    try {
+      root = JSON.parse(root.body);
+    } catch {
+      // not a JSON body string
+    }
+  }
+
+  // 2. Unpack data wrapper if present
+  const dataWrapper =
+    root && typeof root === "object" && root.data && typeof root.data === "object"
+      ? root.data
+      : root;
+
+  // Helper to extract an array by key across containers
+  const findArray = (...keys) => {
+    for (const k of keys) {
+      if (Array.isArray(dataWrapper?.[k])) return dataWrapper[k];
+      if (Array.isArray(root?.[k])) return root[k];
+    }
+    return null;
+  };
+
+  const registeredArr =
+    findArray(
+      "registered",
+      "registrations",
+      "registered_workers",
+      "registeredWorkers",
+      "registered_list",
+      "all"
+    ) || [];
+
+  const attendedArr =
+    findArray(
+      "attended",
+      "attendees",
+      "attended_workers",
+      "attendedWorkers",
+      "checked_in",
+      "checkedIn",
+      "scanned",
+      "scanned_passes"
+    ) || [];
+
+  // General list if no split registered/attended arrays
+  const generalList = Array.isArray(root)
+    ? root
+    : Array.isArray(dataWrapper)
+      ? dataWrapper
+      : findArray(
+          "workers",
+          "rows",
+          "records",
+          "items",
+          "results",
+          "list",
+          "data"
+        ) || [];
+
+  // Fallback: If still nothing found, look for ANY array inside root or dataWrapper
+  let fallbackList = [];
+  if (registeredArr.length === 0 && attendedArr.length === 0 && generalList.length === 0) {
+    const candidates = [root, dataWrapper];
+    for (const obj of candidates) {
+      if (obj && typeof obj === "object") {
+        for (const val of Object.values(obj)) {
+          if (Array.isArray(val) && val.length > 0) {
+            fallbackList = val;
+            break;
+          }
+        }
+      }
+      if (fallbackList.length > 0) break;
+    }
+  }
+
+  // Build attended lookup map
+  const attendedLookup = new Map();
+  attendedArr.forEach((item) => {
+    if (!item) return;
+    if (typeof item === "string" || typeof item === "number") {
+      const key = String(item).trim().toUpperCase();
+      attendedLookup.set(key, { attended: true, attendedAt: null });
+      return;
+    }
+    const norm = normalizeWorkersBallRegistrationRow(item);
+    norm.attended = true;
+    if (norm.id) attendedLookup.set(String(norm.id), norm);
+    if (norm.workerId) attendedLookup.set(String(norm.workerId), norm);
+    if (norm.code) attendedLookup.set(norm.code.toUpperCase(), norm);
+    if (norm.email) attendedLookup.set(norm.email.toLowerCase(), norm);
+    if (norm.phone) attendedLookup.set(norm.phone.replace(/\D/g, ""), norm);
+    if (norm.name) attendedLookup.set(norm.name.toLowerCase(), norm);
+  });
+
+  const baseSource =
+    registeredArr.length > 0
+      ? registeredArr
+      : generalList.length > 0
+        ? generalList
+        : fallbackList;
+
+  const merged = new Map();
+
+  baseSource.forEach((item) => {
+    const row = normalizeWorkersBallRegistrationRow(item);
+    const idKey = row.id ? String(row.id) : null;
+    const workerIdKey = row.workerId ? String(row.workerId) : null;
+    const codeKey = row.code ? row.code.toUpperCase() : null;
+    const emailKey = row.email ? row.email.toLowerCase() : null;
+    const phoneKey = row.phone ? row.phone.replace(/\D/g, "") : null;
+    const nameKey = row.name ? row.name.toLowerCase() : null;
+
+    const match =
+      (idKey && attendedLookup.get(idKey)) ||
+      (workerIdKey && attendedLookup.get(workerIdKey)) ||
+      (codeKey && attendedLookup.get(codeKey)) ||
+      (emailKey && attendedLookup.get(emailKey)) ||
+      (phoneKey && attendedLookup.get(phoneKey)) ||
+      (nameKey && attendedLookup.get(nameKey)) ||
+      null;
+
+    if (match) {
+      row.attended = true;
+      if (!row.attendedAt && match.attendedAt) {
+        row.attendedAt = match.attendedAt;
+      }
+    }
+
+    const uniqueId = codeKey || idKey || workerIdKey || emailKey || row.name;
+    merged.set(uniqueId, row);
+  });
+
+  // Also include any items in attendedArr that weren't in baseSource
+  attendedArr.forEach((item) => {
+    if (!item || typeof item !== "object") return;
+    const row = normalizeWorkersBallRegistrationRow(item);
+    row.attended = true;
+    const uniqueId =
+      (row.code ? row.code.toUpperCase() : null) ||
+      (row.id ? String(row.id) : null) ||
+      (row.workerId ? String(row.workerId) : null) ||
+      (row.email ? row.email.toLowerCase() : null) ||
+      row.name;
+    if (!merged.has(uniqueId)) {
+      merged.set(uniqueId, row);
+    }
+  });
+
+  const registrations = Array.from(merged.values());
+
+  const totalRegistered =
+    typeof root?.totalRegistered === "number"
+      ? root.totalRegistered
+      : typeof dataWrapper?.totalRegistered === "number"
+        ? dataWrapper.totalRegistered
+        : typeof root?.registeredCount === "number"
+          ? root.registeredCount
+          : typeof dataWrapper?.registeredCount === "number"
+            ? dataWrapper.registeredCount
+            : registeredArr.length > 0
+              ? registeredArr.length
+              : registrations.length;
+
+  const totalAttended =
+    typeof root?.totalAttended === "number"
+      ? root.totalAttended
+      : typeof dataWrapper?.totalAttended === "number"
+        ? dataWrapper.totalAttended
+        : typeof root?.attendedCount === "number"
+          ? root.attendedCount
+          : typeof dataWrapper?.attendedCount === "number"
+            ? dataWrapper.attendedCount
+            : attendedArr.length > 0
+              ? attendedArr.length
+              : registrations.filter((r) => r.attended).length;
+
+  const total =
+    typeof root?.total === "number"
+      ? root.total
+      : typeof dataWrapper?.total === "number"
+        ? dataWrapper.total
+        : registrations.length;
+
+  return {
+    registrations,
+    total,
+    totalRegistered,
+    totalAttended,
+    pagination: root?.pagination || dataWrapper?.pagination || {
+      page: 1,
+      limit: Math.max(registrations.length, 1),
+      total,
+      totalPages: 1,
+    },
+    raw: response,
+  };
+}
+
+/**
  * 6. Fetch Workers Ball registrations & attendance status (Super Admin only, auth required).
  * GET /api/workers-ball/registrations
  *
@@ -543,13 +804,17 @@ export async function fetchWorkersBallRegistrations(params = {}) {
     query.limit = params.limit;
   }
 
+  const queryPayload = Object.keys(query).length > 0 ? query : null;
+
   const response = await apiRequest(
     "GET",
     "/api/workers-ball/registrations",
-    query,
+    queryPayload,
     undefined,
     true
   );
+
+  console.warn("[WorkersBall] GET /api/workers-ball/registrations response:", response);
 
   if (response?.success === false) {
     throw new Error(
@@ -557,59 +822,5 @@ export async function fetchWorkersBallRegistrations(params = {}) {
     );
   }
 
-  const payload = response?.data ?? response ?? {};
-  const rawList = Array.isArray(payload)
-    ? payload
-    : Array.isArray(payload.registrations)
-      ? payload.registrations
-      : Array.isArray(payload.data)
-        ? payload.data
-        : Array.isArray(payload.workers)
-          ? payload.workers
-          : Array.isArray(payload.rows)
-            ? payload.rows
-            : [];
-
-  const registrations = rawList.map(normalizeWorkersBallRegistrationRow);
-
-  const total =
-    typeof payload?.pagination?.total === "number"
-      ? payload.pagination.total
-      : typeof payload?.total === "number"
-        ? payload.total
-        : typeof response?.total === "number"
-          ? response.total
-          : registrations.length;
-
-  const totalAttended =
-    typeof payload?.totalAttended === "number"
-      ? payload.totalAttended
-      : typeof payload?.attendedCount === "number"
-        ? payload.attendedCount
-        : typeof response?.totalAttended === "number"
-          ? response.totalAttended
-          : registrations.filter((r) => r.attended).length;
-
-  const totalRegistered =
-    typeof payload?.totalRegistered === "number"
-      ? payload.totalRegistered
-      : typeof payload?.registeredCount === "number"
-        ? payload.registeredCount
-        : typeof response?.totalRegistered === "number"
-          ? response.totalRegistered
-          : total;
-
-  return {
-    registrations,
-    total,
-    totalRegistered,
-    totalAttended,
-    pagination: payload?.pagination || {
-      page: params.page || 1,
-      limit: params.limit || Math.max(registrations.length, 1),
-      total,
-      totalPages: Math.ceil(total / (params.limit || Math.max(registrations.length, 1))),
-    },
-    raw: response,
-  };
+  return extractWorkersBallRegistrations(response);
 }

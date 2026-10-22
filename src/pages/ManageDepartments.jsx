@@ -731,9 +731,6 @@ export default function ManageDepartments() {
  isClearable
  />
  </div>
- <p className="mt-1 text-xs text-ink-500">
- Workers inherit this community&apos;s cluster if omitted on the worker.
- </p>
  </div>
  )}
 

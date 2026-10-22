@@ -373,6 +373,7 @@ export default function WorkersBallAdmin() {
 
             <Link
               to="/scan/wb26"
+              state={{ from: "/admin/workers-ball-registrations" }}
               className="inline-flex items-center gap-2 rounded-lg bg-ink px-4 py-2 text-xs font-semibold text-cream shadow-sm hover:bg-ink-900 transition focus:outline-hidden focus:ring-2 focus:ring-amber-400"
             >
               <CameraIcon className="h-4 w-4 text-amber-400" />
@@ -959,7 +960,8 @@ export default function WorkersBallAdmin() {
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
                 {!selectedWorker.attended ? (
                   <Link
-                    to={`/scan/wb26`}
+                    to="/scan/wb26"
+                    state={{ from: "/admin/workers-ball-registrations" }}
                     className="inline-flex items-center gap-1.5 text-xs text-amber-700 hover:text-amber-800 font-semibold"
                   >
                     <CameraIcon className="h-4 w-4" />

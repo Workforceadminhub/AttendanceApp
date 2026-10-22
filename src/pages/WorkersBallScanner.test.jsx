@@ -3,9 +3,19 @@ import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/re
 import { MemoryRouter } from "react-router-dom";
 import WorkersBallScanner from "./WorkersBallScanner";
 import { scanWorkersBallPass } from "../services/workersBall";
+import { getUser } from "../utils/getUser";
+import { getUserRole } from "../utils/getUserRole";
 
 vi.mock("../services/workersBall", () => ({
   scanWorkersBallPass: vi.fn(),
+}));
+
+vi.mock("../utils/getUser", () => ({
+  getUser: vi.fn(),
+}));
+
+vi.mock("../utils/getUserRole", () => ({
+  getUserRole: vi.fn(),
 }));
 
 // Mock mediaDevices
@@ -20,6 +30,8 @@ Object.defineProperty(global.navigator, "mediaDevices", {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  getUser.mockReturnValue(null);
+  getUserRole.mockReturnValue({ isSuperAdmin: false, isChurchAdmin: false });
 });
 
 afterEach(() => {
@@ -149,5 +161,40 @@ describe("WorkersBallScanner (/scan/wb26)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Clear/i }));
     expect(screen.getByText(/No passes scanned yet in this session/i)).toBeInTheDocument();
+  });
+
+  it("navigates back to super admin tracking dashboard when signed in as super admin", () => {
+    getUser.mockReturnValue({ id: 1, role: "Super Admin", department: "Super Admin" });
+    getUserRole.mockReturnValue({ isSuperAdmin: true, isChurchAdmin: false });
+
+    render(
+      <MemoryRouter>
+        <WorkersBallScanner />
+      </MemoryRouter>
+    );
+
+    const backLink = screen.getByRole("link", {
+      name: /Return to Workers Ball Tracking Dashboard/i,
+    });
+    expect(backLink).toBeInTheDocument();
+    expect(backLink).toHaveAttribute("href", "/admin/workers-ball-registrations");
+  });
+
+  it("navigates back to state.from when opened from admin registration view", () => {
+    render(
+      <MemoryRouter
+        initialEntries={[
+          {
+            pathname: "/scan/wb26",
+            state: { from: "/admin/workers-ball-registrations" },
+          },
+        ]}
+      >
+        <WorkersBallScanner />
+      </MemoryRouter>
+    );
+
+    const backLink = screen.getByRole("link", { name: /Return/i });
+    expect(backLink).toHaveAttribute("href", "/admin/workers-ball-registrations");
   });
 });

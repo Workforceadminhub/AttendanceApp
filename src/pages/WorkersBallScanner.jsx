@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeftIcon,
   ArrowPathIcon,
@@ -14,6 +14,8 @@ import {
   XCircleIcon,
 } from "@heroicons/react/24/outline";
 import { scanWorkersBallPass } from "../services/workersBall";
+import { getUser } from "../utils/getUser";
+import { getUserRole } from "../utils/getUserRole";
 
 /**
  * Lightweight browser audio feedback synthesized via Web Audio API.
@@ -82,6 +84,51 @@ function playAudioFeedback(type = "success") {
  * Main Page Component: Workers Ball 2026 Accreditation Scanner (`/scan/wb26` & `/workers-ball/scan`)
  */
 export default function WorkersBallScanner() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const authUser = getUser();
+  const { isSuperAdmin, isChurchAdmin } = getUserRole(authUser);
+  const isSuperAdminOrChurchAdmin = Boolean(
+    isSuperAdmin ||
+      isChurchAdmin ||
+      authUser?.permissionLevel === "SUPER_ADMIN" ||
+      authUser?.permissionLevel === "CHURCH_ADMIN" ||
+      authUser?.department === "Super Admin"
+  );
+  const isLoggedIn = Boolean(authUser);
+
+  const backHref =
+    location.state?.from ||
+    (isSuperAdminOrChurchAdmin
+      ? "/admin/workers-ball-registrations"
+      : isLoggedIn
+        ? "/attendance/dashboard"
+        : "/wb26");
+
+  const backTitle = isSuperAdminOrChurchAdmin
+    ? "Return to Workers Ball Tracking Dashboard"
+    : isLoggedIn
+      ? "Return to Dashboard"
+      : "Return to Workers Ball Registration";
+
+  const handleBack = (e) => {
+    e.preventDefault();
+    if (location.state?.from) {
+      navigate(location.state.from);
+      return;
+    }
+    if (
+      typeof window !== "undefined" &&
+      window.history.length > 1 &&
+      window.history.state?.idx > 0
+    ) {
+      navigate(-1);
+      return;
+    }
+    navigate(backHref);
+  };
+
   const [activeTab, setActiveTab] = useState("camera"); // "camera" | "manual"
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [manualCode, setManualCode] = useState("");
@@ -375,9 +422,11 @@ export default function WorkersBallScanner() {
         <div className="max-w-5xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <Link
-              to="/wb26"
+              to={backHref}
+              onClick={handleBack}
               className="p-1.5 -ml-1.5 rounded-lg text-ink-600 hover:text-ink-900 hover:bg-ink-100 transition"
-              title="Return to Workers Ball Registration"
+              title={backTitle}
+              aria-label={backTitle}
             >
               <ArrowLeftIcon className="h-5 w-5" />
             </Link>

@@ -56,6 +56,7 @@ const AwakeningRegistration = lazy(() => import("./pages/AwakeningRegistration")
 const AwakeningRegistrationAdmin = lazy(() => import("./pages/AwakeningRegistrationAdmin"));
 const WorkersBallRegistration = lazy(() => import("./pages/WorkersBallRegistration"));
 const WorkersBallScanner = lazy(() => import("./pages/WorkersBallScanner"));
+const WorkersBallAdmin = lazy(() => import("./pages/WorkersBallAdmin"));
 const LeadersMeetingConfirm = lazy(() => import("./pages/LeadersMeetingConfirm"));
 const LeadersMeetingPresent = lazy(() => import("./pages/LeadersMeetingPresent"));
 const LeadersMeetingReport = lazy(() => import("./pages/LeadersMeetingReport"));
@@ -187,6 +188,22 @@ const AppRoutes = () => {
               element={
                 <PrivateRoute>
                   <AwakeningRegistrationAdmin />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/admin/workers-ball-registrations"
+              element={
+                <PrivateRoute>
+                  <WorkersBallAdmin />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/admin/workers-ball"
+              element={
+                <PrivateRoute>
+                  <WorkersBallAdmin />
                 </PrivateRoute>
               }
             />

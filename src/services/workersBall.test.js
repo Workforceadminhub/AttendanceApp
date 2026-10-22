@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import apiRequest from "../utils/apiClient";
 import {
   confirmWorkersBallRegistration,
+  fetchWorkersBallRegistrations,
+  normalizeWorkersBallRegistrationRow,
   normalizeWorkersBallWorker,
   requestWorkersBallOtp,
   scanWorkersBallPass,
@@ -218,6 +220,120 @@ describe("workersBall service", () => {
       await expect(scanWorkersBallPass("   ")).rejects.toThrow(
         /valid pass or enter an access code/i
       );
+    });
+  });
+
+  describe("fetchWorkersBallRegistrations", () => {
+    it("calls GET /api/workers-ball/registrations with auth=true and passes filters", async () => {
+      apiRequest.mockResolvedValue({
+        success: true,
+        data: [
+          {
+            id: 1,
+            name: "Ayodeji Eluwande",
+            email: "ayo@example.com",
+            phone: "08012345678",
+            department: "Technical",
+            team: "Sound",
+            role: "Leader",
+            code: "HGWB-ABC123",
+            attended: true,
+            attended_at: "2026-10-22T19:30:00Z",
+            created_at: "2026-10-15T12:00:00Z",
+          },
+          {
+            id: 2,
+            firstName: "Chidi",
+            lastName: "Enwereji",
+            email: "chidi@example.com",
+            department: "Protocol",
+            team: "Ushers",
+            access_code: "HGWB-DEF456",
+            attended: false,
+            created_at: "2026-10-16T08:00:00Z",
+          },
+        ],
+      });
+
+      const result = await fetchWorkersBallRegistrations({
+        search: "Ayodeji",
+        department: "Technical",
+        team: "Sound",
+        status: "attended",
+      });
+
+      expect(apiRequest).toHaveBeenCalledWith(
+        "GET",
+        "/api/workers-ball/registrations",
+        {
+          search: "Ayodeji",
+          department: "Technical",
+          team: "Sound",
+          status: "attended",
+        },
+        undefined,
+        true
+      );
+
+      expect(result.registrations).toHaveLength(2);
+      expect(result.registrations[0]).toMatchObject({
+        id: 1,
+        name: "Ayodeji Eluwande",
+        code: "HGWB-ABC123",
+        attended: true,
+        attendedAt: "2026-10-22T19:30:00Z",
+      });
+      expect(result.registrations[1]).toMatchObject({
+        id: 2,
+        name: "Chidi Enwereji",
+        code: "HGWB-DEF456",
+        attended: false,
+        attendedAt: null,
+      });
+      expect(result.totalAttended).toBe(1);
+      expect(result.totalRegistered).toBe(2);
+    });
+
+    it("normalizes attended when attended_at timestamp is present", () => {
+      const row = normalizeWorkersBallRegistrationRow({
+        id: 10,
+        worker_name: "Jane Doe",
+        attended_at: "2026-10-22T18:00:00Z",
+      });
+      expect(row.attended).toBe(true);
+      expect(row.attendedAt).toBe("2026-10-22T18:00:00Z");
+      expect(row.name).toBe("Jane Doe");
+    });
+
+    it("respects explicit attended: false when attended_at is null", () => {
+      const row = normalizeWorkersBallRegistrationRow({
+        id: 11,
+        name: "John Bull",
+        attended: false,
+        attended_at: null,
+      });
+      expect(row.attended).toBe(false);
+      expect(row.attendedAt).toBeNull();
+    });
+
+    it("handles nested worker object in registration row", () => {
+      const row = normalizeWorkersBallRegistrationRow({
+        id: 55,
+        access_code: "HGWB-TEST99",
+        worker: {
+          first_name: "Tola",
+          last_name: "Akin",
+          email: "tola@example.com",
+          department: "Media",
+          team: "Visuals",
+          role: "Worker",
+        },
+      });
+      expect(row.name).toBe("Tola Akin");
+      expect(row.email).toBe("tola@example.com");
+      expect(row.department).toBe("Media");
+      expect(row.team).toBe("Visuals");
+      expect(row.code).toBe("HGWB-TEST99");
     });
   });
 });

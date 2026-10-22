@@ -297,7 +297,11 @@ export default function Header() {
         ]
       : []),
     ...((isSuperAdmin || isChurchAdminRole)
-      ? [{ header: "Conference Reports" }, { name: "Awakening Registrations", href: "/admin/awakening-registrations" }]
+      ? [
+          { header: "Conference Reports" },
+          { name: "Awakening Registrations", href: "/admin/awakening-registrations" },
+          { name: "Workers Ball 2026", href: "/admin/workers-ball-registrations" },
+        ]
       : []),
   ];
 

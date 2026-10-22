@@ -280,7 +280,6 @@ export default function Header() {
 
   const workersDropdownItems = [
     { name: "Workers Directory", href: workersHref },
-    ...(isSuperAdmin ? [{ name: "All Workers", href: "/all-workers" }] : []),
     ...(canAccessApprovals ? [{ name: "Approvals", href: "/pending-workers" }] : []),
     ...(isSuperAdmin ? [{ name: "Team Mismatch", href: "/team-mismatch" }] : []),
   ];

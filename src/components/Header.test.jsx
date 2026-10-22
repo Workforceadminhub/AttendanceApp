@@ -68,5 +68,10 @@ describe("Header mobile navigation", () => {
     expect(
       screen.getByRole("link", { name: /^Reports & Analytics$/i })
     ).toBeInTheDocument();
+
+    // "All Workers" has been merged into Workers and should not appear in the menu
+    expect(
+      screen.queryByRole("link", { name: /^All Workers$/i })
+    ).not.toBeInTheDocument();
   });
 });

@@ -204,7 +204,7 @@ const getHODCancelPath = () => {
  }
 
  if (from === "all-workers") {
- navigate("/all-workers");
+ navigate("/workers/super-admin");
  return;
  }
 

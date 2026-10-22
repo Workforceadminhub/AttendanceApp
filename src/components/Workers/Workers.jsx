@@ -63,6 +63,11 @@ export default function Workers() {
  const [filters, setFilters] = useState({
  department: "All",
  team: "All",
+ status: "All",
+ });
+ const [sortConfig, setSortConfig] = useState({
+ key: null,
+ direction: "asc",
  });
  const team = getDepartmentByUser(location.pathname);
  // const isChurchAdmin = team.department === ADMIN_ENUMS.ADMIN_DEPARTMENT;
@@ -128,11 +133,34 @@ export default function Workers() {
  const [pageState, setPageState] = useState({ key: listKey, page: 1 });
  const page = pageState.key === listKey ? pageState.page : 1;
  const setPage = useCallback((next) => setPageState({ key: listKey, page: next }), [listKey]);
+
+ const handleSort = (key) => {
+ setSortConfig((prev) => {
+ if (prev.key === key) {
+ return {
+ key,
+ direction: prev.direction === "asc" ? "desc" : "asc",
+ };
+ }
+ return { key, direction: "asc" };
+ });
+ };
+
+ const renderSortIndicator = (key) => {
+ if (sortConfig.key !== key) return null;
+ return sortConfig.direction === "asc" ? (
+ <ChevronUpIcon className="h-3 w-3 inline-block ml-1" />
+ ) : (
+ <ChevronDownIcon className="h-3 w-3 inline-block ml-1" />
+ );
+ };
+
  const workersQueryKey = [
  "workersList",
  role,
  filters.team,
  filters.department,
+ filters.status,
  search,
  role === "member" ? team.department : null,
  role === "member" ? null : page,
@@ -148,7 +176,14 @@ export default function Workers() {
  queryKey: workersQueryKey,
  queryFn: async () => {
  if (role === "super") {
- return listSuperAdminWorkers({ page, limit: PAGE_LIMIT, search, team: filters.team, department: filters.department });
+ return listSuperAdminWorkers({
+ page,
+ limit: PAGE_LIMIT,
+ search,
+ team: filters.team,
+ department: filters.department,
+ status: filters.status && filters.status !== "All" ? filters.status : undefined,
+ });
  }
  // Filter out team name from permissions (team name shouldn't be in permissions array)
  const permissions = expandPermissions(authUser).filter((perm) => perm !== authUser?.team);
@@ -159,7 +194,32 @@ export default function Workers() {
  },
  placeholderData: (prev) => prev,
  });
- const data = listData?.data ?? [];
+ const rawData = listData?.data ?? [];
+ const data = useMemo(() => {
+ let rows = rawData;
+ if (filters.status && filters.status !== "All") {
+ rows = rows.filter((w) => (w.status || "ACTIVE") === filters.status);
+ }
+ if (!sortConfig.key) return rows;
+ return [...rows].sort((a, b) => {
+ let aVal = a[sortConfig.key];
+ let bVal = b[sortConfig.key];
+ if (sortConfig.key === "firstname") aVal = a.firstname || splitName(a.fullname).firstName;
+ if (sortConfig.key === "lastname") aVal = a.lastname || splitName(a.fullname).lastName;
+ if (sortConfig.key === "role") aVal = a.workerrole || a.role || "Worker";
+ if (sortConfig.key === "status") aVal = a.status || "ACTIVE";
+ if (aVal === null || aVal === undefined) return 1;
+ if (bVal === null || bVal === undefined) return -1;
+ const aNum = Number(aVal);
+ const bNum = Number(bVal);
+ if (!isNaN(aNum) && !isNaN(bNum)) {
+ return sortConfig.direction === "asc" ? aNum - bNum : bNum - aNum;
+ }
+ return sortConfig.direction === "asc"
+ ? String(aVal).localeCompare(String(bVal))
+ : String(bVal).localeCompare(String(aVal));
+ });
+ }, [rawData, filters.status, sortConfig]);
  const pagination = listData?.pagination ?? EMPTY_PAGINATION;
  const isLoading = isFirstLoad || isPlaceholderData || isDeleting;
 
@@ -291,6 +351,7 @@ export default function Workers() {
  setFilters({
  department: "All",
  team: "All",
+ status: "All",
  });
  // Reset to all departments when clearing filters
  updateDepartmentsForTeam("All");
@@ -621,6 +682,14 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  </h1>
  </div>
  <div className="self-start sm:self-center flex flex-wrap gap-2">
+ {isSuperAdmin && (
+ <button
+ className="bg-sienna px-3 py-1.5 sm:px-4 sm:py-2 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-sienna-dark"
+ onClick={() => navigate("/team-mismatch")}
+ >
+ Team Mismatch
+ </button>
+ )}
  <button
  className="bg-mustard px-3 py-1.5 sm:px-4 sm:py-2 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-mustard/80"
  onClick={() => navigate("/pending-workers")}
@@ -822,25 +891,70 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  />
  </th>
  <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
- ID
+ <button
+ type="button"
+ onClick={() => handleSort("id")}
+ className="inline-flex items-center hover:text-ink-900 cursor-pointer uppercase font-medium"
+ >
+ ID {renderSortIndicator("id")}
+ </button>
  </th>
  <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
- First Name
+ <button
+ type="button"
+ onClick={() => handleSort("firstname")}
+ className="inline-flex items-center hover:text-ink-900 cursor-pointer uppercase font-medium"
+ >
+ First Name {renderSortIndicator("firstname")}
+ </button>
  </th>
  <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
- Last Name
+ <button
+ type="button"
+ onClick={() => handleSort("lastname")}
+ className="inline-flex items-center hover:text-ink-900 cursor-pointer uppercase font-medium"
+ >
+ Last Name {renderSortIndicator("lastname")}
+ </button>
  </th>
  <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
  Phone Number
  </th>
  <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
- Department
+ <button
+ type="button"
+ onClick={() => handleSort("department")}
+ className="inline-flex items-center hover:text-ink-900 cursor-pointer uppercase font-medium"
+ >
+ Department {renderSortIndicator("department")}
+ </button>
  </th>
  <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
- Team
+ <button
+ type="button"
+ onClick={() => handleSort("team")}
+ className="inline-flex items-center hover:text-ink-900 cursor-pointer uppercase font-medium"
+ >
+ Team {renderSortIndicator("team")}
+ </button>
  </th>
  <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
- Role
+ <button
+ type="button"
+ onClick={() => handleSort("role")}
+ className="inline-flex items-center hover:text-ink-900 cursor-pointer uppercase font-medium"
+ >
+ Role {renderSortIndicator("role")}
+ </button>
+ </th>
+ <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
+ <button
+ type="button"
+ onClick={() => handleSort("status")}
+ className="inline-flex items-center hover:text-ink-900 cursor-pointer uppercase font-medium"
+ >
+ Status {renderSortIndicator("status")}
+ </button>
  </th>
  <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
  Actions
@@ -920,6 +1034,21 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  {person.workerrole || person.role || "Worker"}
  </Link>
  </td>
+ <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-900">
+ <span
+ className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+ person.status === "ACTIVE"
+ ? "bg-forest/10 text-forest"
+ : person.status === "PENDING_ADD"
+ ? "bg-mustard/10 text-mustard"
+ : person.status === "PENDING_DELETE"
+ ? "bg-brick/10 text-brick"
+ : "bg-forest/10 text-forest"
+ }`}
+ >
+ {person.status || "ACTIVE"}
+ </span>
+ </td>
  <td
  className="px-6 py-4 whitespace-nowrap text-sm text-ink-900"
  onClick={(e) => e.stopPropagation()}
@@ -960,7 +1089,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  {/* Expanded Row */}
  {isExpanded && (
  <tr className="bg-cream">
- <td colSpan="9" className="px-6 py-4">
+ <td colSpan="10" className="px-6 py-4">
  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
  <div>
  <label className="block text-sm font-medium text-ink-700">
@@ -1054,7 +1183,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  {Array.isArray(data) && data.length === 0 && (
  <tr>
  <td
- colSpan="9"
+ colSpan="10"
  className="px-6 py-8 text-center text-ink-500"
  >
  <div className="flex flex-col items-center">
@@ -1090,7 +1219,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  {!Array.isArray(data) && data && (
  <tr>
  <td
- colSpan="9"
+ colSpan="10"
  className="px-6 py-8 text-center text-ink-500"
  >
  <div className="flex flex-col items-center">
@@ -1346,6 +1475,35 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  handleFilterChange("department", selected?.value ?? "All")
  }
  options={availableDepartments}
+ className="w-full"
+ />
+ </div>
+
+ <div>
+ <label className="block text-sm font-medium text-ink-700 mb-2">
+ Worker Status
+ </label>
+ <ReactSelectDropdown
+ value={{
+ value: filters.status || "All",
+ label:
+ filters.status === "ACTIVE"
+ ? "Active"
+ : filters.status === "PENDING_ADD"
+ ? "Pending Add"
+ : filters.status === "PENDING_DELETE"
+ ? "Pending Delete"
+ : "All Statuses",
+ }}
+ onChange={(selected) =>
+ handleFilterChange("status", selected?.value ?? "All")
+ }
+ options={[
+ { value: "All", label: "All Statuses" },
+ { value: "ACTIVE", label: "Active" },
+ { value: "PENDING_ADD", label: "Pending Add" },
+ { value: "PENDING_DELETE", label: "Pending Delete" },
+ ]}
  className="w-full"
  />
  </div>

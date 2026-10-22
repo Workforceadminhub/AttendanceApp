@@ -130,7 +130,7 @@ describe("WorkersBallAdmin (/admin/workers-ball-registrations)", () => {
     );
 
     // Initial loading indicator
-    expect(screen.getByText(/Loading Workers Ball registrations/i)).toBeInTheDocument();
+    expect(screen.getByText(/Loading registrations/i)).toBeInTheDocument();
 
     await waitFor(() => {
       expect(fetchWorkersBallRegistrations).toHaveBeenCalled();
@@ -139,9 +139,9 @@ describe("WorkersBallAdmin (/admin/workers-ball-registrations)", () => {
     // Page title and KPI metrics
     expect(screen.getByText(/Workers Ball 2026 Tracking/i)).toBeInTheDocument();
     expect(screen.getByText("Total Registered")).toBeInTheDocument();
-    expect(screen.getByText("Marked Attended")).toBeInTheDocument();
-    expect(screen.getByText("Awaiting Arrival")).toBeInTheDocument();
-    expect(screen.getByText("Check-in Turnout")).toBeInTheDocument();
+    expect(screen.getAllByText("Attended").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("Not Attended").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("Turnout")).toBeInTheDocument();
 
     // Table rows rendered
     expect(screen.getByText("Ayodeji Eluwande")).toBeInTheDocument();
@@ -169,7 +169,7 @@ describe("WorkersBallAdmin (/admin/workers-ball-registrations)", () => {
       expect(screen.getByText("Ayodeji Eluwande")).toBeInTheDocument();
     });
 
-    const searchInput = screen.getByPlaceholderText(/Search worker name, HGWB code/i);
+    const searchInput = screen.getByPlaceholderText(/Search name, code/i);
     fireEvent.change(searchInput, { target: { value: "Chidi" } });
 
     expect(screen.getByText("Chidi Enwereji")).toBeInTheDocument();
@@ -233,7 +233,7 @@ describe("WorkersBallAdmin (/admin/workers-ball-registrations)", () => {
     expect(screen.getAllByText("HGWB-AYO001").length).toBeGreaterThanOrEqual(2);
 
     // Close modal
-    fireEvent.click(screen.getByRole("button", { name: /Close Record/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Close$/i }));
     await waitFor(() => {
       expect(screen.queryByText(/OFFICIAL GALA PASS • 2026/i)).not.toBeInTheDocument();
     });

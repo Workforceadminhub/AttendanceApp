@@ -9,18 +9,9 @@ import { getUserRole } from "../utils/getUserRole";
 import { fetchWorkersBallRegistrations } from "../services/workersBall";
 import { exportWorkersBallWorkbook } from "../utils/exportWorkersBall";
 import {
-  ArrowDownTrayIcon,
   ArrowLeftIcon,
-  ArrowPathIcon,
-  CameraIcon,
-  CheckCircleIcon,
   CheckIcon,
   ClipboardDocumentIcon,
-  ClockIcon,
-  MagnifyingGlassIcon,
-  QrCodeIcon,
-  UserCircleIcon,
-  UserGroupIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 
@@ -328,22 +319,12 @@ export default function WorkersBallAdmin() {
               <ArrowLeftIcon className="h-3.5 w-3.5" />
               Back to Dashboard
             </Link>
-            <div className="flex items-center gap-2.5">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-2xs font-mono font-medium tracking-wide bg-amber-500/10 text-amber-700 border border-amber-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                GALA ACCREDITATION
-              </span>
-              <span className="text-2xs font-mono text-ink-400 uppercase tracking-widest">
-                SUPER ADMIN
-              </span>
-            </div>
+            <p className="text-2xs font-mono uppercase tracking-widest text-ink-400">
+              Super Admin
+            </p>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-ink">
               Workers Ball 2026 Tracking
             </h1>
-            <p className="text-sm text-ink-600">
-              Live registration registry, check-in audit, and attendee
-              accreditation desk.
-            </p>
           </div>
 
           {/* Action buttons */}
@@ -352,32 +333,26 @@ export default function WorkersBallAdmin() {
               type="button"
               onClick={() => loadData(true)}
               disabled={refreshing || loading}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-ink-200 bg-white px-3 py-2 text-xs font-medium text-ink transition hover:bg-ink-50 disabled:opacity-50"
-              title="Refresh data"
+              className="inline-flex items-center rounded-lg border border-ink-200 bg-white px-3.5 py-2 text-xs font-medium text-ink transition hover:bg-ink-50 disabled:opacity-50"
             >
-              <ArrowPathIcon
-                className={`h-4 w-4 ${refreshing ? "animate-spin text-amber-600" : "text-ink-600"}`}
-              />
-              <span className="hidden sm:inline">Refresh</span>
+              {refreshing ? "Refreshing..." : "Refresh"}
             </button>
 
             <button
               type="button"
               onClick={handleExport}
               disabled={exporting || loading || filteredRegistrations.length === 0}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-ink-200 bg-white px-3.5 py-2 text-xs font-medium text-ink transition hover:bg-ink-50 hover:border-ink-300 disabled:opacity-50 shadow-xs"
+              className="inline-flex items-center rounded-lg border border-ink-200 bg-white px-3.5 py-2 text-xs font-medium text-ink transition hover:bg-ink-50 hover:border-ink-300 disabled:opacity-50 shadow-xs"
             >
-              <ArrowDownTrayIcon className="h-4 w-4 text-forest" />
-              <span>{exporting ? "Generating Excel..." : "Export Excel"}</span>
+              {exporting ? "Generating Excel..." : "Export Excel"}
             </button>
 
             <Link
               to="/scan/wb26"
               state={{ from: "/admin/workers-ball-registrations" }}
-              className="inline-flex items-center gap-2 rounded-lg bg-ink px-4 py-2 text-xs font-semibold text-cream shadow-sm hover:bg-ink-900 transition focus:outline-hidden focus:ring-2 focus:ring-amber-400"
+              className="inline-flex items-center rounded-lg bg-ink px-4 py-2 text-xs font-semibold text-cream shadow-sm hover:bg-ink-900 transition focus:outline-hidden focus:ring-2 focus:ring-amber-400"
             >
-              <CameraIcon className="h-4 w-4 text-amber-400" />
-              <span>Open Scanner Desk</span>
+              Scanner Desk
             </Link>
           </div>
         </div>
@@ -385,85 +360,48 @@ export default function WorkersBallAdmin() {
         {/* Metrics KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Total Registered */}
-          <div className="relative overflow-hidden rounded-xl border border-ink-200 bg-white p-5 shadow-xs">
+          <div className="rounded-xl border border-ink-200 bg-white p-5 shadow-xs">
+            <span className="text-xs font-mono uppercase tracking-wider text-ink-500">
+              Total Registered
+            </span>
+            <div className="mt-3 text-3xl font-extrabold text-ink tracking-tight">
+              {loading ? "..." : totalRegisteredCount.toLocaleString()}
+            </div>
+          </div>
+
+          {/* Attended */}
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-5 shadow-xs">
+            <span className="text-xs font-mono uppercase tracking-wider text-emerald-800 font-semibold">
+              Attended
+            </span>
+            <div className="mt-3 text-3xl font-extrabold text-emerald-950 tracking-tight">
+              {loading ? "..." : totalAttendedCount.toLocaleString()}
+            </div>
+          </div>
+
+          {/* Not Attended */}
+          <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-5 shadow-xs">
+            <span className="text-xs font-mono uppercase tracking-wider text-amber-800 font-semibold">
+              Not Attended
+            </span>
+            <div className="mt-3 text-3xl font-extrabold text-amber-950 tracking-tight">
+              {loading ? "..." : totalNotAttendedCount.toLocaleString()}
+            </div>
+          </div>
+
+          {/* Turnout */}
+          <div className="rounded-xl border border-ink-200 bg-white p-5 shadow-xs">
             <div className="flex items-center justify-between">
               <span className="text-xs font-mono uppercase tracking-wider text-ink-500">
-                Total Registered
-              </span>
-              <span className="p-2 rounded-lg bg-ink-100 text-ink-700">
-                <UserGroupIcon className="h-5 w-5" />
-              </span>
-            </div>
-            <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-ink tracking-tight">
-                {loading ? "..." : totalRegisteredCount.toLocaleString()}
-              </span>
-              <span className="text-xs text-ink-500 font-medium">workers</span>
-            </div>
-            <p className="mt-1 text-xs text-ink-500">
-              Passes issued with HGWB codes
-            </p>
-          </div>
-
-          {/* Marked Attended */}
-          <div className="relative overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50/50 p-5 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-mono uppercase tracking-wider text-emerald-800 font-semibold">
-                Marked Attended
-              </span>
-              <span className="p-2 rounded-lg bg-emerald-100 text-emerald-700">
-                <CheckCircleIcon className="h-5 w-5" />
-              </span>
-            </div>
-            <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-emerald-950 tracking-tight">
-                {loading ? "..." : totalAttendedCount.toLocaleString()}
-              </span>
-              <span className="text-xs text-emerald-700 font-medium">checked-in</span>
-            </div>
-            <p className="mt-1 text-xs text-emerald-700">
-              Scanned & accredited at gala door
-            </p>
-          </div>
-
-          {/* Awaiting Arrival */}
-          <div className="relative overflow-hidden rounded-xl border border-amber-200 bg-amber-50/50 p-5 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-mono uppercase tracking-wider text-amber-800 font-semibold">
-                Awaiting Arrival
-              </span>
-              <span className="p-2 rounded-lg bg-amber-100 text-amber-700">
-                <ClockIcon className="h-5 w-5" />
-              </span>
-            </div>
-            <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-amber-950 tracking-tight">
-                {loading ? "..." : totalNotAttendedCount.toLocaleString()}
-              </span>
-              <span className="text-xs text-amber-700 font-medium">pending</span>
-            </div>
-            <p className="mt-1 text-xs text-amber-700">
-              Registered, yet to be scanned
-            </p>
-          </div>
-
-          {/* Attendance Turnout Rate */}
-          <div className="relative overflow-hidden rounded-xl border border-ink-200 bg-white p-5 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-mono uppercase tracking-wider text-ink-500">
-                Check-in Turnout
+                Turnout
               </span>
               <span className="text-xs font-bold font-mono text-ink-700">
                 {checkinRate}%
               </span>
             </div>
-            <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-ink tracking-tight">
-                {loading ? "..." : `${checkinRate}%`}
-              </span>
-              <span className="text-xs text-ink-500 font-medium">turnout</span>
+            <div className="mt-3 text-3xl font-extrabold text-ink tracking-tight">
+              {loading ? "..." : `${checkinRate}%`}
             </div>
-            {/* Progress bar */}
             <div className="mt-3 h-2 w-full rounded-full bg-ink-100 overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-amber-500 to-emerald-600 transition-all duration-500 rounded-full"
@@ -487,7 +425,7 @@ export default function WorkersBallAdmin() {
                     : "text-ink-600 hover:text-ink"
                 }`}
               >
-                <span>All Registrations</span>
+                <span>All</span>
                 <span className="rounded-full bg-ink-100 px-1.5 py-0.2 text-2xs text-ink-700">
                   {totalRegisteredCount}
                 </span>
@@ -502,7 +440,6 @@ export default function WorkersBallAdmin() {
                     : "text-ink-600 hover:text-ink"
                 }`}
               >
-                <CheckCircleIcon className="h-3.5 w-3.5" />
                 <span>Attended</span>
                 <span
                   className={`rounded-full px-1.5 py-0.2 text-2xs ${
@@ -524,7 +461,6 @@ export default function WorkersBallAdmin() {
                     : "text-ink-600 hover:text-ink"
                 }`}
               >
-                <ClockIcon className="h-3.5 w-3.5" />
                 <span>Not Attended</span>
                 <span
                   className={`rounded-full px-1.5 py-0.2 text-2xs ${
@@ -540,11 +476,10 @@ export default function WorkersBallAdmin() {
 
             <div className="flex items-center gap-2 text-xs font-mono text-ink-500">
               <span>
-                Showing{" "}
                 <strong className="text-ink">
                   {filteredRegistrations.length}
                 </strong>{" "}
-                of {totalRegisteredCount} workers
+                of {totalRegisteredCount}
               </span>
               {hasActiveFilters && (
                 <button
@@ -553,7 +488,7 @@ export default function WorkersBallAdmin() {
                   className="inline-flex items-center gap-1 text-brick hover:underline ml-2"
                 >
                   <XMarkIcon className="h-3.5 w-3.5" />
-                  Clear filters
+                  Clear
                 </button>
               )}
             </div>
@@ -563,13 +498,12 @@ export default function WorkersBallAdmin() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {/* Search Input */}
             <div className="relative sm:col-span-2">
-              <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-ink-400" />
               <input
                 type="search"
                 value={search}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                placeholder="Search worker name, HGWB code, email, phone..."
-                className="w-full rounded-lg border border-ink-200 bg-white pl-9 pr-3 py-2 text-xs text-ink placeholder:text-ink-400 focus:border-amber-500 focus:outline-hidden focus:ring-1 focus:ring-amber-500 transition"
+                placeholder="Search name, code, email, phone..."
+                className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-xs text-ink placeholder:text-ink-400 focus:border-amber-500 focus:outline-hidden focus:ring-1 focus:ring-amber-500 transition"
               />
             </div>
 
@@ -615,12 +549,8 @@ export default function WorkersBallAdmin() {
         <div className="rounded-xl border border-ink-200 bg-white shadow-xs overflow-hidden">
           {loading ? (
             <div className="p-12 text-center">
-              <ArrowPathIcon className="mx-auto h-8 w-8 animate-spin text-amber-500 mb-3" />
               <p className="text-sm font-medium text-ink">
-                Loading Workers Ball registrations...
-              </p>
-              <p className="text-xs text-ink-500 mt-1">
-                Authenticating with Super Admin permissions
+                Loading registrations...
               </p>
             </div>
           ) : error ? (
@@ -629,22 +559,20 @@ export default function WorkersBallAdmin() {
               <button
                 type="button"
                 onClick={() => loadData()}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-ink px-4 py-2 text-xs font-medium text-cream hover:bg-ink-900 transition"
+                className="inline-flex items-center rounded-lg bg-ink px-4 py-2 text-xs font-medium text-cream hover:bg-ink-900 transition"
               >
-                <ArrowPathIcon className="h-4 w-4" />
-                Retry loading
+                Retry
               </button>
             </div>
           ) : filteredRegistrations.length === 0 ? (
             <div className="p-12 text-center">
-              <UserCircleIcon className="mx-auto h-12 w-12 text-ink-300 mb-2" />
               <h3 className="text-base font-semibold text-ink">
                 No registrations found
               </h3>
               <p className="text-xs text-ink-500 mt-1 max-w-sm mx-auto">
                 {hasActiveFilters
-                  ? "Try loosening your search term or filter criteria to view more records."
-                  : "No workforce registrations have been recorded for Workers Ball 2026 yet."}
+                  ? "Try loosening your search term or filter criteria."
+                  : "No workforce registrations recorded yet."}
               </p>
               {hasActiveFilters && (
                 <button
@@ -662,9 +590,9 @@ export default function WorkersBallAdmin() {
                 <thead>
                   <tr className="border-b border-ink-200 bg-ink-50/70 text-ink-700 font-mono text-2xs uppercase tracking-wider">
                     <th className="py-3 px-4 font-semibold w-12">#</th>
-                    <th className="py-3 px-4 font-semibold">Worker Details</th>
+                    <th className="py-3 px-4 font-semibold">Worker</th>
                     <th className="py-3 px-4 font-semibold">Access Code</th>
-                    <th className="py-3 px-4 font-semibold">Attendance Status</th>
+                    <th className="py-3 px-4 font-semibold">Status</th>
                     <th className="py-3 px-4 font-semibold hidden md:table-cell">
                       Department / Team
                     </th>
@@ -732,19 +660,17 @@ export default function WorkersBallAdmin() {
                         <td className="py-3.5 px-4">
                           {isAttended ? (
                             <div className="inline-flex flex-col gap-0.5">
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-2xs font-semibold font-mono bg-emerald-100 text-emerald-800 border border-emerald-200 w-max">
-                                <CheckCircleIcon className="h-3.5 w-3.5 text-emerald-600" />
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-2xs font-semibold font-mono bg-emerald-100 text-emerald-800 border border-emerald-200 w-max">
                                 ATTENDED
                               </span>
                               {row.attendedAt && (
-                                <span className="text-3xs text-ink-500 font-mono pl-1">
+                                <span className="text-3xs text-ink-500 font-mono pl-0.5">
                                   {formatDateSafe(row.attendedAt, "h:mm a")}
                                 </span>
                               )}
                             </div>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-2xs font-semibold font-mono bg-amber-50 text-amber-800 border border-amber-200">
-                              <ClockIcon className="h-3.5 w-3.5 text-amber-600" />
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-2xs font-semibold font-mono bg-amber-50 text-amber-800 border border-amber-200 w-max">
                               NOT ATTENDED
                             </span>
                           )}
@@ -783,10 +709,9 @@ export default function WorkersBallAdmin() {
                               e.stopPropagation();
                               setSelectedWorker(row);
                             }}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-ink-700 bg-ink-50 hover:bg-ink-100 border border-ink-200 transition"
+                            className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium text-ink-700 bg-ink-50 hover:bg-ink-100 border border-ink-200 transition"
                           >
-                            <QrCodeIcon className="h-3.5 w-3.5 text-amber-600" />
-                            <span>Details</span>
+                            Details
                           </button>
                         </td>
                       </tr>
@@ -858,13 +783,11 @@ export default function WorkersBallAdmin() {
                   </div>
                   {/* Status Indicator */}
                   {selectedWorker.attended ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-2xs font-mono font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-                      <CheckCircleIcon className="h-3.5 w-3.5 text-emerald-400" />
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-2xs font-mono font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
                       ACCREDITED
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-2xs font-mono font-semibold bg-amber-500/20 text-amber-300 border border-amber-400/30">
-                      <ClockIcon className="h-3.5 w-3.5 text-amber-400" />
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-2xs font-mono font-semibold bg-amber-500/20 text-amber-300 border border-amber-400/30">
                       REGISTERED
                     </span>
                   )}
@@ -877,26 +800,16 @@ export default function WorkersBallAdmin() {
                       ACCREDITATION CODE
                     </span>
                     <div className="font-mono text-xl font-extrabold text-amber-300 tracking-wider">
-                      {selectedWorker.code || "NO CODE ASSIGNED"}
+                      {selectedWorker.code || "-"}
                     </div>
                   </div>
                   {selectedWorker.code && (
                     <button
                       type="button"
                       onClick={() => handleCopyCode(selectedWorker.code)}
-                      className="inline-flex items-center gap-1.5 self-start sm:self-center px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 border border-amber-500/30 text-xs font-mono transition"
+                      className="inline-flex items-center self-start sm:self-center px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 border border-amber-500/30 text-xs font-mono transition"
                     >
-                      {copiedCode === selectedWorker.code ? (
-                        <>
-                          <CheckIcon className="h-3.5 w-3.5 text-emerald-400" />
-                          <span>Copied</span>
-                        </>
-                      ) : (
-                        <>
-                          <ClipboardDocumentIcon className="h-3.5 w-3.5" />
-                          <span>Copy Code</span>
-                        </>
-                      )}
+                      {copiedCode === selectedWorker.code ? "Copied" : "Copy Code"}
                     </button>
                   )}
                 </div>
@@ -922,7 +835,7 @@ export default function WorkersBallAdmin() {
                 </div>
                 <div>
                   <span className="text-ink-400 font-mono text-3xs uppercase">
-                    Email Address
+                    Email
                   </span>
                   <div className="font-mono text-ink mt-0.5 truncate">
                     {selectedWorker.email || "-"}
@@ -930,7 +843,7 @@ export default function WorkersBallAdmin() {
                 </div>
                 <div>
                   <span className="text-ink-400 font-mono text-3xs uppercase">
-                    Phone Number
+                    Phone
                   </span>
                   <div className="font-mono text-ink mt-0.5">
                     {selectedWorker.phone || "-"}
@@ -938,7 +851,7 @@ export default function WorkersBallAdmin() {
                 </div>
                 <div>
                   <span className="text-ink-400 font-mono text-3xs uppercase">
-                    Registered On
+                    Registered
                   </span>
                   <div className="font-mono text-ink-700 mt-0.5">
                     {formatDateSafe(selectedWorker.registeredAt)}
@@ -946,12 +859,12 @@ export default function WorkersBallAdmin() {
                 </div>
                 <div>
                   <span className="text-ink-400 font-mono text-3xs uppercase">
-                    Attended Timestamp
+                    Attended
                   </span>
                   <div className="font-mono text-ink-700 mt-0.5">
                     {selectedWorker.attended
                       ? formatDateSafe(selectedWorker.attendedAt)
-                      : "Not attended yet"}
+                      : "Not attended"}
                   </div>
                 </div>
               </div>
@@ -962,15 +875,13 @@ export default function WorkersBallAdmin() {
                   <Link
                     to="/scan/wb26"
                     state={{ from: "/admin/workers-ball-registrations" }}
-                    className="inline-flex items-center gap-1.5 text-xs text-amber-700 hover:text-amber-800 font-semibold"
+                    className="text-xs text-amber-700 hover:text-amber-800 font-semibold"
                   >
-                    <CameraIcon className="h-4 w-4" />
-                    <span>Open Scanner to accredit this pass</span>
+                    Scanner Desk
                   </Link>
                 ) : (
-                  <span className="text-xs text-emerald-700 font-medium inline-flex items-center gap-1">
-                    <CheckCircleIcon className="h-4 w-4" />
-                    Check-in verified and logged
+                  <span className="text-xs text-emerald-700 font-medium">
+                    Attended
                   </span>
                 )}
 
@@ -979,7 +890,7 @@ export default function WorkersBallAdmin() {
                   onClick={() => setSelectedWorker(null)}
                   className="w-full sm:w-auto rounded-lg border border-ink-200 px-4 py-2 text-xs font-medium text-ink hover:bg-ink-100 transition"
                 >
-                  Close Record
+                  Close
                 </button>
               </div>
             </div>

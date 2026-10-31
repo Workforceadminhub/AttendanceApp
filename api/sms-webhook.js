@@ -19,6 +19,7 @@
  * }
  */
 import { insertRows, supabaseConfigured } from "./_lib/supabase.js";
+import { safeCompareSecrets } from "./_lib/auth.js";
 
 function normalizeSmsEvent(payload) {
   if (!payload || typeof payload !== "object") return null;
@@ -35,13 +36,6 @@ function normalizeSmsEvent(payload) {
   };
 }
 
-function safeEqual(a, b) {
-  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
-
 export default async function handler(req, res) {
   if (req.method !== "POST" && req.method !== "GET") {
     res.setHeader("Allow", "POST, GET");
@@ -54,7 +48,7 @@ export default async function handler(req, res) {
   }
   const provided =
     (req.query && (req.query.token || req.query.secret)) || req.headers["x-webhook-secret"];
-  if (!safeEqual(String(provided || ""), secret)) {
+  if (!safeCompareSecrets(String(provided || ""), secret)) {
     return res.status(401).json({ error: "Unauthorized." });
   }
 
@@ -76,8 +70,6 @@ export default async function handler(req, res) {
     }
   }
 
-  console.log("Received Sendchamp SMS webhook event:", JSON.stringify(body));
-
   const events = Array.isArray(body)
     ? body
     : Array.isArray(body?.data)
@@ -85,6 +77,12 @@ export default async function handler(req, res) {
     : [body];
 
   const rows = events.map(normalizeSmsEvent).filter(Boolean);
+
+  console.log("Received Sendchamp SMS webhook event:", {
+    count: rows.length,
+    statuses: rows.map((r) => r.status),
+    references: rows.map((r) => r.reference || r.sms_uid).filter(Boolean),
+  });
 
   if (supabaseConfigured() && rows.length > 0) {
     try {

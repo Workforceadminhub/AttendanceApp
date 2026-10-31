@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Navigate, useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import Layout from "../components/Layout";
 import DataTable from "../components/ui/DataTable";
 import Tag from "../components/ui/Tag";
 import { fetchRegistrations } from "../services/leadershipRegistrations";
+import { getUserRole } from "../utils/getUserRole";
+import { getPostLoginPath } from "../utils/routeObject";
 import { ChevronLeftIcon, ChevronRightIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 const CAMPUSES = [
@@ -86,20 +88,16 @@ export default function LeadershipRegistrationAdmin() {
   const [searchInput, setSearchInput] = useState(""); // debounced separately
   const [page, setPage] = useState(1);
 
+  const { isSuperAdmin, isChurchAdmin, user } = getUserRole();
+  const hasAccess = isSuperAdmin || isChurchAdmin;
+
   // Auth guard
   useEffect(() => {
-    const authUser = JSON.parse(sessionStorage.getItem("authUser"));
-    const isSuperAdmin =
-      authUser?.department === "Super Admin" ||
-      authUser?.permissionLevel === "SUPER_ADMIN";
-    const isChurchAdmin =
-      authUser?.department === "Church Admin" ||
-      authUser?.permissionLevel === "CHURCH_ADMIN";
-    if (!isSuperAdmin && !isChurchAdmin) {
+    if (!hasAccess) {
       toast.error("Access denied.");
-      navigate("/login");
+      navigate(getPostLoginPath(user), { replace: true });
     }
-  }, [navigate]);
+  }, [hasAccess, navigate, user]);
 
   // Debounce search input → only fire after 400ms of no typing
   useEffect(() => {
@@ -115,6 +113,7 @@ export default function LeadershipRegistrationAdmin() {
 
   // Fetch
   const load = useCallback(async () => {
+    if (!hasAccess) return;
     setIsLoading(true);
     try {
       const result = await fetchRegistrations({ page, limit: PAGE_LIMIT, campus, course, search });
@@ -125,9 +124,15 @@ export default function LeadershipRegistrationAdmin() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, campus, course, search]);
+  }, [hasAccess, page, campus, course, search]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (hasAccess) load();
+  }, [hasAccess, load]);
+
+  if (!hasAccess) {
+    return <Navigate to={getPostLoginPath(user)} replace />;
+  }
 
   const selectClass =
     "rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ink transition";

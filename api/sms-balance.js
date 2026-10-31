@@ -4,56 +4,13 @@
  * Retrieves wallet balance for Sendchamp or SmartSMSSolutions.
  * Restricted strictly to Super Admins.
  */
-import { decodeJwt, verifyStatus } from "./_lib/auth.js";
-
-const BACKEND_API_URL =
-  process.env.BACKEND_API_URL || process.env.REACT_APP_BASE_URL || "";
-const ADMIN_VERIFY_PATH = process.env.AUTH_VERIFY_PATH || "/api/super/admin/admins";
+import { authorizeSuperAdmin } from "./_lib/auth.js";
 
 const SENDCHAMP_API_KEY = process.env.SENDCHAMP_API_KEY || "";
 const SENDCHAMP_WALLET_URL = "https://api.sendchamp.com/api/v1/wallet/wallet_balance";
 
 const SMARTSMS_API_TOKEN = process.env.SMARTSMS_API_TOKEN || "";
 const SMARTSMS_BALANCE_URL = "https://app.smartsmssolutions.com/io/api/client/v1/balance/";
-
-function isSuperAdminFromClaims(claims) {
-  if (!claims) return false;
-  const dept = String(claims.department || "").trim().toLowerCase();
-  const role = String(claims.role || "").trim().toLowerCase().replace(/[_\s]+/g, "-");
-  const plvl = String(claims.permissionLevel || "").trim().toUpperCase();
-  return (
-    dept === "super admin" ||
-    role === "super-admin" ||
-    role === "superadmin" ||
-    plvl === "SUPER_ADMIN"
-  );
-}
-
-async function authorizeSuperAdmin(authHeader) {
-  if (!authHeader || !/^Bearer\s+.+/i.test(authHeader)) {
-    return { ok: false, status: 401, reason: "missing_bearer_token" };
-  }
-  if (!BACKEND_API_URL) {
-    return { ok: false, status: 500, reason: "backend_url_not_configured" };
-  }
-
-  // Shared with the email functions: a recently verified token skips the
-  // backend round trip.
-  const status = await verifyStatus(authHeader, ADMIN_VERIFY_PATH);
-  if (status === 0) {
-    return { ok: false, status: 500, reason: "auth_verification_failed" };
-  }
-  if (status !== 200) {
-    return { ok: false, status: 401, reason: `token_rejected (${status})` };
-  }
-
-  const claims = decodeJwt(authHeader);
-  if (isSuperAdminFromClaims(claims)) {
-    return { ok: true, claims };
-  }
-
-  return { ok: false, status: 403, reason: "super_admin_required" };
-}
 
 export default async function handler(req, res) {
   if (req.method !== "GET" && req.method !== "POST") {

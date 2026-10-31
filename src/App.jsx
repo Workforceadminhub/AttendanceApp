@@ -34,7 +34,6 @@ const SetPassword = lazy(() => import("./pages/SetPassword"));
 const ChurchAdminAddWorker = lazy(() => import("./pages/ChurchAdminAddWorker"));
 const ViewWorker = lazy(() => import("./pages/ViewWorker"));
 const PendingWorkers = lazy(() => import("./pages/PendingWorkers"));
-const AllWorkers = lazy(() => import("./pages/AllWorkers"));
 const TeamMismatch = lazy(() => import("./pages/TeamMismatch"));
 const PastoralFix = lazy(() => import("./pages/PastoralFix"));
 const Report = lazy(() => import("./components/Report"));

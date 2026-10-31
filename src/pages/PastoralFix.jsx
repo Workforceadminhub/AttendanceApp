@@ -1,12 +1,14 @@
 import { fetchAllSuperAdminWorkers } from "../services/workers";
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
+import GenericModal from "../components/GenericModal";
 import { toast } from "react-toastify";
 import LoadingState from "../components/LoadingState";
 import { WrenchScrewdriverIcon, CheckCircleIcon, EyeIcon } from "@heroicons/react/24/outline";
 import apiRequest from "../utils/apiClient";
 import { getUserRole } from "../utils/getUserRole";
+import { getPostLoginPath } from "../utils/routeObject";
 
 const CORRECT = "Pastoral Leaders";
 
@@ -16,21 +18,23 @@ const isWrongCasing = (value) =>
 
 export default function PastoralFix() {
  const navigate = useNavigate();
+ const { isSuperAdmin, user } = getUserRole();
  const [affectedWorkers, setAffectedWorkers] = useState([]);
  const [totalFetched, setTotalFetched] = useState(0);
  const [isLoading, setIsLoading] = useState(false);
  const [isFixing, setIsFixing] = useState(false);
+ const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   // Super Admin guard
   useEffect(() => {
-    const { isSuperAdmin, user } = getUserRole();
     if (!user || !isSuperAdmin) {
       toast.error("Access denied. Super Admin access required.");
-      navigate("/login");
+      navigate(getPostLoginPath(user), { replace: true });
     }
-  }, [navigate]);
+  }, [isSuperAdmin, navigate, user]);
 
  const fetchWorkers = async () => {
+ if (!isSuperAdmin) return;
  setIsLoading(true);
  try {
  const workersData = await fetchAllSuperAdminWorkers();
@@ -49,32 +53,46 @@ export default function PastoralFix() {
  };
 
  useEffect(() => {
+ if (!isSuperAdmin) return;
  fetchWorkers();
- }, []);
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [isSuperAdmin]);
+
+ if (!user || !isSuperAdmin) {
+ return <Navigate to={getPostLoginPath(user)} replace />;
+ }
+
+ const requestFixAllWorkers = () => {
+ if (affectedWorkers.length === 0) return;
+ setIsConfirmOpen(true);
+ };
 
  const fixAllWorkers = async () => {
+ setIsConfirmOpen(false);
  if (affectedWorkers.length === 0) return;
-
- if (!window.confirm(`Fix casing for ${affectedWorkers.length} worker(s)? This will update their records to use "Pastoral Leaders".`)) return;
 
  setIsFixing(true);
  let successCount = 0;
  let errorCount = 0;
+ const BATCH_SIZE = 5;
 
- for (const worker of affectedWorkers) {
+ for (let i = 0; i < affectedWorkers.length; i += BATCH_SIZE) {
+ const batch = affectedWorkers.slice(i, i + BATCH_SIZE);
+ const results = await Promise.allSettled(
+ batch.map((worker) => {
  const wrongDept = isWrongCasing(worker.department);
  const wrongRole = isWrongCasing(worker.workerrole);
-
- try {
- await apiRequest("PUT", "/api/super/admin/workers", {
- id: parseInt(worker.id),
+ return apiRequest("PUT", "/api/super/admin/workers", {
+ id: parseInt(worker.id, 10),
  ...(wrongDept && { department: CORRECT }),
  ...(wrongRole && { workerrole: CORRECT }),
  });
- successCount++;
- } catch {
- errorCount++;
- }
+ })
+ );
+ results.forEach((res) => {
+ if (res.status === "fulfilled") successCount++;
+ else errorCount++;
+ });
  }
 
  if (successCount > 0) toast.success(`Fixed ${successCount} worker(s) successfully`);
@@ -112,7 +130,7 @@ export default function PastoralFix() {
  </button>
  {affectedWorkers.length > 0 && (
  <button
- onClick={fixAllWorkers}
+ onClick={requestFixAllWorkers}
  disabled={isFixing || isLoading}
  className="bg-forest hover:bg-forest/80 px-4 py-2 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
  >
@@ -251,6 +269,36 @@ export default function PastoralFix() {
  </p>
  )}
  </div>
+
+ <GenericModal
+ isOpen={isConfirmOpen}
+ onClose={() => setIsConfirmOpen(false)}
+ title="Confirm Casing Fix"
+ size="small"
+ >
+ <p className="text-sm text-ink-700">
+ Fix casing for <span className="font-semibold text-ink-900">{affectedWorkers.length}</span>{" "}
+ worker(s)? This will update their records to use{" "}
+ <code className="bg-cream-200 px-1 rounded text-forest">{CORRECT}</code>.
+ </p>
+ <div className="flex justify-end gap-2 pt-3">
+ <button
+ type="button"
+ onClick={() => setIsConfirmOpen(false)}
+ className="px-4 py-2 text-sm font-medium text-ink-700 bg-white border border-ink-300 rounded-lg hover:bg-cream"
+ >
+ Cancel
+ </button>
+ <button
+ type="button"
+ onClick={fixAllWorkers}
+ disabled={isFixing}
+ className="px-4 py-2 text-sm font-medium text-white bg-forest rounded-lg hover:bg-forest/80 disabled:opacity-50"
+ >
+ {isFixing ? "Fixing..." : "Confirm Fix"}
+ </button>
+ </div>
+ </GenericModal>
  </Layout>
  </div>
  );

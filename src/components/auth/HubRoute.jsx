@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Navigate } from "react-router-dom";
 import { getUser } from "../../utils/getUser";
+import { getPostLoginPath } from "../../utils/routeObject";
 import { useRBAC } from "../../contexts/RBACContext";
 
 /**
@@ -27,11 +28,7 @@ export default function HubRoute({ requiredNav, children }) {
 
   // RBAC loaded and this nav section is explicitly hidden → bounce
   if (rbac?.navigation && requiredNav && rbac.navigation[requiredNav] === "hidden") {
-    // Send user to a safe landing based on their existing role
-    const isSuperAdmin =
-      user.department === "Super Admin" || user.permissionLevel === "SUPER_ADMIN";
-    const fallback = isSuperAdmin ? "/overview/super-admin" : "/attendance/dashboard";
-    return <Navigate to={fallback} replace />;
+    return <Navigate to={getPostLoginPath(user)} replace />;
   }
 
   // RBAC not loaded (null) → allow through, API will enforce

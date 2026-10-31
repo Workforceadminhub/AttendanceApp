@@ -27,7 +27,7 @@ import {
 
 export default function MeetingSettings() {
   const navigate = useNavigate();
-  const { isSuperAdmin, isChurchAdmin, user } = getUserRole();
+  const { isSuperAdmin, user } = getUserRole();
 
   const [activeTab, setActiveTab] = useState("leaders"); // "leaders" | "workers"
   const [meetings, setMeetings] = useState([]);
@@ -42,17 +42,18 @@ export default function MeetingSettings() {
   const [setAsActive, setSetAsActive] = useState(true);
 
   useEffect(() => {
-    if (!isSuperAdmin && !isChurchAdmin) {
+    if (!isSuperAdmin) {
       toast.error("You do not have permission to access Meeting Settings.");
-      navigate("/login", { replace: true });
+      navigate(getPostLoginPath(user), { replace: true });
     }
-  }, [isSuperAdmin, isChurchAdmin, navigate]);
+  }, [isSuperAdmin, navigate, user]);
 
   const updateMeetingsFromCache = React.useCallback(() => {
     setMeetings(getAllMeetings(activeTab));
   }, [activeTab]);
 
   const refreshMeetings = React.useCallback(async () => {
+    if (!isSuperAdmin) return;
     // 1. Initial render from in-memory cache
     setMeetings(getAllMeetings(activeTab));
 
@@ -76,7 +77,7 @@ export default function MeetingSettings() {
       console.error("Failed to refresh meetings:", err);
       setMeetings(getAllMeetings(activeTab));
     }
-  }, [activeTab]);
+  }, [activeTab, isSuperAdmin]);
 
   // Sync with the backend once on mount. The first sync fills the in-memory
   // cache for both categories, so a tab switch only re-renders from it
@@ -84,6 +85,7 @@ export default function MeetingSettings() {
   // refreshMeetings directly.
   const didInitialSyncRef = React.useRef(false);
   useEffect(() => {
+    if (!isSuperAdmin) return undefined;
     if (didInitialSyncRef.current) {
       updateMeetingsFromCache();
     } else {
@@ -94,7 +96,7 @@ export default function MeetingSettings() {
     return () => {
       window.removeEventListener(MEETINGS_CHANGED_EVENT, updateMeetingsFromCache);
     };
-  }, [refreshMeetings, updateMeetingsFromCache]);
+  }, [isSuperAdmin, refreshMeetings, updateMeetingsFromCache]);
 
   const handleCreateMeeting = async (e) => {
     e.preventDefault();

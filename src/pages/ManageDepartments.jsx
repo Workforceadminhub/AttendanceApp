@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback, Fragment } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import Select from "react-select";
 import Layout from "../components/Layout";
 import GenericModal from "../components/GenericModal";
@@ -15,6 +15,7 @@ import {
 import { fetchHubTeams } from "../services/hub/teams";
 import { useDepartmentsContext, useInvalidateDepartments } from "../contexts/DepartmentsContext";
 import { getUserRole } from "../utils/getUserRole";
+import { getPostLoginPath } from "../utils/routeObject";
 import { DISTRICT_CLUSTERS, getCommunityCluster } from "../utils/teams";
 import {
  PencilIcon,
@@ -29,9 +30,9 @@ const selectStyles = {
  control: (base, state) => ({
  ...base,
  borderRadius: "0.375rem",
- borderColor: state.isFocused ? "#3b82f6" : "#d1d5db",
- boxShadow: state.isFocused ? "0 0 0 1px #3b82f6" : "none",
- "&:hover": { borderColor: state.isFocused ? "#3b82f6" : "#9ca3af" },
+ borderColor: state.isFocused ? "#141413" : "#D4CFC4",
+ boxShadow: state.isFocused ? "0 0 0 1px #141413" : "none",
+ "&:hover": { borderColor: state.isFocused ? "#141413" : "#A8A297" },
  minHeight: "38px",
  fontSize: "0.875rem",
  }),
@@ -45,14 +46,14 @@ const selectStyles = {
  menuList: (base) => ({ ...base, maxHeight: "180px", padding: "4px" }),
  option: (base, { isFocused, isSelected }) => ({
  ...base,
- backgroundColor: isSelected ? "#3b82f6" : isFocused ? "#eff6ff" : "white",
- color: isSelected ? "white" : "#111827",
+ backgroundColor: isSelected ? "#141413" : isFocused ? "#F5F3EE" : "white",
+ color: isSelected ? "white" : "#141413",
  borderRadius: "0.25rem",
  cursor: "pointer",
  fontSize: "0.875rem",
  }),
- singleValue: (base) => ({ ...base, fontSize: "0.875rem" }),
- placeholder: (base) => ({ ...base, fontSize: "0.875rem", color: "#9ca3af" }),
+ singleValue: (base) => ({ ...base, fontSize: "0.875rem", color: "#141413" }),
+ placeholder: (base) => ({ ...base, fontSize: "0.875rem", color: "#8A8479" }),
 };
 
 const clusterOptions = DISTRICT_CLUSTERS.map((c) => ({ value: c, label: c }));
@@ -97,19 +98,19 @@ export default function ManageDepartments() {
  isactive: true,
  });
 
+  const { isSuperAdmin, user } = getUserRole();
+
   // Check if user is super admin
   useEffect(() => {
-    const { isSuperAdmin, user } = getUserRole();
     if (!user || !isSuperAdmin) {
       toast.error("Access denied. Super Admin access required.");
-      navigate("/login");
-      return;
+      navigate(getPostLoginPath(user), { replace: true });
     }
-  }, [navigate]);
+  }, [isSuperAdmin, navigate, user]);
 
  // Fetch departments + hub teams
  const loadDepartments = useCallback(async () => {
- if (isLoading) return;
+ if (!isSuperAdmin || isLoading) return;
  setIsLoading(true);
  try {
  const [deptResult, teamsResult] = await Promise.allSettled([
@@ -132,13 +133,17 @@ export default function ManageDepartments() {
  } finally {
  setIsLoading(false);
  }
- }, [isLoading]);
+ }, [isLoading, isSuperAdmin]);
 
  useEffect(() => {
- if (hasFetched.current) return;
+ if (!isSuperAdmin || hasFetched.current) return;
  hasFetched.current = true;
  loadDepartments();
- }, [loadDepartments]);
+ }, [isSuperAdmin, loadDepartments]);
+
+ if (!user || !isSuperAdmin) {
+ return <Navigate to={getPostLoginPath(user)} replace />;
+ }
 
  // Handle form input changes
  const handleInputChange = (e) => {

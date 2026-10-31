@@ -1,11 +1,22 @@
 import React, { useState } from "react";
+import { Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import Layout from "./Layout";
 import ExportButton from "./ExportButton";
 import { exportAttendance } from "../services/exportAttendance";
 import { useHistoryDates } from "../hooks/useAttendanceQueries";
+import { getUserRole } from "../utils/getUserRole";
+import { getPostLoginPath } from "../utils/routeObject";
 
 export default function Report() {
+  const { isSuperAdmin, isChurchAdmin, user } = getUserRole();
+  if (!isSuperAdmin && !isChurchAdmin) {
+    return <Navigate to={getPostLoginPath(user)} replace />;
+  }
+  return <ReportContent />;
+}
+
+function ReportContent() {
   const [selectedDate, setSelectedDate] = useState("");
 
   // Dates shared (and cached) with the history pages; each export is cached

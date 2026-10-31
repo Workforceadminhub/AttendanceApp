@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
+import GenericModal from "../components/GenericModal";
 import { toast } from "react-toastify";
 import { getUserRole } from "../utils/getUserRole";
+import { getPostLoginPath } from "../utils/routeObject";
 import {
   getStoredTeamStrengths,
   saveStoredTeamStrengths,
   resetTeamStrengthsToDefault,
+  TEAM_STRENGTH_STORAGE_KEY,
+  TEAM_STRENGTH_UPDATED_EVENT,
 } from "../utils/teamStrengthConfig";
 import {
   ArrowPathIcon,
@@ -15,46 +19,46 @@ import {
   ShieldCheckIcon,
 } from "@heroicons/react/24/outline";
 
-// Grouping background tint matching the user screenshot aesthetics
-const TEAM_ROW_ACCENTS = {
-  "Programs": "bg-amber-50/60 hover:bg-amber-100/40",
-  "Mission": "bg-amber-50/60 hover:bg-amber-100/40",
-  "NLP": "bg-sky-50/60 hover:bg-sky-100/40",
-  "Membership": "bg-purple-50/60 hover:bg-purple-100/40",
-  "Ministry": "bg-purple-50/60 hover:bg-purple-100/40",
-  "Maturity": "bg-purple-50/60 hover:bg-purple-100/40",
-  "Kidzone": "bg-amber-50/60 hover:bg-amber-100/40",
-  "Stir House": "bg-amber-50/60 hover:bg-amber-100/40",
-  "Admin & Facility": "bg-slate-100/60 hover:bg-slate-200/40",
-  "Communication (DMU)": "bg-slate-100/60 hover:bg-slate-200/40",
-  "Finance": "bg-slate-100/60 hover:bg-slate-200/40",
-  "District (Pastor Biola)": "bg-pink-50/60 hover:bg-pink-100/40",
-  "District (Pastor Isaac)": "bg-pink-50/60 hover:bg-pink-100/40",
-  "Men of Harvest": "bg-rose-50/60 hover:bg-rose-100/40",
-  "Singles Ministry": "bg-rose-50/60 hover:bg-rose-100/40",
-  "Women of Wisdom": "bg-rose-50/60 hover:bg-rose-100/40",
-  "Directional Leaders": "bg-emerald-50/60 hover:bg-emerald-100/40",
-  "Pastoral Leaders": "bg-emerald-50/60 hover:bg-emerald-100/40",
-};
-
 export default function ManageLeadersStrength() {
   const navigate = useNavigate();
   const [strengths, setStrengths] = useState(() => getStoredTeamStrengths());
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+
+  const { isSuperAdmin, user } = getUserRole();
 
   // Super Admin security guard
   useEffect(() => {
-    const { isSuperAdmin, user } = getUserRole();
     if (!user || !isSuperAdmin) {
       toast.error("Access denied. Super Admin access required.");
-      navigate("/login");
+      navigate(getPostLoginPath(user), { replace: true });
     }
-  }, [navigate]);
+  }, [isSuperAdmin, navigate, user]);
+
+  // Keep state synced across tabs and storage updates
+  useEffect(() => {
+    const handleStorageSync = (e) => {
+      if (!e || e.type === TEAM_STRENGTH_UPDATED_EVENT || e.key === TEAM_STRENGTH_STORAGE_KEY) {
+        setStrengths(getStoredTeamStrengths());
+        setHasChanges(false);
+      }
+    };
+    window.addEventListener("storage", handleStorageSync);
+    window.addEventListener(TEAM_STRENGTH_UPDATED_EVENT, handleStorageSync);
+    return () => {
+      window.removeEventListener("storage", handleStorageSync);
+      window.removeEventListener(TEAM_STRENGTH_UPDATED_EVENT, handleStorageSync);
+    };
+  }, []);
 
   const totalStrength = useMemo(() => {
     return Object.values(strengths).reduce((sum, val) => sum + (Number(val) || 0), 0);
   }, [strengths]);
+
+  if (!user || !isSuperAdmin) {
+    return <Navigate to={getPostLoginPath(user)} replace />;
+  }
 
   const handleValueChange = (teamName, value) => {
     const parsed = parseInt(value, 10);
@@ -77,12 +81,15 @@ export default function ManageLeadersStrength() {
   };
 
   const handleReset = () => {
-    if (window.confirm("Are you sure you want to reset all team strengths to default values?")) {
-      const resetVals = resetTeamStrengthsToDefault();
-      setStrengths(resetVals);
-      setHasChanges(false);
-      toast.info("Team strengths reset to defaults.");
-    }
+    setIsResetConfirmOpen(true);
+  };
+
+  const confirmReset = () => {
+    setIsResetConfirmOpen(false);
+    const resetVals = resetTeamStrengthsToDefault();
+    setStrengths(resetVals);
+    setHasChanges(false);
+    toast.info("Team strengths reset to defaults.");
   };
 
   return (
@@ -151,7 +158,7 @@ export default function ManageLeadersStrength() {
                 Status
               </div>
               <div className="flex items-center space-x-2 mt-2">
-                <ShieldCheckIcon className="h-6 w-6 text-emerald-600" />
+                <ShieldCheckIcon className="h-6 w-6 text-forest" />
                 <span className="text-sm font-semibold text-ink-900">
                   {hasChanges ? "Unsaved Changes" : "Up to Date"}
                 </span>
@@ -178,9 +185,8 @@ export default function ManageLeadersStrength() {
                 </thead>
                 <tbody className="divide-y divide-ink-100/60 font-medium">
                   {Object.entries(strengths).map(([teamName, value]) => {
-                    const bgClass = TEAM_ROW_ACCENTS[teamName] || "bg-white hover:bg-cream-100";
                     return (
-                      <tr key={teamName} className={`transition-colors ${bgClass}`}>
+                      <tr key={teamName} className="transition-colors bg-white hover:bg-cream">
                         <td className="py-3 px-6 text-sm font-semibold text-ink-900">
                           {teamName}
                         </td>
@@ -200,7 +206,7 @@ export default function ManageLeadersStrength() {
                   })}
                 </tbody>
                 <tfoot>
-                  <tr className="bg-ink-100/70 border-t-2 border-ink-300 font-bold">
+                  <tr className="bg-cream border-t-2 border-ink-300 font-bold">
                     <td className="py-4 px-6 text-base text-ink-900 uppercase tracking-wider">
                       TOTAL
                     </td>
@@ -214,8 +220,8 @@ export default function ManageLeadersStrength() {
 
             {/* Bottom Floating Save Action Bar */}
             {hasChanges && (
-              <div className="p-4 bg-amber-50 border-t border-amber-200 flex items-center justify-between">
-                <span className="text-xs font-medium text-amber-900">
+              <div className="p-4 bg-mustard/10 border-t border-mustard/30 flex items-center justify-between">
+                <span className="text-xs font-medium text-ink-900">
                   You have unsaved changes to team strengths.
                 </span>
                 <div className="flex items-center space-x-3">
@@ -224,7 +230,7 @@ export default function ManageLeadersStrength() {
                       setStrengths(getStoredTeamStrengths());
                       setHasChanges(false);
                     }}
-                    className="text-xs text-amber-800 hover:underline font-medium"
+                    className="text-xs text-ink-700 hover:underline font-medium"
                   >
                     Discard
                   </button>
@@ -239,6 +245,33 @@ export default function ManageLeadersStrength() {
             )}
           </div>
         </div>
+
+        <GenericModal
+          isOpen={isResetConfirmOpen}
+          onClose={() => setIsResetConfirmOpen(false)}
+          title="Reset Team Strengths"
+          size="small"
+        >
+          <p className="text-sm text-ink-700">
+            Are you sure you want to reset all team strengths to their factory default values?
+          </p>
+          <div className="flex justify-end gap-2 pt-3">
+            <button
+              type="button"
+              onClick={() => setIsResetConfirmOpen(false)}
+              className="px-4 py-2 text-sm font-medium text-ink-700 bg-white border border-ink-300 rounded-lg hover:bg-cream"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={confirmReset}
+              className="px-4 py-2 text-sm font-medium text-white bg-brick rounded-lg hover:bg-brick/90"
+            >
+              Reset Defaults
+            </button>
+          </div>
+        </GenericModal>
       </Layout>
     </div>
   );

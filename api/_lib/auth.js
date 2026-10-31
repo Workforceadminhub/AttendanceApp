@@ -5,7 +5,20 @@
  * authorizes Super Admins from the verified token claims, or an
  * allowlisted login code (excluding Church Admins).
  */
-import { createHash } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
+
+/**
+ * Constant-time secret comparison using SHA-256 digests so neither timing
+ * nor secret length is leaked.
+ */
+export function safeCompareSecrets(provided, expected) {
+  if (typeof provided !== "string" || typeof expected !== "string" || !provided || !expected) {
+    return false;
+  }
+  const hashA = createHash("sha256").update(provided, "utf8").digest();
+  const hashB = createHash("sha256").update(expected, "utf8").digest();
+  return timingSafeEqual(hashA, hashB);
+}
 
 const BACKEND_API_URL =
   process.env.BACKEND_API_URL || process.env.REACT_APP_BASE_URL || "";
@@ -77,7 +90,7 @@ export function decodeJwt(authHeader) {
   }
 }
 
-function isSuperAdminFromClaims(claims) {
+export function isSuperAdminFromClaims(claims) {
   if (!claims) return false;
   const dept = String(claims.department || "").trim().toLowerCase();
   const role = String(claims.role || "").trim().toLowerCase().replace(/[_\s]+/g, "-");
@@ -85,8 +98,33 @@ function isSuperAdminFromClaims(claims) {
   return (
     dept === "super admin" ||
     role === "super-admin" ||
+    role === "superadmin" ||
     plvl === "SUPER_ADMIN"
   );
+}
+
+export async function authorizeSuperAdmin(authHeader) {
+  if (!authHeader || !/^Bearer\s+.+/i.test(authHeader)) {
+    return { ok: false, status: 401, reason: "missing_bearer_token" };
+  }
+  if (!BACKEND_API_URL) {
+    return { ok: false, status: 500, reason: "backend_url_not_configured" };
+  }
+
+  const status = await verifyStatus(authHeader, ADMIN_VERIFY_PATH);
+  if (status === 0) {
+    return { ok: false, status: 500, reason: "auth_verification_failed" };
+  }
+  if (status !== 200) {
+    return { ok: false, status: 401, reason: `token_rejected (${status})` };
+  }
+
+  const claims = decodeJwt(authHeader);
+  if (isSuperAdminFromClaims(claims)) {
+    return { ok: true, claims };
+  }
+
+  return { ok: false, status: 403, reason: "super_admin_required" };
 }
 
 function isChurchAdminFromClaims(claims) {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useDeferredValue } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { loadExcelJS } from "../../utils/loadExcelJS";
 import { saveAs } from "file-saver";
@@ -11,6 +11,7 @@ import Button from "../ui/Button";
 import { getMeetingRegistrations } from "../../services/meeting";
 import { getUserRole } from "../../utils/getUserRole";
 import { getUser } from "../../utils/getUser";
+import { getPostLoginPath } from "../../utils/routeObject";
 import { teamsAndDepartments, getDistrictClusterName } from "../../utils/teams";
 import { getAllMeetings, formatMeetingDisplayDate } from "../../utils/meetingConfig";
 import { isMeetingDate } from "../../utils/meetingLinks";
@@ -155,6 +156,7 @@ export default function MeetingReport({ meetingType, metric }) {
 
   const { isSuperAdmin, isChurchAdmin, isTeamAdmin } = getUserRole();
   const authUser = getUser();
+  const isAuthorized = Boolean(authUser && (isSuperAdmin || isChurchAdmin || isTeamAdmin));
   const myTeam =
     isTeamAdmin && !isSuperAdmin && !isChurchAdmin
       ? typeof authUser?.team === "string"
@@ -163,17 +165,18 @@ export default function MeetingReport({ meetingType, metric }) {
       : null;
 
   useEffect(() => {
-    if (!isSuperAdmin && !isChurchAdmin && !isTeamAdmin) {
+    if (!isAuthorized) {
       toast.error("You do not have permission to view this page.");
-      navigate("/login", { replace: true });
+      navigate(getPostLoginPath(authUser), { replace: true });
     }
-  }, [navigate, isSuperAdmin, isChurchAdmin, isTeamAdmin]);
+  }, [navigate, isAuthorized, authUser]);
 
   const loading =
     !loaded || loaded.meetingDate !== meetingDate || loaded.reloadKey !== reloadKey || loaded.meetingType !== meetingType;
   const loadError = !loading ? loaded.error : null;
 
   useEffect(() => {
+    if (!isAuthorized) return undefined;
     let active = true;
     getMeetingRegistrations(meetingDate, "all", meetingType)
       .then((res) => {
@@ -206,7 +209,7 @@ export default function MeetingReport({ meetingType, metric }) {
     return () => {
       active = false;
     };
-  }, [meetingDate, reloadKey, meetingType]);
+  }, [meetingDate, reloadKey, meetingType, isAuthorized]);
 
   const registrations = !loading && !loadError ? loaded.registrations : EMPTY;
 
@@ -782,6 +785,10 @@ export default function MeetingReport({ meetingType, metric }) {
     ) : (
       <Tag tone="warning">No Response</Tag>
     );
+
+  if (!isAuthorized) {
+    return <Navigate to={getPostLoginPath(authUser)} replace />;
+  }
 
   return (
     <div className="min-h-screen bg-cream">

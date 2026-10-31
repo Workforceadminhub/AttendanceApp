@@ -12,6 +12,7 @@
  * Env: EMAIL_WEBHOOK_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
  */
 import { insertRows, supabaseConfigured } from "./_lib/supabase.js";
+import { safeCompareSecrets } from "./_lib/auth.js";
 
 function pick(obj, ...keys) {
   for (const k of keys) {
@@ -71,13 +72,6 @@ function normalize(payload) {
   return null;
 }
 
-function safeEqual(a, b) {
-  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
-
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -90,7 +84,7 @@ export default async function handler(req, res) {
   }
   const provided =
     (req.query && (req.query.token || req.query.secret)) || req.headers["x-webhook-secret"];
-  if (!safeEqual(String(provided || ""), secret)) {
+  if (!safeCompareSecrets(String(provided || ""), secret)) {
     return res.status(401).json({ error: "Unauthorized." });
   }
 

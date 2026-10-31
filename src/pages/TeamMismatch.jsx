@@ -1,7 +1,8 @@
 import { fetchAllSuperAdminWorkers } from "../services/workers";
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
+import GenericModal from "../components/GenericModal";
 import { toast } from "react-toastify";
 import LoadingState from "../components/LoadingState";
 import { 
@@ -14,6 +15,7 @@ import {
 import { teamsAndDepartments, normalizeWorkerRole } from "../utils/teams";
 import apiRequest from "../utils/apiClient";
 import { getUserRole } from "../utils/getUserRole";
+import { getPostLoginPath } from "../utils/routeObject";
 
 /**
  * Normalize a department name so API variants like "Pastoral leader"
@@ -46,6 +48,7 @@ export default function TeamMismatch() {
  const [mismatchedWorkers, setMismatchedWorkers] = useState([]);
  const [isLoading, setIsLoading] = useState(false);
  const [isFixing, setIsFixing] = useState(false);
+ const [isConfirmBulkOpen, setIsConfirmBulkOpen] = useState(false);
  const [selectedWorkers, setSelectedWorkers] = useState(new Set());
  const [isSelectAll, setIsSelectAll] = useState(false);
 
@@ -64,18 +67,19 @@ export default function TeamMismatch() {
  direction: "asc",
  });
 
- // Check if user is super admin
- useEffect(() => {
-    const { isSuperAdmin, user } = getUserRole();
+  const { isSuperAdmin, user } = getUserRole();
+
+  // Check if user is super admin
+  useEffect(() => {
     if (!user || !isSuperAdmin) {
       toast.error("Access denied. Super Admin access required.");
-      navigate("/login");
-      return;
+      navigate(getPostLoginPath(user), { replace: true });
     }
-  }, [navigate]);
+  }, [isSuperAdmin, navigate, user]);
 
  // Fetch all workers and filter mismatched ones
  const fetchAllWorkers = async () => {
+ if (!isSuperAdmin) return;
  setIsLoading(true);
  try {
  const workersData = await fetchAllSuperAdminWorkers();
@@ -95,8 +99,10 @@ export default function TeamMismatch() {
  };
 
  useEffect(() => {
+ if (!isSuperAdmin) return;
  fetchAllWorkers();
- }, []);
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [isSuperAdmin]);
 
  // Fix a single worker's team
  const fixWorkerTeam = async (worker) => {
@@ -123,40 +129,47 @@ export default function TeamMismatch() {
  }
  };
 
- // Bulk fix selected workers
- const bulkFixWorkers = async () => {
+ // Bulk fix selected workers with bounded concurrency (BATCH_SIZE = 5)
+ const requestBulkFixWorkers = () => {
  if (selectedWorkers.size === 0) {
  toast.error("No workers selected");
  return;
  }
+ setIsConfirmBulkOpen(true);
+ };
 
- const confirmMessage = `Are you sure you want to fix the team assignment for ${selectedWorkers.size} worker(s)?`;
- if (!window.confirm(confirmMessage)) return;
+ const bulkFixWorkers = async () => {
+ setIsConfirmBulkOpen(false);
+ if (selectedWorkers.size === 0) return;
 
  setIsFixing(true);
  try {
  let successCount = 0;
  let errorCount = 0;
+ const BATCH_SIZE = 5;
+ const workerIds = Array.from(selectedWorkers);
+ const tasks = [];
 
- for (const workerId of selectedWorkers) {
- const worker = mismatchedWorkers.find(w => w.id === workerId);
+ for (const workerId of workerIds) {
+ const worker = mismatchedWorkers.find((w) => w.id === workerId);
  if (!worker) continue;
-
  const suggestedTeam = getSuggestedTeam(worker.department);
  if (!suggestedTeam) {
  errorCount++;
  continue;
  }
-
- try {
- await apiRequest("PUT", "/api/super/admin/workers", {
- id: parseInt(workerId),
- team: suggestedTeam,
- });
- successCount++;
- } catch (error) {
- errorCount++;
+ tasks.push({ id: parseInt(workerId, 10), team: suggestedTeam });
  }
+
+ for (let i = 0; i < tasks.length; i += BATCH_SIZE) {
+ const batch = tasks.slice(i, i + BATCH_SIZE);
+ const results = await Promise.allSettled(
+ batch.map((payload) => apiRequest("PUT", "/api/super/admin/workers", payload))
+ );
+ results.forEach((res) => {
+ if (res.status === "fulfilled") successCount++;
+ else errorCount++;
+ });
  }
 
  if (successCount > 0) {
@@ -310,6 +323,10 @@ export default function TeamMismatch() {
  return filtered;
  }, [mismatchedWorkers, columnFilters, sortConfig]);
 
+ if (!user || !isSuperAdmin) {
+ return <Navigate to={getPostLoginPath(user)} replace />;
+ }
+
  return (
  <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
  <Layout>
@@ -381,7 +398,7 @@ export default function TeamMismatch() {
  </button>
  </div>
  <button
- onClick={bulkFixWorkers}
+ onClick={requestBulkFixWorkers}
  disabled={isFixing}
  className="bg-forest px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-forest/80 disabled:opacity-50 disabled:cursor-not-allowed"
  >
@@ -630,6 +647,35 @@ export default function TeamMismatch() {
  </div>
  )}
  </div>
+
+ <GenericModal
+ isOpen={isConfirmBulkOpen}
+ onClose={() => setIsConfirmBulkOpen(false)}
+ title="Confirm Bulk Team Fix"
+ size="small"
+ >
+ <p className="text-sm text-ink-700">
+ Are you sure you want to update the team assignment for{" "}
+ <span className="font-semibold text-ink-900">{selectedWorkers.size}</span> selected worker(s)?
+ </p>
+ <div className="flex justify-end gap-2 pt-3">
+ <button
+ type="button"
+ onClick={() => setIsConfirmBulkOpen(false)}
+ className="px-4 py-2 text-sm font-medium text-ink-700 bg-white border border-ink-300 rounded-lg hover:bg-cream"
+ >
+ Cancel
+ </button>
+ <button
+ type="button"
+ onClick={bulkFixWorkers}
+ disabled={isFixing}
+ className="px-4 py-2 text-sm font-medium text-white bg-forest rounded-lg hover:bg-forest/80 disabled:opacity-50"
+ >
+ {isFixing ? "Fixing..." : "Confirm Fix"}
+ </button>
+ </div>
+ </GenericModal>
  </Layout>
  </div>
  );

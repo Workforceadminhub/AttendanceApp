@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback, Fragment } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import Select from "react-select";
 import Layout from "../components/Layout";
 import GenericModal from "../components/GenericModal";
@@ -19,6 +19,7 @@ import { fetchDepartments } from "../services/departments";
 import { fetchHubTeams } from "../services/hub/teams";
 import {
  getEffectiveRouteList,
+ getPostLoginPath,
  getTeamForDepartment,
  resolveAdminRoute,
  registerAdminRoute,
@@ -40,9 +41,9 @@ const selectStyles = {
  control: (base, state) => ({
  ...base,
  borderRadius: "0.375rem",
- borderColor: state.isFocused ? "#3b82f6" : "#d1d5db",
- boxShadow: state.isFocused ? "0 0 0 1px #3b82f6" : "none",
- "&:hover": { borderColor: state.isFocused ? "#3b82f6" : "#9ca3af" },
+ borderColor: state.isFocused ? "#141413" : "#D4CFC4",
+ boxShadow: state.isFocused ? "0 0 0 1px #141413" : "none",
+ "&:hover": { borderColor: state.isFocused ? "#141413" : "#A8A297" },
  minHeight: "38px",
  fontSize: "0.875rem",
  }),
@@ -56,14 +57,14 @@ const selectStyles = {
  menuList: (base) => ({ ...base, maxHeight: "180px", padding: "4px" }),
  option: (base, { isFocused, isSelected }) => ({
  ...base,
- backgroundColor: isSelected ? "#3b82f6" : isFocused ? "#eff6ff" : "white",
- color: isSelected ? "white" : "#111827",
+ backgroundColor: isSelected ? "#141413" : isFocused ? "#F5F3EE" : "white",
+ color: isSelected ? "white" : "#141413",
  borderRadius: "0.25rem",
  cursor: "pointer",
  fontSize: "0.875rem",
  }),
- singleValue: (base) => ({ ...base, fontSize: "0.875rem" }),
- placeholder: (base) => ({ ...base, fontSize: "0.875rem", color: "#9ca3af" }),
+ singleValue: (base) => ({ ...base, fontSize: "0.875rem", color: "#141413" }),
+ placeholder: (base) => ({ ...base, fontSize: "0.875rem", color: "#8A8479" }),
 };
 
 const ROLE_OPTIONS = [
@@ -220,20 +221,20 @@ export default function ManageAdmins() {
     [activeDeptAndTeamNames]
   );
 
+  const { isSuperAdmin, user } = getUserRole();
+
   // Check if user is super admin
   useEffect(() => {
-    const { isSuperAdmin, user } = getUserRole();
     if (!user || !isSuperAdmin) {
       toast.error("Access denied. Super Admin access required.");
-      navigate("/login");
-      return;
+      navigate(getPostLoginPath(user), { replace: true });
     }
-  }, [navigate]);
+  }, [isSuperAdmin, navigate, user]);
 
  // Fetch admins and departments
  const loadingRef = useRef(false);
  const loadAdmins = useCallback(async () => {
- if (loadingRef.current) return;
+ if (!isSuperAdmin || loadingRef.current) return;
  loadingRef.current = true;
  setIsLoading(true);
  try {
@@ -245,9 +246,10 @@ export default function ManageAdmins() {
  loadingRef.current = false;
  setIsLoading(false);
  }
- }, []);
+ }, [isSuperAdmin]);
 
  const loadDepartments = useCallback(async () => {
+ if (!isSuperAdmin) return;
  try {
  const [data, teams] = await Promise.all([
  fetchDepartments(),
@@ -258,14 +260,18 @@ export default function ManageAdmins() {
  } catch {
  // Silent fail - departments/teams are for dropdown options
  }
- }, []);
+ }, [isSuperAdmin]);
 
  useEffect(() => {
- if (hasFetched.current) return;
+ if (!isSuperAdmin || hasFetched.current) return;
  hasFetched.current = true;
  void loadAdmins();
  void loadDepartments();
- }, [loadAdmins, loadDepartments]);
+ }, [isSuperAdmin, loadAdmins, loadDepartments]);
+
+ if (!user || !isSuperAdmin) {
+ return <Navigate to={getPostLoginPath(user)} replace />;
+ }
 
  // Form handlers
  const handleInputChange = (e) => {

@@ -1,4 +1,5 @@
-const TEAM_STRENGTH_STORAGE_KEY = "harvesters_team_strengths_config";
+export const TEAM_STRENGTH_STORAGE_KEY = "harvesters_team_strengths_config";
+export const TEAM_STRENGTH_UPDATED_EVENT = "harvesters:team-strengths-updated";
 
 export const DEFAULT_TEAM_STRENGTH = {
   "Programs": 168,
@@ -54,6 +55,9 @@ export function getStoredTeamStrengths() {
 export function saveStoredTeamStrengths(strengths) {
   try {
     localStorage.setItem(TEAM_STRENGTH_STORAGE_KEY, JSON.stringify(strengths));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent(TEAM_STRENGTH_UPDATED_EVENT, { detail: strengths }));
+    }
   } catch (err) {
     console.error("Failed to save team strengths to storage:", err);
   }

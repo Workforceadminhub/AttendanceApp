@@ -2,8 +2,8 @@
  * Shared authorization for the email functions. Import-only (_lib is not a route).
  *
  * Confirms the caller's token is genuine (by replaying it to the backend), then
- * authorizes Super Admins / Church Admins from the verified token claims, or an
- * allowlisted login code.
+ * authorizes Super Admins from the verified token claims, or an
+ * allowlisted login code (excluding Church Admins).
  */
 import { createHash } from "node:crypto";
 
@@ -77,17 +77,26 @@ export function decodeJwt(authHeader) {
   }
 }
 
-function isAdminFromClaims(claims) {
+function isSuperAdminFromClaims(claims) {
   if (!claims) return false;
   const dept = String(claims.department || "").trim().toLowerCase();
   const role = String(claims.role || "").trim().toLowerCase().replace(/[_\s]+/g, "-");
   const plvl = String(claims.permissionLevel || "").trim().toUpperCase();
   return (
     dept === "super admin" ||
-    dept === "church admin" ||
     role === "super-admin" ||
+    plvl === "SUPER_ADMIN"
+  );
+}
+
+function isChurchAdminFromClaims(claims) {
+  if (!claims) return false;
+  const dept = String(claims.department || "").trim().toLowerCase();
+  const role = String(claims.role || "").trim().toLowerCase().replace(/[_\s]+/g, "-");
+  const plvl = String(claims.permissionLevel || "").trim().toUpperCase();
+  return (
+    dept === "church admin" ||
     role === "church-admin" ||
-    plvl === "SUPER_ADMIN" ||
     plvl === "CHURCH_ADMIN"
   );
 }
@@ -127,7 +136,10 @@ export async function authorize(authHeader) {
 
   const claims = decodeJwt(authHeader);
   const code = codeFromClaims(claims);
-  if (isAdminFromClaims(claims)) return { ok: true, code };
+  if (isSuperAdminFromClaims(claims)) return { ok: true, code };
+  if (isChurchAdminFromClaims(claims)) {
+    return { ok: false, status: 403, reason: "not_authorized" };
+  }
   if (code && ALLOWLIST.includes(code)) return { ok: true, code };
 
   return { ok: false, status: 403, reason: "not_authorized" };

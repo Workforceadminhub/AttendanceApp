@@ -275,7 +275,7 @@ export default function Header() {
   const summaryDropdownItems = [
     { name: "Summary Overview", href: summaryHref },
     ...(isSuperAdmin ? [{ name: "Departments", href: "/manage-departments" }] : []),
-    ...(isSuperAdmin ? [{ name: "Reports & Analytics", href: "/report" }] : []),
+    ...(isSuperAdmin || isChurchAdminRole ? [{ name: "Reports & Analytics", href: "/report" }] : []),
   ];
 
   const workersDropdownItems = [
@@ -309,10 +309,10 @@ export default function Header() {
     ...(isSuperAdmin ? [{ name: "Meeting Settings", href: "/settings/meetings" }] : []),
     ...(isSuperAdmin ? [{ name: "Admins", href: "/manage-admins" }] : []),
     ...(isSuperAdmin ? [{ name: "Bulk SMS", href: "/bulk-sms" }] : []),
-    ...(isSuperAdmin || isChurchAdminRole
+    ...(isSuperAdmin
       ? [{ name: "Audit Log", href: "/admin/audit-log" }]
       : []),
-    ...(canSendBulkEmail(authUser)
+    ...(!isChurchAdminRole && canSendBulkEmail(authUser)
       ? [
           { name: "Bulk Email", href: "/bulk-email" },
           { name: "Email Activity", href: "/bulk-email/report" },

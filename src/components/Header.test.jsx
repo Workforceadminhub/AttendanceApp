@@ -74,4 +74,44 @@ describe("Header mobile navigation", () => {
       screen.queryByRole("link", { name: /^All Workers$/i })
     ).not.toBeInTheDocument();
   });
+
+  it("shows Reports & Analytics and hides Audit Log, Bulk Email, and Email Activity for Church Admin", () => {
+    vi.mocked(getUser).mockReturnValue({
+      email: "churchadmin@hiccgbagada.com",
+      fullname: "Church Admin",
+      role: "church-admin",
+      department: "Church Admin",
+    });
+    vi.mocked(getUserRole).mockReturnValue({
+      isSuperAdmin: false,
+      isChurchAdmin: true,
+      isTeamAdmin: false,
+      isSubTeamAdmin: false,
+      isHOD: false,
+      isAdmin: true,
+    });
+
+    render(
+      <MemoryRouter>
+        <Header />
+      </MemoryRouter>
+    );
+
+    const menuBtn = screen.getByRole("button", { name: /open menu/i });
+    fireEvent.click(menuBtn);
+
+    expect(
+      screen.getByRole("link", { name: /^Reports & Analytics$/i })
+    ).toBeInTheDocument();
+
+    expect(
+      screen.queryByRole("link", { name: /^Audit Log$/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /^Bulk Email$/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /^Email Activity$/i })
+    ).not.toBeInTheDocument();
+  });
 });

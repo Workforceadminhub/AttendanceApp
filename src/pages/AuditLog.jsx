@@ -12,7 +12,7 @@ const FRIENDLY_MAP = {
 };
 
 export default function AuditLog() {
-  const { isSuperAdmin, isChurchAdmin } = getUserRole();
+  const { isSuperAdmin } = getUserRole();
   const [page, setPage] = useState(1);
   const [eventFilter, setEventFilter] = useState("");
   const [dateRange, setDateRange] = useState(() => {
@@ -26,6 +26,7 @@ export default function AuditLog() {
   const limit = 20;
 
   useEffect(() => {
+    if (!isSuperAdmin) return;
     fetchAuditLogs(1, 1000, {})
       .then((res) => {
         const list = Array.isArray(res?.data) ? res.data : [];
@@ -33,7 +34,7 @@ export default function AuditLog() {
         setDynamicEvents(unique);
       })
       .catch(() => {});
-  }, []);
+  }, [isSuperAdmin]);
 
   const eventOptions = useMemo(() => {
     const base = [
@@ -79,7 +80,7 @@ export default function AuditLog() {
  const { data, isLoading } = useQuery({
  queryKey: ["auditLogs", page, limit, filters],
  queryFn: () => fetchAuditLogs(page, limit, filters),
- enabled: isSuperAdmin || isChurchAdmin,
+ enabled: isSuperAdmin,
  });
 
  const logs = Array.isArray(data?.data) ? data.data : [];
@@ -92,7 +93,7 @@ export default function AuditLog() {
  };
 
  // Access check
- if (!isSuperAdmin && !isChurchAdmin) {
+ if (!isSuperAdmin) {
  return (
  <div className="min-h-screen bg-cream">
  <Layout>

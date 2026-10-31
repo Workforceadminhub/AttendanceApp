@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { Navigate, useNavigate, useParams, useLocation } from "react-router-dom";
 import Layout from "../components/Layout";
 import LoadingState from "../components/LoadingState";
 import { toast } from "react-toastify";
@@ -10,7 +10,7 @@ import {
 } from "../utils/teams";
 import BirthDatePicker from "../components/BirthDatePicker";
 import { getUserRole } from "../utils/getUserRole";
-import { getDepartmentRoute, getEffectiveRouteList } from "../utils/routeObject";
+import { getDepartmentRoute, getEffectiveRouteList, getPostLoginPath } from "../utils/routeObject";
 import { resolveWorkerForEditing } from "../services/workerEditAccess";
 import { fetchTeamsAndDepartmentsForFilter } from "../services/departments";
 import apiRequest from "../utils/apiClient";
@@ -39,11 +39,12 @@ export default function ViewWorker() {
  const [teamOptions, setTeamOptions] = useState([]);
  const [departmentOptions, setDepartmentOptions] = useState([]);
 
- const { isSuperAdmin, isChurchAdmin, isHOD, isTeamAdmin, isSubTeamAdmin } = getUserRole();
+ const { isSuperAdmin, isChurchAdmin, isHOD, isTeamAdmin, isSubTeamAdmin, user: authUser } = getUserRole();
 
  // Check if user can edit workers (Super Admin, Church Admin, HOD, Team Admin, Sub Team Admin)
- const canEditWorkers =
- isSuperAdmin || isChurchAdmin || isHOD || isTeamAdmin || isSubTeamAdmin;
+ const canEditWorkers = Boolean(
+ isSuperAdmin || isChurchAdmin || isHOD || isTeamAdmin || isSubTeamAdmin
+ );
 
  const resolvedWorkerId = worker?.id ?? worker?.worker_id ?? worker?.workerId ?? worker?.workerid;
  const workerAccessVerified = Boolean(
@@ -83,12 +84,13 @@ export default function ViewWorker() {
  useEffect(() => {
  if (!canEditWorkers) {
  toast.error("Access denied. You do not have permission to edit workers.");
- navigate("/login");
+ navigate(getPostLoginPath(authUser), { replace: true });
  return;
  }
- }, [canEditWorkers, navigate]);
+ }, [canEditWorkers, navigate, authUser]);
 
  useEffect(() => {
+ if (!canEditWorkers) return undefined;
  let mounted = true;
  fetchTeamsAndDepartmentsForFilter().then((data) => {
  if (!mounted) return;
@@ -102,7 +104,7 @@ export default function ViewWorker() {
  return () => {
  mounted = false;
  };
- }, []);
+ }, [canEditWorkers]);
 
  useEffect(() => {
  const team = editedWorker.team;
@@ -150,6 +152,7 @@ export default function ViewWorker() {
  );
 
  // Handle different possible response structures
+ if (!responseData) return;
  let workerData = responseData;
  if (responseData.data) {
  workerData = responseData.data;
@@ -178,10 +181,10 @@ export default function ViewWorker() {
   }
 };
 
-  if (workerId) {
+  if (workerId && canEditWorkers) {
     fetchWorkerDetails();
   }
-}, [workerId, navigate]);
+}, [workerId, navigate, canEditWorkers]);
 
 const getHODCancelPath = () => {
   const { isSuperAdmin, isChurchAdmin, user } = getUserRole();
@@ -210,6 +213,11 @@ const getHODCancelPath = () => {
 
  if (from === "team-mismatch") {
  navigate("/team-mismatch");
+ return;
+ }
+
+ if (from === "pastoral-fix") {
+ navigate("/pastoral-fix");
  return;
  }
 
@@ -341,6 +349,10 @@ const getHODCancelPath = () => {
  setHasChanges(checkForChanges(newEditedWorker));
  };
 
+
+  if (!canEditWorkers) {
+    return <Navigate to={getPostLoginPath(authUser)} replace />;
+  }
 
   if (isLoading) {
     return (

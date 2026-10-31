@@ -20,14 +20,33 @@ import { applyPageMeta, resolvePageMeta } from "../utils/pageMeta";
 
 /**
  * Lightweight browser audio feedback synthesized via Web Audio API.
- * Ensures zero asset load latency and offline reliability.
+ * Reuses a shared AudioContext so mobile browsers never hit the ~6-context hardware cap.
  */
+let sharedAudioContext = null;
+
+function getAudioContext() {
+  if (typeof window === "undefined") return null;
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return null;
+  if (!sharedAudioContext || sharedAudioContext.state === "closed") {
+    sharedAudioContext = new AudioContextClass();
+  }
+  return sharedAudioContext;
+}
+
+function isSafeInternalPath(path) {
+  return (
+    typeof path === "string" &&
+    /^\/(?!\/)/.test(path) &&
+    !/^\/[^/]*:/.test(path)
+  );
+}
+
 function playAudioFeedback(type = "success") {
   if (typeof window === "undefined") return;
   try {
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) return;
-    const ctx = new AudioContextClass();
+    const ctx = getAudioContext();
+    if (!ctx) return;
     if (ctx.state === "suspended") {
       ctx.resume().catch(() => {});
     }
@@ -36,6 +55,14 @@ function playAudioFeedback(type = "success") {
     const gain = ctx.createGain();
     osc.connect(gain);
     gain.connect(ctx.destination);
+    osc.onended = () => {
+      try {
+        osc.disconnect();
+        gain.disconnect();
+      } catch {
+        // ignore
+      }
+    };
 
     const now = ctx.currentTime;
     if (type === "success") {
@@ -99,8 +126,12 @@ export default function WorkersBallScanner() {
   );
   const isLoggedIn = Boolean(authUser);
 
+  const safeReturnFrom = isSafeInternalPath(location.state?.from)
+    ? location.state.from
+    : null;
+
   const backHref =
-    location.state?.from ||
+    safeReturnFrom ||
     (isSuperAdminOrChurchAdmin
       ? "/admin/workers-ball-registrations"
       : isLoggedIn
@@ -115,8 +146,8 @@ export default function WorkersBallScanner() {
 
   const handleBack = (e) => {
     e.preventDefault();
-    if (location.state?.from) {
-      navigate(location.state.from);
+    if (safeReturnFrom) {
+      navigate(safeReturnFrom);
       return;
     }
     if (

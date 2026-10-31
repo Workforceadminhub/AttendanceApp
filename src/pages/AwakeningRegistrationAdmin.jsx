@@ -20,7 +20,7 @@ import {
   AWAKENING_CELL_DESIGNATIONS,
 } from "../utils/schemas";
 import { getUserRole } from "../utils/getUserRole";
-import { getEffectiveRouteList } from "../utils/routeObject";
+import { getEffectiveRouteList, getPostLoginPath } from "../utils/routeObject";
 import { teams, workerRoles } from "../utils/teams";
 import { exportAwakeningWorkbook } from "../utils/exportAwakening";
 import {
@@ -538,7 +538,7 @@ export default function AwakeningRegistrationAdmin() {
 
   // Role guard - super-admin / church-admin only (canonical resolver), computed
   // synchronously so rendering and data effects can gate on it immediately.
-  const { isSuperAdmin, isChurchAdmin } = getUserRole();
+  const { isSuperAdmin, isChurchAdmin, user: authUser } = getUserRole();
   const hasAccess = isSuperAdmin || isChurchAdmin;
 
   const [registrations, setRegistrations] = useState([]);
@@ -546,9 +546,9 @@ export default function AwakeningRegistrationAdmin() {
   useEffect(() => {
     if (!hasAccess) {
       toast.error("Access denied.");
-      navigate("/login");
+      navigate(getPostLoginPath(authUser), { replace: true });
     }
-  }, [hasAccess, navigate]);
+  }, [hasAccess, navigate, authUser]);
 
   const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 1, hasNext: false, hasPrev: false });
   const [isLoading, setIsLoading] = useState(true);

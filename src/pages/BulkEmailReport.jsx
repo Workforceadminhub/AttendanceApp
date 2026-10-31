@@ -4,6 +4,8 @@ import Layout from "../components/Layout";
 import { Button, Card } from "../components/ui";
 import { fetchEmailReport } from "../services/email";
 import { canSendBulkEmail } from "../utils/bulkEmailAccess";
+import { getUser } from "../utils/getUser";
+import { getPostLoginPath } from "../utils/routeObject";
 
 const fmtDate = (iso) => {
   if (!iso) return "-";
@@ -23,7 +25,7 @@ const fmtDate = (iso) => {
 const pct = (n, d) => (d > 0 ? `${Math.round((n / d) * 100)}%` : "-");
 
 export default function BulkEmailReport() {
-  if (!canSendBulkEmail()) return <Navigate to="/" replace />;
+  if (!canSendBulkEmail()) return <Navigate to={getPostLoginPath(getUser())} replace />;
   return <Report />;
 }
 

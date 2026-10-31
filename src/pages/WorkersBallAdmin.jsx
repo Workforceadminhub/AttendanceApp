@@ -6,6 +6,7 @@ import Layout from "../components/Layout";
 import GenericModal from "../components/GenericModal";
 import { getUser } from "../utils/getUser";
 import { getUserRole } from "../utils/getUserRole";
+import { getPostLoginPath } from "../utils/routeObject";
 import { fetchWorkersBallRegistrations } from "../services/workersBall";
 import { exportWorkersBallWorkbook } from "../utils/exportWorkersBall";
 import {
@@ -130,7 +131,7 @@ export default function WorkersBallAdmin() {
   useEffect(() => {
     if (!hasAccess) {
       toast.error("Super admin access required.");
-      navigate("/attendance/dashboard");
+      navigate(getPostLoginPath(authUser), { replace: true });
       return;
     }
     let cancelled = false;
@@ -328,7 +329,7 @@ export default function WorkersBallAdmin() {
               registrations and attendance.
             </p>
             <Link
-              to="/attendance/dashboard"
+              to={getPostLoginPath(authUser)}
               className="inline-flex items-center gap-2 rounded-lg bg-ink px-4 py-2 text-sm font-medium text-cream"
             >
               <ArrowLeftIcon className="h-4 w-4" />

@@ -9,10 +9,13 @@ import {
   PhotoIcon,
 } from "@heroicons/react/24/outline";
 import Layout from "../components/Layout";
+import GenericModal from "../components/GenericModal";
 import { Button, Card } from "../components/ui";
 import { buildEmail } from "../emails/template";
 import { parseRecipients, sendBulkEmail, uploadEmailImage } from "../services/email";
 import { canSendBulkEmail } from "../utils/bulkEmailAccess";
+import { getUser } from "../utils/getUser";
+import { getPostLoginPath } from "../utils/routeObject";
 import { validateImageFile } from "../utils/validateImageFile";
 
 const PREVIEW_WIDTHS = { desktop: "100%", mobile: "375px" };
@@ -21,7 +24,7 @@ export default function BulkEmail() {
   // Block direct-URL access for users without Bulk Email permission.
   // (The serverless function also enforces this server-side.)
   if (!canSendBulkEmail()) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={getPostLoginPath(getUser())} replace />;
   }
   return <BulkEmailComposer />;
 }
@@ -38,6 +41,7 @@ function BulkEmailComposer() {
   const [provider, setProvider] = useState("zoho");
   const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [isConfirmSendOpen, setIsConfirmSendOpen] = useState(false);
   const bodyRef = useRef(null);
   const fileRef = useRef(null);
 
@@ -141,15 +145,14 @@ function BulkEmailComposer() {
     }
   }, [body]);
 
-  const handleSend = useCallback(async () => {
+  const handleSend = useCallback(() => {
     if (!subject.trim()) return toast.error("Add a subject line.");
     if (valid.length === 0) return toast.error("Add at least one valid recipient.");
+    setIsConfirmSendOpen(true);
+  }, [subject, valid.length]);
 
-    const ok = window.confirm(
-      `Send this email to ${valid.length} recipient${valid.length === 1 ? "" : "s"}?`
-    );
-    if (!ok) return;
-
+  const confirmSendEmail = useCallback(async () => {
+    setIsConfirmSendOpen(false);
     setSending(true);
     let pending = valid;
     let totalSent = 0;
@@ -385,6 +388,29 @@ function BulkEmailComposer() {
             </div>
           </div>
         </div>
+
+        <GenericModal
+          isOpen={isConfirmSendOpen}
+          onClose={() => setIsConfirmSendOpen(false)}
+          title="Confirm Bulk Email Send"
+          size="small"
+        >
+          <p className="text-sm text-ink-700">
+            Send <span className="font-semibold text-ink-900">{subject.trim()}</span> to{" "}
+            <span className="font-semibold text-ink-900">
+              {valid.length} recipient{valid.length === 1 ? "" : "s"}
+            </span>{" "}
+            via <span className="uppercase font-semibold">{provider}</span>?
+          </p>
+          <div className="flex justify-end gap-2 pt-3">
+            <Button variant="ghost" onClick={() => setIsConfirmSendOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmSendEmail} loading={sending} disabled={sending}>
+              Confirm Send
+            </Button>
+          </div>
+        </GenericModal>
       </Layout>
     </div>
   );

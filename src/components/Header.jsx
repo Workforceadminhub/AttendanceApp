@@ -146,7 +146,7 @@ export default function Header() {
   const [mobileOpenPath, setMobileOpenPath] = useState(null);
   const mobileOpen = mobileOpenPath === pathname;
   const setMobileOpen = (open) => setMobileOpenPath(open ? pathname : null);
-  const authUser = useMemo(() => getUser(), []);
+  const authUser = useMemo(() => getUser(), [pathname]);
   const navigate = useNavigate();
 
   // Fix: redirect side-effect must not run during render

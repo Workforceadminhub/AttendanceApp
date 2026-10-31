@@ -4,7 +4,7 @@ import { getUser } from "../utils/getUser";
 
 const PrivateRoute = ({ children }) => {
   const location = useLocation();
-  const authUser = useMemo(() => getUser(), []);
+  const authUser = useMemo(() => getUser(), [location.pathname, location.search]);
 
   if (!authUser) {
     return <Navigate to="/login" state={{ from: `${location.pathname}${location.search}${location.hash}` }} replace />;

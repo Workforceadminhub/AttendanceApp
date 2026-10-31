@@ -11,6 +11,7 @@ import {
   DevicePhoneMobileIcon,
 } from "@heroicons/react/24/outline";
 import Layout from "../components/Layout";
+import GenericModal from "../components/GenericModal";
 import { Button, Card } from "../components/ui";
 import {
   parsePhoneRecipients,
@@ -19,6 +20,8 @@ import {
   fetchSmsBalance,
 } from "../services/sms";
 import { canSendBulkSms } from "../utils/bulkSmsAccess";
+import { getUser } from "../utils/getUser";
+import { getPostLoginPath } from "../utils/routeObject";
 
 const PROVIDERS = [
   { id: "sendchamp", name: "Sendchamp" },
@@ -56,7 +59,7 @@ const TEMPLATES = [
 
 export default function BulkSms() {
   if (!canSendBulkSms()) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={getPostLoginPath(getUser())} replace />;
   }
   return <BulkSmsComposer />;
 }
@@ -68,6 +71,7 @@ function BulkSmsComposer() {
   const [recipientsRaw, setRecipientsRaw] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [isConfirmSendOpen, setIsConfirmSendOpen] = useState(false);
   const [sendResult, setSendResult] = useState(null);
 
   // Balance state
@@ -131,17 +135,11 @@ function BulkSmsComposer() {
       return toast.error("Please add at least one valid phone number.");
     }
 
-    const confirmMsg = `Send SMS to ${valid.length} recipient${
-      valid.length === 1 ? "" : "s"
-    }?\n\n` +
-      `• Sender: ${senderName.trim()}\n` +
-      `• Pages per recipient: ${smsMetrics.segments}\n` +
-      `• Total SMS pages: ${totalSmsUnits} (${valid.length} recipients × ${smsMetrics.segments} page${smsMetrics.segments === 1 ? "" : "s"})\n` +
-      `• Est. Cost: ~₦${estimatedTotalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n` +
-      `• Route: ${route}`;
+    setIsConfirmSendOpen(true);
+  };
 
-    if (!window.confirm(confirmMsg)) return;
-
+  const confirmSendSms = async () => {
+    setIsConfirmSendOpen(false);
     setSending(true);
     setSendResult(null);
 
@@ -598,6 +596,54 @@ function BulkSmsComposer() {
             </Card>
           </div>
         </div>
+
+        <GenericModal
+          isOpen={isConfirmSendOpen}
+          onClose={() => setIsConfirmSendOpen(false)}
+          title="Confirm Bulk SMS Dispatch"
+          size="small"
+        >
+          <div className="space-y-2 text-sm text-ink-700">
+            <p>
+              Send SMS to{" "}
+              <span className="font-semibold text-ink-900">
+                {valid.length} recipient{valid.length === 1 ? "" : "s"}
+              </span>
+              ?
+            </p>
+            <ul className="text-xs text-ink-600 space-y-1 bg-cream p-3 rounded-lg border border-ink-100">
+              <li>
+                <span className="font-semibold text-ink-800">Sender:</span> {senderName.trim()}
+              </li>
+              <li>
+                <span className="font-semibold text-ink-800">Pages per recipient:</span>{" "}
+                {smsMetrics.segments}
+              </li>
+              <li>
+                <span className="font-semibold text-ink-800">Total SMS pages:</span> {totalSmsUnits} (
+                {valid.length} × {smsMetrics.segments})
+              </li>
+              <li>
+                <span className="font-semibold text-ink-800">Est. Cost:</span> ~₦
+                {estimatedTotalCost.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </li>
+              <li>
+                <span className="font-semibold text-ink-800">Route:</span> {route}
+              </li>
+            </ul>
+          </div>
+          <div className="flex justify-end gap-2 pt-3">
+            <Button variant="ghost" onClick={() => setIsConfirmSendOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmSendSms} loading={sending} disabled={sending}>
+              Confirm Dispatch
+            </Button>
+          </div>
+        </GenericModal>
       </Layout>
     </div>
   );

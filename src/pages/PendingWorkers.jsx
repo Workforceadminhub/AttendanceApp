@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
 import { toast } from "react-toastify";
 import { fetchPendingAdd, fetchPendingRemove, fetchAllPending } from "../services/workers";
@@ -9,6 +9,7 @@ import GenericModal from "../components/GenericModal";
 import { saveAs } from "file-saver";
 import { loadExcelJS } from "../utils/loadExcelJS";
 import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
+import { getPostLoginPath } from "../utils/routeObject";
 import apiRequest from "../utils/apiClient";
 import { 
  CheckIcon, 
@@ -42,6 +43,8 @@ export default function PendingWorkers() {
  const [isProcessing, setIsProcessing] = useState(false);
  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
  const [bulkDeleteConfirmText, setBulkDeleteConfirmText] = useState("");
+ const [bulkApproveConfirmOpen, setBulkApproveConfirmOpen] = useState(false);
+ const [singleDeleteWorkerId, setSingleDeleteWorkerId] = useState(null);
  const activeTab = searchParams.get("tab") === "remove" ? "remove" : "add";
  const [selectedWorkers, setSelectedWorkers] = useState(new Set());
  const [isSelectAll, setIsSelectAll] = useState(false);
@@ -73,10 +76,10 @@ export default function PendingWorkers() {
  useEffect(() => {
  if (!canAccessPendingWorkers) {
  toast.error("Access denied. Admin access required.");
- navigate("/login");
+ navigate(getPostLoginPath(authUser), { replace: true });
  return;
  }
- }, [canAccessPendingWorkers, navigate]);
+ }, [canAccessPendingWorkers, navigate, authUser]);
 
  const filterByAccess = useCallback((workers) => {
  return workers.filter((w) => canAccessDepartment(w.department || w.department_name));
@@ -120,11 +123,15 @@ export default function PendingWorkers() {
  }, [queryClient, setSearchParams]);
 
  // Delete single worker (permanent)
- const deleteWorker = async (workerId) => {
- const confirmDelete = window.confirm(
- "⚠️ This will permanently delete this worker. This action cannot be undone.\n\nAre you sure you want to continue?"
- );
- if (!confirmDelete) return;
+ const deleteWorker = (workerId) => {
+ if (!workerId) return;
+ setSingleDeleteWorkerId(workerId);
+ };
+
+ const confirmSingleDeleteWorker = async () => {
+ const workerId = singleDeleteWorkerId;
+ if (!workerId) return;
+ setSingleDeleteWorkerId(null);
 
  setIsProcessing(true);
  try {
@@ -296,19 +303,27 @@ export default function PendingWorkers() {
  try {
  let successCount = 0;
  const failures = [];
+ const BATCH_SIZE = 5;
+ const workerIds = Array.from(selectedWorkers);
 
- // Sequential: the API handles one worker per request.
- for (const workerId of selectedWorkers) {
- try {
- await adminActionRequest(
- "DELETE",
- `/${workerId}/workers`,
- undefined
+ for (let i = 0; i < workerIds.length; i += BATCH_SIZE) {
+ const batch = workerIds.slice(i, i + BATCH_SIZE);
+ const results = await Promise.allSettled(
+ batch.map((workerId) =>
+ adminActionRequest("DELETE", `/${workerId}/workers`, undefined)
+ )
  );
+ results.forEach((res, idx) => {
+ const workerId = batch[idx];
+ if (res.status === "fulfilled") {
  successCount++;
- } catch (error) {
- failures.push({ label: workerLabel(workerId), error: error?.message || "Unknown error" });
+ } else {
+ failures.push({
+ label: workerLabel(workerId),
+ error: res.reason?.message || "Unknown error",
+ });
  }
+ });
  }
 
  if (successCount > 0) {
@@ -328,32 +343,43 @@ export default function PendingWorkers() {
  };
 
  // Bulk approve (calls approve function - changes status to active)
- const bulkApprove = async () => {
+ const bulkApprove = () => {
  if (selectedWorkers.size === 0) {
  toast.error("No workers selected");
  return;
  }
+ setBulkApproveConfirmOpen(true);
+ };
 
- const confirmMessage = `Are you sure you want to approve ${selectedWorkers.size} worker(s)? This will change their status to active.`;
- if (!window.confirm(confirmMessage)) return;
+ const confirmBulkApprove = async () => {
+ setBulkApproveConfirmOpen(false);
+ if (selectedWorkers.size === 0) return;
 
  setIsProcessing(true);
  try {
  let successCount = 0;
  const failures = [];
+ const BATCH_SIZE = 5;
+ const workerIds = Array.from(selectedWorkers);
 
- // Sequential: the API handles one worker per request.
- for (const workerId of selectedWorkers) {
- try {
- await adminActionRequest(
- "PUT",
- `/${workerId}/workers/approve`,
- undefined
+ for (let i = 0; i < workerIds.length; i += BATCH_SIZE) {
+ const batch = workerIds.slice(i, i + BATCH_SIZE);
+ const results = await Promise.allSettled(
+ batch.map((workerId) =>
+ adminActionRequest("PUT", `/${workerId}/workers/approve`, undefined)
+ )
  );
+ results.forEach((res, idx) => {
+ const workerId = batch[idx];
+ if (res.status === "fulfilled") {
  successCount++;
- } catch (error) {
- failures.push({ label: workerLabel(workerId), error: error?.message || "Unknown error" });
+ } else {
+ failures.push({
+ label: workerLabel(workerId),
+ error: res.reason?.message || "Unknown error",
+ });
  }
+ });
  }
 
  if (successCount > 0) {
@@ -503,7 +529,6 @@ export default function PendingWorkers() {
  return;
  }
 
- const authUser = JSON.parse(sessionStorage.getItem("authUser") || "null");
  const safe = (value) =>
  String(value || "department")
  .trim()
@@ -616,6 +641,10 @@ export default function PendingWorkers() {
  setIsExporting(false);
  }
  };
+
+ if (!canAccessPendingWorkers) {
+ return <Navigate to={getPostLoginPath(authUser)} replace />;
+ }
 
  return (
  <div className="min-h-screen bg-cream">
@@ -1057,6 +1086,68 @@ export default function PendingWorkers() {
  onClick={confirmBulkDelete}
  >
  Delete {selectedWorkers.size} worker(s)
+ </button>
+ </div>
+ </GenericModal>
+
+ <GenericModal
+ isOpen={bulkApproveConfirmOpen}
+ onClose={() => setBulkApproveConfirmOpen(false)}
+ title="Approve pending workers"
+ size="small"
+ >
+ <p className="text-sm text-ink-600">
+ Are you sure you want to approve{" "}
+ <span className="font-semibold text-ink-900">{selectedWorkers.size}</span> worker(s)? This will
+ change their status to active.
+ </p>
+ <div className="flex flex-col-reverse gap-3 border-t border-ink-200 pt-4 sm:flex-row sm:justify-end">
+ <button
+ type="button"
+ className="qc-btn-secondary sm:min-w-24"
+ onClick={() => setBulkApproveConfirmOpen(false)}
+ >
+ Cancel
+ </button>
+ <button
+ type="button"
+ className="bg-forest px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-forest/80 disabled:opacity-50"
+ disabled={isProcessing}
+ onClick={confirmBulkApprove}
+ >
+ Approve {selectedWorkers.size} worker(s)
+ </button>
+ </div>
+ </GenericModal>
+
+ <GenericModal
+ isOpen={Boolean(singleDeleteWorkerId)}
+ onClose={() => setSingleDeleteWorkerId(null)}
+ title="Permanently delete worker"
+ size="small"
+ >
+ <p className="text-sm text-ink-600">
+ This will permanently delete{" "}
+ <span className="font-semibold text-ink-900">
+ {singleDeleteWorkerId ? workerLabel(singleDeleteWorkerId) : "this worker"}
+ </span>
+ . This action cannot be undone.
+ </p>
+ <div className="flex flex-col-reverse gap-3 border-t border-ink-200 pt-4 sm:flex-row sm:justify-end">
+ <button
+ type="button"
+ className="qc-btn-secondary sm:min-w-24"
+ onClick={() => setSingleDeleteWorkerId(null)}
+ >
+ Cancel
+ </button>
+ <button
+ type="button"
+ className="qc-btn-danger sm:min-w-32"
+ disabled={isProcessing}
+ onClick={confirmSingleDeleteWorker}
+ >
+ Delete Worker
  </button>
  </div>
  </GenericModal>

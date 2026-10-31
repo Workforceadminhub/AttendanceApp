@@ -58,9 +58,19 @@ export default async function handler(req, res) {
     message,
     recipients,
     sender_name = "Sendchamp",
-    route = "non_dnd",
-    provider = "sendchamp",
+    route: rawRoute = "non_dnd",
+    provider: rawProvider = "sendchamp",
   } = body || {};
+
+  const provider = String(rawProvider || "sendchamp").trim().toLowerCase();
+  if (provider !== "sendchamp" && provider !== "smartsmssolutions") {
+    return res.status(400).json({ error: `Unknown SMS provider "${provider}".` });
+  }
+
+  const route = String(rawRoute || "non_dnd").trim().toLowerCase();
+  if (route !== "non_dnd" && route !== "dnd" && route !== "international") {
+    return res.status(400).json({ error: `Invalid SMS route "${route}".` });
+  }
 
   if (!message || !String(message).trim()) {
     return res.status(400).json({ error: "Message content is required." });

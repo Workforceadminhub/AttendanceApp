@@ -87,7 +87,8 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Supabase is not configured." });
   }
 
-  const limit = Math.min(Number(req.query?.limit) || 100, 500);
+  const parsedLimit = Math.floor(Number(req.query?.limit));
+  const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 500) : 100;
 
   try {
     const sends = await selectRows(

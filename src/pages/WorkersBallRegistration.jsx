@@ -15,6 +15,7 @@ import {
 } from "@heroicons/react/24/outline";
 import SuccessMark from "../components/ui/SuccessMark";
 import { downloadWorkersBallPassPng } from "../utils/workersBallPass";
+import { applyPageMeta, resolvePageMeta } from "../utils/pageMeta";
 import {
   confirmWorkersBallRegistration,
   decodeQrCodeDataUrl,
@@ -1246,10 +1247,9 @@ export default function WorkersBallRegistration() {
     department: selectedWorker?.department || "",
   };
 
-  // Set dynamic browser tab title based on registration stage
+  // Set dynamic browser tab title and OG metadata based on registration stage
   useEffect(() => {
     if (typeof document === "undefined") return;
-    const prevTitle = document.title;
     let title = "Workers Ball 2026 · Harvesters Gbagada";
     if (stage === "confirmed") {
       title = profileForm.firstName
@@ -1260,10 +1260,8 @@ export default function WorkersBallRegistration() {
     } else if (stage === "verifyOtp" || stage === "sendingOtp") {
       title = "Verify Identity · Workers Ball 2026";
     }
-    document.title = title;
-    return () => {
-      document.title = prevTitle;
-    };
+    const baseMeta = resolvePageMeta("/wb26");
+    applyPageMeta({ ...baseMeta, title, ogTitle: title }, "/wb26");
   }, [stage, profileForm.firstName]);
 
   // Initialize post-interaction validation fallback on forms

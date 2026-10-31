@@ -14,6 +14,7 @@ import { DepartmentsProvider, useDepartmentRoutes } from "./contexts/Departments
 import { RBACProvider } from "./contexts/RBACContext";
 import HubRoute from "./components/auth/HubRoute";
 import AppShell from "./components/AppShell";
+import PageMeta from "./components/PageMeta";
 
 // Code-split heavy pages - keeps initial bundle small
 const Dashboard = lazy(() => import("./components/Workers/Dashboard"));
@@ -831,6 +832,7 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <PageMeta />
         <RBACProvider>
           <DepartmentsProvider>
             <SkeletonTheme baseColor="#e5e5e5" highlightColor="#d6d4d4">

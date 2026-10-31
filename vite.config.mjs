@@ -1,10 +1,44 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import { readFile, rm } from "node:fs/promises";
-import { resolve } from "node:path";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import { STATIC_ROUTE_META, renderMetaIntoHtml } from "./src/utils/pageMeta.js";
 
 const AUDIT_ROLES = new Set(["church-admin", "super-admin", "hod"]);
+
+/**
+ * Emit route-specific `build/<route>/index.html` files with baked-in `<title>`,
+ * description, theme-color, Open Graph, and Twitter Card metadata so social
+ * link crawlers (WhatsApp, X/Twitter, Facebook, iMessage) receive per-page
+ * previews without executing client-side JavaScript.
+ */
+function routeMetaHtmlPlugin() {
+  return {
+    name: "route-meta-static-html",
+    apply: "build",
+    async closeBundle() {
+      const outDir = resolve(process.cwd(), "build");
+      const rootHtmlPath = resolve(outDir, "index.html");
+      let template;
+      try {
+        template = await readFile(rootHtmlPath, "utf8");
+      } catch {
+        return;
+      }
+
+      for (const routePath of Object.keys(STATIC_ROUTE_META)) {
+        if (!routePath || routePath === "/") continue;
+        const cleanRoute = routePath.replace(/^\/+/, "").replace(/\/+$/, "");
+        if (!cleanRoute) continue;
+        const targetPath = resolve(outDir, cleanRoute, "index.html");
+        const rendered = renderMetaIntoHtml(template, routePath);
+        await mkdir(dirname(targetPath), { recursive: true });
+        await writeFile(targetPath, rendered, "utf8");
+      }
+    },
+  };
+}
 
 function oneTimeAuditSessionPlugin() {
   return {
@@ -55,7 +89,7 @@ export default defineConfig(({ mode }) => {
   };
 
   return {
-    plugins: [react(), tailwindcss(), oneTimeAuditSessionPlugin()],
+    plugins: [react(), tailwindcss(), oneTimeAuditSessionPlugin(), routeMetaHtmlPlugin()],
     define: Object.fromEntries(
       Object.entries(clientEnv).map(([key, value]) => [
         `process.env.${key}`,

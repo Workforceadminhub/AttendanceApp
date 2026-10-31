@@ -16,6 +16,7 @@ import {
 import { scanWorkersBallPass } from "../services/workersBall";
 import { getUser } from "../utils/getUser";
 import { getUserRole } from "../utils/getUserRole";
+import { applyPageMeta, resolvePageMeta } from "../utils/pageMeta";
 
 /**
  * Lightweight browser audio feedback synthesized via Web Audio API.
@@ -145,14 +146,10 @@ export default function WorkersBallScanner() {
   // Session history list
   const [history, setHistory] = useState([]);
 
-  // Browser tab title for accreditation desk
+  // Browser tab title and OG metadata for accreditation desk
   useEffect(() => {
     if (typeof document === "undefined") return;
-    const prevTitle = document.title;
-    document.title = "Accreditation Scanner · Workers Ball 2026";
-    return () => {
-      document.title = prevTitle;
-    };
+    applyPageMeta(resolvePageMeta("/scan/wb26"), "/scan/wb26");
   }, []);
 
   // Camera video and canvas refs

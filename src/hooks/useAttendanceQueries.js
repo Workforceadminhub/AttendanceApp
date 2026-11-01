@@ -49,11 +49,6 @@ const historyDatesQuery = {
   staleTime: 30 * 60 * 1000,
 };
 
-/** Attendance dates as returned by the API. */
-export function useHistoryDates() {
-  return useQuery(historyDatesQuery);
-}
-
 /** Attendance dates as select options. */
 export function useHistoryOptions() {
   return useQuery({

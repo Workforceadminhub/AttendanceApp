@@ -87,17 +87,21 @@ export async function downloadWorkersBallPassPng({
   // Left side content: Eyebrow
   ctx.fillStyle = "#D26840";
   ctx.font = "600 12px ui-monospace, SFMono-Regular, Menlo, monospace";
-  ctx.fillText("HARVESTERS INTERNATIONAL CHRISTIAN CENTRE · GBAGADA", cardX + 44, cardY + 56);
+  ctx.fillText("HARVESTERS INTERNATIONAL CHRISTIAN CENTRE · GBAGADA", cardX + 44, cardY + 54);
 
   // Main Event Title
   ctx.fillStyle = "#FAFAF7";
-  ctx.font = "700 42px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-  ctx.fillText("Workers Ball 2026", cardX + 44, cardY + 108);
+  ctx.font = "700 38px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+  ctx.fillText("Workers Ball 2026", cardX + 44, cardY + 100);
 
-  // Subtitle
+  // Official Theme & Details
+  ctx.fillStyle = "#F6B042";
+  ctx.font = "700 15px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+  ctx.fillText("ALL STARS: JERSEY & JAZZ", cardX + 44, cardY + 126);
+
   ctx.fillStyle = "#9A9A95";
-  ctx.font = "400 15px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-  ctx.fillText("A Night of Honour, Excellence & Celebration · Official Admit One Pass", cardX + 44, cardY + 138);
+  ctx.font = "500 12px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.fillText("SUN 29 NOV · 3:00 PM · GBAGADA MAIN AUDITORIUM · DRESS CODE: JERSEY", cardX + 44, cardY + 148);
 
   // Hairline horizontal rule
   ctx.strokeStyle = "#1A1F2E";

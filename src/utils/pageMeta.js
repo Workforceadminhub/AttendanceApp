@@ -25,14 +25,14 @@ export const DEFAULT_META = {
 const WB26_META = {
   title: "Workers Ball 2026 · Harvesters Gbagada",
   description:
-    "Harvesters International Christian Centre, Gbagada Campus — Workers Ball 2026. A black-tie celebration of honour, excellence, and dedicated service. Register and claim your official Gala Pass.",
+    "Harvesters International Christian Centre, Gbagada Campus — All Stars Workers Ball 2026: Jersey and Jazz. Sunday 29th November, 3PM at Harvesters Gbagada Main Auditorium. Dress Code: Jersey. Register and claim your official Gala Pass.",
   ogTitle: "Workers Ball 2026 · Harvesters Gbagada",
   ogDescription:
-    "A Black-Tie Celebration of Excellence, Honour & Dedicated Service. Register and claim your official Workers Ball 2026 Gala Pass.",
+    "All Stars Workers Ball 2026: Jersey and Jazz. Sunday 29th November, 3PM at Harvesters Gbagada Main Auditorium. Dress Code: Jersey. Register and claim your official Gala Pass.",
   ogImage: "/wb26-og.jpg",
   ogImageWidth: "1200",
   ogImageHeight: "630",
-  ogImageAlt: "Workers Ball 2026 · Harvesters Gbagada",
+  ogImageAlt: "All Stars Workers Ball 2026 · Jersey and Jazz · Harvesters Gbagada",
   twitterCard: "summary_large_image",
   themeColor: "#0A0E1A",
 };
@@ -40,10 +40,10 @@ const WB26_META = {
 const WB26_SCANNER_META = {
   title: "Accreditation Scanner · Workers Ball 2026",
   description:
-    "Official accreditation scanner and check-in desk for Workers Ball 2026 at Harvesters Gbagada.",
+    "Official accreditation scanner and check-in desk for All Stars Workers Ball 2026: Jersey and Jazz at Harvesters Gbagada.",
   ogTitle: "Accreditation Scanner · Workers Ball 2026",
   ogDescription:
-    "Official accreditation scanner and check-in desk for Workers Ball 2026 at Harvesters Gbagada.",
+    "Official accreditation scanner and check-in desk for All Stars Workers Ball 2026: Jersey and Jazz at Harvesters Gbagada.",
   ogImage: "/wb26-og.jpg",
   ogImageWidth: "1200",
   ogImageHeight: "630",
@@ -55,10 +55,10 @@ const WB26_SCANNER_META = {
 const WB26_ADMIN_META = {
   title: `Workers Ball 2026 Tracking · ${APP_NAME}`,
   description:
-    "Registration and live attendance tracking dashboard for Workers Ball 2026 at Harvesters Gbagada.",
+    "Registration and live attendance tracking dashboard for All Stars Workers Ball 2026: Jersey and Jazz at Harvesters Gbagada.",
   ogTitle: `Workers Ball 2026 Tracking · ${APP_NAME}`,
   ogDescription:
-    "Registration and live attendance tracking dashboard for Workers Ball 2026 at Harvesters Gbagada.",
+    "Registration and live attendance tracking dashboard for All Stars Workers Ball 2026: Jersey and Jazz at Harvesters Gbagada.",
   ogImage: "/wb26-og.jpg",
   ogImageWidth: "1200",
   ogImageHeight: "630",

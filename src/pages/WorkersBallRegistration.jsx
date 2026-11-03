@@ -9,7 +9,6 @@ import {
   EnvelopeIcon,
   LockClosedIcon,
   MagnifyingGlassIcon,
-  QrCodeIcon,
   SparklesIcon,
   UserCircleIcon,
 } from "@heroicons/react/24/outline";
@@ -1641,14 +1640,6 @@ export default function WorkersBallRegistration() {
           </div>
 
           <div className="flex items-center gap-2">
-            <a
-              href="/scan/wb26"
-              className="qc-btn-ghost min-h-0 py-1.5 px-2.5 text-xs font-mono text-ink-600 hover:text-ink-900 transition inline-flex items-center gap-1.5"
-              title="Accreditation Desk Pass Scanner"
-            >
-              <QrCodeIcon className="h-3.5 w-3.5 text-forest" />
-              <span className="hidden sm:inline">Scanner Desk</span>
-            </a>
             <button
               type="button"
               onClick={() => {

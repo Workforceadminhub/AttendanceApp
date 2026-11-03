@@ -2450,16 +2450,10 @@ export default function WorkersBallRegistration() {
 
       {/* Footer */}
       <footer className="border-t border-ink-200 py-5 px-5 sm:px-8 text-center text-xs text-ink-500 relative z-10 bg-cream">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2.5">
+        <div className="max-w-5xl mx-auto flex items-center justify-center">
           <span>
             Harvesters International Christian Centre, Gbagada Campus &middot; Workers Ball 2026
           </span>
-          <a
-            href="/scan/wb26"
-            className="font-mono text-2xs text-ink-400 hover:text-ink-700 underline underline-offset-2 transition"
-          >
-            Accreditation Desk Scanner &rarr;
-          </a>
         </div>
       </footer>
     </div>

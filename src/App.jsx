@@ -55,6 +55,7 @@ const LeadershipRegistrationAdmin = lazy(() => import("./pages/LeadershipRegistr
 const AwakeningRegistration = lazy(() => import("./pages/AwakeningRegistration"));
 const AwakeningRegistrationAdmin = lazy(() => import("./pages/AwakeningRegistrationAdmin"));
 const WorkersBallRegistration = lazy(() => import("./pages/WorkersBallRegistration"));
+const WorkersBallInvite = lazy(() => import("./pages/WorkersBallInvite"));
 const WorkersBallScanner = lazy(() => import("./pages/WorkersBallScanner"));
 const WorkersBallAdmin = lazy(() => import("./pages/WorkersBallAdmin"));
 const LeadersMeetingConfirm = lazy(() => import("./pages/LeadersMeetingConfirm"));
@@ -157,6 +158,10 @@ const AppRoutes = () => {
             <Route path="/leadership-registration" element={<LeadershipRegistration />} />
             <Route path="/awakening" element={<AwakeningRegistration />} />
             <Route path="/wb26" element={<WorkersBallRegistration />} />
+            <Route path="/workers-ball/invite" element={<WorkersBallInvite />} />
+            <Route path="/workers-ball/invite/:token" element={<WorkersBallInvite />} />
+            <Route path="/wb26/invite" element={<WorkersBallInvite />} />
+            <Route path="/wb26/invite/:token" element={<WorkersBallInvite />} />
             <Route path="/scan/wb26" element={<WorkersBallScanner />} />
             <Route path="/workers-ball/scan" element={<WorkersBallScanner />} />
             <Route path="/wb26/scan" element={<WorkersBallScanner />} />

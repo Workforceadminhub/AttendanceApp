@@ -126,6 +126,8 @@ export const STATIC_ROUTE_META = {
   },
   "/awakening": AWAKENING_META,
   "/wb26": WB26_META,
+  "/workers-ball/invite": WB26_META,
+  "/wb26/invite": WB26_META,
   "/scan/wb26": WB26_SCANNER_META,
   "/workers-ball/scan": WB26_SCANNER_META,
   "/wb26/scan": WB26_SCANNER_META,
@@ -548,6 +550,10 @@ const DYNAMIC_ROUTE_MATCHERS = [
         `Verify Certificate (${decodeURIComponent(certNo)})`,
         "Verify the authenticity of a Harvesters Gbagada training certificate."
       ),
+  },
+  {
+    pattern: /^\/(?:workers-ball|wb26)\/invite\/[^/]+$/,
+    resolve: () => WB26_META,
   },
 ];
 

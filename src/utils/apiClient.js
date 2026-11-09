@@ -24,6 +24,8 @@ const PUBLIC_PATHS = [
   "/leadership-registration",
   "/awakening",
   "/wb26",
+  "/workers-ball/invite",
+  "/wb26/invite",
   "/scan/wb26",
   "/workers-ball/scan",
   "/wb26/scan",

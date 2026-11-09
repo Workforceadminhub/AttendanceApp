@@ -16,11 +16,13 @@ import { logoutSession } from "../../utils/authSession";
 import { teamsAndDepartments } from "../../utils/teams";
 import { expandPermissions } from "../../utils/expandPermissions";
 import { fetchTeamsAndDepartmentsForFilter } from "../../services/departments";
+import { sendWorkersBallInvites } from "../../services/workersBall";
 import {
  TrashIcon,
  PencilIcon,
  ChevronDownIcon,
  ChevronUpIcon,
+ PaperAirplaneIcon,
 } from "@heroicons/react/24/outline";
 import GenericModal from "../GenericModal";
 import LoadingState from "../LoadingState";
@@ -86,6 +88,8 @@ export default function Workers() {
  const [selectedWorkers, setSelectedWorkers] = useState(new Set());
  const [isSelectAll, setIsSelectAll] = useState(false);
  const [isExporting, setIsExporting] = useState(false);
+ const [isSendingBallInvites, setIsSendingBallInvites] = useState(false);
+ const [invitingSingleWorkerId, setInvitingSingleWorkerId] = useState(null);
 
  const [filterOptions, setFilterOptions] = useState({
  departments: [{ value: "All", label: "All Departments" }],
@@ -521,6 +525,60 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  }
  };
 
+ const bulkInviteWorkersToBall = async () => {
+ if (selectedWorkers.size === 0 || isSendingBallInvites) {
+ return;
+ }
+ setIsSendingBallInvites(true);
+ try {
+ const workerIds = Array.from(selectedWorkers);
+ const res = await sendWorkersBallInvites(workerIds);
+ if (res.sentCount > 0) {
+ toast.success(
+ `Sent ${res.sentCount} Workers Ball invite${
+ res.sentCount === 1 ? "" : "s"
+ }${res.skippedCount > 0 ? ` (${res.skippedCount} skipped)` : ""}.`
+ );
+ } else if (res.skippedCount > 0) {
+ toast.info(`No new invites sent (${res.skippedCount} skipped).`);
+ } else {
+ toast.success(res.message || "Workers Ball invites processed.");
+ }
+ clearSelection();
+ } catch (error) {
+ toast.error(error?.message || "Failed to send Workers Ball invites.");
+ } finally {
+ setIsSendingBallInvites(false);
+ }
+ };
+
+ const inviteSingleWorkerToBall = async (workerId, displayName = "") => {
+ if (!workerId || invitingSingleWorkerId) return;
+ setInvitingSingleWorkerId(workerId);
+ try {
+ const res = await sendWorkersBallInvites([workerId]);
+ if (res.sentCount > 0) {
+ const sentItem = res.sent?.[0];
+ toast.success(
+ `Workers Ball invite sent to ${displayName || `Worker #${workerId}`}${
+ sentItem?.email ? ` (${sentItem.email})` : ""
+ }.`
+ );
+ } else if (res.skippedCount > 0) {
+ toast.info(
+ res.skipped?.[0]?.reason ||
+ `Invite skipped for ${displayName || `Worker #${workerId}`}.`
+ );
+ } else {
+ toast.success(res.message || "Invite processed.");
+ }
+ } catch (error) {
+ toast.error(error?.message || "Failed to send Workers Ball invite.");
+ } finally {
+ setInvitingSingleWorkerId(null);
+ }
+ };
+
  const toggleRowExpansion = (workerId) => {
  const newExpandedRows = new Set(expandedRows);
  if (newExpandedRows.has(workerId)) {
@@ -736,7 +794,19 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  Clear Selection
  </button>
  </div>
- <div className="flex space-x-2">
+ <div className="flex flex-wrap gap-2">
+ {isSuperAdmin && (
+ <button
+ onClick={bulkInviteWorkersToBall}
+ disabled={isLoading || isSendingBallInvites}
+ className="inline-flex items-center gap-1.5 bg-sienna px-4 py-2 text-white rounded-lg text-sm font-medium hover:bg-sienna-dark disabled:opacity-50 disabled:cursor-not-allowed"
+ >
+ <PaperAirplaneIcon className="h-4 w-4" />
+ {isSendingBallInvites
+ ? "Sending Invites..."
+ : `Invite to Workers Ball (${selectedWorkers.size})`}
+ </button>
+ )}
  <button
  onClick={bulkDeleteWorkers}
  disabled={isLoading}
@@ -1076,6 +1146,21 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  >
  <PencilIcon className="h-4 w-4" />
  </button>
+ {isSuperAdmin && (
+ <button
+ onClick={() =>
+ inviteSingleWorkerToBall(
+ person.id,
+ `${firstName} ${lastName}`.trim()
+ )
+ }
+ disabled={invitingSingleWorkerId === person.id}
+ className="text-sienna hover:text-sienna-dark disabled:opacity-50"
+ title="Invite to Workers Ball"
+ >
+ <PaperAirplaneIcon className="h-4 w-4" />
+ </button>
+ )}
  <button
  onClick={() => deleteWorker(person.id)}
  className="text-brick hover:text-brick/80"

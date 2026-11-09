@@ -570,7 +570,7 @@ export function normalizeWorkersBallRegistrationRow(raw = {}) {
   let status;
   if (attended) {
     status = "attended";
-  } else if (rawStatus === "pending" || rawStatus === "unconfirmed") {
+  } else if (rawStatus === "pending" || rawStatus === "unconfirmed" || rawStatus === "invited") {
     status = "pending";
   } else if (rawStatus === "registered" || rawStatus === "confirmed") {
     status = "registered";
@@ -579,6 +579,24 @@ export function normalizeWorkersBallRegistrationRow(raw = {}) {
   } else {
     status = "registered";
   }
+
+  const inviteToken =
+    raw.token ||
+    raw.invite_token ||
+    raw.inviteToken ||
+    workerObj.token ||
+    workerObj.invite_token ||
+    workerObj.inviteToken ||
+    "";
+
+  const inviteUrl =
+    raw.invite_url ||
+    raw.inviteUrl ||
+    workerObj.invite_url ||
+    workerObj.inviteUrl ||
+    (inviteToken && typeof window !== "undefined"
+      ? `${window.location.origin}/workers-ball/invite?token=${encodeURIComponent(inviteToken)}`
+      : "");
 
   return {
     id: raw.id ?? raw.workerId ?? raw.worker_id ?? workerObj.id,
@@ -617,6 +635,8 @@ export function normalizeWorkersBallRegistrationRow(raw = {}) {
     attended,
     attendedAt,
     registeredAt,
+    inviteToken,
+    inviteUrl,
     qrCode: raw.qrCode || raw.qr_code || raw.qrDataUrl || raw.qr_data_url || null,
     raw,
   };
@@ -928,4 +948,306 @@ export async function fetchWorkersBallRegistrations(params = {}) {
   }
 
   return extractWorkersBallRegistrations(response);
+}
+
+/**
+ * 7. Send Workers Ball invites to one or more workers (Super Admin only, auth required).
+ * POST /api/workers-ball/invites with { "workerIds": [18, ...] }
+ *
+ * Returns:
+ * {
+ *   total,
+ *   sentCount,
+ *   skippedCount,
+ *   sent: [{ workerId, email, inviteUrl, token }],
+ *   skipped: [...],
+ *   message,
+ *   raw
+ * }
+ */
+export async function sendWorkersBallInvites(workerIds) {
+  const rawList = Array.isArray(workerIds) ? workerIds : [workerIds];
+  const cleanedIds = Array.from(
+    new Set(
+      rawList
+        .filter((id) => id !== undefined && id !== null && String(id).trim() !== "")
+        .map((id) => {
+          const num = Number(id);
+          return Number.isFinite(num) ? num : id;
+        })
+    )
+  );
+
+  if (cleanedIds.length === 0) {
+    throw new Error("Please select at least one worker to invite.");
+  }
+
+  const response = await apiRequest(
+    "POST",
+    "/api/workers-ball/invites",
+    { workerIds: cleanedIds },
+    undefined,
+    true
+  );
+
+  if (response?.success === false) {
+    throw new Error(
+      response?.message || "Failed to send Workers Ball invitations."
+    );
+  }
+
+  const data = response?.data ?? response ?? {};
+  const sentRaw = Array.isArray(data.sent) ? data.sent : [];
+  const skippedRaw = Array.isArray(data.skipped) ? data.skipped : [];
+
+  const sent = sentRaw.map((item) => {
+    const inviteUrl = item?.invite_url || item?.inviteUrl || "";
+    let token = item?.token || item?.invite_token || "";
+    if (!token && inviteUrl) {
+      try {
+        const parsed = new URL(
+          inviteUrl,
+          typeof window !== "undefined" ? window.location.origin : "https://attendance.hiccgbagada.com"
+        );
+        token = parsed.searchParams.get("token") || "";
+      } catch {
+        // ignore URL parse issues
+      }
+    }
+    return {
+      workerId: item?.worker_id ?? item?.workerId ?? item?.id,
+      name: item?.name || item?.worker_name || "",
+      email: item?.email || "",
+      inviteUrl,
+      token,
+      raw: item,
+    };
+  });
+
+  const skipped = skippedRaw.map((item) => {
+    if (typeof item === "string" || typeof item === "number") {
+      return { workerId: item, reason: "Skipped", raw: item };
+    }
+    return {
+      workerId: item?.worker_id ?? item?.workerId ?? item?.id,
+      name: item?.name || item?.worker_name || "",
+      email: item?.email || "",
+      reason: item?.reason || item?.message || item?.status || "Already invited or missing email",
+      raw: item,
+    };
+  });
+
+  return {
+    total: Number(data.total ?? cleanedIds.length),
+    sentCount: Number(data.sent_count ?? data.sentCount ?? sent.length),
+    skippedCount: Number(data.skipped_count ?? data.skippedCount ?? skipped.length),
+    sent,
+    skipped,
+    message: response?.message || data?.message || "Workers Ball invites processed",
+    raw: response,
+  };
+}
+
+/**
+ * 8. Fetch an invited worker's data using their invite token (public, no auth).
+ * GET /api/workers-ball/invite/{token}
+ */
+export async function fetchWorkersBallInvite(token) {
+  const cleanedToken = String(token || "").trim();
+  if (!cleanedToken) {
+    throw new Error("Invite token is required.");
+  }
+
+  const response = await apiRequest(
+    "GET",
+    `/api/workers-ball/invite/${encodeURIComponent(cleanedToken)}`,
+    undefined,
+    undefined,
+    false
+  );
+
+  if (response?.success === false) {
+    throw new Error(
+      response?.message || "Invalid or expired Workers Ball invitation link."
+    );
+  }
+
+  const data = response?.data ?? response ?? {};
+  const workerSource =
+    data?.worker && typeof data.worker === "object"
+      ? { ...data, ...data.worker }
+      : data;
+
+  const normalized = normalizeWorkersBallWorker(workerSource);
+  const statusStr = String(
+    data?.status || workerSource?.status || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const confirmed = Boolean(
+    normalized.registered ||
+      data?.confirmed ||
+      data?.is_confirmed ||
+      data?.isConfirmed ||
+      statusStr === "confirmed" ||
+      statusStr === "registered" ||
+      statusStr === "attended" ||
+      normalized.code
+  );
+
+  const qrCode =
+    data?.qrCode ||
+    data?.qr_code ||
+    data?.qrCodeUrl ||
+    data?.qr_code_url ||
+    data?.qrDataUrl ||
+    data?.qr_data_url ||
+    workerSource?.qrCode ||
+    workerSource?.qr_code ||
+    null;
+
+  return {
+    ...normalized,
+    token: cleanedToken,
+    registered: confirmed,
+    confirmed,
+    status: statusStr || (confirmed ? "confirmed" : "pending"),
+    qrCode,
+    raw: response,
+  };
+}
+
+/**
+ * 9. One-time confirmation for an invited worker (public, no auth).
+ * POST /api/workers-ball/invite/{token}/confirm
+ * Issues HGWB-XXXXXX + sends confirmation email.
+ */
+export async function confirmWorkersBallInvite(token) {
+  const cleanedToken = String(token || "").trim();
+  if (!cleanedToken) {
+    throw new Error("Invite token is required to confirm registration.");
+  }
+
+  const response = await apiRequest(
+    "POST",
+    `/api/workers-ball/invite/${encodeURIComponent(cleanedToken)}/confirm`,
+    {},
+    undefined,
+    false
+  );
+
+  if (response?.success === false) {
+    throw new Error(
+      response?.message || "Could not confirm your Workers Ball invitation."
+    );
+  }
+
+  const data = response?.data ?? response ?? {};
+  const workerObj = data?.worker || response?.worker || {};
+
+  const messageCodeMatch = String(
+    response?.message || data?.message || ""
+  ).match(/HGWB-[A-Z0-9]+/i);
+
+  let deepMatch = null;
+  try {
+    const serialized = JSON.stringify(response);
+    const m = serialized.match(/HGWB-[A-Z0-9]+/i);
+    if (m) deepMatch = m[0].toUpperCase();
+  } catch {
+    // ignore serialization issues
+  }
+
+  const explicitCode =
+    data?.reference_code ||
+    data?.referenceCode ||
+    data?.ref_code ||
+    data?.refCode ||
+    data?.code ||
+    data?.accessCode ||
+    data?.access_code ||
+    data?.registrationCode ||
+    data?.registration_code ||
+    data?.ticketCode ||
+    data?.ticket_code ||
+    data?.ticket ||
+    data?.passCode ||
+    data?.pass_code ||
+    data?.pass ||
+    data?.badgeCode ||
+    data?.badge_code ||
+    data?.badge ||
+    data?.ref ||
+    data?.reference ||
+    data?.workersBallCode ||
+    data?.workers_ball_code ||
+    data?.workers_ball?.code ||
+    data?.workers_ball?.accessCode ||
+    data?.workers_ball?.access_code ||
+    workerObj?.reference_code ||
+    workerObj?.code ||
+    workerObj?.accessCode ||
+    workerObj?.access_code ||
+    response?.reference_code ||
+    response?.code ||
+    response?.accessCode ||
+    response?.access_code ||
+    response?.ticket ||
+    (messageCodeMatch ? messageCodeMatch[0].toUpperCase() : "") ||
+    deepMatch;
+
+  const workerId =
+    data?.id ??
+    data?.worker_id ??
+    data?.workerId ??
+    workerObj?.id ??
+    workerObj?.worker_id;
+
+  const fallbackCode = workerId
+    ? `HGWB-${String(workerId).padStart(6, "0")}`
+    : "HGWB-2026";
+
+  const accessCode = explicitCode ? String(explicitCode).trim().toUpperCase() : fallbackCode;
+
+  const role =
+    data?.role ||
+    workerObj?.role ||
+    workerObj?.worker_role ||
+    data?.worker_role ||
+    data?.designation ||
+    response?.role ||
+    null;
+
+  const qrCode =
+    data?.qrCode ||
+    data?.qr_code ||
+    data?.qrCodeUrl ||
+    data?.qr_code_url ||
+    data?.qrDataUrl ||
+    data?.qr_data_url ||
+    data?.qr ||
+    response?.qrCode ||
+    response?.qr_code ||
+    null;
+
+  const normalizedWorker = normalizeWorkersBallWorker({
+    ...data,
+    ...workerObj,
+    reference_code: accessCode,
+    registered: true,
+  });
+
+  return {
+    raw: response,
+    data,
+    worker: normalizedWorker,
+    accessCode,
+    qrCode,
+    role,
+    message:
+      response?.message ||
+      data?.message ||
+      "Invitation confirmed! Check your email for your HGWB pass and QR code.",
+  };
 }

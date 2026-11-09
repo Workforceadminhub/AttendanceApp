@@ -7,12 +7,21 @@ import GenericModal from "../components/GenericModal";
 import { getUser } from "../utils/getUser";
 import { getUserRole } from "../utils/getUserRole";
 import { getPostLoginPath } from "../utils/routeObject";
-import { fetchWorkersBallRegistrations } from "../services/workersBall";
+import {
+  fetchWorkersBallRegistrations,
+  searchWorkersBall,
+  sendWorkersBallInvites,
+} from "../services/workersBall";
 import { exportWorkersBallWorkbook } from "../utils/exportWorkersBall";
 import {
   ArrowLeftIcon,
   CheckIcon,
   ClipboardDocumentIcon,
+  EnvelopeIcon,
+  LinkIcon,
+  MagnifyingGlassIcon,
+  PaperAirplaneIcon,
+  UserPlusIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 
@@ -67,6 +76,19 @@ export default function WorkersBallAdmin() {
   // Selected worker for detail pass modal
   const [selectedWorker, setSelectedWorker] = useState(null);
   const [copiedCode, setCopiedCode] = useState(null);
+
+  // Invite Workers modal & tracking state
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [inviteSearchTerm, setInviteSearchTerm] = useState("");
+  const [inviteSearching, setInviteSearching] = useState(false);
+  const [inviteSearchResults, setInviteSearchResults] = useState([]);
+  const [selectedToInvite, setSelectedToInvite] = useState([]); // Array of worker objects { id, name, email, department, team, role }
+  const [manualWorkerIdsInput, setManualWorkerIdsInput] = useState("");
+  const [sendingInvites, setSendingInvites] = useState(false);
+  const [resendingWorkerId, setResendingWorkerId] = useState(null);
+  const [lastInviteResult, setLastInviteResult] = useState(null);
+  const [inviteUrlByWorkerId, setInviteUrlByWorkerId] = useState({});
+  const [copiedInviteUrl, setCopiedInviteUrl] = useState(null);
 
   const handleSearchChange = (val) => {
     setSearch(val);
@@ -305,6 +327,150 @@ export default function WorkersBallAdmin() {
     }
   };
 
+  // Copy invite URL helper
+  const handleCopyInviteUrl = async (url, e) => {
+    if (e) e.stopPropagation();
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedInviteUrl(url);
+      toast.success("Copied invite link to clipboard");
+      setTimeout(() => setCopiedInviteUrl(null), 2500);
+    } catch {
+      toast.info(`Invite URL: ${url}`);
+    }
+  };
+
+  // Search workforce for inviting
+  const handleInviteSearch = async (e) => {
+    if (e) e.preventDefault();
+    const term = inviteSearchTerm.trim();
+    if (!term) {
+      toast.error("Enter a worker's name to search.");
+      return;
+    }
+    setInviteSearching(true);
+    try {
+      const results = await searchWorkersBall(term);
+      setInviteSearchResults(results);
+    } catch (err) {
+      toast.error(err?.message || "Failed to search workforce.");
+    } finally {
+      setInviteSearching(false);
+    }
+  };
+
+  const toggleSelectWorkerToInvite = (worker) => {
+    if (!worker?.id) return;
+    setSelectedToInvite((prev) => {
+      const exists = prev.some((w) => String(w.id) === String(worker.id));
+      if (exists) {
+        return prev.filter((w) => String(w.id) !== String(worker.id));
+      }
+      return [...prev, worker];
+    });
+  };
+
+  const parseManualWorkerIds = () => {
+    if (!manualWorkerIdsInput.trim()) return [];
+    return manualWorkerIdsInput
+      .split(/[\s,]+/)
+      .map((token) => token.trim())
+      .filter(Boolean)
+      .map((token) => {
+        const num = Number(token);
+        return Number.isFinite(num) ? num : token;
+      });
+  };
+
+  const handleSendInvitesSubmit = async (e) => {
+    if (e) e.preventDefault();
+    const fromSelected = selectedToInvite.map((w) => w.id);
+    const fromManual = parseManualWorkerIds();
+    const combinedIds = Array.from(new Set([...fromSelected, ...fromManual]));
+
+    if (combinedIds.length === 0) {
+      toast.error("Please select at least one worker or enter a worker ID.");
+      return;
+    }
+
+    setSendingInvites(true);
+    try {
+      const res = await sendWorkersBallInvites(combinedIds);
+      setLastInviteResult(res);
+      if (Array.isArray(res.sent) && res.sent.length > 0) {
+        setInviteUrlByWorkerId((prev) => {
+          const next = { ...prev };
+          res.sent.forEach((item) => {
+            if (item.workerId && item.inviteUrl) {
+              next[String(item.workerId)] = item.inviteUrl;
+            }
+          });
+          return next;
+        });
+      }
+
+      if (res.sentCount > 0) {
+        toast.success(
+          `Sent ${res.sentCount} Workers Ball invite${res.sentCount === 1 ? "" : "s"}${
+            res.skippedCount > 0 ? ` (${res.skippedCount} skipped)` : ""
+          }.`
+        );
+      } else if (res.skippedCount > 0) {
+        toast.info(
+          `No new invites sent (${res.skippedCount} skipped).`
+        );
+      } else {
+        toast.success(res.message || "Invites processed.");
+      }
+
+      setSelectedToInvite([]);
+      setManualWorkerIdsInput("");
+      await loadData(true);
+    } catch (err) {
+      toast.error(err?.message || "Failed to send Workers Ball invites.");
+    } finally {
+      setSendingInvites(false);
+    }
+  };
+
+  const handleQuickResendInvite = async (row, e) => {
+    if (e) e.stopPropagation();
+    const targetId = row?.workerId ?? row?.id;
+    if (!targetId || resendingWorkerId) return;
+
+    setResendingWorkerId(targetId);
+    try {
+      const res = await sendWorkersBallInvites([targetId]);
+      if (Array.isArray(res.sent) && res.sent.length > 0) {
+        const sentItem = res.sent[0];
+        if (sentItem?.inviteUrl) {
+          setInviteUrlByWorkerId((prev) => ({
+            ...prev,
+            [String(targetId)]: sentItem.inviteUrl,
+          }));
+        }
+        toast.success(
+          `Invite sent to ${row.name || `Worker #${targetId}`}${
+            sentItem?.email ? ` (${sentItem.email})` : ""
+          }`
+        );
+      } else if (res.skippedCount > 0) {
+        toast.info(
+          res.skipped?.[0]?.reason ||
+            `Invite skipped for ${row.name || `Worker #${targetId}`}.`
+        );
+      } else {
+        toast.success(res.message || "Invite processed.");
+      }
+      await loadData(true);
+    } catch (err) {
+      toast.error(err?.message || "Failed to send invite.");
+    } finally {
+      setResendingWorkerId(null);
+    }
+  };
+
   const hasActiveFilters =
     Boolean(search) ||
     statusFilter !== "all" ||
@@ -364,6 +530,18 @@ export default function WorkersBallAdmin() {
 
           {/* Action buttons */}
           <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                setLastInviteResult(null);
+                setInviteModalOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-sienna px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-sienna-dark transition cursor-pointer"
+            >
+              <UserPlusIcon className="h-4 w-4" />
+              Invite Workers
+            </button>
+
             <button
               type="button"
               onClick={() => loadData(true)}
@@ -765,16 +943,55 @@ export default function WorkersBallAdmin() {
 
                         {/* Actions */}
                         <td className="py-3.5 px-4 text-right">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedWorker(row);
-                            }}
-                            className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium text-ink-700 bg-ink-50 hover:bg-ink-100 border border-ink-200 transition"
-                          >
-                            Details
-                          </button>
+                          <div className="inline-flex items-center justify-end gap-1.5">
+                            {row.status === "pending" && (row.workerId || row.id) && (
+                              <button
+                                type="button"
+                                onClick={(e) => handleQuickResendInvite(row, e)}
+                                disabled={resendingWorkerId === (row.workerId ?? row.id)}
+                                title="Send or Resend Workers Ball Invite"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-sienna bg-sienna/10 hover:bg-sienna/20 border border-sienna/25 transition disabled:opacity-50 cursor-pointer"
+                              >
+                                <PaperAirplaneIcon className="h-3 w-3" />
+                                {resendingWorkerId === (row.workerId ?? row.id)
+                                  ? "Sending..."
+                                  : "Resend"}
+                              </button>
+                            )}
+                            {(row.inviteUrl ||
+                              inviteUrlByWorkerId[String(row.workerId ?? row.id)]) && (
+                              <button
+                                type="button"
+                                onClick={(e) =>
+                                  handleCopyInviteUrl(
+                                    row.inviteUrl ||
+                                      inviteUrlByWorkerId[String(row.workerId ?? row.id)],
+                                    e
+                                  )
+                                }
+                                title="Copy Personal Invite Link"
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-ink-700 bg-white hover:bg-ink-50 border border-ink-200 transition cursor-pointer"
+                              >
+                                {copiedInviteUrl ===
+                                (row.inviteUrl ||
+                                  inviteUrlByWorkerId[String(row.workerId ?? row.id)]) ? (
+                                  <CheckIcon className="h-3.5 w-3.5 text-forest" />
+                                ) : (
+                                  <LinkIcon className="h-3.5 w-3.5" />
+                                )}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedWorker(row);
+                              }}
+                              className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium text-ink-700 bg-ink-50 hover:bg-ink-100 border border-ink-200 transition cursor-pointer"
+                            >
+                              Details
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -935,12 +1152,79 @@ export default function WorkersBallAdmin() {
                 </div>
               </div>
 
+              {/* Personal Invite Link (if available) */}
+              {(selectedWorker.inviteUrl ||
+                inviteUrlByWorkerId[
+                  String(selectedWorker.workerId ?? selectedWorker.id)
+                ]) && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3.5 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-3xs font-mono uppercase tracking-wider text-amber-800 font-semibold">
+                      Personal Invite Link
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleCopyInviteUrl(
+                          selectedWorker.inviteUrl ||
+                            inviteUrlByWorkerId[
+                              String(selectedWorker.workerId ?? selectedWorker.id)
+                            ]
+                        )
+                      }
+                      className="inline-flex items-center gap-1 rounded bg-white px-2 py-1 text-2xs font-mono font-semibold text-amber-900 border border-amber-200 hover:bg-amber-100/60 transition cursor-pointer"
+                    >
+                      {copiedInviteUrl ===
+                      (selectedWorker.inviteUrl ||
+                        inviteUrlByWorkerId[
+                          String(selectedWorker.workerId ?? selectedWorker.id)
+                        ]) ? (
+                        <>
+                          <CheckIcon className="h-3 w-3 text-forest" />
+                          Copied
+                        </>
+                      ) : (
+                        <>
+                          <ClipboardDocumentIcon className="h-3 w-3" />
+                          Copy Link
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-2xs font-mono text-ink-700 break-all">
+                    {selectedWorker.inviteUrl ||
+                      inviteUrlByWorkerId[
+                        String(selectedWorker.workerId ?? selectedWorker.id)
+                      ]}
+                  </p>
+                </div>
+              )}
+
               {/* Actions Footer */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
                 {selectedWorker.status === "pending" ? (
-                  <span className="text-xs text-amber-700 font-medium">
-                    Pending confirmation
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-amber-700 font-medium">
+                      Pending confirmation
+                    </span>
+                    {(selectedWorker.workerId || selectedWorker.id) && (
+                      <button
+                        type="button"
+                        onClick={() => handleQuickResendInvite(selectedWorker)}
+                        disabled={
+                          resendingWorkerId ===
+                          (selectedWorker.workerId ?? selectedWorker.id)
+                        }
+                        className="inline-flex items-center gap-1 rounded-lg bg-sienna px-3 py-1.5 text-xs font-semibold text-white hover:bg-sienna-dark transition disabled:opacity-50 cursor-pointer"
+                      >
+                        <PaperAirplaneIcon className="h-3.5 w-3.5" />
+                        {resendingWorkerId ===
+                        (selectedWorker.workerId ?? selectedWorker.id)
+                          ? "Sending..."
+                          : "Send / Resend Invite"}
+                      </button>
+                    )}
+                  </div>
                 ) : !selectedWorker.attended ? (
                   <Link
                     to="/scan/wb26"
@@ -961,6 +1245,277 @@ export default function WorkersBallAdmin() {
                   className="w-full sm:w-auto rounded-lg border border-ink-200 px-4 py-2 text-xs font-medium text-ink hover:bg-ink-100 transition"
                 >
                   Close
+                </button>
+              </div>
+            </div>
+          </GenericModal>
+        )}
+
+        {/* Invite Workers Modal (POST /api/workers-ball/invites) */}
+        {inviteModalOpen && (
+          <GenericModal
+            isOpen={inviteModalOpen}
+            onClose={() => setInviteModalOpen(false)}
+            title="Send Workers Ball Invitations"
+            size="large"
+          >
+            <div className="space-y-5">
+              <p className="text-xs text-ink-600 leading-relaxed">
+                Search for workers in the Harvesters Gbagada registry or enter worker IDs directly to dispatch personal Workers Ball invitation emails and one-click confirmation links.
+              </p>
+
+              {/* Search Workforce Form */}
+              <form onSubmit={handleInviteSearch} className="flex gap-2">
+                <div className="relative flex-1">
+                  <MagnifyingGlassIcon className="h-4 w-4 text-ink-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={inviteSearchTerm}
+                    onChange={(e) => setInviteSearchTerm(e.target.value)}
+                    placeholder="Search worker by name (e.g. Chidi, Ayodeji)..."
+                    className="w-full rounded-lg border border-ink-200 bg-white pl-9 pr-3 py-2 text-xs text-ink placeholder:text-ink-400 focus:border-sienna focus:outline-hidden focus:ring-1 focus:ring-sienna"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={inviteSearching}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-ink px-4 py-2 text-xs font-semibold text-cream hover:bg-ink-900 disabled:opacity-50 transition cursor-pointer shrink-0"
+                >
+                  {inviteSearching ? "Searching..." : "Search"}
+                </button>
+              </form>
+
+              {/* Search Results List */}
+              {inviteSearchResults.length > 0 && (
+                <div className="rounded-xl border border-ink-200 bg-white overflow-hidden">
+                  <div className="bg-ink-50/70 px-3.5 py-2 border-b border-ink-200 flex items-center justify-between text-2xs font-mono uppercase tracking-wider text-ink-600">
+                    <span>Search Results ({inviteSearchResults.length})</span>
+                    <span>Click to select</span>
+                  </div>
+                  <ul className="divide-y divide-ink-100 max-h-56 overflow-y-auto">
+                    {inviteSearchResults.map((w) => {
+                      const isSelected = selectedToInvite.some(
+                        (s) => String(s.id) === String(w.id)
+                      );
+                      return (
+                        <li key={w.id}>
+                          <button
+                            type="button"
+                            onClick={() => toggleSelectWorkerToInvite(w)}
+                            className={`w-full text-left px-3.5 py-2.5 flex items-center justify-between gap-3 text-xs transition cursor-pointer ${
+                              isSelected
+                                ? "bg-amber-50/80 text-ink-900"
+                                : "hover:bg-ink-50/60 text-ink"
+                            }`}
+                          >
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold truncate">
+                                  {w.name}
+                                </span>
+                                <span className="font-mono text-2xs text-ink-400">
+                                  #{w.id}
+                                </span>
+                                {w.registered && (
+                                  <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-3xs font-mono font-semibold text-emerald-800">
+                                    Registered
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-2xs text-ink-500 truncate">
+                                {[w.department, w.team, w.email]
+                                  .filter(Boolean)
+                                  .join(" · ")}
+                              </div>
+                            </div>
+                            <span
+                              className={`h-5 w-5 rounded flex items-center justify-center border shrink-0 ${
+                                isSelected
+                                  ? "bg-sienna border-sienna text-white"
+                                  : "border-ink-300 bg-white"
+                              }`}
+                            >
+                              {isSelected && <CheckIcon className="h-3.5 w-3.5" />}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+
+              {/* Selected Workers Chips */}
+              {selectedToInvite.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-2xs font-mono uppercase tracking-wider text-ink-500">
+                    <span>Selected Workers ({selectedToInvite.length})</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedToInvite([])}
+                      className="text-brick hover:underline cursor-pointer"
+                    >
+                      Clear all
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedToInvite.map((w) => (
+                      <span
+                        key={w.id}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-ink-100 border border-ink-200 px-2.5 py-1 text-xs font-medium text-ink"
+                      >
+                        <span>{w.name}</span>
+                        <span className="font-mono text-2xs text-ink-500">
+                          #{w.id}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => toggleSelectWorkerToInvite(w)}
+                          aria-label={`Remove ${w.name}`}
+                          className="text-ink-400 hover:text-brick cursor-pointer"
+                        >
+                          <XMarkIcon className="h-3.5 w-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Direct Worker IDs Input */}
+              <div>
+                <label
+                  htmlFor="wb-manual-worker-ids"
+                  className="block text-xs font-semibold text-ink mb-1"
+                >
+                  Or Enter Worker ID(s) Directly
+                </label>
+                <input
+                  id="wb-manual-worker-ids"
+                  type="text"
+                  value={manualWorkerIdsInput}
+                  onChange={(e) => setManualWorkerIdsInput(e.target.value)}
+                  placeholder="e.g. 18, 42, 105"
+                  className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-xs font-mono text-ink placeholder:text-ink-400 focus:border-sienna focus:outline-hidden focus:ring-1 focus:ring-sienna"
+                />
+                <p className="text-2xs text-ink-400 mt-1">
+                  Separate multiple worker IDs with commas or spaces.
+                </p>
+              </div>
+
+              {/* Last Invite Dispatch Summary & Generated Links */}
+              {lastInviteResult && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-emerald-950">
+                      {lastInviteResult.message}
+                    </span>
+                    <div className="flex items-center gap-2 text-2xs font-mono">
+                      <span className="rounded bg-white px-2 py-0.5 border border-ink-200 text-ink-700">
+                        Total: {lastInviteResult.total}
+                      </span>
+                      <span className="rounded bg-emerald-100 px-2 py-0.5 text-emerald-900 font-semibold">
+                        Sent: {lastInviteResult.sentCount}
+                      </span>
+                      {lastInviteResult.skippedCount > 0 && (
+                        <span className="rounded bg-amber-100 px-2 py-0.5 text-amber-900 font-semibold">
+                          Skipped: {lastInviteResult.skippedCount}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {lastInviteResult.sent.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-2xs font-mono uppercase tracking-wider text-emerald-800 font-semibold">
+                        Dispatched Invites &amp; Links
+                      </p>
+                      <ul className="divide-y divide-emerald-200/60 rounded-lg border border-emerald-200 bg-white overflow-hidden text-xs">
+                        {lastInviteResult.sent.map((item, idx) => (
+                          <li
+                            key={item.workerId || idx}
+                            className="p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                          >
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-semibold text-ink">
+                                  Worker #{item.workerId}
+                                </span>
+                                {item.email && (
+                                  <span className="inline-flex items-center gap-1 text-2xs font-mono text-ink-600">
+                                    <EnvelopeIcon className="h-3 w-3" />
+                                    {item.email}
+                                  </span>
+                                )}
+                              </div>
+                              {item.inviteUrl && (
+                                <p className="text-2xs font-mono text-ink-500 truncate max-w-md mt-0.5">
+                                  {item.inviteUrl}
+                                </p>
+                              )}
+                            </div>
+                            {item.inviteUrl && (
+                              <button
+                                type="button"
+                                onClick={() => handleCopyInviteUrl(item.inviteUrl)}
+                                className="inline-flex items-center gap-1 self-start sm:self-center rounded-md border border-ink-200 bg-ink-50 hover:bg-ink-100 px-2.5 py-1 text-2xs font-mono font-semibold text-ink shrink-0 cursor-pointer"
+                              >
+                                {copiedInviteUrl === item.inviteUrl ? (
+                                  <>
+                                    <CheckIcon className="h-3.5 w-3.5 text-forest" />
+                                    Copied Link
+                                  </>
+                                ) : (
+                                  <>
+                                    <ClipboardDocumentIcon className="h-3.5 w-3.5" />
+                                    Copy Invite Link
+                                  </>
+                                )}
+                              </button>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {lastInviteResult.skipped.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-2xs font-mono uppercase tracking-wider text-amber-800 font-semibold">
+                        Skipped ({lastInviteResult.skipped.length})
+                      </p>
+                      <ul className="text-2xs text-amber-900 space-y-0.5 font-mono">
+                        {lastInviteResult.skipped.map((sk, i) => (
+                          <li key={sk.workerId || i}>
+                            Worker #{sk.workerId}: {sk.reason}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Modal Actions */}
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-ink-100">
+                <button
+                  type="button"
+                  onClick={() => setInviteModalOpen(false)}
+                  className="rounded-lg border border-ink-200 px-4 py-2 text-xs font-medium text-ink hover:bg-ink-50 transition cursor-pointer"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSendInvitesSubmit}
+                  disabled={
+                    sendingInvites ||
+                    (selectedToInvite.length === 0 && !manualWorkerIdsInput.trim())
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-sienna px-4 py-2 text-xs font-semibold text-white hover:bg-sienna-dark transition disabled:opacity-50 cursor-pointer"
+                >
+                  <PaperAirplaneIcon className="h-3.5 w-3.5" />
+                  {sendingInvites ? "Sending Invites..." : "Send Invites"}
                 </button>
               </div>
             </div>

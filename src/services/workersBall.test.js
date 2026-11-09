@@ -1,14 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import apiRequest from "../utils/apiClient";
 import {
+  confirmWorkersBallInvite,
   confirmWorkersBallRegistration,
   extractWorkersBallRegistrations,
+  fetchWorkersBallInvite,
   fetchWorkersBallRegistrations,
   normalizeWorkersBallRegistrationRow,
   normalizeWorkersBallWorker,
   requestWorkersBallOtp,
   scanWorkersBallPass,
   searchWorkersBall,
+  sendWorkersBallInvites,
   updateWorkersBallEmail,
 } from "./workersBall";
 
@@ -493,6 +496,113 @@ describe("workersBall service", () => {
         isPending: true,
         attended: false,
       });
+    });
+  });
+
+  describe("Workers Ball invites API", () => {
+    it("sendWorkersBallInvites POSTs { workerIds } with auth=true and normalizes sent/skipped", async () => {
+      apiRequest.mockResolvedValue({
+        success: true,
+        message: "Workers Ball invites processed",
+        data: {
+          total: 1,
+          sent_count: 1,
+          skipped_count: 0,
+          sent: [
+            {
+              worker_id: 18,
+              email: "c**@g**.com",
+              invite_url:
+                "https://attendance.hiccgbagada.com/workers-ball/invite?token=01M6XPZEF3340FP0E8M1AX9E2D",
+            },
+          ],
+          skipped: [],
+        },
+      });
+
+      const res = await sendWorkersBallInvites(["18", 18]);
+
+      expect(apiRequest).toHaveBeenCalledWith(
+        "POST",
+        "/api/workers-ball/invites",
+        { workerIds: [18] },
+        undefined,
+        true
+      );
+      expect(res.total).toBe(1);
+      expect(res.sentCount).toBe(1);
+      expect(res.skippedCount).toBe(0);
+      expect(res.sent[0]).toMatchObject({
+        workerId: 18,
+        email: "c**@g**.com",
+        inviteUrl:
+          "https://attendance.hiccgbagada.com/workers-ball/invite?token=01M6XPZEF3340FP0E8M1AX9E2D",
+        token: "01M6XPZEF3340FP0E8M1AX9E2D",
+      });
+    });
+
+    it("fetchWorkersBallInvite GETs /api/workers-ball/invite/{token} without auth", async () => {
+      apiRequest.mockResolvedValue({
+        success: true,
+        data: {
+          worker_id: 18,
+          name: "Chidi Bede Enwereji",
+          email: "c**@g**.com",
+          department: "Workforce Admin",
+          team: "Ministry",
+          role: "Worker",
+          status: "pending",
+        },
+      });
+
+      const invite = await fetchWorkersBallInvite("01M6XPZEF3340FP0E8M1AX9E2D");
+
+      expect(apiRequest).toHaveBeenCalledWith(
+        "GET",
+        "/api/workers-ball/invite/01M6XPZEF3340FP0E8M1AX9E2D",
+        undefined,
+        undefined,
+        false
+      );
+      expect(invite).toMatchObject({
+        id: 18,
+        name: "Chidi Bede Enwereji",
+        firstName: "Chidi",
+        lastName: "Bede Enwereji",
+        email: "c**@g**.com",
+        department: "Workforce Admin",
+        team: "Ministry",
+        confirmed: false,
+        token: "01M6XPZEF3340FP0E8M1AX9E2D",
+      });
+    });
+
+    it("confirmWorkersBallInvite POSTs /api/workers-ball/invite/{token}/confirm and extracts HGWB code", async () => {
+      apiRequest.mockResolvedValue({
+        success: true,
+        message: "Invitation confirmed",
+        data: {
+          worker_id: 18,
+          name: "Chidi Bede Enwereji",
+          reference_code: "HGWB-INV123",
+          qr_code: "data:image/png;base64,inviteQr",
+        },
+      });
+
+      const confirmed = await confirmWorkersBallInvite(
+        "01M6XPZEF3340FP0E8M1AX9E2D"
+      );
+
+      expect(apiRequest).toHaveBeenCalledWith(
+        "POST",
+        "/api/workers-ball/invite/01M6XPZEF3340FP0E8M1AX9E2D/confirm",
+        {},
+        undefined,
+        false
+      );
+      expect(confirmed.accessCode).toBe("HGWB-INV123");
+      expect(confirmed.qrCode).toBe("data:image/png;base64,inviteQr");
+      expect(confirmed.worker.name).toBe("Chidi Bede Enwereji");
     });
   });
 });

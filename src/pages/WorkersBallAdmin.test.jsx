@@ -2,13 +2,19 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import WorkersBallAdmin from "./WorkersBallAdmin";
-import { fetchWorkersBallRegistrations } from "../services/workersBall";
+import {
+  fetchWorkersBallRegistrations,
+  searchWorkersBall,
+  sendWorkersBallInvites,
+} from "../services/workersBall";
 import { getUser } from "../utils/getUser";
 import { getUserRole } from "../utils/getUserRole";
 import { exportWorkersBallWorkbook } from "../utils/exportWorkersBall";
 
 vi.mock("../services/workersBall", () => ({
   fetchWorkersBallRegistrations: vi.fn(),
+  searchWorkersBall: vi.fn(),
+  sendWorkersBallInvites: vi.fn(),
 }));
 
 vi.mock("../utils/getUser", () => ({
@@ -292,5 +298,81 @@ describe("WorkersBallAdmin (/admin/workers-ball-registrations)", () => {
         registrations: mockRegistrations,
       });
     });
+  });
+
+  it("opens Invite Workers modal, searches/selects a worker, and sends invites", async () => {
+    searchWorkersBall.mockResolvedValue([
+      {
+        id: 18,
+        name: "Chidi Bede Enwereji",
+        email: "c**@g**.com",
+        department: "Workforce Admin",
+        team: "Ministry",
+        registered: false,
+      },
+    ]);
+    sendWorkersBallInvites.mockResolvedValue({
+      total: 1,
+      sentCount: 1,
+      skippedCount: 0,
+      sent: [
+        {
+          workerId: 18,
+          email: "c**@g**.com",
+          inviteUrl:
+            "https://attendance.hiccgbagada.com/workers-ball/invite?token=01M6XPZEF3340FP0E8M1AX9E2D",
+          token: "01M6XPZEF3340FP0E8M1AX9E2D",
+        },
+      ],
+      skipped: [],
+      message: "Workers Ball invites processed",
+    });
+
+    render(
+      <MemoryRouter>
+        <WorkersBallAdmin />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Ayodeji Eluwande")).toBeInTheDocument();
+    });
+
+    // Open Invite Workers modal
+    fireEvent.click(screen.getByRole("button", { name: /Invite Workers/i }));
+    expect(
+      screen.getByText(/Send Workers Ball Invitations/i)
+    ).toBeInTheDocument();
+
+    // Search for Chidi
+    const searchInput = screen.getByPlaceholderText(
+      /Search worker by name/i
+    );
+    fireEvent.change(searchInput, { target: { value: "Chidi" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Search$/i }));
+
+    await waitFor(() => {
+      expect(searchWorkersBall).toHaveBeenCalledWith("Chidi");
+    });
+
+    // Select Chidi from results
+    const chidiOption = await screen.findByText("Chidi Bede Enwereji");
+    fireEvent.click(chidiOption);
+
+    // Send Invites
+    const sendBtn = screen.getByRole("button", { name: /Send Invites/i });
+    fireEvent.click(sendBtn);
+
+    await waitFor(() => {
+      expect(sendWorkersBallInvites).toHaveBeenCalledWith([18]);
+    });
+
+    // Shows invite URL in modal summary
+    expect(
+      await screen.findByText(/Workers Ball invites processed/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/01M6XPZEF3340FP0E8M1AX9E2D/i)
+    ).toBeInTheDocument();
   });
 });

@@ -188,7 +188,7 @@ function useScrambledText(targetText, active = true, durationMs = 650) {
 /**
  * Ceremonial Harvesters Emblem for Workers Ball 2026 (uses official /logo.jpg).
  */
-function WorkersBallCrest({ className = "h-20 w-20" }) {
+export function WorkersBallCrest({ className = "h-20 w-20" }) {
   return (
     <div
       className={`relative inline-flex items-center justify-center ${className}`}
@@ -965,7 +965,7 @@ function IntroCurtain({ onEnter }) {
 /**
  * Interactive 3D-Tilt Gala Pass Card shown on registration confirmation.
  */
-function CeremonialPassCard({
+export function CeremonialPassCard({
   profile,
   accessCode,
   qrCode,

@@ -561,9 +561,9 @@ export default function WorkersBallInvite() {
               <div className="pt-2">
                 <Link
                   to="/wb26"
-                  className="qc-btn-primary inline-flex items-center justify-center py-2.5 px-5 text-sm"
+                  className="qc-btn-secondary inline-flex items-center justify-center py-2.5 px-5 text-sm"
                 >
-                  Register via Workforce Lookup
+                  Go to Workers Ball Portal
                 </Link>
               </div>
             </section>

@@ -1676,7 +1676,7 @@ export default function WorkersBallRegistration() {
                       ? "Confirm Your Identity"
                       : stage === "collectEmail"
                         ? "Confirm Your Email"
-                        : "Workforce Lookup"}
+                        : "Registration Temporarily Paused"}
               </h1>
             </div>
             <div className="hidden sm:flex flex-col items-end text-right shrink-0">
@@ -1692,7 +1692,7 @@ export default function WorkersBallRegistration() {
           {/* View-Transition Stage Wrapper */}
           <div className="wb26-transition-stage">
             {/* ============================================================
-                STAGE 1A: SEARCH BY NAME
+                STAGE 1A: REGISTRATION PAUSED / BACK UP SOON (SEARCH REMOVED)
                ============================================================ */}
             {stage === "search" && (
               <div className="space-y-6">
@@ -1741,78 +1741,24 @@ export default function WorkersBallRegistration() {
                   </div>
                 </aside>
 
-                <section className="wb26-panel qc-card p-6 sm:p-8 space-y-6">
-                <div className="space-y-1.5">
-                  <span className="qc-eyebrow">Step 01 &middot; Workforce Lookup</span>
-                  <h2 className="text-xl font-semibold text-ink-900">
-                    Find your name in the Gbagada registry
-                  </h2>
-                  <p className="text-sm text-ink-500 leading-relaxed">
-                    Search using your <strong>first name</strong> or{" "}
-                    <strong>surname</strong>, then pick your record from the list.
-                  </p>
-                </div>
-
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    executeSearch();
-                  }}
-                  className="space-y-4"
-                >
-                  <div>
-                    <label
-                      htmlFor={`${uid}-search`}
-                      className="block text-sm font-medium text-ink-900 mb-1"
-                    >
-                      Your Name <span className="text-sienna">*</span>
-                    </label>
-                    <p
-                      id={`${uid}-search-hint`}
-                      className="text-xs text-ink-500 mb-2"
-                    >
-                      Example: &ldquo;Adebayo Okafor&rdquo; or &ldquo;Mayowa&rdquo;
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-2.5">
-                      <input
-                        id={`${uid}-search`}
-                        name="name"
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Enter your name..."
-                        aria-describedby={`${uid}-search-hint`}
-                        autoComplete="name"
-                        autoCorrect="off"
-                        spellCheck={false}
-                        enterKeyHint="search"
-                        disabled={isSearching}
-                        autoFocus
-                        className="qc-input flex-1"
-                      />
-                      <button
-                        type="submit"
-                        disabled={isSearching}
-                        className="qc-btn-primary px-6 cursor-pointer shrink-0"
-                      >
-                        <MagnifyingGlassIcon className="h-4 w-4" />
-                        {isSearching ? "Searching..." : "Search Registry"}
-                      </button>
-                    </div>
+                <section className="wb26-panel qc-card p-6 sm:p-8 text-center space-y-4">
+                  <div className="mx-auto w-12 h-12 rounded-full bg-sienna/10 border border-sienna/20 flex items-center justify-center text-sienna">
+                    <SparklesIcon className="h-6 w-6" />
                   </div>
-
-                  {isSearching && (
-                    <div className="rounded-md border border-ink-200 bg-cream p-3.5 space-y-2">
-                      <div className="flex items-center justify-between text-2xs font-mono uppercase tracking-tag text-ink-600">
-                        <span>Querying Harvesters Gbagada Workforce...</span>
-                      </div>
-                      <div className="h-1 w-full bg-ink-200 rounded-full overflow-hidden">
-                        <div className="h-full w-1/3 bg-sienna wb26-radar-bar rounded-full" />
-                      </div>
-                    </div>
-                  )}
-                </form>
-              </section>
+                  <div className="space-y-2">
+                    <span className="qc-eyebrow">Status Update &middot; Workers Ball 2026</span>
+                    <h2 className="text-xl font-semibold text-ink-900">
+                      Registration Will Be Back Up Soon
+                    </h2>
+                    <p className="text-sm text-ink-600 max-w-md mx-auto leading-relaxed">
+                      We&rsquo;re currently updating the Workers Ball 2026 registration portal. New registrations are temporarily paused and will be back up shortly.
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-ink-200 bg-cream p-4 text-xs text-ink-600 max-w-md mx-auto leading-relaxed">
+                    If you received a personal invitation email, please use the unique link in your inbox to confirm your attendance and claim your{" "}
+                    <strong className="text-ink-900 font-mono">HGWB</strong> Gala Pass.
+                  </div>
+                </section>
               </div>
             )}
 

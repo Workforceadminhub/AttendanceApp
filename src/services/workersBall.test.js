@@ -4,6 +4,7 @@ import {
   confirmWorkersBallInvite,
   confirmWorkersBallRegistration,
   extractWorkersBallRegistrations,
+  fetchWorkersBallEligible,
   fetchWorkersBallInvite,
   fetchWorkersBallRegistrations,
   normalizeWorkersBallRegistrationRow,
@@ -603,6 +604,66 @@ describe("workersBall service", () => {
       expect(confirmed.accessCode).toBe("HGWB-INV123");
       expect(confirmed.qrCode).toBe("data:image/png;base64,inviteQr");
       expect(confirmed.worker.name).toBe("Chidi Bede Enwereji");
+    });
+
+    it("fetchWorkersBallEligible GETs /api/workers-ball/eligible with auth=true and normalizes eligible workers", async () => {
+      apiRequest.mockResolvedValue({
+        success: true,
+        data: [
+          {
+            worker_id: 18,
+            name: "Chidi Bede Enwereji",
+            email: "chidi@example.com",
+            department_name: "Workforce Admin",
+            team_name: "Ministry",
+            role: "Coordinator",
+            invited: false,
+            registered: false,
+          },
+          {
+            id: 24,
+            first_name: "Ayodeji",
+            last_name: "Eluwande",
+            email: "ayo@example.com",
+            department: "Technical",
+            team: "Media",
+            status: "invited",
+          },
+        ],
+      });
+
+      const res = await fetchWorkersBallEligible({
+        department: "Technical",
+        team: "Media",
+      });
+
+      expect(apiRequest).toHaveBeenCalledWith(
+        "GET",
+        "/api/workers-ball/eligible",
+        { department: "Technical", team: "Media" },
+        undefined,
+        true
+      );
+      expect(res.workers).toHaveLength(2);
+      expect(res.workers[0]).toMatchObject({
+        id: 18,
+        workerId: 18,
+        name: "Chidi Bede Enwereji",
+        department: "Workforce Admin",
+        team: "Ministry",
+        invited: false,
+        registered: false,
+        status: "eligible",
+      });
+      expect(res.workers[1]).toMatchObject({
+        id: 24,
+        workerId: 24,
+        name: "Ayodeji Eluwande",
+        department: "Technical",
+        team: "Media",
+        invited: true,
+        status: "invited",
+      });
     });
   });
 });

@@ -1251,3 +1251,158 @@ export async function confirmWorkersBallInvite(token) {
       "Invitation confirmed! Check your email for your HGWB pass and QR code.",
   };
 }
+
+/**
+ * Normalize an eligible worker record returned by GET /api/workers-ball/eligible.
+ */
+export function normalizeWorkersBallEligibleWorker(raw = {}, index = 0) {
+  const source =
+    raw?.worker && typeof raw.worker === "object"
+      ? { ...raw.worker, ...raw }
+      : raw || {};
+
+  const base = normalizeWorkersBallWorker(source);
+  const workerId =
+    source.worker_id ??
+    source.workerId ??
+    source.id ??
+    raw?.worker?.id ??
+    base.id;
+
+  const statusRaw = String(
+    source.status ||
+      source.invite_status ||
+      source.inviteStatus ||
+      source.registration_status ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const invited = Boolean(
+    source.invited ??
+      source.is_invited ??
+      source.isInvited ??
+      source.invite_sent ??
+      source.inviteSent ??
+      source.invited_at ??
+      source.invitedAt ??
+      (statusRaw === "invited" || statusRaw === "pending")
+  );
+
+  const registered = Boolean(
+    base.registered ||
+      statusRaw === "registered" ||
+      statusRaw === "confirmed" ||
+      statusRaw === "attended" ||
+      base.code
+  );
+
+  const rawInviteToken =
+    source.invite_token ||
+    source.inviteToken ||
+    source.token ||
+    "";
+
+  const rawInviteUrl =
+    source.invite_url ||
+    source.inviteUrl ||
+    (rawInviteToken
+      ? `https://attendance.hiccgbagada.com/workers-ball/invite?token=${encodeURIComponent(
+          String(rawInviteToken).trim()
+        )}`
+      : "");
+
+  return {
+    ...base,
+    id: workerId ?? `eligible-${index + 1}`,
+    workerId: workerId ?? null,
+    department: base.department || "Unassigned",
+    team: base.team || "Unassigned",
+    invited,
+    registered,
+    status: registered
+      ? "registered"
+      : invited
+        ? "invited"
+        : statusRaw || "eligible",
+    inviteToken: rawInviteToken ? String(rawInviteToken).trim() : "",
+    inviteUrl: rawInviteUrl ? String(rawInviteUrl).trim() : "",
+  };
+}
+
+/**
+ * 10. Fetch eligible workers for Workers Ball (Super Admin, requires auth).
+ * GET /api/workers-ball/eligible
+ */
+export async function fetchWorkersBallEligible(params = {}) {
+  const queryParams = {};
+  if (params && typeof params === "object") {
+    if (params.team && params.team !== "All") {
+      queryParams.team = String(params.team).trim();
+    }
+    if (params.department && params.department !== "All") {
+      queryParams.department = String(params.department).trim();
+    }
+    if (params.search && String(params.search).trim()) {
+      queryParams.search = String(params.search).trim();
+    }
+  }
+
+  const response = await apiRequest(
+    "GET",
+    "/api/workers-ball/eligible",
+    Object.keys(queryParams).length > 0 ? queryParams : undefined,
+    undefined,
+    true
+  );
+
+  const payload = unwrapResponsePayload(response);
+
+  if (payload?.success === false) {
+    throw new Error(
+      payload?.message || "Failed to fetch eligible Workers Ball workers."
+    );
+  }
+
+  const data = payload?.data ?? payload;
+  let rawRows = [];
+
+  if (Array.isArray(payload)) {
+    rawRows = payload;
+  } else if (Array.isArray(data)) {
+    rawRows = data;
+  } else if (Array.isArray(data?.eligible)) {
+    rawRows = data.eligible;
+  } else if (Array.isArray(data?.workers)) {
+    rawRows = data.workers;
+  } else if (Array.isArray(data?.rows)) {
+    rawRows = data.rows;
+  } else if (Array.isArray(data?.items)) {
+    rawRows = data.items;
+  } else if (Array.isArray(data?.results)) {
+    rawRows = data.results;
+  } else if (Array.isArray(payload?.eligible)) {
+    rawRows = payload.eligible;
+  } else if (Array.isArray(payload?.workers)) {
+    rawRows = payload.workers;
+  } else {
+    rawRows = extractArrayFromPayload(data);
+  }
+
+  const workers = rawRows.map((item, idx) =>
+    normalizeWorkersBallEligibleWorker(item, idx)
+  );
+
+  return {
+    workers,
+    total: Number(
+      data?.total ??
+        data?.count ??
+        payload?.total ??
+        payload?.count ??
+        workers.length
+    ),
+    raw: payload,
+  };
+}

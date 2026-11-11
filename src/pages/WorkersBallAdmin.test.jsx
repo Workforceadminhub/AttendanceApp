@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/re
 import { MemoryRouter } from "react-router-dom";
 import WorkersBallAdmin from "./WorkersBallAdmin";
 import {
+  fetchWorkersBallEligible,
   fetchWorkersBallRegistrations,
   searchWorkersBall,
   sendWorkersBallInvites,
@@ -12,6 +13,7 @@ import { getUserRole } from "../utils/getUserRole";
 import { exportWorkersBallWorkbook } from "../utils/exportWorkersBall";
 
 vi.mock("../services/workersBall", () => ({
+  fetchWorkersBallEligible: vi.fn(),
   fetchWorkersBallRegistrations: vi.fn(),
   searchWorkersBall: vi.fn(),
   sendWorkersBallInvites: vi.fn(),
@@ -116,6 +118,37 @@ beforeEach(() => {
     totalConfirmed: 3,
     totalPending: 1,
     totalAttended: 2,
+  });
+  fetchWorkersBallEligible.mockResolvedValue({
+    workers: [
+      {
+        id: 18,
+        workerId: 18,
+        name: "Chidi Bede Enwereji",
+        email: "chidi@example.com",
+        phone: "08099887766",
+        department: "Workforce Admin",
+        team: "Ministry",
+        role: "Coordinator",
+        status: "eligible",
+        invited: false,
+        registered: false,
+      },
+      {
+        id: 24,
+        workerId: 24,
+        name: "Bola Tinubu",
+        email: "bola@example.com",
+        phone: "08011112222",
+        department: "Protocol",
+        team: "Ushers",
+        role: "Worker",
+        status: "eligible",
+        invited: false,
+        registered: false,
+      },
+    ],
+    total: 2,
   });
 });
 
@@ -356,11 +389,13 @@ describe("WorkersBallAdmin (/admin/workers-ball-registrations)", () => {
     });
 
     // Select Chidi from results
-    const chidiOption = await screen.findByText("Chidi Bede Enwereji");
-    fireEvent.click(chidiOption);
+    const chidiOptions = await screen.findAllByText("Chidi Bede Enwereji");
+    fireEvent.click(chidiOptions[chidiOptions.length - 1]);
 
     // Send Invites
-    const sendBtn = screen.getByRole("button", { name: /Send Invites/i });
+    const sendBtn = screen.getByRole("button", {
+      name: /Invite Selected|Send Invites/i,
+    });
     fireEvent.click(sendBtn);
 
     await waitFor(() => {
@@ -374,5 +409,79 @@ describe("WorkersBallAdmin (/admin/workers-ball-registrations)", () => {
     expect(
       screen.getByText(/01M6XPZEF3340FP0E8M1AX9E2D/i)
     ).toBeInTheDocument();
+  });
+
+  it("fetches eligible workers, filters by department and team, selects one/all, and invites one/selected/all", async () => {
+    sendWorkersBallInvites.mockResolvedValue({
+      total: 2,
+      sentCount: 2,
+      skippedCount: 0,
+      sent: [
+        {
+          workerId: 18,
+          email: "chidi@example.com",
+          inviteUrl:
+            "https://attendance.hiccgbagada.com/workers-ball/invite?token=TOK18",
+        },
+        {
+          workerId: 24,
+          email: "bola@example.com",
+          inviteUrl:
+            "https://attendance.hiccgbagada.com/workers-ball/invite?token=TOK24",
+        },
+      ],
+      skipped: [],
+      message: "Workers Ball invites processed",
+    });
+
+    render(
+      <MemoryRouter>
+        <WorkersBallAdmin />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(fetchWorkersBallEligible).toHaveBeenCalled();
+    });
+
+    // Switch to Eligible tab
+    fireEvent.click(screen.getByRole("button", { name: /^Eligible/i }));
+
+    expect(screen.getByText("Chidi Bede Enwereji")).toBeInTheDocument();
+    expect(screen.getByText("Bola Tinubu")).toBeInTheDocument();
+
+    // Filter by Department
+    const deptSelect = screen.getByLabelText("Filter by Department");
+    fireEvent.change(deptSelect, { target: { value: "Protocol" } });
+    expect(screen.getByText("Bola Tinubu")).toBeInTheDocument();
+    expect(screen.queryByText("Chidi Bede Enwereji")).not.toBeInTheDocument();
+
+    // Reset Department filter and filter by Team
+    fireEvent.change(deptSelect, { target: { value: "All" } });
+    const teamSelect = screen.getByLabelText("Filter by Team");
+    fireEvent.change(teamSelect, { target: { value: "Ministry" } });
+    expect(screen.getByText("Chidi Bede Enwereji")).toBeInTheDocument();
+    expect(screen.queryByText("Bola Tinubu")).not.toBeInTheDocument();
+
+    // Reset Team filter
+    fireEvent.change(teamSelect, { target: { value: "All" } });
+
+    // Select All and Invite Selected
+    fireEvent.click(screen.getByRole("button", { name: /Select All \(2\)/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Invite Selected \(2\)/i })
+    );
+
+    await waitFor(() => {
+      expect(sendWorkersBallInvites).toHaveBeenCalledWith([18, 24]);
+    });
+
+    // Invite All
+    sendWorkersBallInvites.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: /Invite All \(2\)/i }));
+
+    await waitFor(() => {
+      expect(sendWorkersBallInvites).toHaveBeenCalledWith([18, 24]);
+    });
   });
 });

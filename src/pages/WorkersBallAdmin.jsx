@@ -8,6 +8,7 @@ import { getUser } from "../utils/getUser";
 import { getUserRole } from "../utils/getUserRole";
 import { getPostLoginPath } from "../utils/routeObject";
 import {
+  fetchWorkersBallEligible,
   fetchWorkersBallRegistrations,
   searchWorkersBall,
   sendWorkersBallInvites,
@@ -90,6 +91,15 @@ export default function WorkersBallAdmin() {
   const [inviteUrlByWorkerId, setInviteUrlByWorkerId] = useState({});
   const [copiedInviteUrl, setCopiedInviteUrl] = useState(null);
 
+  // Eligible workers state (GET /api/workers-ball/eligible)
+  const [eligibleWorkers, setEligibleWorkers] = useState([]);
+  const [loadingEligible, setLoadingEligible] = useState(false);
+  const [eligibleError, setEligibleError] = useState(null);
+  const [eligibleLoaded, setEligibleLoaded] = useState(false);
+  const [modalDepartmentFilter, setModalDepartmentFilter] = useState("All");
+  const [modalTeamFilter, setModalTeamFilter] = useState("All");
+  const [modalEligibleSearch, setModalEligibleSearch] = useState("");
+
   const handleSearchChange = (val) => {
     setSearch(val);
     setCurrentPage(1);
@@ -110,6 +120,36 @@ export default function WorkersBallAdmin() {
     setCurrentPage(1);
   };
 
+  // Load eligible workers from GET /api/workers-ball/eligible
+  const loadEligible = useCallback(
+    async (showToast = false) => {
+      if (!hasAccess) return;
+      setLoadingEligible(true);
+      try {
+        const res = await fetchWorkersBallEligible();
+        setEligibleError(null);
+        const list = res.workers || [];
+        setEligibleWorkers(list);
+        setEligibleLoaded(true);
+        if (showToast) {
+          toast.success(
+            `Fetched ${list.length} eligible worker${list.length === 1 ? "" : "s"}.`
+          );
+        }
+      } catch (err) {
+        const msg =
+          err?.message || "Failed to fetch eligible Workers Ball workers.";
+        setEligibleError(msg);
+        if (showToast) {
+          toast.error(msg);
+        }
+      } finally {
+        setLoadingEligible(false);
+      }
+    },
+    [hasAccess]
+  );
+
   // Load registrations from API
   const loadData = useCallback(async (isSilent = false) => {
     if (!hasAccess) return;
@@ -120,7 +160,20 @@ export default function WorkersBallAdmin() {
     }
 
     try {
-      const result = await fetchWorkersBallRegistrations();
+      const [result] = await Promise.all([
+        fetchWorkersBallRegistrations(),
+        fetchWorkersBallEligible()
+          .then((eligRes) => {
+            setEligibleError(null);
+            setEligibleWorkers(eligRes.workers || []);
+            setEligibleLoaded(true);
+          })
+          .catch((eligErr) => {
+            setEligibleError(
+              eligErr?.message || "Failed to fetch eligible workers."
+            );
+          }),
+      ]);
       setError(null);
       const list = result.registrations || [];
       setAllRegistrations(list);
@@ -158,6 +211,26 @@ export default function WorkersBallAdmin() {
     }
     let cancelled = false;
     const fetchInitialData = async () => {
+      setLoadingEligible(true);
+      fetchWorkersBallEligible()
+        .then((eligRes) => {
+          if (cancelled) return;
+          setEligibleError(null);
+          setEligibleWorkers(eligRes.workers || []);
+          setEligibleLoaded(true);
+        })
+        .catch((eligErr) => {
+          if (cancelled) return;
+          setEligibleError(
+            eligErr?.message || "Failed to fetch eligible workers."
+          );
+        })
+        .finally(() => {
+          if (!cancelled) {
+            setLoadingEligible(false);
+          }
+        });
+
       try {
         const result = await fetchWorkersBallRegistrations();
         if (cancelled) return;
@@ -198,7 +271,7 @@ export default function WorkersBallAdmin() {
     };
   }, [hasAccess, navigate]);
 
-  // Extract unique departments and teams for filter dropdowns
+  // Extract unique departments and teams for filter dropdowns (from both registrations & eligible workers)
   const { departmentOptions, teamOptions } = useMemo(() => {
     const depts = new Set();
     const teams = new Set();
@@ -206,11 +279,93 @@ export default function WorkersBallAdmin() {
       if (r.department && r.department !== "Unassigned") depts.add(r.department);
       if (r.team && r.team !== "Unassigned") teams.add(r.team);
     });
+    eligibleWorkers.forEach((w) => {
+      if (w.department && w.department !== "Unassigned") depts.add(w.department);
+      if (w.team && w.team !== "Unassigned") teams.add(w.team);
+    });
     return {
       departmentOptions: ["All", ...Array.from(depts).sort()],
       teamOptions: ["All", ...Array.from(teams).sort()],
     };
-  }, [allRegistrations]);
+  }, [allRegistrations, eligibleWorkers]);
+
+  // Filtered eligible workers on the main Eligible tab
+  const filteredEligible = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return eligibleWorkers.filter((w) => {
+      if (departmentFilter !== "All" && w.department !== departmentFilter) {
+        return false;
+      }
+      if (teamFilter !== "All" && w.team !== teamFilter) {
+        return false;
+      }
+      if (term) {
+        const matchesName = String(w.name || "").toLowerCase().includes(term);
+        const matchesEmail = String(w.email || "").toLowerCase().includes(term);
+        const matchesPhone = String(w.phone || "").toLowerCase().includes(term);
+        const matchesRole = String(w.role || "").toLowerCase().includes(term);
+        const matchesDept = String(w.department || "").toLowerCase().includes(term);
+        const matchesTeam = String(w.team || "").toLowerCase().includes(term);
+        const matchesId = String(w.workerId ?? w.id ?? "")
+          .toLowerCase()
+          .includes(term);
+        if (
+          !matchesName &&
+          !matchesEmail &&
+          !matchesPhone &&
+          !matchesRole &&
+          !matchesDept &&
+          !matchesTeam &&
+          !matchesId
+        ) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [eligibleWorkers, search, departmentFilter, teamFilter]);
+
+  // Filtered eligible workers inside the Invite Modal
+  const modalFilteredEligible = useMemo(() => {
+    const term = modalEligibleSearch.trim().toLowerCase();
+    return eligibleWorkers.filter((w) => {
+      if (
+        modalDepartmentFilter !== "All" &&
+        w.department !== modalDepartmentFilter
+      ) {
+        return false;
+      }
+      if (modalTeamFilter !== "All" && w.team !== modalTeamFilter) {
+        return false;
+      }
+      if (term) {
+        const matchesName = String(w.name || "").toLowerCase().includes(term);
+        const matchesEmail = String(w.email || "").toLowerCase().includes(term);
+        const matchesPhone = String(w.phone || "").toLowerCase().includes(term);
+        const matchesDept = String(w.department || "").toLowerCase().includes(term);
+        const matchesTeam = String(w.team || "").toLowerCase().includes(term);
+        const matchesId = String(w.workerId ?? w.id ?? "")
+          .toLowerCase()
+          .includes(term);
+        if (
+          !matchesName &&
+          !matchesEmail &&
+          !matchesPhone &&
+          !matchesDept &&
+          !matchesTeam &&
+          !matchesId
+        ) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [
+    eligibleWorkers,
+    modalEligibleSearch,
+    modalDepartmentFilter,
+    modalTeamFilter,
+  ]);
 
   // Filtered registrations
   const filteredRegistrations = useMemo(() => {
@@ -284,24 +439,20 @@ export default function WorkersBallAdmin() {
       ? Math.round((totalAttendedCount / totalRegisteredCount) * 100)
       : 0;
 
-  // Pagination slice
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredRegistrations.length / PAGE_SIZE)
-  );
+  // Pagination slice (supports both Registrations and Eligible tab)
+  const isEligibleTab = statusFilter === "eligible";
+  const activeRows = isEligibleTab ? filteredEligible : filteredRegistrations;
+  const totalPages = Math.max(1, Math.ceil(activeRows.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
   const startIndex = (safePage - 1) * PAGE_SIZE;
-  const paginatedRows = filteredRegistrations.slice(
-    startIndex,
-    startIndex + PAGE_SIZE
-  );
+  const paginatedRows = activeRows.slice(startIndex, startIndex + PAGE_SIZE);
 
   // Handle Excel Export
   const handleExport = async () => {
     setExporting(true);
     try {
       const count = await exportWorkersBallWorkbook({
-        registrations: filteredRegistrations,
+        registrations: isEligibleTab ? filteredEligible : filteredRegistrations,
       });
       toast.success(
         `Exported ${count} record${count !== 1 ? "s" : ""} to Excel.`
@@ -360,15 +511,60 @@ export default function WorkersBallAdmin() {
     }
   };
 
+  const getWorkerTargetId = (worker) => worker?.workerId ?? worker?.id;
+
+  const isWorkerSelected = useCallback(
+    (worker) => {
+      const targetId = getWorkerTargetId(worker);
+      if (!targetId) return false;
+      return selectedToInvite.some(
+        (w) => String(getWorkerTargetId(w)) === String(targetId)
+      );
+    },
+    [selectedToInvite]
+  );
+
   const toggleSelectWorkerToInvite = (worker) => {
-    if (!worker?.id) return;
+    const targetId = getWorkerTargetId(worker);
+    if (!targetId) return;
     setSelectedToInvite((prev) => {
-      const exists = prev.some((w) => String(w.id) === String(worker.id));
+      const exists = prev.some(
+        (w) => String(getWorkerTargetId(w)) === String(targetId)
+      );
       if (exists) {
-        return prev.filter((w) => String(w.id) !== String(worker.id));
+        return prev.filter(
+          (w) => String(getWorkerTargetId(w)) !== String(targetId)
+        );
       }
-      return [...prev, worker];
+      return [...prev, { ...worker, id: targetId }];
     });
+  };
+
+  // Select All / Deselect All for a given eligible workers list
+  const handleToggleSelectAllEligible = (workersList = []) => {
+    const validWorkers = workersList.filter((w) => Boolean(getWorkerTargetId(w)));
+    if (validWorkers.length === 0) return;
+
+    const allCurrentlySelected = validWorkers.every((w) => isWorkerSelected(w));
+    if (allCurrentlySelected) {
+      const idsToRemove = new Set(
+        validWorkers.map((w) => String(getWorkerTargetId(w)))
+      );
+      setSelectedToInvite((prev) =>
+        prev.filter((w) => !idsToRemove.has(String(getWorkerTargetId(w))))
+      );
+    } else {
+      setSelectedToInvite((prev) => {
+        const existingMap = new Map(
+          prev.map((w) => [String(getWorkerTargetId(w)), w])
+        );
+        validWorkers.forEach((w) => {
+          const id = getWorkerTargetId(w);
+          existingMap.set(String(id), { ...w, id });
+        });
+        return Array.from(existingMap.values());
+      });
+    }
   };
 
   const parseManualWorkerIds = () => {
@@ -383,20 +579,17 @@ export default function WorkersBallAdmin() {
       });
   };
 
-  const handleSendInvitesSubmit = async (e) => {
-    if (e) e.preventDefault();
-    const fromSelected = selectedToInvite.map((w) => w.id);
-    const fromManual = parseManualWorkerIds();
-    const combinedIds = Array.from(new Set([...fromSelected, ...fromManual]));
-
-    if (combinedIds.length === 0) {
-      toast.error("Please select at least one worker or enter a worker ID.");
-      return;
+  // Shared helper to dispatch invites for an array of worker IDs
+  const dispatchWorkerInvites = async (workerIds, clearSelectionAfter = true) => {
+    const uniqueIds = Array.from(new Set(workerIds.filter(Boolean)));
+    if (uniqueIds.length === 0) {
+      toast.error("Please select at least one worker to invite.");
+      return null;
     }
 
     setSendingInvites(true);
     try {
-      const res = await sendWorkersBallInvites(combinedIds);
+      const res = await sendWorkersBallInvites(uniqueIds);
       setLastInviteResult(res);
       if (Array.isArray(res.sent) && res.sent.length > 0) {
         setInviteUrlByWorkerId((prev) => {
@@ -417,26 +610,67 @@ export default function WorkersBallAdmin() {
           }.`
         );
       } else if (res.skippedCount > 0) {
-        toast.info(
-          `No new invites sent (${res.skippedCount} skipped).`
-        );
+        toast.info(`No new invites sent (${res.skippedCount} skipped).`);
       } else {
         toast.success(res.message || "Invites processed.");
       }
 
-      setSelectedToInvite([]);
-      setManualWorkerIdsInput("");
+      if (clearSelectionAfter) {
+        setSelectedToInvite([]);
+        setManualWorkerIdsInput("");
+      }
       await loadData(true);
+      return res;
     } catch (err) {
       toast.error(err?.message || "Failed to send Workers Ball invites.");
+      return null;
     } finally {
       setSendingInvites(false);
     }
   };
 
+  const handleSendInvitesSubmit = async (e) => {
+    if (e) e.preventDefault();
+    const fromSelected = selectedToInvite.map((w) => getWorkerTargetId(w));
+    const fromManual = parseManualWorkerIds();
+    const combinedIds = Array.from(new Set([...fromSelected, ...fromManual]));
+
+    if (combinedIds.length === 0) {
+      toast.error("Please select at least one worker or enter a worker ID.");
+      return;
+    }
+
+    await dispatchWorkerInvites(combinedIds, true);
+  };
+
+  // Invite All eligible workers in the provided list (respecting active filters)
+  const handleInviteAllEligible = async (workersList = []) => {
+    const ids = workersList
+      .map((w) => getWorkerTargetId(w))
+      .filter(Boolean);
+    if (ids.length === 0) {
+      toast.error("No eligible workers available to invite.");
+      return;
+    }
+    await dispatchWorkerInvites(ids, false);
+  };
+
+  // Invite Selected eligible workers
+  const handleInviteSelectedEligible = async () => {
+    const ids = selectedToInvite
+      .map((w) => getWorkerTargetId(w))
+      .filter(Boolean);
+    if (ids.length === 0) {
+      toast.error("Please select at least one eligible worker.");
+      return;
+    }
+    await dispatchWorkerInvites(ids, true);
+  };
+
+  // Invite One worker (used on both Pending rows and Eligible rows)
   const handleQuickResendInvite = async (row, e) => {
     if (e) e.stopPropagation();
-    const targetId = row?.workerId ?? row?.id;
+    const targetId = getWorkerTargetId(row);
     if (!targetId || resendingWorkerId) return;
 
     setResendingWorkerId(targetId);
@@ -535,11 +769,26 @@ export default function WorkersBallAdmin() {
               onClick={() => {
                 setLastInviteResult(null);
                 setInviteModalOpen(true);
+                if (!eligibleLoaded && !loadingEligible) {
+                  void loadEligible(false);
+                }
               }}
               className="inline-flex items-center gap-1.5 rounded-lg bg-sienna px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-sienna-dark transition cursor-pointer"
             >
               <UserPlusIcon className="h-4 w-4" />
               Invite Workers
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                handleStatusChange("eligible");
+                void loadEligible(true);
+              }}
+              disabled={loadingEligible}
+              className="inline-flex items-center rounded-lg border border-sienna/30 bg-sienna/10 px-3.5 py-2 text-xs font-semibold text-sienna transition hover:bg-sienna/20 disabled:opacity-50 cursor-pointer"
+            >
+              {loadingEligible ? "Fetching Eligible..." : "Fetch Eligible"}
             </button>
 
             <button
@@ -554,7 +803,7 @@ export default function WorkersBallAdmin() {
             <button
               type="button"
               onClick={handleExport}
-              disabled={exporting || loading || filteredRegistrations.length === 0}
+              disabled={exporting || loading || activeRows.length === 0}
               className="inline-flex items-center rounded-lg border border-ink-200 bg-white px-3.5 py-2 text-xs font-medium text-ink transition hover:bg-ink-50 hover:border-ink-300 disabled:opacity-50 shadow-xs"
             >
               {exporting ? "Generating Excel..." : "Export Excel"}
@@ -628,7 +877,7 @@ export default function WorkersBallAdmin() {
         <div className="rounded-xl border border-ink-200 bg-white p-4 shadow-xs space-y-4">
           {/* Top Row: Status Tabs & Result Count */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-ink-100 pb-3">
-            <div className="inline-flex rounded-lg bg-ink-100/80 p-1 text-xs font-medium">
+            <div className="inline-flex flex-wrap rounded-lg bg-ink-100/80 p-1 text-xs font-medium">
               <button
                 type="button"
                 onClick={() => handleStatusChange("all")}
@@ -641,6 +890,32 @@ export default function WorkersBallAdmin() {
                 <span>All</span>
                 <span className="rounded-full bg-ink-100 px-1.5 py-0.2 text-2xs text-ink-700">
                   {allRegistrations.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  handleStatusChange("eligible");
+                  if (!eligibleLoaded && !loadingEligible) {
+                    void loadEligible(false);
+                  }
+                }}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md transition ${
+                  statusFilter === "eligible"
+                    ? "bg-sienna text-white shadow-xs font-semibold"
+                    : "text-ink-600 hover:text-ink"
+                }`}
+              >
+                <span>Eligible</span>
+                <span
+                  className={`rounded-full px-1.5 py-0.2 text-2xs ${
+                    statusFilter === "eligible"
+                      ? "bg-sienna-dark text-white"
+                      : "bg-sienna/15 text-sienna"
+                  }`}
+                >
+                  {eligibleWorkers.length}
                 </span>
               </button>
 
@@ -710,10 +985,8 @@ export default function WorkersBallAdmin() {
 
             <div className="flex items-center gap-2 text-xs font-mono text-ink-500">
               <span>
-                <strong className="text-ink">
-                  {filteredRegistrations.length}
-                </strong>{" "}
-                of {allRegistrations.length}
+                <strong className="text-ink">{activeRows.length}</strong> of{" "}
+                {isEligibleTab ? eligibleWorkers.length : allRegistrations.length}
               </span>
               {hasActiveFilters && (
                 <button
@@ -744,6 +1017,7 @@ export default function WorkersBallAdmin() {
             {/* Department Dropdown */}
             <div>
               <select
+                aria-label="Filter by Department"
                 value={departmentFilter}
                 onChange={(e) => handleDepartmentChange(e.target.value)}
                 className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-xs text-ink focus:border-amber-500 focus:outline-hidden focus:ring-1 focus:ring-amber-500 transition"
@@ -762,6 +1036,7 @@ export default function WorkersBallAdmin() {
             {/* Team Dropdown */}
             <div>
               <select
+                aria-label="Filter by Team"
                 value={teamFilter}
                 onChange={(e) => handleTeamChange(e.target.value)}
                 className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-xs text-ink focus:border-amber-500 focus:outline-hidden focus:ring-1 focus:ring-amber-500 transition"
@@ -777,11 +1052,264 @@ export default function WorkersBallAdmin() {
               </select>
             </div>
           </div>
+
+          {/* Bulk Invite Action Bar on Eligible Tab */}
+          {isEligibleTab && (
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-ink-100">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleToggleSelectAllEligible(filteredEligible)}
+                  disabled={filteredEligible.length === 0}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:bg-ink-50 disabled:opacity-50 transition cursor-pointer"
+                >
+                  {filteredEligible.length > 0 &&
+                  filteredEligible.every((w) => isWorkerSelected(w))
+                    ? "Deselect All"
+                    : `Select All (${filteredEligible.length})`}
+                </button>
+
+                {selectedToInvite.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedToInvite([])}
+                    className="text-xs font-medium text-brick hover:underline px-2 py-1 cursor-pointer"
+                  >
+                    Clear Selection ({selectedToInvite.length})
+                  </button>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleInviteSelectedEligible}
+                  disabled={sendingInvites || selectedToInvite.length === 0}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-ink px-3.5 py-1.5 text-xs font-semibold text-cream hover:bg-ink-900 disabled:opacity-50 transition cursor-pointer"
+                >
+                  <PaperAirplaneIcon className="h-3.5 w-3.5" />
+                  {sendingInvites
+                    ? "Sending..."
+                    : `Invite Selected (${selectedToInvite.length})`}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleInviteAllEligible(filteredEligible)}
+                  disabled={sendingInvites || filteredEligible.length === 0}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-sienna px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-sienna-dark disabled:opacity-50 transition cursor-pointer"
+                >
+                  <PaperAirplaneIcon className="h-3.5 w-3.5" />
+                  {sendingInvites
+                    ? "Sending..."
+                    : `Invite All (${filteredEligible.length})`}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Data Table */}
         <div className="rounded-xl border border-ink-200 bg-white shadow-xs overflow-hidden">
-          {loading ? (
+          {isEligibleTab ? (
+            loadingEligible ? (
+              <div className="p-12 text-center">
+                <p className="text-sm font-medium text-ink">
+                  Loading eligible workers...
+                </p>
+              </div>
+            ) : eligibleError ? (
+              <div className="p-12 text-center">
+                <p className="text-sm font-semibold text-brick mb-2">
+                  {eligibleError}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => loadEligible(true)}
+                  className="inline-flex items-center rounded-lg bg-ink px-4 py-2 text-xs font-medium text-cream hover:bg-ink-900 transition"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : filteredEligible.length === 0 ? (
+              <div className="p-12 text-center">
+                <h3 className="text-base font-semibold text-ink">
+                  No eligible workers found
+                </h3>
+                <p className="text-xs text-ink-500 mt-1 max-w-sm mx-auto">
+                  {hasActiveFilters
+                    ? "Try loosening your search term, department, or team filter."
+                    : "Click Fetch Eligible to load eligible workers from the server."}
+                </p>
+                <div className="mt-4 flex items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => loadEligible(true)}
+                    className="inline-flex items-center gap-1 rounded-lg bg-sienna px-3 py-1.5 text-xs font-semibold text-white hover:bg-sienna-dark"
+                  >
+                    Fetch Eligible
+                  </button>
+                  {hasActiveFilters && (
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="inline-flex items-center gap-1 rounded-lg border border-ink-200 px-3 py-1.5 text-xs text-ink hover:bg-ink-50"
+                    >
+                      Clear all filters
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-ink-200 bg-ink-50/70 text-ink-700 font-mono text-2xs uppercase tracking-wider">
+                      <th className="py-3 px-4 font-semibold w-10">
+                        <input
+                          type="checkbox"
+                          aria-label="Select all eligible workers"
+                          checked={
+                            filteredEligible.length > 0 &&
+                            filteredEligible.every((w) => isWorkerSelected(w))
+                          }
+                          onChange={() =>
+                            handleToggleSelectAllEligible(filteredEligible)
+                          }
+                          className="h-4 w-4 rounded border-ink-300 text-sienna focus:ring-sienna cursor-pointer"
+                        />
+                      </th>
+                      <th className="py-3 px-4 font-semibold w-12">#</th>
+                      <th className="py-3 px-4 font-semibold">Worker</th>
+                      <th className="py-3 px-4 font-semibold">Status</th>
+                      <th className="py-3 px-4 font-semibold hidden md:table-cell">
+                        Department / Team
+                      </th>
+                      <th className="py-3 px-4 font-semibold hidden lg:table-cell">
+                        Contact
+                      </th>
+                      <th className="py-3 px-4 font-semibold text-right">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-ink-100">
+                    {paginatedRows.map((row, index) => {
+                      const sn = startIndex + index + 1;
+                      const targetId = getWorkerTargetId(row);
+                      const checked = isWorkerSelected(row);
+                      const inviteLink =
+                        row.inviteUrl || inviteUrlByWorkerId[String(targetId)];
+
+                      return (
+                        <tr
+                          key={targetId || index}
+                          className={`transition cursor-pointer ${
+                            checked
+                              ? "bg-amber-50/60"
+                              : "hover:bg-amber-50/30"
+                          }`}
+                          onClick={() => toggleSelectWorkerToInvite(row)}
+                        >
+                          <td
+                            className="py-3.5 px-4"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <input
+                              type="checkbox"
+                              aria-label={`Select ${row.name}`}
+                              checked={checked}
+                              onChange={() => toggleSelectWorkerToInvite(row)}
+                              className="h-4 w-4 rounded border-ink-300 text-sienna focus:ring-sienna cursor-pointer"
+                            />
+                          </td>
+                          <td className="py-3.5 px-4 font-mono text-ink-400">
+                            {sn}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="font-semibold text-ink text-sm">
+                              {row.name}
+                            </div>
+                            <div className="text-2xs text-ink-500 font-medium">
+                              {row.role || "Worker"}{" "}
+                              {targetId ? `• #${targetId}` : ""}
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            {row.registered ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-2xs font-semibold font-mono bg-emerald-100 text-emerald-800 border border-emerald-200 w-max">
+                                REGISTERED
+                              </span>
+                            ) : row.invited ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-2xs font-semibold font-mono bg-amber-50 text-amber-800 border border-amber-200 w-max">
+                                INVITED
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-2xs font-semibold font-mono bg-ink-100 text-ink-800 border border-ink-200 w-max">
+                                ELIGIBLE
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 hidden md:table-cell">
+                            <div className="text-ink font-medium">
+                              {row.department || "Unassigned"}
+                            </div>
+                            <div className="text-2xs text-ink-500">
+                              {row.team || "Unassigned"}
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4 hidden lg:table-cell">
+                            <div className="text-ink font-mono text-2xs truncate max-w-xs">
+                              {row.email || "-"}
+                            </div>
+                            <div className="text-2xs text-ink-500 font-mono">
+                              {row.phone || "-"}
+                            </div>
+                          </td>
+                          <td
+                            className="py-3.5 px-4 text-right"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="inline-flex items-center justify-end gap-1.5">
+                              {targetId && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleQuickResendInvite(row, e)}
+                                  disabled={resendingWorkerId === targetId}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-sienna bg-sienna/10 hover:bg-sienna/20 border border-sienna/25 transition disabled:opacity-50 cursor-pointer"
+                                >
+                                  <PaperAirplaneIcon className="h-3 w-3" />
+                                  {resendingWorkerId === targetId
+                                    ? "Sending..."
+                                    : "Invite"}
+                                </button>
+                              )}
+                              {inviteLink && (
+                                <button
+                                  type="button"
+                                  onClick={(e) =>
+                                    handleCopyInviteUrl(inviteLink, e)
+                                  }
+                                  title="Copy Personal Invite Link"
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-ink-700 bg-white hover:bg-ink-50 border border-ink-200 transition cursor-pointer"
+                                >
+                                  {copiedInviteUrl === inviteLink ? (
+                                    <CheckIcon className="h-3.5 w-3.5 text-forest" />
+                                  ) : (
+                                    <LinkIcon className="h-3.5 w-3.5" />
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )
+          ) : loading ? (
             <div className="p-12 text-center">
               <p className="text-sm font-medium text-ink">
                 Loading registrations...
@@ -1002,39 +1530,40 @@ export default function WorkersBallAdmin() {
           )}
 
           {/* Pagination Bar */}
-          {!loading && filteredRegistrations.length > 0 && (
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-ink-200 px-4 py-3 bg-white">
-              <span className="text-xs text-ink-500 font-mono">
-                Showing {startIndex + 1} to{" "}
-                {Math.min(startIndex + PAGE_SIZE, filteredRegistrations.length)}{" "}
-                of {filteredRegistrations.length} results
-              </span>
-
-              <div className="inline-flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={safePage <= 1}
-                  className="rounded-md border border-ink-200 bg-white px-2.5 py-1 text-xs font-medium text-ink hover:bg-ink-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
-                >
-                  Previous
-                </button>
-                <span className="px-3 text-xs font-mono text-ink-700">
-                  Page {safePage} of {totalPages}
+          {!(isEligibleTab ? loadingEligible : loading) &&
+            activeRows.length > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-ink-200 px-4 py-3 bg-white">
+                <span className="text-xs text-ink-500 font-mono">
+                  Showing {startIndex + 1} to{" "}
+                  {Math.min(startIndex + PAGE_SIZE, activeRows.length)} of{" "}
+                  {activeRows.length} results
                 </span>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setCurrentPage((p) => Math.min(totalPages, p + 1))
-                  }
-                  disabled={safePage >= totalPages}
-                  className="rounded-md border border-ink-200 bg-white px-2.5 py-1 text-xs font-medium text-ink hover:bg-ink-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
-                >
-                  Next
-                </button>
+
+                <div className="inline-flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={safePage <= 1}
+                    className="rounded-md border border-ink-200 bg-white px-2.5 py-1 text-xs font-medium text-ink hover:bg-ink-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  >
+                    Previous
+                  </button>
+                  <span className="px-3 text-xs font-mono text-ink-700">
+                    Page {safePage} of {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCurrentPage((p) => Math.min(totalPages, p + 1))
+                    }
+                    disabled={safePage >= totalPages}
+                    className="rounded-md border border-ink-200 bg-white px-2.5 py-1 text-xs font-medium text-ink hover:bg-ink-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
         </div>
 
         {/* Worker Pass & Registration Detail Modal */}
@@ -1251,7 +1780,7 @@ export default function WorkersBallAdmin() {
           </GenericModal>
         )}
 
-        {/* Invite Workers Modal (POST /api/workers-ball/invites) */}
+        {/* Invite Workers Modal (GET /api/workers-ball/eligible + POST /api/workers-ball/invites) */}
         {inviteModalOpen && (
           <GenericModal
             isOpen={inviteModalOpen}
@@ -1260,9 +1789,189 @@ export default function WorkersBallAdmin() {
             size="large"
           >
             <div className="space-y-5">
-              <p className="text-xs text-ink-600 leading-relaxed">
-                Search for workers in the Harvesters Gbagada registry or enter worker IDs directly to dispatch personal Workers Ball invitation emails and one-click confirmation links.
-              </p>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <p className="text-xs text-ink-600 leading-relaxed">
+                  Fetch eligible workers, filter by department or team, and invite one, selected, or all eligible workers.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => loadEligible(true)}
+                  disabled={loadingEligible}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-sienna/30 bg-sienna/10 px-3 py-1.5 text-xs font-semibold text-sienna hover:bg-sienna/20 disabled:opacity-50 transition cursor-pointer shrink-0"
+                >
+                  {loadingEligible ? "Fetching..." : "Fetch / Refresh Eligible"}
+                </button>
+              </div>
+
+              {/* Eligible Workers Filter & Selection Panel */}
+              <div className="rounded-xl border border-ink-200 bg-ink-50/40 p-3.5 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-2xs font-mono uppercase tracking-wider text-ink-700 font-semibold">
+                    Eligible Workers ({modalFilteredEligible.length} of{" "}
+                    {eligibleWorkers.length})
+                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleToggleSelectAllEligible(modalFilteredEligible)
+                      }
+                      disabled={modalFilteredEligible.length === 0}
+                      className="inline-flex items-center gap-1 rounded-md border border-ink-200 bg-white px-2.5 py-1 text-2xs font-semibold text-ink hover:bg-ink-50 disabled:opacity-50 cursor-pointer"
+                    >
+                      {modalFilteredEligible.length > 0 &&
+                      modalFilteredEligible.every((w) => isWorkerSelected(w))
+                        ? "Deselect All"
+                        : `Select All (${modalFilteredEligible.length})`}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleInviteAllEligible(modalFilteredEligible)
+                      }
+                      disabled={
+                        sendingInvites || modalFilteredEligible.length === 0
+                      }
+                      className="inline-flex items-center gap-1 rounded-md bg-sienna px-2.5 py-1 text-2xs font-semibold text-white hover:bg-sienna-dark disabled:opacity-50 cursor-pointer"
+                    >
+                      <PaperAirplaneIcon className="h-3 w-3" />
+                      {sendingInvites
+                        ? "Sending..."
+                        : `Invite All (${modalFilteredEligible.length})`}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Modal Filters: Search, Department, Team */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <input
+                    type="search"
+                    value={modalEligibleSearch}
+                    onChange={(e) => setModalEligibleSearch(e.target.value)}
+                    placeholder="Filter eligible by name, email..."
+                    className="w-full rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs text-ink placeholder:text-ink-400 focus:border-sienna focus:outline-hidden"
+                  />
+                  <select
+                    aria-label="Modal Filter by Department"
+                    value={modalDepartmentFilter}
+                    onChange={(e) => setModalDepartmentFilter(e.target.value)}
+                    className="w-full rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs text-ink focus:border-sienna focus:outline-hidden"
+                  >
+                    <option value="All">All Departments</option>
+                    {departmentOptions
+                      .filter((d) => d !== "All")
+                      .map((dept) => (
+                        <option key={dept} value={dept}>
+                          {dept}
+                        </option>
+                      ))}
+                  </select>
+                  <select
+                    aria-label="Modal Filter by Team"
+                    value={modalTeamFilter}
+                    onChange={(e) => setModalTeamFilter(e.target.value)}
+                    className="w-full rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs text-ink focus:border-sienna focus:outline-hidden"
+                  >
+                    <option value="All">All Teams</option>
+                    {teamOptions
+                      .filter((t) => t !== "All")
+                      .map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                {/* Eligible Workers List */}
+                {loadingEligible ? (
+                  <p className="py-4 text-center text-xs text-ink-500">
+                    Loading eligible workers...
+                  </p>
+                ) : eligibleError ? (
+                  <p className="py-3 text-center text-xs text-brick">
+                    {eligibleError}
+                  </p>
+                ) : modalFilteredEligible.length === 0 ? (
+                  <p className="py-3 text-center text-xs text-ink-500">
+                    No eligible workers match the current filters.
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-ink-100 rounded-lg border border-ink-200 bg-white max-h-56 overflow-y-auto">
+                    {modalFilteredEligible.map((w, idx) => {
+                      const targetId = getWorkerTargetId(w);
+                      const isSelected = isWorkerSelected(w);
+                      return (
+                        <li
+                          key={targetId || idx}
+                          className={`px-3 py-2 flex items-center justify-between gap-2 text-xs transition ${
+                            isSelected ? "bg-amber-50/80" : "hover:bg-ink-50/60"
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => toggleSelectWorkerToInvite(w)}
+                            className="flex items-center gap-2.5 min-w-0 flex-1 text-left cursor-pointer"
+                          >
+                            <span
+                              className={`h-4 w-4 rounded flex items-center justify-center border shrink-0 ${
+                                isSelected
+                                  ? "bg-sienna border-sienna text-white"
+                                  : "border-ink-300 bg-white"
+                              }`}
+                            >
+                              {isSelected && (
+                                <CheckIcon className="h-3 w-3" />
+                              )}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-semibold text-ink truncate">
+                                  {w.name}
+                                </span>
+                                {targetId && (
+                                  <span className="font-mono text-2xs text-ink-400">
+                                    #{targetId}
+                                  </span>
+                                )}
+                                {w.registered && (
+                                  <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-3xs font-mono font-semibold text-emerald-800">
+                                    Registered
+                                  </span>
+                                )}
+                                {!w.registered && w.invited && (
+                                  <span className="rounded bg-amber-100 px-1.5 py-0.5 text-3xs font-mono font-semibold text-amber-800">
+                                    Invited
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-2xs text-ink-500 truncate">
+                                {[w.department, w.team, w.email]
+                                  .filter(Boolean)
+                                  .join(" · ")}
+                              </div>
+                            </div>
+                          </button>
+
+                          {targetId && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleQuickResendInvite(w, e)}
+                              disabled={resendingWorkerId === targetId}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-2xs font-semibold text-sienna bg-sienna/10 hover:bg-sienna/20 border border-sienna/25 transition disabled:opacity-50 shrink-0 cursor-pointer"
+                            >
+                              <PaperAirplaneIcon className="h-3 w-3" />
+                              {resendingWorkerId === targetId
+                                ? "Sending..."
+                                : "Invite"}
+                            </button>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
 
               {/* Search Workforce Form */}
               <form onSubmit={handleInviteSearch} className="flex gap-2">
@@ -1497,13 +2206,26 @@ export default function WorkersBallAdmin() {
               )}
 
               {/* Modal Actions */}
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-ink-100">
+              <div className="flex flex-wrap items-center justify-end gap-2.5 pt-3 border-t border-ink-100">
                 <button
                   type="button"
                   onClick={() => setInviteModalOpen(false)}
                   className="rounded-lg border border-ink-200 px-4 py-2 text-xs font-medium text-ink hover:bg-ink-50 transition cursor-pointer"
                 >
                   Close
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleInviteAllEligible(modalFilteredEligible)}
+                  disabled={
+                    sendingInvites || modalFilteredEligible.length === 0
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-sienna bg-sienna/10 px-4 py-2 text-xs font-semibold text-sienna hover:bg-sienna/20 transition disabled:opacity-50 cursor-pointer"
+                >
+                  <PaperAirplaneIcon className="h-3.5 w-3.5" />
+                  {sendingInvites
+                    ? "Sending..."
+                    : `Invite All (${modalFilteredEligible.length})`}
                 </button>
                 <button
                   type="button"
@@ -1515,7 +2237,11 @@ export default function WorkersBallAdmin() {
                   className="inline-flex items-center gap-1.5 rounded-lg bg-sienna px-4 py-2 text-xs font-semibold text-white hover:bg-sienna-dark transition disabled:opacity-50 cursor-pointer"
                 >
                   <PaperAirplaneIcon className="h-3.5 w-3.5" />
-                  {sendingInvites ? "Sending Invites..." : "Send Invites"}
+                  {sendingInvites
+                    ? "Sending Invites..."
+                    : selectedToInvite.length > 0
+                      ? `Invite Selected (${selectedToInvite.length})`
+                      : "Send Invites"}
                 </button>
               </div>
             </div>

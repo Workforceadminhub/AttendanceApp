@@ -1357,7 +1357,21 @@ export async function fetchWorkersBallEligible(params = {}) {
     true
   );
 
-  const payload = unwrapResponsePayload(response);
+  let payload = response;
+  if (typeof payload === "string") {
+    try {
+      payload = JSON.parse(payload);
+    } catch {
+      payload = {};
+    }
+  }
+  if (payload && typeof payload.body === "string") {
+    try {
+      payload = JSON.parse(payload.body);
+    } catch {
+      // ignore non-JSON body string
+    }
+  }
 
   if (payload?.success === false) {
     throw new Error(
@@ -1386,8 +1400,13 @@ export async function fetchWorkersBallEligible(params = {}) {
     rawRows = payload.eligible;
   } else if (Array.isArray(payload?.workers)) {
     rawRows = payload.workers;
-  } else {
-    rawRows = extractArrayFromPayload(data);
+  } else if (data && typeof data === "object") {
+    for (const val of Object.values(data)) {
+      if (Array.isArray(val)) {
+        rawRows = val;
+        break;
+      }
+    }
   }
 
   const workers = rawRows.map((item, idx) =>

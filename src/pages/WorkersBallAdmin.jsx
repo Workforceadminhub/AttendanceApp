@@ -666,6 +666,12 @@ export default function WorkersBallAdmin() {
         toast.success(res.message || "Invites processed.");
       }
 
+      if (res.partialError) {
+        toast.warning(
+          `Some remaining invites paused (${res.partialError}). Please retry the remaining uninvited workers.`
+        );
+      }
+
       if (clearSelectionAfter) {
         setSelectedToInvite([]);
         setManualWorkerIdsInput("");

@@ -542,49 +542,57 @@ describe("workersBall service", () => {
       });
     });
 
-    it("sendWorkersBallInvites splits requests into chunks of at most 200 workerIds and aggregates results", async () => {
-      const workerIds = Array.from({ length: 353 }, (_, i) => i + 1);
+    it("sendWorkersBallInvites splits requests into chunks of 25 workerIds, retries 503s, and aggregates results", async () => {
+      const workerIds = Array.from({ length: 40 }, (_, i) => i + 1);
+      const transientErr = new Error("Service Unavailable");
+      transientErr.status = 503;
 
       apiRequest
         .mockResolvedValueOnce({
           success: true,
           message: "Batch 1 processed",
           data: {
-            total: 200,
-            sent_count: 190,
-            skipped_count: 10,
+            total: 25,
+            sent_count: 23,
+            skipped_count: 2,
             sent: [{ worker_id: 1, email: "w1@example.com", invite_url: "https://example.com?token=T1" }],
             skipped: [{ worker_id: 2, reason: "Already invited" }],
           },
         })
+        .mockRejectedValueOnce(transientErr)
         .mockResolvedValueOnce({
           success: true,
           message: "Batch 2 processed",
           data: {
-            total: 153,
-            sent_count: 150,
-            skipped_count: 3,
-            sent: [{ worker_id: 201, email: "w201@example.com", invite_url: "https://example.com?token=T201" }],
-            skipped: [{ worker_id: 202, reason: "Missing email" }],
+            total: 15,
+            sent_count: 14,
+            skipped_count: 1,
+            sent: [{ worker_id: 26, email: "w26@example.com", invite_url: "https://example.com?token=T26" }],
+            skipped: [{ worker_id: 27, reason: "Missing email" }],
           },
         });
 
-      const res = await sendWorkersBallInvites(workerIds);
+      const res = await sendWorkersBallInvites(workerIds, {
+        batchDelayMs: 0,
+        retryDelayMs: 0,
+      });
 
-      expect(apiRequest).toHaveBeenCalledTimes(2);
-      expect(apiRequest.mock.calls[0][2].workerIds).toHaveLength(200);
+      expect(apiRequest).toHaveBeenCalledTimes(3);
+      expect(apiRequest.mock.calls[0][2].workerIds).toHaveLength(25);
       expect(apiRequest.mock.calls[0][2].workerIds[0]).toBe(1);
-      expect(apiRequest.mock.calls[0][2].workerIds[199]).toBe(200);
+      expect(apiRequest.mock.calls[0][2].workerIds[24]).toBe(25);
 
-      expect(apiRequest.mock.calls[1][2].workerIds).toHaveLength(153);
-      expect(apiRequest.mock.calls[1][2].workerIds[0]).toBe(201);
-      expect(apiRequest.mock.calls[1][2].workerIds[152]).toBe(353);
+      expect(apiRequest.mock.calls[1][2].workerIds).toHaveLength(15);
+      expect(apiRequest.mock.calls[2][2].workerIds).toHaveLength(15);
+      expect(apiRequest.mock.calls[2][2].workerIds[0]).toBe(26);
+      expect(apiRequest.mock.calls[2][2].workerIds[14]).toBe(40);
 
-      expect(res.total).toBe(353);
-      expect(res.sentCount).toBe(340);
-      expect(res.skippedCount).toBe(13);
+      expect(res.total).toBe(40);
+      expect(res.sentCount).toBe(37);
+      expect(res.skippedCount).toBe(3);
       expect(res.sent).toHaveLength(2);
       expect(res.skipped).toHaveLength(2);
+      expect(res.partialError).toBeNull();
     });
 
     it("fetchWorkersBallInvite GETs /api/workers-ball/invite/{token} without auth", async () => {

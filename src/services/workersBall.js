@@ -995,9 +995,35 @@ export async function fetchWorkersBallRegistrations(params = {}) {
  *   raw
  * }
  */
-export const WORKERS_BALL_INVITE_BATCH_LIMIT = 200;
+export const WORKERS_BALL_INVITE_BATCH_LIMIT = 25;
 
-export async function sendWorkersBallInvites(workerIds) {
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function isRetryableInviteError(err) {
+  const status = err?.status;
+  if (status === 429 || status === 502 || status === 503 || status === 504) {
+    return true;
+  }
+  const msg = String(err?.message || "");
+  return /service unavailable|bad gateway|gateway timeout|too many requests|network|unable to reach the server/i.test(
+    msg
+  );
+}
+
+export async function sendWorkersBallInvites(workerIds, options = {}) {
+  const batchSize =
+    Number(options?.batchSize) > 0
+      ? Number(options.batchSize)
+      : WORKERS_BALL_INVITE_BATCH_LIMIT;
+  const maxRetries =
+    options?.maxRetries !== undefined ? Number(options.maxRetries) : 2;
+  const retryDelayMs =
+    options?.retryDelayMs !== undefined ? Number(options.retryDelayMs) : 600;
+  const batchDelayMs =
+    options?.batchDelayMs !== undefined ? Number(options.batchDelayMs) : 150;
+  const onProgress =
+    typeof options?.onProgress === "function" ? options.onProgress : null;
+
   const rawList = Array.isArray(workerIds) ? workerIds : [workerIds];
   const cleanedIds = Array.from(
     new Set(
@@ -1052,8 +1078,8 @@ export async function sendWorkersBallInvites(workerIds) {
   };
 
   const chunks = [];
-  for (let i = 0; i < cleanedIds.length; i += WORKERS_BALL_INVITE_BATCH_LIMIT) {
-    chunks.push(cleanedIds.slice(i, i + WORKERS_BALL_INVITE_BATCH_LIMIT));
+  for (let i = 0; i < cleanedIds.length; i += batchSize) {
+    chunks.push(cleanedIds.slice(i, i + batchSize));
   }
 
   const allSent = [];
@@ -1062,21 +1088,56 @@ export async function sendWorkersBallInvites(workerIds) {
   let totalSentCount = 0;
   let totalSkippedCount = 0;
   let lastMessage = "";
+  let partialError = null;
   const rawResponses = [];
 
-  for (const chunk of chunks) {
-    const response = await apiRequest(
-      "POST",
-      "/api/workers-ball/invites",
-      { workerIds: chunk },
-      undefined,
-      true
-    );
+  for (let idx = 0; idx < chunks.length; idx++) {
+    const chunk = chunks[idx];
+    if (idx > 0 && batchDelayMs > 0) {
+      await sleep(batchDelayMs);
+    }
 
-    if (response?.success === false) {
-      throw new Error(
-        response?.message || "Failed to send Workers Ball invitations."
-      );
+    let response;
+    let attempt = 0;
+    while (true) {
+      try {
+        response = await apiRequest(
+          "POST",
+          "/api/workers-ball/invites",
+          { workerIds: chunk },
+          undefined,
+          true
+        );
+
+        if (response?.success === false) {
+          const apiErr = new Error(
+            response?.message || "Failed to send Workers Ball invitations."
+          );
+          apiErr.status = response?.status;
+          throw apiErr;
+        }
+        break;
+      } catch (err) {
+        if (attempt < maxRetries && isRetryableInviteError(err)) {
+          attempt += 1;
+          if (retryDelayMs > 0) {
+            await sleep(retryDelayMs * attempt);
+          }
+          continue;
+        }
+
+        if (idx === 0) {
+          throw err;
+        }
+
+        partialError = err?.message || "A batch failed to complete.";
+        response = null;
+        break;
+      }
+    }
+
+    if (!response) {
+      break;
     }
 
     rawResponses.push(response);
@@ -1093,6 +1154,17 @@ export async function sendWorkersBallInvites(workerIds) {
     totalSentCount += Number(data.sent_count ?? data.sentCount ?? sent.length);
     totalSkippedCount += Number(data.skipped_count ?? data.skippedCount ?? skipped.length);
     lastMessage = response?.message || data?.message || lastMessage;
+
+    if (onProgress) {
+      onProgress({
+        completedBatches: idx + 1,
+        totalBatches: chunks.length,
+        processedCount: totalProcessed,
+        totalRequested: cleanedIds.length,
+        sentCount: totalSentCount,
+        skippedCount: totalSkippedCount,
+      });
+    }
   }
 
   return {
@@ -1101,6 +1173,7 @@ export async function sendWorkersBallInvites(workerIds) {
     skippedCount: totalSkippedCount,
     sent: allSent,
     skipped: allSkipped,
+    partialError,
     message: lastMessage || "Workers Ball invites processed",
     raw: rawResponses.length === 1 ? rawResponses[0] : rawResponses,
   };

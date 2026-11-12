@@ -633,6 +633,9 @@ describe("workersBall service", () => {
       });
 
       const res = await fetchWorkersBallEligible({
+        search: "Chidi",
+        page: 1,
+        limit: 50,
         department: "Technical",
         team: "Media",
       });
@@ -640,7 +643,13 @@ describe("workersBall service", () => {
       expect(apiRequest).toHaveBeenCalledWith(
         "GET",
         "/api/workers-ball/eligible",
-        { department: "Technical", team: "Media" },
+        {
+          search: "Chidi",
+          page: 1,
+          limit: 50,
+          department: "Technical",
+          team: "Media",
+        },
         undefined,
         true
       );

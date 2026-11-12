@@ -120,16 +120,32 @@ export default function WorkersBallAdmin() {
     setCurrentPage(1);
   };
 
-  // Load eligible workers from GET /api/workers-ball/eligible
+  // Load eligible workers from GET /api/workers-ball/eligible?page=1&limit=50
   const loadEligible = useCallback(
-    async (showToast = false) => {
+    async (showToast = false, customParams = {}) => {
       if (!hasAccess) return;
       setLoadingEligible(true);
       try {
-        const res = await fetchWorkersBallEligible();
+        const res = await fetchWorkersBallEligible({
+          page: 1,
+          limit: 50,
+          fetchAll: true,
+          ...customParams,
+        });
         setEligibleError(null);
         const list = res.workers || [];
-        setEligibleWorkers(list);
+        setEligibleWorkers((prev) => {
+          if (customParams?.search && prev.length > 0) {
+            const map = new Map(
+              prev.map((w) => [String(w.workerId ?? w.id), w])
+            );
+            list.forEach((w) => {
+              map.set(String(w.workerId ?? w.id), w);
+            });
+            return Array.from(map.values());
+          }
+          return list;
+        });
         setEligibleLoaded(true);
         if (showToast) {
           toast.success(
@@ -162,7 +178,7 @@ export default function WorkersBallAdmin() {
     try {
       const [result] = await Promise.all([
         fetchWorkersBallRegistrations(),
-        fetchWorkersBallEligible()
+        fetchWorkersBallEligible({ page: 1, limit: 50, fetchAll: true })
           .then((eligRes) => {
             setEligibleError(null);
             setEligibleWorkers(eligRes.workers || []);
@@ -212,7 +228,7 @@ export default function WorkersBallAdmin() {
     let cancelled = false;
     const fetchInitialData = async () => {
       setLoadingEligible(true);
-      fetchWorkersBallEligible()
+      fetchWorkersBallEligible({ page: 1, limit: 50, fetchAll: true })
         .then((eligRes) => {
           if (cancelled) return;
           setEligibleError(null);
@@ -270,6 +286,19 @@ export default function WorkersBallAdmin() {
       cancelled = true;
     };
   }, [hasAccess, navigate]);
+
+  // Trigger server-side eligible search (?search=...&page=1&limit=50) when searching on Eligible tab or in Modal
+  useEffect(() => {
+    const activeSearch = (
+      inviteModalOpen ? modalEligibleSearch : statusFilter === "eligible" ? search : ""
+    ).trim();
+    if (!hasAccess || activeSearch.length < 2) return undefined;
+
+    const timer = setTimeout(() => {
+      void loadEligible(false, { search: activeSearch, page: 1, limit: 50 });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [hasAccess, inviteModalOpen, modalEligibleSearch, search, statusFilter, loadEligible]);
 
   // Extract unique departments and teams for filter dropdowns (from both registrations & eligible workers)
   const { departmentOptions, teamOptions } = useMemo(() => {
@@ -783,7 +812,10 @@ export default function WorkersBallAdmin() {
               type="button"
               onClick={() => {
                 handleStatusChange("eligible");
-                void loadEligible(true);
+                void loadEligible(
+                  true,
+                  search.trim() ? { search: search.trim() } : {}
+                );
               }}
               disabled={loadingEligible}
               className="inline-flex items-center rounded-lg border border-sienna/30 bg-sienna/10 px-3.5 py-2 text-xs font-semibold text-sienna transition hover:bg-sienna/20 disabled:opacity-50 cursor-pointer"
@@ -1795,7 +1827,14 @@ export default function WorkersBallAdmin() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => loadEligible(true)}
+                  onClick={() =>
+                    loadEligible(
+                      true,
+                      modalEligibleSearch.trim()
+                        ? { search: modalEligibleSearch.trim() }
+                        : {}
+                    )
+                  }
                   disabled={loadingEligible}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-sienna/30 bg-sienna/10 px-3 py-1.5 text-xs font-semibold text-sienna hover:bg-sienna/20 disabled:opacity-50 transition cursor-pointer shrink-0"
                 >

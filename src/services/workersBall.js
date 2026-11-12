@@ -1332,31 +1332,9 @@ export function normalizeWorkersBallEligibleWorker(raw = {}, index = 0) {
 }
 
 /**
- * 10. Fetch eligible workers for Workers Ball (Super Admin, requires auth).
- * GET /api/workers-ball/eligible
+ * Helper to unpack a single GET /api/workers-ball/eligible response payload.
  */
-export async function fetchWorkersBallEligible(params = {}) {
-  const queryParams = {};
-  if (params && typeof params === "object") {
-    if (params.team && params.team !== "All") {
-      queryParams.team = String(params.team).trim();
-    }
-    if (params.department && params.department !== "All") {
-      queryParams.department = String(params.department).trim();
-    }
-    if (params.search && String(params.search).trim()) {
-      queryParams.search = String(params.search).trim();
-    }
-  }
-
-  const response = await apiRequest(
-    "GET",
-    "/api/workers-ball/eligible",
-    Object.keys(queryParams).length > 0 ? queryParams : undefined,
-    undefined,
-    true
-  );
-
+function parseEligibleResponse(response) {
   let payload = response;
   if (typeof payload === "string") {
     try {
@@ -1396,6 +1374,8 @@ export async function fetchWorkersBallEligible(params = {}) {
     rawRows = data.items;
   } else if (Array.isArray(data?.results)) {
     rawRows = data.results;
+  } else if (Array.isArray(data?.data)) {
+    rawRows = data.data;
   } else if (Array.isArray(payload?.eligible)) {
     rawRows = payload.eligible;
   } else if (Array.isArray(payload?.workers)) {
@@ -1413,15 +1393,144 @@ export async function fetchWorkersBallEligible(params = {}) {
     normalizeWorkersBallEligibleWorker(item, idx)
   );
 
+  const paginationObj =
+    data?.pagination ||
+    payload?.pagination ||
+    data?.meta ||
+    payload?.meta ||
+    {};
+
+  const total = Number(
+    paginationObj?.total ??
+      data?.total ??
+      data?.total_count ??
+      data?.totalCount ??
+      data?.count ??
+      payload?.total ??
+      payload?.count ??
+      workers.length
+  );
+
+  const page = Number(
+    paginationObj?.page ??
+      paginationObj?.current_page ??
+      paginationObj?.currentPage ??
+      data?.page ??
+      data?.current_page ??
+      payload?.page ??
+      1
+  );
+
+  const limit = Number(
+    paginationObj?.limit ??
+      paginationObj?.per_page ??
+      paginationObj?.perPage ??
+      data?.limit ??
+      data?.per_page ??
+      payload?.limit ??
+      50
+  );
+
+  const totalPages = Number(
+    paginationObj?.totalPages ??
+      paginationObj?.total_pages ??
+      paginationObj?.last_page ??
+      data?.totalPages ??
+      data?.total_pages ??
+      data?.last_page ??
+      (limit > 0 ? Math.ceil(total / limit) : 1)
+  );
+
   return {
     workers,
-    total: Number(
-      data?.total ??
-        data?.count ??
-        payload?.total ??
-        payload?.count ??
-        workers.length
-    ),
+    total,
+    page: Number.isFinite(page) && page > 0 ? page : 1,
+    limit: Number.isFinite(limit) && limit > 0 ? limit : 50,
+    totalPages: Number.isFinite(totalPages) && totalPages > 0 ? totalPages : 1,
     raw: payload,
+  };
+}
+
+/**
+ * 10. Fetch eligible workers for Workers Ball (Super Admin, requires auth).
+ * GET /api/workers-ball/eligible?search=...&page=1&limit=50
+ */
+export async function fetchWorkersBallEligible(params = {}) {
+  const { fetchAll = false, ...restParams } =
+    params && typeof params === "object" ? params : {};
+
+  const buildQuery = (pageNum) => {
+    const q = {
+      page: pageNum ?? restParams.page ?? 1,
+      limit: restParams.limit ?? 50,
+    };
+    if (restParams.search && String(restParams.search).trim()) {
+      q.search = String(restParams.search).trim();
+    }
+    if (restParams.team && restParams.team !== "All") {
+      q.team = String(restParams.team).trim();
+    }
+    if (restParams.department && restParams.department !== "All") {
+      q.department = String(restParams.department).trim();
+    }
+    return q;
+  };
+
+  const firstQuery = buildQuery(restParams.page ?? 1);
+  const firstResponse = await apiRequest(
+    "GET",
+    "/api/workers-ball/eligible",
+    firstQuery,
+    undefined,
+    true
+  );
+
+  const firstPage = parseEligibleResponse(firstResponse);
+
+  if (!fetchAll || firstPage.totalPages <= 1 || firstPage.workers.length === 0) {
+    return firstPage;
+  }
+
+  // Fetch remaining pages when fetchAll is requested (capped at 25 pages for safety)
+  const maxPages = Math.min(firstPage.totalPages, 25);
+  const mergedMap = new Map();
+  firstPage.workers.forEach((w, idx) => {
+    const key = String(w.workerId ?? w.id ?? `p1-${idx}`);
+    mergedMap.set(key, w);
+  });
+
+  const pageNumbers = [];
+  for (let p = 2; p <= maxPages; p += 1) {
+    pageNumbers.push(p);
+  }
+
+  const remainingResponses = await Promise.all(
+    pageNumbers.map((p) =>
+      apiRequest(
+        "GET",
+        "/api/workers-ball/eligible",
+        buildQuery(p),
+        undefined,
+        true
+      )
+        .then(parseEligibleResponse)
+        .catch(() => ({ workers: [] }))
+    )
+  );
+
+  remainingResponses.forEach((pageRes, pIdx) => {
+    (pageRes.workers || []).forEach((w, idx) => {
+      const key = String(w.workerId ?? w.id ?? `p${pIdx + 2}-${idx}`);
+      if (!mergedMap.has(key)) {
+        mergedMap.set(key, w);
+      }
+    });
+  });
+
+  const allWorkers = Array.from(mergedMap.values());
+  return {
+    ...firstPage,
+    workers: allWorkers,
+    total: Math.max(firstPage.total, allWorkers.length),
   };
 }

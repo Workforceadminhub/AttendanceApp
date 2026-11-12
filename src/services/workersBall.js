@@ -102,27 +102,57 @@ export async function searchWorkersBall(name) {
   const trimmed = String(name || "").trim();
   if (!trimmed) return [];
 
-  const response = await apiRequest(
-    "GET",
-    "/api/workers-ball/search",
-    { name: trimmed },
-    undefined,
-    false
-  );
+  const fetchByQuery = async (q) => {
+    const response = await apiRequest(
+      "GET",
+      "/api/workers-ball/search",
+      { name: q },
+      undefined,
+      false
+    );
 
-  if (response?.success === false) {
-    throw new Error(response?.message || "Could not search workforce records.");
+    if (response?.success === false) {
+      throw new Error(
+        response?.message || "Could not search workforce records."
+      );
+    }
+
+    const rows = Array.isArray(response)
+      ? response
+      : Array.isArray(response?.data)
+        ? response.data
+        : Array.isArray(response?.workers)
+          ? response.workers
+          : [];
+
+    return rows.map(normalizeWorkersBallWorker);
+  };
+
+  const primaryResults = await fetchByQuery(trimmed);
+  const tokens = trimmed.toLowerCase().split(/\s+/).filter(Boolean);
+
+  if (primaryResults.length > 0 || tokens.length <= 1) {
+    return primaryResults;
   }
 
-  const rows = Array.isArray(response)
-    ? response
-    : Array.isArray(response?.data)
-      ? response.data
-      : Array.isArray(response?.workers)
-        ? response.workers
-        : [];
-
-  return rows.map(normalizeWorkersBallWorker);
+  // Fallback for multi-word searches (e.g. "grace nw" matching "Grace Chizoba Nwannukwu")
+  const firstTokenResults = await fetchByQuery(tokens[0]);
+  return firstTokenResults.filter((w) => {
+    const haystack = [
+      w.name,
+      w.firstName,
+      w.lastName,
+      w.email,
+      w.phone,
+      w.department,
+      w.team,
+      w.role,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    return tokens.every((tok) => haystack.includes(tok));
+  });
 }
 
 /**

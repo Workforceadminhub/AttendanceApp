@@ -38,6 +38,39 @@ function formatDateSafe(raw, pattern = "dd MMM yyyy, h:mm a") {
   }
 }
 
+/**
+ * Multi-word search matcher: every space-separated token in `query` must appear
+ * somewhere in the worker's searchable fields (so "grace nw" matches "Grace Chizoba Nwannukwu").
+ */
+function matchesMultiWordSearch(record, query) {
+  const cleaned = String(query || "").trim().toLowerCase();
+  if (!cleaned) return true;
+
+  const tokens = cleaned.split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return true;
+
+  const haystack = [
+    record?.name,
+    record?.firstName,
+    record?.lastName,
+    record?.code,
+    record?.accessCode,
+    record?.email,
+    record?.phone,
+    record?.role,
+    record?.department,
+    record?.team,
+    record?.status,
+    record?.workerId,
+    record?.id,
+  ]
+    .filter((v) => v !== null && v !== undefined && v !== "")
+    .join(" ")
+    .toLowerCase();
+
+  return tokens.every((tok) => haystack.includes(tok));
+}
+
 export default function WorkersBallAdmin() {
   const navigate = useNavigate();
 
@@ -286,8 +319,10 @@ export default function WorkersBallAdmin() {
     ).trim();
     if (!hasAccess || activeSearch.length < 2) return undefined;
 
+    // Use the first token for backend LIKE query so multi-word queries like "grace nw" still fetch "Grace Chizoba Nwannukwu"
+    const backendSearchToken = activeSearch.split(/\s+/)[0];
     const timer = setTimeout(() => {
-      void loadEligible(false, { search: activeSearch, page: 1, limit: 50 });
+      void loadEligible(false, { search: backendSearchToken, page: 1, limit: 50 });
     }, 350);
     return () => clearTimeout(timer);
   }, [hasAccess, inviteModalOpen, modalEligibleSearch, search, statusFilter, loadEligible]);
@@ -312,7 +347,6 @@ export default function WorkersBallAdmin() {
 
   // Filtered eligible workers on the main Eligible tab
   const filteredEligible = useMemo(() => {
-    const term = search.trim().toLowerCase();
     return eligibleWorkers.filter((w) => {
       if (departmentFilter !== "All" && w.department !== departmentFilter) {
         return false;
@@ -320,27 +354,8 @@ export default function WorkersBallAdmin() {
       if (teamFilter !== "All" && w.team !== teamFilter) {
         return false;
       }
-      if (term) {
-        const matchesName = String(w.name || "").toLowerCase().includes(term);
-        const matchesEmail = String(w.email || "").toLowerCase().includes(term);
-        const matchesPhone = String(w.phone || "").toLowerCase().includes(term);
-        const matchesRole = String(w.role || "").toLowerCase().includes(term);
-        const matchesDept = String(w.department || "").toLowerCase().includes(term);
-        const matchesTeam = String(w.team || "").toLowerCase().includes(term);
-        const matchesId = String(w.workerId ?? w.id ?? "")
-          .toLowerCase()
-          .includes(term);
-        if (
-          !matchesName &&
-          !matchesEmail &&
-          !matchesPhone &&
-          !matchesRole &&
-          !matchesDept &&
-          !matchesTeam &&
-          !matchesId
-        ) {
-          return false;
-        }
+      if (!matchesMultiWordSearch(w, search)) {
+        return false;
       }
       return true;
     });
@@ -348,7 +363,6 @@ export default function WorkersBallAdmin() {
 
   // Filtered eligible workers inside the Invite Modal
   const modalFilteredEligible = useMemo(() => {
-    const term = modalEligibleSearch.trim().toLowerCase();
     return eligibleWorkers.filter((w) => {
       if (
         modalDepartmentFilter !== "All" &&
@@ -359,25 +373,8 @@ export default function WorkersBallAdmin() {
       if (modalTeamFilter !== "All" && w.team !== modalTeamFilter) {
         return false;
       }
-      if (term) {
-        const matchesName = String(w.name || "").toLowerCase().includes(term);
-        const matchesEmail = String(w.email || "").toLowerCase().includes(term);
-        const matchesPhone = String(w.phone || "").toLowerCase().includes(term);
-        const matchesDept = String(w.department || "").toLowerCase().includes(term);
-        const matchesTeam = String(w.team || "").toLowerCase().includes(term);
-        const matchesId = String(w.workerId ?? w.id ?? "")
-          .toLowerCase()
-          .includes(term);
-        if (
-          !matchesName &&
-          !matchesEmail &&
-          !matchesPhone &&
-          !matchesDept &&
-          !matchesTeam &&
-          !matchesId
-        ) {
-          return false;
-        }
+      if (!matchesMultiWordSearch(w, modalEligibleSearch)) {
+        return false;
       }
       return true;
     });
@@ -390,7 +387,6 @@ export default function WorkersBallAdmin() {
 
   // Filtered registrations
   const filteredRegistrations = useMemo(() => {
-    const term = search.trim().toLowerCase();
     return allRegistrations.filter((r) => {
       // Status filter
       if (statusFilter === "attended" && !r.attended) return false;
@@ -412,31 +408,9 @@ export default function WorkersBallAdmin() {
         return false;
       }
 
-      // Search term (name, code, email, phone, role, status)
-      if (term) {
-        const matchesName = String(r.name || "").toLowerCase().includes(term);
-        const matchesCode = String(r.code || r.accessCode || "")
-          .toLowerCase()
-          .includes(term);
-        const matchesEmail = String(r.email || "").toLowerCase().includes(term);
-        const matchesPhone = String(r.phone || "").toLowerCase().includes(term);
-        const matchesRole = String(r.role || "").toLowerCase().includes(term);
-        const matchesDept = String(r.department || "").toLowerCase().includes(term);
-        const matchesTeam = String(r.team || "").toLowerCase().includes(term);
-        const matchesStatus = String(r.status || "").toLowerCase().includes(term);
-
-        if (
-          !matchesName &&
-          !matchesCode &&
-          !matchesEmail &&
-          !matchesPhone &&
-          !matchesRole &&
-          !matchesDept &&
-          !matchesTeam &&
-          !matchesStatus
-        ) {
-          return false;
-        }
+      // Multi-word search term (name, middle name skipped, code, email, phone, role, status)
+      if (!matchesMultiWordSearch(r, search)) {
+        return false;
       }
 
       return true;

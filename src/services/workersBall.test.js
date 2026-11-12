@@ -542,6 +542,51 @@ describe("workersBall service", () => {
       });
     });
 
+    it("sendWorkersBallInvites splits requests into chunks of at most 200 workerIds and aggregates results", async () => {
+      const workerIds = Array.from({ length: 353 }, (_, i) => i + 1);
+
+      apiRequest
+        .mockResolvedValueOnce({
+          success: true,
+          message: "Batch 1 processed",
+          data: {
+            total: 200,
+            sent_count: 190,
+            skipped_count: 10,
+            sent: [{ worker_id: 1, email: "w1@example.com", invite_url: "https://example.com?token=T1" }],
+            skipped: [{ worker_id: 2, reason: "Already invited" }],
+          },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          message: "Batch 2 processed",
+          data: {
+            total: 153,
+            sent_count: 150,
+            skipped_count: 3,
+            sent: [{ worker_id: 201, email: "w201@example.com", invite_url: "https://example.com?token=T201" }],
+            skipped: [{ worker_id: 202, reason: "Missing email" }],
+          },
+        });
+
+      const res = await sendWorkersBallInvites(workerIds);
+
+      expect(apiRequest).toHaveBeenCalledTimes(2);
+      expect(apiRequest.mock.calls[0][2].workerIds).toHaveLength(200);
+      expect(apiRequest.mock.calls[0][2].workerIds[0]).toBe(1);
+      expect(apiRequest.mock.calls[0][2].workerIds[199]).toBe(200);
+
+      expect(apiRequest.mock.calls[1][2].workerIds).toHaveLength(153);
+      expect(apiRequest.mock.calls[1][2].workerIds[0]).toBe(201);
+      expect(apiRequest.mock.calls[1][2].workerIds[152]).toBe(353);
+
+      expect(res.total).toBe(353);
+      expect(res.sentCount).toBe(340);
+      expect(res.skippedCount).toBe(13);
+      expect(res.sent).toHaveLength(2);
+      expect(res.skipped).toHaveLength(2);
+    });
+
     it("fetchWorkersBallInvite GETs /api/workers-ball/invite/{token} without auth", async () => {
       apiRequest.mockResolvedValue({
         success: true,

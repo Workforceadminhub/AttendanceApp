@@ -995,6 +995,8 @@ export async function fetchWorkersBallRegistrations(params = {}) {
  *   raw
  * }
  */
+export const WORKERS_BALL_INVITE_BATCH_LIMIT = 200;
+
 export async function sendWorkersBallInvites(workerIds) {
   const rawList = Array.isArray(workerIds) ? workerIds : [workerIds];
   const cleanedIds = Array.from(
@@ -1012,25 +1014,7 @@ export async function sendWorkersBallInvites(workerIds) {
     throw new Error("Please select at least one worker to invite.");
   }
 
-  const response = await apiRequest(
-    "POST",
-    "/api/workers-ball/invites",
-    { workerIds: cleanedIds },
-    undefined,
-    true
-  );
-
-  if (response?.success === false) {
-    throw new Error(
-      response?.message || "Failed to send Workers Ball invitations."
-    );
-  }
-
-  const data = response?.data ?? response ?? {};
-  const sentRaw = Array.isArray(data.sent) ? data.sent : [];
-  const skippedRaw = Array.isArray(data.skipped) ? data.skipped : [];
-
-  const sent = sentRaw.map((item) => {
+  const normalizeSentItem = (item) => {
     const inviteUrl = item?.invite_url || item?.inviteUrl || "";
     let token = item?.token || item?.invite_token || "";
     if (!token && inviteUrl) {
@@ -1052,9 +1036,9 @@ export async function sendWorkersBallInvites(workerIds) {
       token,
       raw: item,
     };
-  });
+  };
 
-  const skipped = skippedRaw.map((item) => {
+  const normalizeSkippedItem = (item) => {
     if (typeof item === "string" || typeof item === "number") {
       return { workerId: item, reason: "Skipped", raw: item };
     }
@@ -1065,16 +1049,60 @@ export async function sendWorkersBallInvites(workerIds) {
       reason: item?.reason || item?.message || item?.status || "Already invited or missing email",
       raw: item,
     };
-  });
+  };
+
+  const chunks = [];
+  for (let i = 0; i < cleanedIds.length; i += WORKERS_BALL_INVITE_BATCH_LIMIT) {
+    chunks.push(cleanedIds.slice(i, i + WORKERS_BALL_INVITE_BATCH_LIMIT));
+  }
+
+  const allSent = [];
+  const allSkipped = [];
+  let totalProcessed = 0;
+  let totalSentCount = 0;
+  let totalSkippedCount = 0;
+  let lastMessage = "";
+  const rawResponses = [];
+
+  for (const chunk of chunks) {
+    const response = await apiRequest(
+      "POST",
+      "/api/workers-ball/invites",
+      { workerIds: chunk },
+      undefined,
+      true
+    );
+
+    if (response?.success === false) {
+      throw new Error(
+        response?.message || "Failed to send Workers Ball invitations."
+      );
+    }
+
+    rawResponses.push(response);
+    const data = response?.data ?? response ?? {};
+    const sentRaw = Array.isArray(data.sent) ? data.sent : [];
+    const skippedRaw = Array.isArray(data.skipped) ? data.skipped : [];
+
+    const sent = sentRaw.map(normalizeSentItem);
+    const skipped = skippedRaw.map(normalizeSkippedItem);
+
+    allSent.push(...sent);
+    allSkipped.push(...skipped);
+    totalProcessed += Number(data.total ?? chunk.length);
+    totalSentCount += Number(data.sent_count ?? data.sentCount ?? sent.length);
+    totalSkippedCount += Number(data.skipped_count ?? data.skippedCount ?? skipped.length);
+    lastMessage = response?.message || data?.message || lastMessage;
+  }
 
   return {
-    total: Number(data.total ?? cleanedIds.length),
-    sentCount: Number(data.sent_count ?? data.sentCount ?? sent.length),
-    skippedCount: Number(data.skipped_count ?? data.skippedCount ?? skipped.length),
-    sent,
-    skipped,
-    message: response?.message || data?.message || "Workers Ball invites processed",
-    raw: response,
+    total: totalProcessed,
+    sentCount: totalSentCount,
+    skippedCount: totalSkippedCount,
+    sent: allSent,
+    skipped: allSkipped,
+    message: lastMessage || "Workers Ball invites processed",
+    raw: rawResponses.length === 1 ? rawResponses[0] : rawResponses,
   };
 }
 

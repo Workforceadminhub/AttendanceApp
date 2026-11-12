@@ -1459,10 +1459,10 @@ export async function fetchWorkersBallEligible(params = {}) {
   const { fetchAll = false, ...restParams } =
     params && typeof params === "object" ? params : {};
 
-  const buildQuery = (pageNum) => {
+  const buildQuery = (pageNum, limitNum) => {
     const q = {
       page: pageNum ?? restParams.page ?? 1,
-      limit: restParams.limit ?? 50,
+      limit: limitNum ?? restParams.limit ?? 50,
     };
     if (restParams.search && String(restParams.search).trim()) {
       q.search = String(restParams.search).trim();
@@ -1476,55 +1476,107 @@ export async function fetchWorkersBallEligible(params = {}) {
     return q;
   };
 
-  const firstQuery = buildQuery(restParams.page ?? 1);
-  const firstResponse = await apiRequest(
-    "GET",
-    "/api/workers-ball/eligible",
-    firstQuery,
-    undefined,
-    true
-  );
+  const fetchPageWithRetry = async (pageNum, limitNum, retries = 2) => {
+    let lastErr;
+    for (let attempt = 0; attempt <= retries; attempt += 1) {
+      try {
+        const res = await apiRequest(
+          "GET",
+          "/api/workers-ball/eligible",
+          buildQuery(pageNum, limitNum),
+          undefined,
+          true
+        );
+        return parseEligibleResponse(res);
+      } catch (err) {
+        lastErr = err;
+        if (attempt < retries) {
+          await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
+        }
+      }
+    }
+    throw lastErr;
+  };
 
-  const firstPage = parseEligibleResponse(firstResponse);
+  const requestedLimit =
+    restParams.limit ?? (fetchAll ? 5000 : 50);
 
-  if (!fetchAll || firstPage.totalPages <= 1 || firstPage.workers.length === 0) {
+  let firstPage;
+  try {
+    firstPage = await fetchPageWithRetry(
+      restParams.page ?? 1,
+      requestedLimit,
+      1
+    );
+  } catch (err) {
+    if (fetchAll && !restParams.limit && requestedLimit !== 50) {
+      firstPage = await fetchPageWithRetry(restParams.page ?? 1, 50, 1);
+    } else {
+      throw err;
+    }
+  }
+
+  const effectiveLimit =
+    firstPage.workers.length > 0 ? firstPage.workers.length : firstPage.limit;
+  const computedTotalPages =
+    firstPage.total > firstPage.workers.length && effectiveLimit > 0
+      ? Math.max(
+          firstPage.totalPages,
+          Math.ceil(firstPage.total / effectiveLimit)
+        )
+      : firstPage.totalPages;
+
+  if (
+    !fetchAll ||
+    computedTotalPages <= 1 ||
+    firstPage.workers.length === 0 ||
+    firstPage.workers.length >= firstPage.total
+  ) {
     return firstPage;
   }
 
-  // Fetch remaining pages when fetchAll is requested (capped at 25 pages for safety)
-  const maxPages = Math.min(firstPage.totalPages, 25);
-  const mergedMap = new Map();
-  firstPage.workers.forEach((w, idx) => {
-    const key = String(w.workerId ?? w.id ?? `p1-${idx}`);
-    mergedMap.set(key, w);
-  });
+  // Fetch remaining pages sequentially in small batches of 2 with retry so no page is dropped by rate-limiting
+  const pageStepLimit = effectiveLimit;
+  const maxPages = Math.min(computedTotalPages, 40);
+  const allRows = [...firstPage.workers];
 
-  const pageNumbers = [];
-  for (let p = 2; p <= maxPages; p += 1) {
-    pageNumbers.push(p);
-  }
-
-  const remainingResponses = await Promise.all(
-    pageNumbers.map((p) =>
-      apiRequest(
-        "GET",
-        "/api/workers-ball/eligible",
-        buildQuery(p),
-        undefined,
-        true
+  for (let p = 2; p <= maxPages; p += 2) {
+    const batchPages = [p];
+    if (p + 1 <= maxPages) {
+      batchPages.push(p + 1);
+    }
+    const batchResults = await Promise.all(
+      batchPages.map((pageNum) =>
+        fetchPageWithRetry(pageNum, pageStepLimit, 2).catch(() => ({
+          workers: [],
+        }))
       )
-        .then(parseEligibleResponse)
-        .catch(() => ({ workers: [] }))
-    )
-  );
-
-  remainingResponses.forEach((pageRes, pIdx) => {
-    (pageRes.workers || []).forEach((w, idx) => {
-      const key = String(w.workerId ?? w.id ?? `p${pIdx + 2}-${idx}`);
-      if (!mergedMap.has(key)) {
-        mergedMap.set(key, w);
+    );
+    batchResults.forEach((pageRes) => {
+      if (Array.isArray(pageRes.workers)) {
+        allRows.push(...pageRes.workers);
       }
     });
+  }
+
+  // Deduplicate by stable worker identifier (workerId / id / email / phone+name)
+  const mergedMap = new Map();
+  allRows.forEach((w, idx) => {
+    const rawId =
+      w.workerId !== null &&
+      w.workerId !== undefined &&
+      !String(w.workerId).startsWith("eligible-")
+        ? `id:${w.workerId}`
+        : w.id !== null &&
+            w.id !== undefined &&
+            !String(w.id).startsWith("eligible-")
+          ? `id:${w.id}`
+          : w.email
+            ? `email:${String(w.email).toLowerCase()}`
+            : `row:${w.name || ""}:${w.phone || ""}:${idx}`;
+    if (!mergedMap.has(rawId)) {
+      mergedMap.set(rawId, w);
+    }
   });
 
   const allWorkers = Array.from(mergedMap.values());
@@ -1532,5 +1584,6 @@ export async function fetchWorkersBallEligible(params = {}) {
     ...firstPage,
     workers: allWorkers,
     total: Math.max(firstPage.total, allWorkers.length),
+    totalPages: computedTotalPages,
   };
 }

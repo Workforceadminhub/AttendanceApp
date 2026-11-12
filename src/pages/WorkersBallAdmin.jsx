@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { format } from "date-fns";
@@ -99,6 +99,27 @@ export default function WorkersBallAdmin() {
   const [modalDepartmentFilter, setModalDepartmentFilter] = useState("All");
   const [modalTeamFilter, setModalTeamFilter] = useState("All");
   const [modalEligibleSearch, setModalEligibleSearch] = useState("");
+  const eligibleReqRef = useRef(0);
+
+  const mergeEligibleLists = useCallback((existingList = [], incomingList = []) => {
+    const map = new Map();
+    const getKey = (w, i) =>
+      w?.workerId !== null && w?.workerId !== undefined
+        ? `id:${w.workerId}`
+        : w?.id !== null && w?.id !== undefined
+          ? `id:${w.id}`
+          : w?.email
+            ? `email:${String(w.email).toLowerCase()}`
+            : `idx:${i}`;
+
+    existingList.forEach((w, idx) => {
+      map.set(getKey(w, idx), w);
+    });
+    incomingList.forEach((w, idx) => {
+      map.set(getKey(w, existingList.length + idx), w);
+    });
+    return Array.from(map.values());
+  }, []);
 
   const handleSearchChange = (val) => {
     setSearch(val);
@@ -120,39 +141,36 @@ export default function WorkersBallAdmin() {
     setCurrentPage(1);
   };
 
-  // Load eligible workers from GET /api/workers-ball/eligible?page=1&limit=50
+  // Load eligible workers from GET /api/workers-ball/eligible
   const loadEligible = useCallback(
     async (showToast = false, customParams = {}) => {
       if (!hasAccess) return;
+      const reqId = ++eligibleReqRef.current;
       setLoadingEligible(true);
       try {
         const res = await fetchWorkersBallEligible({
           page: 1,
-          limit: 50,
           fetchAll: true,
           ...customParams,
         });
+        if (reqId !== eligibleReqRef.current) return;
         setEligibleError(null);
         const list = res.workers || [];
+        let mergedCount = list.length;
         setEligibleWorkers((prev) => {
-          if (customParams?.search && prev.length > 0) {
-            const map = new Map(
-              prev.map((w) => [String(w.workerId ?? w.id), w])
-            );
-            list.forEach((w) => {
-              map.set(String(w.workerId ?? w.id), w);
-            });
-            return Array.from(map.values());
-          }
-          return list;
+          const merged =
+            prev.length > 0 ? mergeEligibleLists(prev, list) : list;
+          mergedCount = merged.length;
+          return merged;
         });
         setEligibleLoaded(true);
         if (showToast) {
           toast.success(
-            `Fetched ${list.length} eligible worker${list.length === 1 ? "" : "s"}.`
+            `Fetched ${mergedCount} eligible worker${mergedCount === 1 ? "" : "s"}.`
           );
         }
       } catch (err) {
+        if (reqId !== eligibleReqRef.current) return;
         const msg =
           err?.message || "Failed to fetch eligible Workers Ball workers.";
         setEligibleError(msg);
@@ -160,10 +178,12 @@ export default function WorkersBallAdmin() {
           toast.error(msg);
         }
       } finally {
-        setLoadingEligible(false);
+        if (reqId === eligibleReqRef.current) {
+          setLoadingEligible(false);
+        }
       }
     },
-    [hasAccess]
+    [hasAccess, mergeEligibleLists]
   );
 
   // Load registrations from API
@@ -178,17 +198,7 @@ export default function WorkersBallAdmin() {
     try {
       const [result] = await Promise.all([
         fetchWorkersBallRegistrations(),
-        fetchWorkersBallEligible({ page: 1, limit: 50, fetchAll: true })
-          .then((eligRes) => {
-            setEligibleError(null);
-            setEligibleWorkers(eligRes.workers || []);
-            setEligibleLoaded(true);
-          })
-          .catch((eligErr) => {
-            setEligibleError(
-              eligErr?.message || "Failed to fetch eligible workers."
-            );
-          }),
+        loadEligible(false),
       ]);
       setError(null);
       const list = result.registrations || [];
@@ -217,7 +227,7 @@ export default function WorkersBallAdmin() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [hasAccess]);
+  }, [hasAccess, loadEligible]);
 
   useEffect(() => {
     if (!hasAccess) {
@@ -227,25 +237,7 @@ export default function WorkersBallAdmin() {
     }
     let cancelled = false;
     const fetchInitialData = async () => {
-      setLoadingEligible(true);
-      fetchWorkersBallEligible({ page: 1, limit: 50, fetchAll: true })
-        .then((eligRes) => {
-          if (cancelled) return;
-          setEligibleError(null);
-          setEligibleWorkers(eligRes.workers || []);
-          setEligibleLoaded(true);
-        })
-        .catch((eligErr) => {
-          if (cancelled) return;
-          setEligibleError(
-            eligErr?.message || "Failed to fetch eligible workers."
-          );
-        })
-        .finally(() => {
-          if (!cancelled) {
-            setLoadingEligible(false);
-          }
-        });
+      void loadEligible(false);
 
       try {
         const result = await fetchWorkersBallRegistrations();

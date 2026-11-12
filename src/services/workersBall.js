@@ -1103,23 +1103,53 @@ export async function fetchWorkersBallInvite(token) {
   }
 
   const data = response?.data ?? response ?? {};
-  const workerSource =
+  const workerObj =
     data?.worker && typeof data.worker === "object"
-      ? { ...data, ...data.worker }
-      : data;
+      ? data.worker
+      : data?.invite?.worker && typeof data.invite.worker === "object"
+        ? data.invite.worker
+        : {};
+  const inviteObj =
+    data?.invite && typeof data.invite === "object" ? data.invite : data;
+
+  const workerSource = {
+    ...inviteObj,
+    ...workerObj,
+    id:
+      inviteObj?.worker_id ??
+      inviteObj?.workerId ??
+      workerObj?.id ??
+      workerObj?.worker_id ??
+      inviteObj?.id,
+    reference_code:
+      inviteObj?.reference_code ||
+      inviteObj?.referenceCode ||
+      inviteObj?.code ||
+      inviteObj?.access_code ||
+      workerObj?.reference_code ||
+      workerObj?.code ||
+      "",
+  };
 
   const normalized = normalizeWorkersBallWorker(workerSource);
   const statusStr = String(
-    data?.status || workerSource?.status || ""
+    inviteObj?.invite_status ||
+      inviteObj?.inviteStatus ||
+      inviteObj?.registration_status ||
+      inviteObj?.status ||
+      workerObj?.invite_status ||
+      ""
   )
     .trim()
     .toLowerCase();
 
   const confirmed = Boolean(
     normalized.registered ||
-      data?.confirmed ||
-      data?.is_confirmed ||
-      data?.isConfirmed ||
+      inviteObj?.confirmed ||
+      inviteObj?.is_confirmed ||
+      inviteObj?.isConfirmed ||
+      inviteObj?.confirmed_at ||
+      inviteObj?.confirmedAt ||
       statusStr === "confirmed" ||
       statusStr === "registered" ||
       statusStr === "attended" ||
@@ -1295,8 +1325,13 @@ export function normalizeWorkersBallEligibleWorker(raw = {}, index = 0) {
   const workerId =
     source.worker_id ??
     source.workerId ??
-    source.id ??
     raw?.worker?.id ??
+    raw?.worker?.worker_id ??
+    source.user_id ??
+    source.userId ??
+    source.member_id ??
+    source.memberId ??
+    source.id ??
     base.id;
 
   const statusRaw = String(

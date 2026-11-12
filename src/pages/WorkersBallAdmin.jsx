@@ -345,9 +345,60 @@ export default function WorkersBallAdmin() {
     };
   }, [allRegistrations, eligibleWorkers]);
 
+  // Enrich eligible workers with live status from allRegistrations &inviteUrlByWorkerId
+  const enrichedEligibleWorkers = useMemo(() => {
+    const regByWorkerId = new Map();
+    const regByEmail = new Map();
+    allRegistrations.forEach((r) => {
+      const rWid = r.workerId ?? r.id;
+      if (rWid !== null && rWid !== undefined) {
+        regByWorkerId.set(String(rWid), r);
+      }
+      if (r.email) {
+        regByEmail.set(String(r.email).toLowerCase(), r);
+      }
+    });
+
+    return eligibleWorkers.map((w) => {
+      const wId = w.workerId ?? w.id;
+      const matchedReg =
+        (wId !== null && wId !== undefined && regByWorkerId.get(String(wId))) ||
+        (w.email && regByEmail.get(String(w.email).toLowerCase())) ||
+        null;
+      const dispatchedInviteUrl =
+        wId !== null && wId !== undefined
+          ? inviteUrlByWorkerId[String(wId)]
+          : "";
+
+      const isRegistered = Boolean(
+        w.registered ||
+          (matchedReg && matchedReg.status !== "pending") ||
+          matchedReg?.code
+      );
+      const isInvited = Boolean(
+        w.invited ||
+          dispatchedInviteUrl ||
+          matchedReg?.status === "pending" ||
+          matchedReg?.inviteUrl
+      );
+
+      return {
+        ...w,
+        registered: isRegistered,
+        invited: isInvited,
+        status: isRegistered
+          ? "registered"
+          : isInvited
+            ? "invited"
+            : w.status || "eligible",
+        inviteUrl: w.inviteUrl || dispatchedInviteUrl || matchedReg?.inviteUrl || "",
+      };
+    });
+  }, [eligibleWorkers, allRegistrations, inviteUrlByWorkerId]);
+
   // Filtered eligible workers on the main Eligible tab
   const filteredEligible = useMemo(() => {
-    return eligibleWorkers.filter((w) => {
+    return enrichedEligibleWorkers.filter((w) => {
       if (departmentFilter !== "All" && w.department !== departmentFilter) {
         return false;
       }
@@ -359,11 +410,11 @@ export default function WorkersBallAdmin() {
       }
       return true;
     });
-  }, [eligibleWorkers, search, departmentFilter, teamFilter]);
+  }, [enrichedEligibleWorkers, search, departmentFilter, teamFilter]);
 
   // Filtered eligible workers inside the Invite Modal
   const modalFilteredEligible = useMemo(() => {
-    return eligibleWorkers.filter((w) => {
+    return enrichedEligibleWorkers.filter((w) => {
       if (
         modalDepartmentFilter !== "All" &&
         w.department !== modalDepartmentFilter
@@ -379,7 +430,7 @@ export default function WorkersBallAdmin() {
       return true;
     });
   }, [
-    eligibleWorkers,
+    enrichedEligibleWorkers,
     modalEligibleSearch,
     modalDepartmentFilter,
     modalTeamFilter,
@@ -506,7 +557,12 @@ export default function WorkersBallAdmin() {
     }
   };
 
-  const getWorkerTargetId = (worker) => worker?.workerId ?? worker?.id;
+  const getWorkerTargetId = (worker) => {
+    const raw = worker?.workerId ?? worker?.id;
+    if (raw === null || raw === undefined) return null;
+    if (String(raw).startsWith("eligible-")) return null;
+    return raw;
+  };
 
   const isWorkerSelected = useCallback(
     (worker) => {

@@ -44,11 +44,18 @@ function populateSheet(sheet, rows) {
 
   rows.forEach((r, idx) => {
     const isPending = r.status === "pending";
+    const isInvited = r.status === "invited" || Boolean(r.invited && !r.registered && !r.attended);
+    const isEligibleOnly =
+      r.status === "eligible" && !r.registered && !r.attended && !isPending && !isInvited;
     const statusText = r.attended
       ? "Attended"
       : isPending
         ? "Pending"
-        : "Registered";
+        : isInvited
+          ? "Invited"
+          : isEligibleOnly
+            ? "Eligible"
+            : "Registered";
 
     const row = sheet.addRow({
       sn: idx + 1,

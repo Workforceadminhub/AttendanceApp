@@ -35,7 +35,7 @@ describe("worker pagination", () => {
   it("unwraps one directory page and sends search and placement filters", async () => {
     apiRequest.mockResolvedValue(response(2, 4));
     expect(await listSuperAdminWorkers({ page: 2, limit: 50, search: ' Alice ', team: 'Programs' })).toEqual(response(2, 4));
-    expect(apiRequest).toHaveBeenCalledWith('GET', '/api/super/admin/workers', { page: 2, limit: 50, search: 'Alice', team: 'Programs', sortBy: 'team' });
+    expect(apiRequest).toHaveBeenCalledWith('GET', '/api/super/admin/workers', { page: 2, limit: 50, search: 'Alice', team: 'Programs', sortBy: 'id' });
   });
   it("assembles both worker pages", async () => {
     apiRequest.mockImplementation((method, endpoint, { page }) => response(page));

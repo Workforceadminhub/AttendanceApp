@@ -603,7 +603,16 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  setIsExporting(true);
  toast.info("Preparing export...");
  try {
- const workers = await fetchAllSuperAdminWorkers({ search: normalizeSearchTerm(searchTerm), team: filters.team, department: filters.department });
+ const statusFilter = filters.status && filters.status !== "All" ? filters.status : undefined;
+ const fetchedWorkers = await fetchAllSuperAdminWorkers({
+ search: normalizeSearchTerm(searchTerm),
+ team: filters.team,
+ department: filters.department,
+ status: statusFilter,
+ });
+ const workers = statusFilter
+ ? fetchedWorkers.filter((w) => (w.status || "ACTIVE") === statusFilter)
+ : fetchedWorkers;
  if (!workers.length) {
  toast.error("No workers to export");
  return;
@@ -700,7 +709,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  worker.agerange || "N/A",
  worker.gender || "N/A",
  worker.address || "N/A",
- worker.status || "Unknown",
+ worker.status || "ACTIVE",
  ]);
  });
  });

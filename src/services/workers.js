@@ -150,7 +150,7 @@ const requestPendingWorkers = async (status, page, limit) => {
       status,
       limit,
       page,
-      sortBy: "team",
+      sortBy: "id",
     });
   } catch (e) {
     // Fallback for deployments that expose a generic admin path.
@@ -158,7 +158,7 @@ const requestPendingWorkers = async (status, page, limit) => {
       status,
       limit,
       page,
-      sortBy: "team",
+      sortBy: "id",
     });
   }
 
@@ -275,7 +275,7 @@ async function requestAllWorkerPages(endpoint, baseParams, { signal, first } = {
   }, { signal, first });
 }
 
-async function requestSuperAdminWorkers({ page = 1, limit = DEFAULT_PAGE_LIMIT, search = "", team, department, status, sortBy = "team" } = {}) {
+async function requestSuperAdminWorkers({ page = 1, limit = DEFAULT_PAGE_LIMIT, search = "", team, department, status, sortBy = "id" } = {}) {
   const params = { page, limit, sortBy };
   if (search && search.trim()) params.search = search.trim();
   if (team && team !== "All") params.team = team;

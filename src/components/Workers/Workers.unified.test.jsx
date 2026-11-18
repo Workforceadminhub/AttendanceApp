@@ -3,7 +3,12 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Workers from "./Workers";
-import { listSuperAdminWorkers } from "../../services/workers";
+import { listSuperAdminWorkers, fetchAllSuperAdminWorkers } from "../../services/workers";
+import { saveAs } from "file-saver";
+
+vi.mock("file-saver", () => ({
+  saveAs: vi.fn(),
+}));
 
 vi.mock("../../services/workers", () => ({
   listSuperAdminWorkers: vi.fn(),
@@ -108,5 +113,62 @@ describe("Workers unified component", () => {
     // Row 0 is the header row, row 1 should have Adam, row 2 should have Zara
     expect(rows[1]).toHaveTextContent("Adam");
     expect(rows[2]).toHaveTextContent("Zara");
+  });
+
+  it("exports workers with normalized ACTIVE fallback status", async () => {
+    listSuperAdminWorkers.mockResolvedValue({
+      data: [
+        {
+          id: 10,
+          firstname: "Legacy",
+          lastname: "Worker",
+          phonenumber: "08011112222",
+          department: "Ushering",
+          team: "Programs",
+          role: "Worker",
+          status: null,
+        },
+      ],
+      pagination: {
+        page: 1,
+        limit: 50,
+        total: 1,
+        totalPages: 1,
+        hasNext: false,
+        hasPrev: false,
+      },
+    });
+    fetchAllSuperAdminWorkers.mockResolvedValue([
+      {
+        id: 10,
+        firstname: "Legacy",
+        lastname: "Worker",
+        phonenumber: "08011112222",
+        department: "Ushering",
+        team: "Programs",
+        role: "Worker",
+        status: null,
+      },
+    ]);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <Workers />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    const exportBtn = await screen.findByRole("button", { name: /^export$/i });
+    await waitFor(() => expect(exportBtn).not.toBeDisabled());
+    fireEvent.click(exportBtn);
+
+    await waitFor(() => expect(fetchAllSuperAdminWorkers).toHaveBeenCalledWith({
+      search: "",
+      team: "All",
+      department: "All",
+      status: undefined,
+    }));
+    await waitFor(() => expect(saveAs).toHaveBeenCalled());
   });
 });

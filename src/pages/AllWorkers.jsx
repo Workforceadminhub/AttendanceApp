@@ -206,7 +206,7 @@ export default function AllWorkers() {
  worker.phonenumber || "N/A",
  worker.department || "N/A",
  worker.team || "N/A",
- worker.status || "Unknown",
+ worker.status || "ACTIVE",
  ]);
 
  const escapeCSV = (value) => {

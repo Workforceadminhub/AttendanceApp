@@ -100,7 +100,7 @@ export default function HODAddWorker() {
  department: decodedDepartment,
  team,
  workerrole: normalizeWorkerRole(worker.workerrole),
- nameofrequester: authUser?.fullname || authUser?.name || authUser?.code || "Requester",
+ nameofrequester: authUser?.fullname || authUser?.name || authUser?.email || authUser?.department || "Requester",
  };
  await addNewWorker(payload);
  toast.success(

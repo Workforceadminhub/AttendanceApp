@@ -226,7 +226,7 @@ export default function HODBulkAddWorker() {
  setBulkUploadProgress({ total: validWorkers.length, completed: 0, errors: [] });
  const errors = [];
  const authUser = getUser();
- const nameofrequester = authUser?.fullname || authUser?.name || authUser?.code || "Requester";
+ const nameofrequester = authUser?.fullname || authUser?.name || authUser?.email || authUser?.department || "Requester";
 
  const backendKeys = [
  "firstname",

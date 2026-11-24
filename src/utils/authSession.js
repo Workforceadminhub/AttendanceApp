@@ -3,12 +3,12 @@ import { clearSessionRoutes } from "./routeObject";
 
 /** Fields required for routing, RBAC, and header display - nothing else from login. */
 const SESSION_USER_KEYS = [
-  "code",
   "department",
   "route",
   "permissionLevel",
   "assignedDepartments",
   "permissions",
+  "canSendBulkEmail",
   "team",
   "role",
   "firstname",

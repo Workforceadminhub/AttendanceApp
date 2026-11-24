@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Navigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
@@ -9,21 +9,42 @@ import {
   PhotoIcon,
 } from "@heroicons/react/24/outline";
 import Layout from "../components/Layout";
+import LoadingState from "../components/LoadingState";
 import GenericModal from "../components/GenericModal";
 import { Button, Card } from "../components/ui";
 import { buildEmail } from "../emails/template";
-import { parseRecipients, sendBulkEmail, uploadEmailImage } from "../services/email";
+import {
+  checkBulkEmailAccess,
+  parseRecipients,
+  sendBulkEmail,
+  uploadEmailImage,
+} from "../services/email";
 import { canSendBulkEmail } from "../utils/bulkEmailAccess";
 import { getUser } from "../utils/getUser";
+import { getUserRole } from "../utils/getUserRole";
 import { getPostLoginPath } from "../utils/routeObject";
 import { validateImageFile } from "../utils/validateImageFile";
 
 const PREVIEW_WIDTHS = { desktop: "100%", mobile: "375px" };
 
 export default function BulkEmail() {
-  // Block direct-URL access for users without Bulk Email permission.
-  // (The serverless function also enforces this server-side.)
-  if (!canSendBulkEmail()) {
+  const { isChurchAdmin } = getUserRole();
+  const initialAllowed = canSendBulkEmail();
+  const [allowed, setAllowed] = useState(initialAllowed ? true : isChurchAdmin ? false : null);
+
+  useEffect(() => {
+    if (allowed !== null) return;
+    let active = true;
+    checkBulkEmailAccess().then((ok) => {
+      if (active) setAllowed(ok);
+    });
+    return () => {
+      active = false;
+    };
+  }, [allowed]);
+
+  if (allowed === null) return <LoadingState />;
+  if (!allowed) {
     return <Navigate to={getPostLoginPath(getUser())} replace />;
   }
   return <BulkEmailComposer />;

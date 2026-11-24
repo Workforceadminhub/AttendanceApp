@@ -2,9 +2,35 @@
 // NOT the AWS API. The function holds the Resend key server-side and verifies the
 // caller's token, so we call it directly with fetch rather than via apiClient.
 
-import { getAccessToken, getSessionUser } from "../utils/authSession";
+import { getAccessToken } from "../utils/authSession";
 import { validateImageFile } from "../utils/validateImageFile";
 import { prepareEmailImage } from "../utils/prepareEmailImage";
+
+const accessCheckCache = new Map();
+
+/**
+ * Ask the serverless API whether the current Bearer token is authorized for
+ * Bulk Email (e.g. via the server-only BULK_EMAIL_ALLOWLIST). Cached per token.
+ * @returns {Promise<boolean>}
+ */
+export const checkBulkEmailAccess = async () => {
+  const token = getAccessToken();
+  if (!token) return false;
+  if (accessCheckCache.has(token)) return accessCheckCache.get(token);
+
+  const pending = fetch("/api/email-report?check=1", {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+    .then(async (res) => {
+      if (!res.ok) return false;
+      const data = await res.json().catch(() => null);
+      return Boolean(data?.allowed);
+    })
+    .catch(() => false);
+
+  accessCheckCache.set(token, pending);
+  return pending;
+};
 
 /**
  * Parse a free-form recipients string (pasted list / CSV column) into a clean,
@@ -68,9 +94,6 @@ export const sendBulkEmail = async ({ subject, html, recipients, provider, campa
   }
 
   const token = getAccessToken();
-  // Attribution only. The server derives identity from the verified JWT and
-  // ignores this value for authorization.
-  const requesterCode = getSessionUser()?.code;
 
   const res = await fetch("/api/send-bulk-email", {
     method: "POST",
@@ -85,7 +108,6 @@ export const sendBulkEmail = async ({ subject, html, recipients, provider, campa
       ...(provider ? { provider } : {}),
       // Set when continuing a send the server handed back as `remaining`.
       ...(campaignId ? { campaignId } : {}),
-      ...(requesterCode ? { requesterCode } : {}),
     }),
   });
 
@@ -112,10 +134,8 @@ export const sendBulkEmail = async ({ subject, html, recipients, provider, campa
  */
 export const fetchEmailReport = async () => {
   const token = getAccessToken();
-  const requesterCode = getSessionUser()?.code;
-  const qs = requesterCode ? `?requesterCode=${encodeURIComponent(requesterCode)}` : "";
 
-  const res = await fetch(`/api/email-report${qs}`, {
+  const res = await fetch("/api/email-report", {
     headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
   });
 
@@ -142,7 +162,6 @@ export const uploadEmailImage = async (file) => {
   if (!check.ok) throw new Error(check.error);
 
   const token = getAccessToken();
-  const requesterCode = getSessionUser()?.code;
 
   // Scale down and re-encode first so the base64 body fits Vercel's limit.
   const image = await prepareEmailImage(file, check.contentType);
@@ -163,7 +182,6 @@ export const uploadEmailImage = async (file) => {
       data: base64,
       filename: file.name,
       contentType: check.contentType,
-      ...(requesterCode ? { requesterCode } : {}),
     }),
   });
 

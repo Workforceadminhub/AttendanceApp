@@ -348,7 +348,6 @@ export default function Header() {
     authUser?.fullname ||
     firstLast ||
     authUser?.name ||
-    authUser?.code ||
     authUser?.email ||
     "";
   const userInitials = displayName

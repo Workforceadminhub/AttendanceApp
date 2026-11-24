@@ -1,21 +1,12 @@
 import { getUserRole } from "./getUserRole";
 
 /**
- * Extra login codes that are granted Bulk Email access in addition to
- * Super Admins. Matched case-insensitively against the
- * user's login code.
+ * Whether the given user is known client-side to have Bulk Email access.
+ * Super Admins always can; Church Admins cannot; other accounts may be
+ * granted access via a backend capability flag (`canSendBulkEmail`) or the
+ * server-only `BULK_EMAIL_ALLOWLIST` env var (verified via `checkBulkEmailAccess`).
  *
- * Keep this in sync with the BULK_EMAIL_ALLOWLIST env var used by the
- * serverless function (api/send-bulk-email.js), which enforces it server-side.
- */
-export const BULK_EMAIL_ALLOWLIST = ["tolutrain", "ayo", "rhinoceros25@"];
-
-const normalize = (v) => (v ?? "").toString().trim().toLowerCase();
-
-/**
- * Whether the given user may access Bulk Email.
- * Super Admins always can; Church Admins cannot; otherwise the user's login code
- * must be in the allowlist.
+ * Login codes / Pass IDs must never be hardcoded in the client bundle.
  *
  * @param {Object} [user] - authUser object (defaults to the current session user).
  * @returns {boolean}
@@ -26,8 +17,7 @@ export function canSendBulkEmail(user) {
   if (isChurchAdmin) return false;
 
   const u = user ?? current;
-  const code = normalize(u?.code);
-  return code !== "" && BULK_EMAIL_ALLOWLIST.map(normalize).includes(code);
+  return Boolean(u?.canSendBulkEmail);
 }
 
 export default canSendBulkEmail;

@@ -6,7 +6,7 @@
  * in the in-app report; delivery events arrive via api/email-webhook.js and are
  * linked back by that same campaign id.
  *
- * Request body: { subject, html, recipients[], provider?, requesterCode? }
+ * Request body: { subject, html, recipients[], provider? }
  * Response:      { provider, campaignId, sent, failed[], errors? }
  *
  * Env: EMAIL_FROM, RESEND_API_KEY and/or BREVO_API_KEY, plus the auth/Supabase

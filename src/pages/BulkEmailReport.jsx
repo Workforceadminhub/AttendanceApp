@@ -1,10 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { Navigate, Link } from "react-router-dom";
 import Layout from "../components/Layout";
+import LoadingState from "../components/LoadingState";
 import { Button, Card } from "../components/ui";
-import { fetchEmailReport } from "../services/email";
+import { checkBulkEmailAccess, fetchEmailReport } from "../services/email";
 import { canSendBulkEmail } from "../utils/bulkEmailAccess";
 import { getUser } from "../utils/getUser";
+import { getUserRole } from "../utils/getUserRole";
 import { getPostLoginPath } from "../utils/routeObject";
 
 const fmtDate = (iso) => {
@@ -25,7 +27,23 @@ const fmtDate = (iso) => {
 const pct = (n, d) => (d > 0 ? `${Math.round((n / d) * 100)}%` : "-");
 
 export default function BulkEmailReport() {
-  if (!canSendBulkEmail()) return <Navigate to={getPostLoginPath(getUser())} replace />;
+  const { isChurchAdmin } = getUserRole();
+  const initialAllowed = canSendBulkEmail();
+  const [allowed, setAllowed] = useState(initialAllowed ? true : isChurchAdmin ? false : null);
+
+  useEffect(() => {
+    if (allowed !== null) return;
+    let active = true;
+    checkBulkEmailAccess().then((ok) => {
+      if (active) setAllowed(ok);
+    });
+    return () => {
+      active = false;
+    };
+  }, [allowed]);
+
+  if (allowed === null) return <LoadingState />;
+  if (!allowed) return <Navigate to={getPostLoginPath(getUser())} replace />;
   return <Report />;
 }
 

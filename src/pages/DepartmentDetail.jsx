@@ -18,8 +18,7 @@ import LoadingState from "../components/LoadingState";
 import { getEffectiveRouteList, getDepartmentEntry, getDepartmentRoute, getDepartmentNameFromRoute, isSameDepartment, isSameTeam } from "../utils/routeObject";
 import { getUser } from "../utils/getUser";
 import { expandPermissions } from "../utils/expandPermissions";
-import { fetchAdminWorkers, fetchWorkers } from "../services/workers";
-import { getNextSunday } from "../utils/getDate";
+import { fetchWorkers } from "../services/workers";
 import { getUserRole } from "../utils/getUserRole";
 import { fetchDepartments } from "../services/departments";
 
@@ -138,11 +137,8 @@ export default function DepartmentDetail() {
  } = useQuery({
  // Same key and fetch as DepartmentWorkers, so the "Workers (N)" link below
  // opens from cache instead of downloading the roster a second time.
- queryKey: ["departmentWorkers", decodedDepartment, isTeamOverview ? "team" : "department", trendPermissions.join(",")],
- queryFn: () =>
- isTeamOverview
- ? fetchAdminWorkers(authUser.team, "All", getNextSunday(), "", trendPermissions)
- : fetchWorkers(decodedDepartment, undefined, trendPermissions),
+ queryKey: ["departmentWorkers", decodedDepartment, trendPermissions.join(",")],
+ queryFn: () => fetchWorkers(decodedDepartment, undefined, trendPermissions),
  });
 
  const workers = useMemo(() => {

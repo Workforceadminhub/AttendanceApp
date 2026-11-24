@@ -9,8 +9,7 @@ import LoadingState from "../components/LoadingState";
 import { useEffectiveRouteList } from "../contexts/DepartmentsContext";
 import { getDepartmentEntry, getDepartmentRoute, getDepartmentNameFromRoute, isSameDepartment, isSameTeam } from "../utils/routeObject";
 import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
-import { fetchAdminWorkers, fetchWorkers, removeWorker } from "../services/workers";
-import { getNextSunday } from "../utils/getDate";
+import { fetchWorkers, removeWorker } from "../services/workers";
 import { getUser } from "../utils/getUser";
 import { expandPermissions } from "../utils/expandPermissions";
 import Modal from "../components/Modal";
@@ -72,11 +71,9 @@ export default function DepartmentWorkers() {
  data: workersData,
  isLoading: isWorkersLoading,
  } = useQuery({
- queryKey: ["departmentWorkers", decodedDepartment, isTeamOverview ? "team" : "department", permissionsKey],
+ queryKey: ["departmentWorkers", decodedDepartment, permissionsKey],
  queryFn: () =>
- isTeamOverview
- ? fetchAdminWorkers(auth.team, "All", getNextSunday(), "", permissions)
- : fetchWorkers(
+ fetchWorkers(
  decodedDepartment,
  undefined,
  permissions

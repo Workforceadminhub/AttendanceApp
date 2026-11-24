@@ -3,13 +3,13 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import DepartmentWorkers from "./DepartmentWorkers";
-import { fetchAdminWorkers, fetchWorkers } from "../services/workers";
+import { fetchWorkers } from "../services/workers";
 import { getUser } from "../utils/getUser";
 import { setDynamicDepartments } from "../utils/routeObject";
 
 vi.mock("../components/Layout", () => ({ default: ({ children }) => children }));
 vi.mock("../utils/getUser", () => ({ getUser: vi.fn() }));
-vi.mock("../services/workers", () => ({ fetchAdminWorkers: vi.fn(), fetchWorkers: vi.fn(), removeWorker: vi.fn() }));
+vi.mock("../services/workers", () => ({ fetchWorkers: vi.fn(), removeWorker: vi.fn() }));
 
 const rows = [
   { id: 1, firstname: "Ada", lastname: "Sound", department: "Sound", team: "Programs" },
@@ -39,15 +39,12 @@ describe("Department workers scope", () => {
     getUser.mockReturnValue({ role: "admin", team: "Programs", department: "Programs", permissions: ["Programs"] });
     // Include another team and department to verify the page enforces scope
     // even if the endpoint returns a broader roster.
-    fetchAdminWorkers.mockResolvedValue(rows);
     fetchWorkers.mockResolvedValue(rows);
   });
 
   it("shows every department in the team and supports narrowing and restoring the list", async () => {
     openWorkers("programs");
     expect(await screen.findByRole("heading", { name: "Workers (3)" }, { timeout: 10000 })).toBeInTheDocument();
-    expect(fetchAdminWorkers).toHaveBeenCalledWith("Programs", "All", expect.any(String), "", ["Programs"]);
-    expect(fetchWorkers).not.toHaveBeenCalled();
     expect(screen.getByText("Ada Sound")).toBeInTheDocument();
     expect(screen.getByText("Bola Protocol")).toBeInTheDocument();
     expect(screen.getByText("Chi Media")).toBeInTheDocument();
@@ -72,7 +69,7 @@ describe("Department workers scope", () => {
 
   it("uses the current API department name in directory filters", async () => {
     setDynamicDepartments([{ name: "Ushering - Champions", route: "/usheringtosin", team: "Programs" }]);
-    fetchAdminWorkers.mockResolvedValue([
+    fetchWorkers.mockResolvedValue([
       { ...rows[0], department: "Ushering - Champions" },
       { ...rows[1], department: "Ushering - Champions" },
       rows[2], rows[3],
@@ -93,7 +90,7 @@ describe("Department workers scope", () => {
       { name: "Oil of Joy Community", route: "/oilofjoy", team: "Districts" },
     ]);
     getUser.mockReturnValue({ permissionLevel: "TEAM_ADMIN", team: "Districts", department: "Districts" });
-    fetchAdminWorkers.mockResolvedValue([
+    fetchWorkers.mockResolvedValue([
       { id: 10, firstname: "Tomi", lastname: "Bethel", department: "Bethel Community", team: "Districts" },
       { id: 11, firstname: "Grace", lastname: "Judah", department: "Judah Community", team: "District" },
       { id: 12, firstname: "Joy", lastname: "Oil", department: "Oil of Joy Community", team: "" },
@@ -102,7 +99,7 @@ describe("Department workers scope", () => {
 
     openWorkers("districts");
     expect(await screen.findByRole("heading", { name: "Workers (3)" })).toBeInTheDocument();
-    expect(fetchAdminWorkers).toHaveBeenCalledWith("Districts", "All", expect.any(String), "", []);
+    expect(fetchWorkers).toHaveBeenCalledWith("districts", undefined, []);
     expect(screen.getByText("Tomi Bethel")).toBeInTheDocument();
     expect(screen.getByText("Grace Judah")).toBeInTheDocument();
     expect(screen.getByText("Joy Oil")).toBeInTheDocument();

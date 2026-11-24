@@ -50,7 +50,7 @@ export default function Table({
       {/* Empty state */}
       {total === 0 && (
         <div className="qc-card p-12 text-center">
-          <div className="qc-eyebrow text-ink-400">Inbox</div>
+          <div className="qc-eyebrow text-ink-500">Inbox</div>
           <h2 className="mt-2 text-lg font-medium text-ink-900">
             No pending workers
           </h2>

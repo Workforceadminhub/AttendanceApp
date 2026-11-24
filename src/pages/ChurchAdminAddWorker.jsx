@@ -1,57 +1,39 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
+import { getUser } from "../utils/getUser";
+import { getUserRole } from "../utils/getUserRole";
 import Layout from "../components/Layout";
 import { toast } from "react-toastify";
 import { loadExcelJS } from "../utils/loadExcelJS";
 import {
  teamsAndDepartments,
  normalizeWorkerRole,
- isPastorIsaacCommunity,
- isPastorBiolaCommunity,
  filterDepartmentsForDistrictSubTeam,
 } from "../utils/teams";
 import { downloadSampleWorkersExcel } from "../utils/sampleWorkersExcel";
-import BirthDatePicker from "../components/BirthDatePicker";
 import apiRequest from "../utils/apiClient";
 import { fetchTeamsAndDepartmentsForFilter } from "../services/departments";
-import { getEffectiveRouteList } from "../utils/routeObject";
+import { getEffectiveRouteList, getPostLoginPath } from "../utils/routeObject";
 import WorkerFormErrorSummary from "../components/WorkerFormErrorSummary";
-import {
- focusFirstWorkerError,
- validateAuthenticatedWorker,
- workerErrorProps,
-} from "../utils/workerFormValidation";
+import { toWorkerPayload, useAddWorkerForm } from "../hooks/useAddWorkerForm";
+import WorkerFormFields from "../components/Workers/WorkerFormFields";
 
-export default function ChurchAdminAddWorker() {
+function ChurchAdminAddWorkerForm() {
  const navigate = useNavigate();
  const [mode, setMode] = useState("single"); // 'single' or 'bulk'
  const [isLoading, setIsLoading] = useState(false);
- const [formErrors, setFormErrors] = useState({});
- // Submit error is tied to the form values it was raised for, so editing hides it.
- const [submitErrorState, setSubmitErrorState] = useState(null);
- const submitError =
- submitErrorState && submitErrorState.worker === newWorker ? submitErrorState.message : "";
- const setSubmitError = (message) =>
- setSubmitErrorState(message ? { message, worker: newWorker } : null);
-
- // Single worker form state for Church Admin
- const [newWorker, setNewWorker] = useState({
- firstname: "",
- lastname: "",
- othername: "",
- email: "",
- phonenumber: "",
- maritalstatus: "",
- department: "",
- team: "",
- workerrole: "",
- birthdate: "",
- agerange: "",
- gender: "",
- address: "",
- occupation: "",
- employment: "",
- district_sub_team: "",
+ const {
+ worker: newWorker,
+ setWorker: setNewWorker,
+ visibleErrors,
+ submitError,
+ isSubmitting,
+ handleSubmit: handleSingleSubmit,
+ } = useAddWorkerForm({
+ send: async (worker) => {
+ await apiRequest("POST", "/api/super/admin/workers", toWorkerPayload(worker));
+ toast.success("Worker added successfully!");
+ },
  });
 
  // Bulk upload state
@@ -130,82 +112,14 @@ export default function ChurchAdminAddWorker() {
     }
   }, [newWorker.team, newWorker.district_sub_team, filterData]);
 
- // Only show errors still present for the current form values.
- const visibleErrors = useMemo(() => {
- if (Object.keys(formErrors).length === 0) return formErrors;
- const latestErrors = validateAuthenticatedWorker(newWorker);
- return Object.fromEntries(
- Object.entries(formErrors).filter(([field]) => latestErrors[field])
- );
- }, [formErrors, newWorker]);
-
- // Handle single worker form submission
- const handleSingleSubmit = async (e) => {
- e.preventDefault();
- const nextErrors = validateAuthenticatedWorker(newWorker);
- setFormErrors(nextErrors);
- setSubmitError("");
- if (Object.keys(nextErrors).length > 0) {
- focusFirstWorkerError(nextErrors);
- return;
- }
-
- setIsLoading(true);
- try {
- const clusterValue = (newWorker.cluster || newWorker.district_sub_team || "").trim();
- const workerToSend = {
- ...newWorker,
- email: newWorker.email.trim(),
- workerrole: normalizeWorkerRole(newWorker.workerrole),
- };
- if (clusterValue) {
- workerToSend.cluster = clusterValue;
- workerToSend.district_sub_team = clusterValue;
- } else {
- delete workerToSend.cluster;
- delete workerToSend.district_sub_team;
- }
- await apiRequest("POST", "/api/super/admin/workers", workerToSend);
- toast.success("Worker added successfully!");
- setFormErrors({});
- setSubmitError("");
- 
- // Reset form
- setNewWorker({
- firstname: "",
- lastname: "",
- othername: "",
- email: "",
- phonenumber: "",
- maritalstatus: "",
- department: "",
- team: "",
- workerrole: "",
- birthdate: "",
- agerange: "",
- gender: "",
- address: "",
- occupation: "",
- employment: "",
- district_sub_team: "",
- });
-
- } catch (error) {
-    const rawMsg = error?.message || "";
-    const msg = /worker\s+already\s+exist/i.test(rawMsg)
-      ? "Worker already belongs to another department"
-      : error?.message || "Failed to add worker";
-    setSubmitError(msg);
-    toast.error(msg);
- } finally {
- setIsLoading(false);
- }
- };
-
  // Handle bulk upload
  const handleBulkUpload = (event) => {
  const file = event.target.files[0];
  if (!file) return;
+    if (!/\.xlsx$/i.test(file.name)) {
+      toast.error("Please upload an Excel .xlsx file");
+      return;
+    }
 
  setUploadedFile(file);
  setParsedWorkers([]);
@@ -307,16 +221,7 @@ export default function ChurchAdminAddWorker() {
  try {
  const { _id, ...worker } = validWorkers[i];
 
- const workerToSend = { ...worker };
- workerToSend.workerrole = normalizeWorkerRole(workerToSend.workerrole);
- const clusterVal = (workerToSend.cluster || workerToSend.district_sub_team || "").trim();
- if (clusterVal) {
- workerToSend.cluster = clusterVal;
- workerToSend.district_sub_team = clusterVal;
- } else {
- delete workerToSend.cluster;
- delete workerToSend.district_sub_team;
- }
+ const workerToSend = toWorkerPayload(worker);
 
  await apiRequest("POST", "/api/super/admin/workers", workerToSend);
  } catch (error) {
@@ -361,17 +266,7 @@ export default function ChurchAdminAddWorker() {
  
  const files = e.dataTransfer.files;
  if (files && files.length > 0) {
- const file = files[0];
- if (file.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || 
- file.type === "application/vnd.ms-excel" ||
- file.name.endsWith('.xlsx') || 
- file.name.endsWith('.xls')) {
- setUploadedFile(file);
- const event = { target: { files: [file] } };
- handleBulkUpload(event);
- } else {
- toast.error("Please upload an Excel file (.xlsx or .xls)");
- }
+ handleBulkUpload({ target: { files: [files[0]] } });
  }
  };
 
@@ -430,385 +325,12 @@ export default function ChurchAdminAddWorker() {
  
  <form onSubmit={handleSingleSubmit} noValidate className="worker-form space-y-6">
  <WorkerFormErrorSummary errors={visibleErrors} submitError={submitError} />
- <div className="space-y-6">
- <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
- {/* First Name */}
- <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
- First Name <span className="text-brick">*</span>
- </label>
- <input
- {...workerErrorProps(visibleErrors, "firstname")}
- type="text"
- value={newWorker.firstname}
- onChange={(e) =>
- setNewWorker({
- ...newWorker,
- firstname: e.target.value,
- })
- }
- className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
- placeholder="Enter first name"
+ <WorkerFormFields
+ worker={newWorker}
+ onChange={setNewWorker}
+ errors={visibleErrors}
+ placement={{ teams: filterOptions.teams, departmentOptions }}
  />
- </div>
-
- {/* Last Name */}
- <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
- Last Name <span className="text-brick">*</span>
- </label>
- <input
- {...workerErrorProps(visibleErrors, "lastname")}
- type="text"
- value={newWorker.lastname}
- onChange={(e) =>
- setNewWorker({
- ...newWorker,
- lastname: e.target.value,
- })
- }
- className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
- placeholder="Enter last name"
- />
- </div>
-
- {/* Other Name */}
- <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
- Other Name
- </label>
- <input
- type="text"
- value={newWorker.othername}
- onChange={(e) =>
- setNewWorker({
- ...newWorker,
- othername: e.target.value,
- })
- }
- className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
- placeholder="Enter other name"
- />
- </div>
-
- {/* Gender */}
- <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
- Gender <span className="text-brick">*</span>
- </label>
- <select
- {...workerErrorProps(visibleErrors, "gender")}
- value={newWorker.gender}
- onChange={(e) =>
- setNewWorker({ ...newWorker, gender: e.target.value })
- }
- className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
- >
- <option value="">Select Gender</option>
- <option value="Female">Female</option>
- <option value="Male">Male</option>
- </select>
- </div>
-
- {/* Phone Number */}
- <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
- Phone Number <span className="text-brick">*</span>
- </label>
- <input
- {...workerErrorProps(visibleErrors, "phonenumber")}
- type="tel"
- value={newWorker.phonenumber}
- onChange={(e) =>
- setNewWorker({
- ...newWorker,
- phonenumber: e.target.value.replace(/\D/g, "").slice(0, 11),
- })
- }
- maxLength={11}
- className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
- placeholder="Enter 11-digit phone number"
- />
- </div>
-
- {/* Email */}
- <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
- Email Address <span className="text-brick">*</span>
- </label>
- <input
- {...workerErrorProps(visibleErrors, "email")}
- type="email"
- value={newWorker.email}
- onChange={(e) =>
- setNewWorker({ ...newWorker, email: e.target.value })
- }
- className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
- placeholder="Enter email address"
- />
- </div>
-
- {/* Team */}
- <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
- Team <span className="text-brick">*</span>
- </label>
- <select
- {...workerErrorProps(visibleErrors, "team")}
- value={newWorker.team}
- onChange={(e) =>
- setNewWorker({
- ...newWorker,
- team: e.target.value,
- department: "", // Reset department when team changes
- })
- }
- className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
- >
- <option value="">Select Team</option>
- {filterOptions.teams.map((team) => (
- <option key={team.value} value={team.value}>
- {team.label}
- </option>
- ))}
- </select>
- </div>
-
- {/* District/Sub-team - optional before Department when Districts */}
- {(newWorker.team === "Districts" || newWorker.team === "District") && (
- <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
- District/Sub-team (Optional)
- </label>
- <select
- {...workerErrorProps(visibleErrors, "district_sub_team")}
- value={newWorker.district_sub_team || newWorker.cluster || ""}
- onChange={(e) =>
- setNewWorker({
- ...newWorker,
- district_sub_team: e.target.value,
- cluster: e.target.value,
- })
- }
- className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
- >
- <option value="">Select District/Sub-team</option>
- <option value="Pastor Biola Cluster">Pastor Biola Cluster</option>
- <option value="Pastor Isaac Cluster">Pastor Isaac Cluster</option>
- </select>
- </div>
- )}
-
- {/* Department */}
- <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
- Department <span className="text-brick">*</span>
- </label>
- <select
- {...workerErrorProps(visibleErrors, "department")}
- value={newWorker.department}
- onChange={(e) => {
- const selectedDept = e.target.value;
- let autoCluster = newWorker.district_sub_team || newWorker.cluster || "";
- if (!autoCluster && (newWorker.team === "Districts" || !newWorker.team)) {
- if (isPastorIsaacCommunity(selectedDept)) autoCluster = "Pastor Isaac Cluster";
- else if (isPastorBiolaCommunity(selectedDept)) autoCluster = "Pastor Biola Cluster";
- }
- setNewWorker({
- ...newWorker,
- department: selectedDept,
- district_sub_team: autoCluster,
- cluster: autoCluster,
- });
- }}
- disabled={!newWorker.team}
- className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10 disabled:cursor-not-allowed disabled:bg-ink-100"
- >
- <option value="">
- {!newWorker.team ? "Select a team first" : "Select Department"}
- </option>
- {departmentOptions.map((dept) => (
- <option key={dept.value} value={dept.value}>
- {dept.label}
- </option>
- ))}
- </select>
- </div>
-
- {/* Worker Role */}
- <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
- Worker Role <span className="text-brick">*</span>
- </label>
- <select
- {...workerErrorProps(visibleErrors, "workerrole")}
- value={newWorker.workerrole}
- onChange={(e) =>
- setNewWorker({
- ...newWorker,
- workerrole: e.target.value,
- })
- }
- className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
- >
- <option value="">Select Worker Role</option>
- <option value="Worker">Worker</option>
- <option value="Assistant Small Group Leader">Assistant Small Group Leader</option>
- <option value="Small Group Leader">Small Group Leader</option>
- <option value="E-Group Leader">E-Group Leader</option>
- <option value="Assistant Cell Leader">Assistant Cell Leader</option>
- <option value="Cell Leader">Cell Leader</option>
- <option value="Interest Group Leader">Interest Group Leader</option>
- <option value="Assistant HOD">Assistant HOD</option>
- <option value="Zonal Leader">Zonal Leader</option>
- <option value="Admin">Admin</option>
- <option value="District Leader">District Leader</option>
- <option value="HOD">HOD</option>
- <option value="Assistant Sub Team Head">Assistant Sub Team Head</option>
- <option value="Sub Team Head">Sub Team Head</option>
- <option value="Assistant Community Leader">Assistant Community Leader</option>
- <option value="Community Leader">Community Leader</option>
- <option value="Pastoral Leader">Pastoral Leader</option>
- <option value="Directional Leader">Directional Leader</option>
- </select>
- </div>
-
- {/* Birth Date */}
- <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
- Birth Date <span className="text-brick">*</span>
- </label>
- <BirthDatePicker
- id="birthdate"
- ariaInvalid={Boolean(visibleErrors.birthdate)}
- ariaDescribedBy={visibleErrors.birthdate ? "birthdate-error" : undefined}
- value={newWorker.birthdate}
- onChange={(value) =>
- setNewWorker({
- ...newWorker,
- birthdate: value,
- })
- }
- placeholder="Select birth date (e.g. 12th January)"
- />
- </div>
-
- {/* Marital Status */}
- <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
- Marital Status <span className="text-brick">*</span>
- </label>
- <select
- {...workerErrorProps(visibleErrors, "maritalstatus")}
- value={newWorker.maritalstatus}
- onChange={(e) =>
- setNewWorker({
- ...newWorker,
- maritalstatus: e.target.value,
- })
- }
- className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
- >
- <option value="">Select Marital Status</option>
- <option value="Single">Single</option>
- <option value="Married">Married</option>
- <option value="Widow">Widow</option>
- <option value="Divorced">Divorced</option>
- <option value="Separated">Separated</option>
- </select>
- </div>
-
- {/* Age Range */}
- <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
- Age Range <span className="text-brick">*</span>
- </label>
- <select
- {...workerErrorProps(visibleErrors, "agerange")}
- value={newWorker.agerange}
- onChange={(e) =>
- setNewWorker({
- ...newWorker,
- agerange: e.target.value,
- })
- }
- className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
- >
- <option value="">Select Age Range</option>
- <option value="18-25">18-25</option>
- <option value="26-30">26-30</option>
- <option value="31-35">31-35</option>
- <option value="36-40">36-40</option>
- <option value="41-45">41-45</option>
- <option value="46-50">46-50</option>
- <option value="51 & Above">51 & Above</option>
- </select>
- </div>
-
- {/* Employment Status */}
- <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
- Employment Status <span className="text-brick">*</span>
- </label>
- <select
- {...workerErrorProps(visibleErrors, "employment")}
- value={newWorker.employment}
- onChange={(e) =>
- setNewWorker({
- ...newWorker,
- employment: e.target.value,
- })
- }
- className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
- >
- <option value="">Select Employment Status</option>
- <option value="Employed">Employed</option>
- <option value="Self-Employed">Self-Employed</option>
- <option value="Student">Student</option>
- <option value="Unemployed">Unemployed</option>
- </select>
- </div>
-
- {/* Occupation */}
- <div>
- <label className="block text-sm font-medium text-ink-700 mb-2">
- Occupation
- </label>
- <input
- type="text"
- value={newWorker.occupation}
- onChange={(e) =>
- setNewWorker({
- ...newWorker,
- occupation: e.target.value,
- })
- }
- className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
- placeholder="Enter occupation"
- />
- </div>
-
- {/* Address */}
- <div className="md:col-span-2">
- <label className="block text-sm font-medium text-ink-700 mb-2">
- Address <span className="text-brick">*</span>
- </label>
- <textarea
- {...workerErrorProps(visibleErrors, "address")}
- value={newWorker.address}
- onChange={(e) =>
- setNewWorker({
- ...newWorker,
- address: e.target.value,
- })
- }
- className="w-full px-3 py-2 border border-ink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-ink-900/10"
- placeholder="Enter address"
- rows={3}
- />
- </div>
- </div>
- </div>
 
  {/* Submit Button */}
  <div className="flex justify-end space-x-3 pt-6 border-t border-ink-200">
@@ -821,10 +343,10 @@ export default function ChurchAdminAddWorker() {
  </button>
  <button
  type="submit"
- disabled={isLoading}
+ disabled={isSubmitting}
  className="px-6 py-2 text-sm font-medium text-white bg-ink-900 rounded-md hover:bg-ink-800 disabled:opacity-50 disabled:cursor-not-allowed"
  >
- {isLoading ? "Adding..." : "Add Worker"}
+ {isSubmitting ? "Adding..." : "Add Worker"}
  </button>
  </div>
  </form>
@@ -852,6 +374,14 @@ export default function ChurchAdminAddWorker() {
  onDragLeave={handleDragLeave}
  onDrop={handleDrop}
  onClick={() => document.getElementById('bulk-upload').click()}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              document.getElementById("bulk-upload").click();
+            }
+          }}
  >
  <div className="space-y-4">
  <div className="mx-auto h-12 w-12 text-ink-400">
@@ -866,7 +396,7 @@ export default function ChurchAdminAddWorker() {
  <input
  id="bulk-upload"
  type="file"
- accept=".xlsx,.xls"
+ accept=".xlsx"
  onChange={handleBulkUpload}
  className="hidden"
  />
@@ -993,4 +523,13 @@ export default function ChurchAdminAddWorker() {
  </div>
  </Layout>
  );
+}
+
+export default function ChurchAdminAddWorker() {
+ const user = getUser();
+ const { isSuperAdmin, isChurchAdmin } = getUserRole(user);
+ if (!isSuperAdmin && !isChurchAdmin) {
+ return <Navigate to={getPostLoginPath(user)} replace />;
+ }
+ return <ChurchAdminAddWorkerForm />;
 }

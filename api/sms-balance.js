@@ -4,7 +4,7 @@
  * Retrieves wallet balance for Sendchamp or SmartSMSSolutions.
  * Restricted strictly to Super Admins.
  */
-import { authorizeSuperAdmin } from "./_lib/auth.js";
+import { authorizeSuperAdmin, bearerFrom } from "./_lib/auth.js";
 
 const SENDCHAMP_API_KEY = process.env.SENDCHAMP_API_KEY || "";
 const SENDCHAMP_WALLET_URL = "https://api.sendchamp.com/api/v1/wallet/wallet_balance";
@@ -13,13 +13,12 @@ const SMARTSMS_API_TOKEN = process.env.SMARTSMS_API_TOKEN || "";
 const SMARTSMS_BALANCE_URL = "https://app.smartsmssolutions.com/io/api/client/v1/balance/";
 
 export default async function handler(req, res) {
-  if (req.method !== "GET" && req.method !== "POST") {
-    res.setHeader("Allow", "GET, POST");
+  if (req.method !== "GET") {
+    res.setHeader("Allow", "GET");
     return res.status(405).json({ error: "Method not allowed." });
   }
 
-  const authHeader = req.headers.authorization || req.headers.Authorization;
-  const auth = await authorizeSuperAdmin(authHeader);
+  const auth = await authorizeSuperAdmin(bearerFrom(req));
   if (!auth.ok) {
     return res.status(auth.status).json({
       error: "Access denied. Super Admin access required.",
@@ -27,7 +26,7 @@ export default async function handler(req, res) {
     });
   }
 
-  const provider = (req.query?.provider || "sendchamp").toLowerCase();
+  const provider = String(req.query?.provider || "sendchamp").toLowerCase();
 
   if (provider === "smartsmssolutions") {
     if (!SMARTSMS_API_TOKEN) {
@@ -50,15 +49,12 @@ export default async function handler(req, res) {
       }
 
       // 502 so an upstream 401 is not mistaken for the caller's own auth failing.
-      return res.status(502).json({
-        error: data?.comment || data?.message || "Failed to retrieve SmartSMS balance.",
-        providerStatus: response.status,
-        details: data,
-      });
+      console.error("SmartSMS balance error:", response.status, data);
+      return res.status(502).json({ error: "Failed to retrieve SmartSMS balance." });
     } catch (err) {
       console.error("SmartSMS balance fetch error:", err);
       return res.status(500).json({
-        error: err?.message || "Failed to connect to SmartSMSSolutions balance service.",
+        error: "Failed to connect to SmartSMSSolutions balance service.",
       });
     }
   }
@@ -81,22 +77,22 @@ export default async function handler(req, res) {
     const data = await response.json().catch(() => null);
 
     if (response.ok && data) {
+      const wallet = data.data || data;
       return res.status(200).json({
         success: true,
-        data: data.data || data,
+        data: {
+          wallet_balance: wallet?.wallet_balance ?? wallet?.available_balance ?? wallet?.balance ?? 0,
+          currency: wallet?.currency || "NGN",
+          business_name: wallet?.business_name || "Sendchamp",
+        },
       });
     }
 
     // 502 so an upstream 401 is not mistaken for the caller's own auth failing.
-    return res.status(502).json({
-      error: data?.message || "Failed to retrieve Sendchamp wallet balance.",
-      providerStatus: response.status,
-      details: data,
-    });
+    console.error("Sendchamp wallet error:", response.status, data);
+    return res.status(502).json({ error: "Failed to retrieve Sendchamp wallet balance." });
   } catch (err) {
     console.error("Sendchamp wallet fetch error:", err);
-    return res.status(500).json({
-      error: err?.message || "Failed to connect to Sendchamp wallet service.",
-    });
+    return res.status(500).json({ error: "Failed to connect to Sendchamp wallet service." });
   }
 }

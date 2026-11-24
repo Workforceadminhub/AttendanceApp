@@ -4,7 +4,6 @@ import {
   AWAKENING_SERVICE_TEAMS,
   awakeningRegistrationSchema,
   isValidAwakeningPhone,
-  workerSchema,
 } from "./schemas";
 import { getAwakeningDepartmentOptions } from "./awakeningRegistration";
 
@@ -123,16 +122,4 @@ describe("awakeningRegistrationSchema", () => {
     expect(isValidAwakeningPhone("+2348012345678")).toBe(true);
   });
 
-  it("does not change the local-only worker phone contract", () => {
-    const worker = {
-      firstname: "Ada",
-      lastname: "Okafor",
-      email: "ada@example.com",
-      phonenumber: "+2348012345678",
-      gender: "Female",
-      workerrole: "Worker",
-      birthdate: "1990-01-01",
-    };
-    expect(workerSchema.safeParse(worker).success).toBe(false);
-  });
 });

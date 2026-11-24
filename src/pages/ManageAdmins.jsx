@@ -1,3 +1,4 @@
+import { useConfirm } from "../components/ui/ConfirmDialog";
 import { useState, useEffect, useRef, useMemo, useCallback, Fragment } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import Select from "react-select";
@@ -78,6 +79,7 @@ const ROLE_OPTIONS = [
 
 export default function ManageAdmins() {
  const navigate = useNavigate();
+ const confirm = useConfirm();
  const invalidateDepartments = useInvalidateDepartments();
  const [admins, setAdmins] = useState([]);
  const [departments, setDepartments] = useState([]);
@@ -269,9 +271,6 @@ export default function ManageAdmins() {
  void loadDepartments();
  }, [isSuperAdmin, loadAdmins, loadDepartments]);
 
- if (!user || !isSuperAdmin) {
- return <Navigate to={getPostLoginPath(user)} replace />;
- }
 
  // Form handlers
  const handleInputChange = (e) => {
@@ -514,13 +513,7 @@ export default function ManageAdmins() {
 
  // Delete admin
  const handleDelete = async (admin) => {
- if (
- !window.confirm(
- `Are you sure you want to delete admin "${admin.code || admin.department}"? This action cannot be undone.`
- )
- ) {
- return;
- }
+ if (!(await confirm({ title: "Delete admin", message: `Delete admin "${admin.code || admin.department}"? This cannot be undone.`, confirmLabel: "Delete", danger: true }))) return;
 
  setIsSubmitting(true);
  try {
@@ -607,6 +600,10 @@ export default function ManageAdmins() {
  const toggleTeamCollapse = (team) => {
  setCollapsedTeams((prev) => ({ ...prev, [team]: !(prev[team] ?? true) }));
  };
+
+ if (!user || !isSuperAdmin) {
+ return <Navigate to={getPostLoginPath(user)} replace />;
+ }
 
  return (
  <div className="min-h-screen bg-cream">

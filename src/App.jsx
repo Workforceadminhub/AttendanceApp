@@ -1,22 +1,19 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { SkeletonTheme } from "react-loading-skeleton";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import React, { Suspense, lazy } from "react";
-import NotFound from "./components/NotFound";
-import Login from "./components/Login";
-import Home from "./components/Home";
+import { Suspense, lazy } from "react";
 import PrivateRoute from "./components/PrivateRoute";
 import RouteErrorBoundary from "./components/RouteErrorBoundary";
 import LoadingState from "./components/LoadingState";
-import { DepartmentsProvider, useDepartmentRoutes } from "./contexts/DepartmentsContext";
-import { RBACProvider } from "./contexts/RBACContext";
 import HubRoute from "./components/auth/HubRoute";
-import AppShell from "./components/AppShell";
 import PageMeta from "./components/PageMeta";
 
 // Code-split heavy pages - keeps initial bundle small
+const AppShell = lazy(() => import("./components/AppShell"));
+const Home = lazy(() => import("./components/Home"));
+const Login = lazy(() => import("./components/Login"));
+const NotFound = lazy(() => import("./components/NotFound"));
 const Dashboard = lazy(() => import("./components/Workers/Dashboard"));
 const DepartmentSummary = lazy(() => import("./components/Workers/DepartmentSummary"));
 const DepartmentAttendance = lazy(() => import("./components/Workers/DepartmentAttendance"));
@@ -97,7 +94,6 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
-      refetchOnMount: false,
       refetchOnReconnect: false,
       staleTime: 5 * 60 * 1000, // 5 minutes
       gcTime: 10 * 60 * 1000, // 10 minutes
@@ -119,9 +115,6 @@ const queryClient = new QueryClient({
 });
 
 const AppRoutes = () => {
-  const { attendanceRoutes, dashboardRoutes, summaryRoutes, adminRoutes, historyRoutes } =
-    useDepartmentRoutes();
-
   // awakening.hiccgbagada.com serves the public registration form at any path
   // (awakening.localhost lets you test the subdomain branch locally)
   const isAwakeningHost =
@@ -162,9 +155,9 @@ const AppRoutes = () => {
             <Route path="/workers-ball/invite/:token" element={<WorkersBallInvite />} />
             <Route path="/wb26/invite" element={<WorkersBallInvite />} />
             <Route path="/wb26/invite/:token" element={<WorkersBallInvite />} />
-            <Route path="/scan/wb26" element={<WorkersBallScanner />} />
-            <Route path="/workers-ball/scan" element={<WorkersBallScanner />} />
-            <Route path="/wb26/scan" element={<WorkersBallScanner />} />
+            <Route path="/scan/wb26" element={<PrivateRoute><WorkersBallScanner /></PrivateRoute>} />
+            <Route path="/workers-ball/scan" element={<PrivateRoute><WorkersBallScanner /></PrivateRoute>} />
+            <Route path="/wb26/scan" element={<PrivateRoute><WorkersBallScanner /></PrivateRoute>} />
             <Route path="/leadersmeeting/confirm" element={<LeadersMeetingConfirm />} />
             <Route path="/leaders-meeting" element={<LeadersMeetingPresent />} />
             <Route path="/workersmeeting/confirm" element={<WorkersMeetingConfirm />} />
@@ -278,43 +271,10 @@ const AppRoutes = () => {
             />
 
             {/* Attendance */}
-            {attendanceRoutes.map((route) => (
-              <Route
-                path={route}
-                key={route}
-                element={
-                  <PrivateRoute>
-                    <DepartmentAttendance />
-                  </PrivateRoute>
-                }
-              />
-            ))}
 
             {/* Dashboard  */}
-            {dashboardRoutes.map((route) => (
-              <Route
-                path={route}
-                key={route}
-                element={
-                  <PrivateRoute>
-                    <Dashboard />
-                  </PrivateRoute>
-                }
-              />
-            ))}
 
             {/* Summary  */}
-            {summaryRoutes.map((route) => (
-              <Route
-                path={route}
-                key={route}
-                element={
-                  <PrivateRoute>
-                    <DepartmentSummary />
-                  </PrivateRoute>
-                }
-              />
-            ))}
 
             {/* Admin routes */}
             <Route
@@ -575,63 +535,31 @@ const AppRoutes = () => {
               }
             />
 
-            {adminRoutes.map((route) => (
-              <React.Fragment key={route}>
-                <Route
-                  path={`/attendance/${route}`}
-                  element={
-                    <PrivateRoute>
-                      <DepartmentAttendance />
-                    </PrivateRoute>
-                  }
-                />
-                <Route
-                  path={`/summary/${route}`}
-                  element={
-                    <PrivateRoute>
-                      <AdminSummaryDetail />
-                    </PrivateRoute>
-                  }
-                />
-                <Route
-                  path={`/dashboard/${route}`}
-                  element={
-                    <PrivateRoute>
-                      <Dashboard />
-                    </PrivateRoute>
-                  }
-                />
-              </React.Fragment>
-            ))}
 
-            {historyRoutes.map((route) => (
-              <React.Fragment key={route}>
-                <Route
-                  path={`/attendance/${route}`}
-                  element={
-                    <PrivateRoute>
-                      <DepartmentAttendanceHistory />
-                    </PrivateRoute>
-                  }
-                />
-                <Route
-                  path={`/summary/${route}`}
-                  element={
-                    <PrivateRoute>
-                      <DepartmentSummaryHistory />
-                    </PrivateRoute>
-                  }
-                />
-                <Route
-                  path={`/dashboard/${route}`}
-                  element={
-                    <PrivateRoute>
-                      <DashboardHistory />
-                    </PrivateRoute>
-                  }
-                />
-              </React.Fragment>
-            ))}
+            <Route
+              path="/attendance/history/admin/:teamRoute"
+              element={
+                <PrivateRoute>
+                  <DepartmentAttendanceHistory />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/summary/history/admin/:teamRoute"
+              element={
+                <PrivateRoute>
+                  <DepartmentSummaryHistory />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/history/admin/:teamRoute"
+              element={
+                <PrivateRoute>
+                  <DashboardHistory />
+                </PrivateRoute>
+              }
+            />
             <Route
               path={`/summary/history/admin`}
               element={
@@ -773,7 +701,7 @@ const AppRoutes = () => {
             />
             {/* Public - no auth required */}
 
-            {/* Fallback param routes - catch new dept/admin slugs before dept cache refreshes */}
+            {/* Department and team pages resolve their slug from the URL */}
             <Route
               path="/dashboard/admin/:teamRoute"
               element={
@@ -837,13 +765,7 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <PageMeta />
-        <RBACProvider>
-          <DepartmentsProvider>
-            <SkeletonTheme baseColor="#e5e5e5" highlightColor="#d6d4d4">
-              <AppRoutes />
-            </SkeletonTheme>
-          </DepartmentsProvider>
-        </RBACProvider>
+        <AppRoutes />
       </BrowserRouter>
       <ToastContainer
         hideProgressBar

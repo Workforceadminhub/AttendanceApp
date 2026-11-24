@@ -7,7 +7,9 @@ if (typeof window !== "undefined") {
   try {
     localStorage.removeItem("harvesters_meetings_config");
     localStorage.removeItem("harvesters_deleted_meetings_config");
-  } catch {}
+  } catch {
+    // Storage can be unavailable (private mode); nothing to purge then.
+  }
 }
 
 export const DEFAULT_LEADERS_MEETING_DATE = "2026-10-17";
@@ -44,7 +46,9 @@ export function resetMeetingsCache(initial = INITIAL_MEETINGS) {
     try {
       localStorage.removeItem("harvesters_meetings_config");
       localStorage.removeItem("harvesters_deleted_meetings_config");
-    } catch {}
+    } catch {
+    // Storage can be unavailable (private mode); nothing to purge then.
+  }
     window.dispatchEvent(new Event(MEETINGS_CHANGED_EVENT));
   }
 }

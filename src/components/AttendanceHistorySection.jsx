@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAttendanceHistory } from "../services/attendance";
-import { getSundaysInYear, getNextSunday } from "../utils/getDate";
+import { ATTENDANCE_START_YEAR, getSundaysInYear, getNextSunday } from "../utils/getDate";
 import LoadingState from "./LoadingState";
 
 /**
@@ -41,7 +41,10 @@ export default function AttendanceHistorySection({ permissions }) {
  // Build list of all past Sundays (including current) in descending order.
  // Values are the original "Sunday - d/m/y" strings - the backend expects this format.
  const sundayOptions = useMemo(() => {
- const allSundays = getSundaysInYear(2026);
+ const allSundays = [];
+ for (let year = ATTENDANCE_START_YEAR; year <= new Date().getFullYear(); year++) {
+ allSundays.push(...getSundaysInYear(year));
+ }
  const cutoff = sundayToISO(getNextSunday()) || "";
  return allSundays
  .filter((s) => {

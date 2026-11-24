@@ -94,6 +94,8 @@ export function clearAuthTokens() {
 /** Full logout - tokens, route hints, and cached filters. */
 export function logoutSession() {
   clearAuthTokens();
+  sessionStorage.removeItem("tempResetToken");
+  sessionStorage.removeItem("tempResetLoginData");
   clearSessionRoutes();
   clearFilterCache();
 }

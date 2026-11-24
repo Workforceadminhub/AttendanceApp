@@ -1,4 +1,5 @@
 import { isSameDepartment } from "./routeObject";
+import { getUserRole } from "./getUserRole";
 
 /**
  * Filter attendance/summary data to only departments in authUser.permissions.
@@ -7,7 +8,9 @@ import { isSameDepartment } from "./routeObject";
 
 /**
  * For non-admin users, filter list to only items whose department is in authUser.permissions.
- * Super/Church admin users or users without permissions see all data.
+ * Admin roles (super, church, team, sub-team) see everything the API returned.
+ * Everyone else is limited to their permissions, falling back to their own
+ * department. With nothing to match against, nothing is shown.
  *
  * @param {Array<{ department: string }>} list - Attendance or summary list with department field
  * @param {object} authUser - User from sessionStorage (authUser.permissions = array of department names)
@@ -26,8 +29,11 @@ export const filterByUserPermissions = (list, authUser) => {
   ) {
     return list;
   }
-  const permissions = authUser?.permissions;
-  if (!permissions?.length) return list;
+  if (authUser && getUserRole(authUser).isAdmin) return list;
+  const permissions = authUser?.permissions?.length
+    ? authUser.permissions
+    : [authUser?.department, ...(authUser?.assignedDepartments ?? [])].filter(Boolean);
+  if (!permissions.length) return [];
   return list.filter(
     (item) =>
       item.department &&

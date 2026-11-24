@@ -166,3 +166,31 @@ export function getSundayTitleDate(dateStr) {
 }
 
 export default getDayAndYear;
+
+/** Attendance records begin in this year; pickers never offer anything earlier. */
+export const ATTENDANCE_START_YEAR = 2026;
+
+/** "yyyy-MM" for `date`'s month. */
+export function toMonthValue(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** Month options from the first attendance year through December of this year. */
+export function getMonthOptions(now = new Date()) {
+  const options = [];
+  for (let year = ATTENDANCE_START_YEAR; year <= now.getFullYear(); year++) {
+    for (let month = 0; month < 12; month++) {
+      options.push({
+        value: toMonthValue(new Date(year, month, 1)),
+        label: `${new Date(year, month, 1).toLocaleString("en-GB", { month: "long" })} ${year}`,
+      });
+    }
+  }
+  return options;
+}
+
+/** yyyy-MM-dd of the first Sunday of `year`. */
+export function firstSundayOfYear(year) {
+  const offset = (7 - new Date(year, 0, 1).getDay()) % 7;
+  return `${year}-01-${String(1 + offset).padStart(2, "0")}`;
+}

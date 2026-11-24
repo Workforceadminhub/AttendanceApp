@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useSundayAttendance } from "../hooks/useSundayAttendance";
+import { firstSundayOfYear, getMonthOptions, toMonthValue } from "../utils/getDate";
 import {
  BarChart,
  Bar,
@@ -98,11 +99,14 @@ export default function DepartmentDetail() {
  });
  }, [isSubTeamAdmin, allDepartments, assignedDepartments, roleUser]);
 
- // Attendance Trend: /api/attendance for every Sunday, shared with the other
+ const monthOptions = useMemo(() => getMonthOptions(), []);
+ const [selectedMonth, setSelectedMonth] = useState(() => toMonthValue());
+
+ // Attendance Trend: /api/attendance for the selected month, shared with the other
  // trend pages through the React Query cache (see useSundayAttendance).
  const trendPermissions = useMemo(() => expandPermissions(getUser()), []);
  const { data: sundayAttendance, isLoading: isTrendsLoading } = useSundayAttendance(
- 2026,
+ selectedMonth,
  trendPermissions,
  { enabled: !!decodedDepartment }
  );
@@ -150,18 +154,6 @@ export default function DepartmentDetail() {
  );
  }, [workersData, isTeamOverview, authUser, decodedDepartment]);
 
- // Attendance Trend: filter by selected month (2026)
- const MONTHS_2026 = useMemo(() => {
- return Array.from({ length: 12 }, (_, i) => {
- const m = i + 1;
- return { value: `2026-${String(m).padStart(2, "0")}`, label: new Date(2026, i, 1).toLocaleString("en-GB", { month: "long" }) + " 2026" };
- });
- }, []);
- const [selectedMonth, setSelectedMonth] = useState(() => {
- const now = new Date();
- if (now.getFullYear() === 2026) return `2026-${String(now.getMonth() + 1).padStart(2, "0")}`;
- return "2026-01";
- });
  const trendsAll = useMemo(() => {
  return trendsData?.points ?? (Array.isArray(trendsData) ? trendsData : []);
  }, [trendsData]);
@@ -242,8 +234,8 @@ export default function DepartmentDetail() {
  return result;
  }, [isSubTeamAdmin, permittedDepartments, rawBySunday, selectedMonth]);
 
- // Leaderboard: startDate is always first Sunday of 2026, endDate is last Sunday of selected month
- const leaderboardStartDate = "2026-01-04";
+ // Leaderboard: from the first Sunday of the selected year to the last Sunday of the selected month
+ const leaderboardStartDate = firstSundayOfYear(Number(selectedMonth.slice(0, 4)));
  const leaderboardEndDate = useMemo(() => {
  const [y, m] = selectedMonth.split("-").map(Number);
  const lastDay = new Date(y, m, 0);
@@ -285,7 +277,7 @@ export default function DepartmentDetail() {
  onChange={(e) => setSelectedMonth(e.target.value)}
  className="rounded-md border border-ink-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ink-900/10"
  >
- {MONTHS_2026.map((m) => (
+ {monthOptions.map((m) => (
  <option key={m.value} value={m.value}>
  {m.label}
  </option>

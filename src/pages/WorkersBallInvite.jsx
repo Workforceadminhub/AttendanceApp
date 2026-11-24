@@ -16,15 +16,21 @@ import {
   decodeQrCodeDataUrl,
   fetchWorkersBallInvite,
 } from "../services/workersBall";
-import {
-  CeremonialPassCard,
-  WorkersBallCrest,
-} from "./WorkersBallRegistration";
+import CeremonialPassCard from "../components/workersBall/CeremonialPassCard";
+import WorkersBallCrest from "../components/workersBall/WorkersBallCrest";
 
 export default function WorkersBallInvite() {
   const { token: paramToken } = useParams();
   const [searchParams] = useSearchParams();
-  const token = (searchParams.get("token") || paramToken || "").trim();
+  const [token] = useState(() => (searchParams.get("token") || paramToken || "").trim());
+
+  // The token is in state now, so drop it from the address bar and history.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("token")) return;
+    url.searchParams.delete("token");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+  }, []);
 
   // Stages: "loading" | "ready" | "confirming" | "confirmed" | "alreadyConfirmed" | "error"
   const [stage, setStage] = useState(token ? "loading" : "error");

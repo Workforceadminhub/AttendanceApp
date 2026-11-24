@@ -29,6 +29,11 @@ function formatBirthdateDisplay(value) {
  */
 export default function BirthdayWidget({ department }) {
  const [showAllUpcoming, setShowAllUpcoming] = useState(false);
+ // A campus-wide list walks every page of the directory, so it loads on
+ // request. A single department or team is small enough to load with the page.
+ const isCampusWide = !department || department === "All";
+ const [requested, setRequested] = useState(false);
+ const shouldLoad = !isCampusWide || requested;
  const { data: workers, isLoading } = useQuery({
  queryKey: ["workersForBirthdays", department],
  queryFn: () => {
@@ -40,7 +45,7 @@ export default function BirthdayWidget({ department }) {
  // scope (there is no birthday endpoint), so keep the result for an hour.
  staleTime: 60 * 60 * 1000,
  gcTime: 60 * 60 * 1000,
- enabled: true,
+ enabled: shouldLoad,
  });
 
  const list = Array.isArray(workers) ? workers : [];
@@ -77,12 +82,18 @@ export default function BirthdayWidget({ department }) {
  <h2 className="text-lg font-semibold text-ink-900">
  Birthdays
  </h2>
+ {shouldLoad && (
  <span className="inline-flex items-center rounded-full bg-ink-100 px-2 py-1 text-xs font-medium text-ink-900">
  {isLoading ? "..." : totalCount}
  </span>
+ )}
  </div>
 
- {isLoading ? (
+ {!shouldLoad ? (
+ <button type="button" className="qc-btn-secondary" onClick={() => setRequested(true)}>
+ Show birthdays
+ </button>
+ ) : isLoading ? (
  <div className="space-y-3">
  {[1, 2, 3].map((i) => (
  <div key={i} className="animate-pulse flex items-center gap-3">

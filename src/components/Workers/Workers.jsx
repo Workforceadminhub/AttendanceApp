@@ -1,8 +1,11 @@
+import { useConfirm } from "../../components/ui/ConfirmDialog";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { getDepartmentByUser } from "../../utils/getDepartment";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchAdminWorkersPage, fetchWorkers, listSuperAdminWorkers, fetchAllSuperAdminWorkers } from "../../services/workers";
+import { fetchAdminWorkers, fetchAdminWorkersPage, fetchWorkers, listSuperAdminWorkers, fetchAllSuperAdminWorkers } from "../../services/workers";
+import WorkerDirectoryTable, { WorkerDetailsGrid, formatWorkerPhone } from "./WorkerDirectoryTable";
+import { paginateRows, sortWorkers, splitName, workerFirstName, workerLastName } from "../../utils/workerSort";
 import { toast } from "react-toastify";
 import { getNextSunday } from "../../utils/getDate";
 import ReactSelectDropdown from "../ReactSelect";
@@ -54,6 +57,7 @@ const DELETE_CONCURRENCY = 5;
 
 export default function Workers() {
  const navigate = useNavigate();
+ const confirm = useConfirm();
  const location = useLocation();
  const queryClient = useQueryClient();
  const authUser = useMemo(() => JSON.parse(sessionStorage.getItem("authUser")), []);
@@ -133,7 +137,8 @@ export default function Workers() {
  const role = isSuperAdmin ? "super" : isAdminMember ? "admin" : "member";
  const search = normalizeSearchTerm(debouncedSearchTerm);
  // Any filter or search change starts again from page 1.
- const listKey = JSON.stringify([filters, search]);
+ // Any filter, search or sort change starts again from page 1.
+ const listKey = JSON.stringify([filters, search, sortConfig]);
  const [pageState, setPageState] = useState({ key: listKey, page: 1 });
  const page = pageState.key === listKey ? pageState.page : 1;
  const setPage = useCallback((next) => setPageState({ key: listKey, page: next }), [listKey]);
@@ -150,15 +155,6 @@ export default function Workers() {
  });
  };
 
- const renderSortIndicator = (key) => {
- if (sortConfig.key !== key) return null;
- return sortConfig.direction === "asc" ? (
- <ChevronUpIcon className="h-3 w-3 inline-block ml-1" />
- ) : (
- <ChevronDownIcon className="h-3 w-3 inline-block ml-1" />
- );
- };
-
  const workersQueryKey = [
  "workersList",
  role,
@@ -169,6 +165,8 @@ export default function Workers() {
  role === "member" ? team.department : null,
  role === "member" ? null : page,
  dateForAttendance,
+ role === "member" ? null : sortConfig.key,
+ role === "member" || !sortConfig.key ? null : sortConfig.direction,
  ];
 
  const {
@@ -179,7 +177,15 @@ export default function Workers() {
  } = useQuery({
  queryKey: workersQueryKey,
  queryFn: async () => {
+ // A sorted list is ordered across every matching worker, not just one
+ // page, so the full set is collected, sorted and paged here.
+ const sorted = role !== "member" && Boolean(sortConfig.key);
  if (role === "super") {
+ const status = filters.status && filters.status !== "All" ? filters.status : undefined;
+ if (sorted) {
+ const all = await fetchAllSuperAdminWorkers({ search, team: filters.team, department: filters.department, status });
+ return paginateRows(sortWorkers(all, sortConfig), page, PAGE_LIMIT);
+ }
  return listSuperAdminWorkers({
  page,
  limit: PAGE_LIMIT,
@@ -192,6 +198,10 @@ export default function Workers() {
  // Filter out team name from permissions (team name shouldn't be in permissions array)
  const permissions = expandPermissions(authUser).filter((perm) => perm !== authUser?.team);
  if (role === "admin") {
+ if (sorted) {
+ const all = await fetchAdminWorkers("All", "All", dateForAttendance, search, permissions);
+ return paginateRows(sortWorkers(all, sortConfig), page, PAGE_LIMIT);
+ }
  return fetchAdminWorkersPage("All", "All", dateForAttendance, permissions, { page, limit: PAGE_LIMIT, search });
  }
  return { data: await fetchWorkers(team.department, dateForAttendance, permissions, search), pagination: null };
@@ -201,29 +211,12 @@ export default function Workers() {
  const rawData = listData?.data ?? [];
  const data = useMemo(() => {
  let rows = rawData;
- if (filters.status && filters.status !== "All") {
+ // The super-admin endpoint filters status server-side; re-filtering its page would shorten it.
+ if (role !== "super" && filters.status && filters.status !== "All") {
  rows = rows.filter((w) => (w.status || "ACTIVE") === filters.status);
  }
- if (!sortConfig.key) return rows;
- return [...rows].sort((a, b) => {
- let aVal = a[sortConfig.key];
- let bVal = b[sortConfig.key];
- if (sortConfig.key === "firstname") aVal = a.firstname || splitName(a.fullname).firstName;
- if (sortConfig.key === "lastname") aVal = a.lastname || splitName(a.fullname).lastName;
- if (sortConfig.key === "role") aVal = a.workerrole || a.role || "Worker";
- if (sortConfig.key === "status") aVal = a.status || "ACTIVE";
- if (aVal === null || aVal === undefined) return 1;
- if (bVal === null || bVal === undefined) return -1;
- const aNum = Number(aVal);
- const bNum = Number(bVal);
- if (!isNaN(aNum) && !isNaN(bNum)) {
- return sortConfig.direction === "asc" ? aNum - bNum : bNum - aNum;
- }
- return sortConfig.direction === "asc"
- ? String(aVal).localeCompare(String(bVal))
- : String(bVal).localeCompare(String(aVal));
- });
- }, [rawData, filters.status, sortConfig]);
+ return sortWorkers(rows, sortConfig);
+ }, [rawData, role, filters.status, sortConfig]);
  const pagination = listData?.pagination ?? EMPTY_PAGINATION;
  const isLoading = isFirstLoad || isPlaceholderData || isDeleting;
 
@@ -393,26 +386,14 @@ export default function Workers() {
  }
 
  // Strong confirmation dialog for deletion
- const confirmMessage = `⚠️ PERMANENT DELETION WARNING ⚠️
-
-You are about to PERMANENTLY DELETE this worker from the system.
-
-🚨 THIS ACTION IS IRREVERSIBLE AND CANNOT BE UNDONE 🚨
-
-All worker data, records, and associated information will be permanently lost.
-
-Are you absolutely certain you want to proceed with this permanent deletion?
-
-Type "DELETE" to confirm (case-sensitive):`;
-
- const userInput = window.prompt(confirmMessage);
- 
- if (userInput !== "DELETE") {
- if (userInput !== null) {
- toast.error("Deletion cancelled. You must type 'DELETE' exactly to confirm.");
- }
- return;
- }
+ const confirmed = await confirm({
+      title: "Delete worker permanently",
+      message: "This removes the worker and all of their records. It cannot be undone.",
+      confirmLabel: "Delete worker",
+      danger: true,
+      requireText: "DELETE",
+    });
+    if (!confirmed) return;
 
  setIsDeleting(true);
  try {
@@ -470,26 +451,14 @@ Type "DELETE" to confirm (case-sensitive):`;
  }
 
  // Strong confirmation dialog for bulk deletion
- const confirmMessage = `⚠️ PERMANENT BULK DELETION WARNING ⚠️
-
-You are about to PERMANENTLY DELETE ${selectedWorkers.size} worker(s) from the system.
-
-🚨 THIS ACTION IS IRREVERSIBLE AND CANNOT BE UNDONE 🚨
-
-All worker data, records, and associated information will be permanently lost.
-
-Are you absolutely certain you want to proceed with this permanent bulk deletion?
-
-Type "DELETE ALL" to confirm (case-sensitive):`;
-
- const userInput = window.prompt(confirmMessage);
- 
- if (userInput !== "DELETE ALL") {
- if (userInput !== null) {
- toast.error("Bulk deletion cancelled. You must type 'DELETE ALL' exactly to confirm.");
- }
- return;
- }
+ const confirmed = await confirm({
+      title: "Delete selected workers permanently",
+      message: `This removes ${selectedWorkers.size} worker(s) and all of their records. It cannot be undone.`,
+      confirmLabel: "Delete workers",
+      danger: true,
+      requireText: "DELETE ALL",
+    });
+    if (!confirmed) return;
 
  setIsDeleting(true);
  try {
@@ -589,15 +558,6 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  setExpandedRows(newExpandedRows);
  };
 
- // Helper function to split full name into first and last name
- const splitName = (fullName) => {
- if (!fullName) return { firstName: "", lastName: "" };
- const nameParts = fullName.trim().split(" ");
- const firstName = nameParts[0] || "";
- const lastName = nameParts.slice(1).join(" ") || "";
- return { firstName, lastName };
- };
-
  // Export teams to CSV
  const exportTeamsToCSV = async () => {
  setIsExporting(true);
@@ -610,9 +570,7 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  department: filters.department,
  status: statusFilter,
  });
- const workers = statusFilter
- ? fetchedWorkers.filter((w) => (w.status || "ACTIVE") === statusFilter)
- : fetchedWorkers;
+ const workers = fetchedWorkers;
  if (!workers.length) {
  toast.error("No workers to export");
  return;
@@ -736,6 +694,93 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  setIsExporting(false);
  }
  };
+
+ const statsHref = (person) =>
+ `/worker/${person.id}/attendance?department=${encodeURIComponent(person.department || "")}&team=${encodeURIComponent(person.team || "")}`;
+ const rowLink = (person, text, className) => (
+ <Link to={statsHref(person)} onClick={(e) => e.stopPropagation()} className={className}>
+ {text}
+ </Link>
+ );
+ const directoryColumns = [
+ { key: "id", header: "ID", sortKey: "id", className: "font-medium text-ink-900", render: (person, idx) => person.id || person.workerid || idx + 1 },
+ { key: "firstname", header: "First Name", sortKey: "firstname", render: (person) => rowLink(person, workerFirstName(person), "text-ink-900 hover:underline") },
+ { key: "lastname", header: "Last Name", sortKey: "lastname", render: (person) => rowLink(person, workerLastName(person), "text-ink-900 hover:underline") },
+ { key: "phone", header: "Phone Number", render: (person) => formatWorkerPhone(person.phonenumber) },
+ { key: "department", header: "Department", sortKey: "department", render: (person) => person.department },
+ { key: "team", header: "Team", sortKey: "team", render: (person) => person.team },
+ { key: "role", header: "Role", sortKey: "role", render: (person) => rowLink(person, person.workerrole || person.role || "Worker", "text-ink-500 hover:text-ink-900 hover:underline") },
+ {
+ key: "status",
+ header: "Status",
+ sortKey: "status",
+ render: (person) => (
+ <span
+ className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+ person.status === "PENDING_ADD"
+ ? "bg-mustard/10 text-mustard"
+ : person.status === "PENDING_DELETE"
+ ? "bg-brick/10 text-brick"
+ : "bg-forest/10 text-forest"
+ }`}
+ >
+ {person.status || "ACTIVE"}
+ </span>
+ ),
+ },
+ {
+ key: "actions",
+ header: "Actions",
+ interactive: true,
+ className: "text-ink-900",
+ render: (person) => {
+ const isExpanded = expandedRows.has(person.id);
+ return (
+ <div className="flex space-x-2">
+ <button
+ type="button"
+ onClick={() => toggleRowExpansion(person.id)}
+ className="text-ink-600 hover:text-ink-900"
+ title={isExpanded ? "Collapse" : "Expand"}
+ aria-label={isExpanded ? "Collapse" : "Expand"}
+ >
+ {isExpanded ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />}
+ </button>
+ <button
+ type="button"
+ onClick={() => handleEditWorker(person.id)}
+ className="text-ink-900 hover:text-ink-900"
+ title="Edit Worker"
+ aria-label="Edit Worker"
+ >
+ <PencilIcon className="h-4 w-4" />
+ </button>
+ {isSuperAdmin && (
+ <button
+ type="button"
+ onClick={() => inviteSingleWorkerToBall(person.id, `${workerFirstName(person)} ${workerLastName(person)}`.trim())}
+ disabled={invitingSingleWorkerId === person.id}
+ className="text-sienna hover:text-sienna-dark disabled:opacity-50"
+ title="Invite to Workers Ball"
+ aria-label="Invite to Workers Ball"
+ >
+ <PaperAirplaneIcon className="h-4 w-4" />
+ </button>
+ )}
+ <button
+ type="button"
+ onClick={() => deleteWorker(person.id)}
+ className="text-brick hover:text-brick/80"
+ title="Delete Worker"
+ aria-label="Delete Worker"
+ >
+ <TrashIcon className="h-4 w-4" />
+ </button>
+ </div>
+ );
+ },
+ },
+ ];
 
  return (
  <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
@@ -957,393 +1002,44 @@ Type "DELETE ALL" to confirm (case-sensitive):`;
  <LoadingState />
  </div>
  ) : (
- <div className="overflow-x-auto">
- <table className="min-w-full divide-y divide-ink-200">
- <thead className="bg-cream">
- <tr>
- <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
- <input
- type="checkbox"
- checked={isSelectAll}
- onChange={handleSelectAll}
- className="h-4 w-4 text-ink-900 focus:ring-ink-900/10 border-ink-300 rounded"
+ <WorkerDirectoryTable
+ columns={directoryColumns}
+ rows={Array.isArray(data) ? data : []}
+ sort={sortConfig}
+ onSort={handleSort}
+ selection={{
+ allChecked: isSelectAll,
+ onToggleAll: handleSelectAll,
+ isChecked: (person) => selectedWorkers.has(person.id),
+ onToggle: (person) => handleSelectWorker(person.id),
+ }}
+ getRowHref={statsHref}
+ isExpanded={(person) => expandedRows.has(person.id)}
+ renderDetails={(person) => (
+ <WorkerDetailsGrid
+ items={[
+ { label: "Other Name", value: person.othername },
+ { label: "Email Address", value: person.email },
+ { label: "Marital Status", value: person.maritalstatus },
+ { label: "Birthday", value: person.birthdate },
+ { label: "Age Range", value: person.agerange },
+ { label: "Gender", value: person.gender },
+ { label: "Address", value: person.address, wide: true },
+ { label: "Employment Status", value: person.employment },
+ { label: "Worker Role", value: person.workerrole || person.role },
+ { label: "Occupation", value: person.occupation },
+ ]}
  />
- </th>
- <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
- <button
- type="button"
- onClick={() => handleSort("id")}
- className="inline-flex items-center hover:text-ink-900 cursor-pointer uppercase font-medium"
- >
- ID {renderSortIndicator("id")}
- </button>
- </th>
- <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
- <button
- type="button"
- onClick={() => handleSort("firstname")}
- className="inline-flex items-center hover:text-ink-900 cursor-pointer uppercase font-medium"
- >
- First Name {renderSortIndicator("firstname")}
- </button>
- </th>
- <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
- <button
- type="button"
- onClick={() => handleSort("lastname")}
- className="inline-flex items-center hover:text-ink-900 cursor-pointer uppercase font-medium"
- >
- Last Name {renderSortIndicator("lastname")}
- </button>
- </th>
- <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
- Phone Number
- </th>
- <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
- <button
- type="button"
- onClick={() => handleSort("department")}
- className="inline-flex items-center hover:text-ink-900 cursor-pointer uppercase font-medium"
- >
- Department {renderSortIndicator("department")}
- </button>
- </th>
- <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
- <button
- type="button"
- onClick={() => handleSort("team")}
- className="inline-flex items-center hover:text-ink-900 cursor-pointer uppercase font-medium"
- >
- Team {renderSortIndicator("team")}
- </button>
- </th>
- <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
- <button
- type="button"
- onClick={() => handleSort("role")}
- className="inline-flex items-center hover:text-ink-900 cursor-pointer uppercase font-medium"
- >
- Role {renderSortIndicator("role")}
- </button>
- </th>
- <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
- <button
- type="button"
- onClick={() => handleSort("status")}
- className="inline-flex items-center hover:text-ink-900 cursor-pointer uppercase font-medium"
- >
- Status {renderSortIndicator("status")}
- </button>
- </th>
- <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
- Actions
- </th>
- </tr>
- </thead>
- <tbody className="bg-white divide-y divide-ink-200">
- {Array.isArray(data) &&
- data.map((person, idx) => {
- // Use API field names: firstname, lastname, or fallback to fullname split
- const firstName =
- person.firstname ||
- splitName(person.fullname).firstName;
- const lastName =
- person.lastname ||
- splitName(person.fullname).lastName;
- const isExpanded = expandedRows.has(person.id);
- const statsHref = `/worker/${person.id}/attendance?department=${encodeURIComponent(person.department || "")}&team=${encodeURIComponent(person.team || "")}`;
-
- return (
- <React.Fragment key={person.id}>
- <tr
- onClick={() => navigate(statsHref)}
- className="cursor-pointer hover:bg-cream-200 transition-colors"
- >
- <td
- className="px-6 py-4 whitespace-nowrap text-sm font-medium text-ink-900"
- onClick={(e) => e.stopPropagation()}
- >
- <input
- type="checkbox"
- checked={selectedWorkers.has(person.id)}
- onChange={() => handleSelectWorker(person.id)}
- className="h-4 w-4 text-ink-900 focus:ring-ink-900/10 border-ink-300 rounded"
- />
- </td>
- <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-ink-900">
- {person.id || person.workerid || idx + 1}
- </td>
- <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-900">
- <Link
- to={statsHref}
- onClick={(e) => e.stopPropagation()}
- className="text-ink-900 hover:underline"
- >
- {firstName}
- </Link>
- </td>
- <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-900">
- <Link
- to={statsHref}
- onClick={(e) => e.stopPropagation()}
- className="text-ink-900 hover:underline"
- >
- {lastName}
- </Link>
- </td>
- <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-500">
- {person.phonenumber
- ? person.phonenumber.startsWith("0")
- ? person.phonenumber
- : `0${person.phonenumber}`
- : ""}
- </td>
- <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-500">
- {person.department}
- </td>
- <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-500">
- {person.team}
- </td>
- <td className="px-6 py-4 whitespace-nowrap text-sm">
- <Link
- to={statsHref}
- onClick={(e) => e.stopPropagation()}
- className="text-ink-500 hover:text-ink-900 hover:underline"
- >
- {person.workerrole || person.role || "Worker"}
- </Link>
- </td>
- <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-900">
- <span
- className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
- person.status === "ACTIVE"
- ? "bg-forest/10 text-forest"
- : person.status === "PENDING_ADD"
- ? "bg-mustard/10 text-mustard"
- : person.status === "PENDING_DELETE"
- ? "bg-brick/10 text-brick"
- : "bg-forest/10 text-forest"
- }`}
- >
- {person.status || "ACTIVE"}
- </span>
- </td>
- <td
- className="px-6 py-4 whitespace-nowrap text-sm text-ink-900"
- onClick={(e) => e.stopPropagation()}
- >
- <div className="flex space-x-2">
- <button
- onClick={() =>
- toggleRowExpansion(person.id)
+ )}
+ empty={
+ <>
+ <p className="text-lg font-medium text-ink-900 mb-2">No workers found</p>
+ {Object.values(filters).some((filter) => filter !== "All") && (
+ <p className="text-sm text-ink-500">Try adjusting your filters to see more results.</p>
+ )}
+ </>
  }
- className="text-ink-600 hover:text-ink-900"
- title={isExpanded ? "Collapse" : "Expand"}
- >
- {isExpanded ? (
- <ChevronUpIcon className="h-4 w-4" />
- ) : (
- <ChevronDownIcon className="h-4 w-4" />
- )}
- </button>
- <button
- onClick={() =>
- handleEditWorker(person.id)
- }
- className="text-ink-900 hover:text-ink-900"
- title="Edit Worker"
- >
- <PencilIcon className="h-4 w-4" />
- </button>
- {isSuperAdmin && (
- <button
- onClick={() =>
- inviteSingleWorkerToBall(
- person.id,
- `${firstName} ${lastName}`.trim()
- )
- }
- disabled={invitingSingleWorkerId === person.id}
- className="text-sienna hover:text-sienna-dark disabled:opacity-50"
- title="Invite to Workers Ball"
- >
- <PaperAirplaneIcon className="h-4 w-4" />
- </button>
- )}
- <button
- onClick={() => deleteWorker(person.id)}
- className="text-brick hover:text-brick/80"
- title="Delete Worker"
- >
- <TrashIcon className="h-4 w-4" />
- </button>
- </div>
- </td>
- </tr>
- {/* Expanded Row */}
- {isExpanded && (
- <tr className="bg-cream">
- <td colSpan="10" className="px-6 py-4">
- <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
- <div>
- <label className="block text-sm font-medium text-ink-700">
- Other Name
- </label>
- <p className="mt-1 text-sm text-ink-900">
- {person.othername || "N/A"}
- </p>
- </div>
- <div>
- <label className="block text-sm font-medium text-ink-700">
- Email Address
- </label>
- <p className="mt-1 text-sm text-ink-900">
- {person.email || "N/A"}
- </p>
- </div>
- <div>
- <label className="block text-sm font-medium text-ink-700">
- Marital Status
- </label>
- <p className="mt-1 text-sm text-ink-900">
- {person.maritalstatus || "N/A"}
- </p>
- </div>
- <div>
- <label className="block text-sm font-medium text-ink-700">
- Birthday
- </label>
- <p className="mt-1 text-sm text-ink-900">
- {person.birthdate || "N/A"}
- </p>
- </div>
- <div>
- <label className="block text-sm font-medium text-ink-700">
- Age Range
- </label>
- <p className="mt-1 text-sm text-ink-900">
- {person.agerange || "N/A"}
- </p>
- </div>
- <div>
- <label className="block text-sm font-medium text-ink-700">
- Gender
- </label>
- <p className="mt-1 text-sm text-ink-900">
- {person.gender || "N/A"}
- </p>
- </div>
- <div className="md:col-span-2 lg:col-span-3">
- <label className="block text-sm font-medium text-ink-700">
- Address
- </label>
- <p className="mt-1 text-sm text-ink-900">
- {person.address || "N/A"}
- </p>
- </div>
- <div>
- <label className="block text-sm font-medium text-ink-700">
- Employment Status
- </label>
- <p className="mt-1 text-sm text-ink-900">
- {person.employment || "N/A"}
- </p>
- </div>
- <div>
- <label className="block text-sm font-medium text-ink-700">
- Worker Role
- </label>
- <p className="mt-1 text-sm text-ink-900">
- {person.workerrole || person.role || "N/A"}
- </p>
- </div>
- <div>
- <label className="block text-sm font-medium text-ink-700">
- Occupation
- </label>
- <p className="mt-1 text-sm text-ink-900">
- {person.occupation || "N/A"}
- </p>
- </div>
- </div>
- </td>
- </tr>
- )}
- </React.Fragment>
- );
- })}
-
- {/* Show message when no data */}
- {Array.isArray(data) && data.length === 0 && (
- <tr>
- <td
- colSpan="10"
- className="px-6 py-8 text-center text-ink-500"
- >
- <div className="flex flex-col items-center">
- <svg
- className="w-12 h-12 text-ink-400 mb-4"
- fill="none"
- stroke="currentColor"
- viewBox="0 0 24 24"
- >
- <path
- strokeLinecap="round"
- strokeLinejoin="round"
- strokeWidth={2}
- d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
  />
- </svg>
- <p className="text-lg font-medium text-ink-900 mb-2">
- No workers found
- </p>
- <p className="text-sm text-ink-500">
- {Object.values(filters).some(
- (filter) => filter !== "All"
- )
- ? "Try adjusting your filters to see more results."
- : "No workers are currently available."}
- </p>
- </div>
- </td>
- </tr>
- )}
-
- {/* Show error message when data is not an array */}
- {!Array.isArray(data) && data && (
- <tr>
- <td
- colSpan="10"
- className="px-6 py-8 text-center text-ink-500"
- >
- <div className="flex flex-col items-center">
- <svg
- className="w-12 h-12 text-brick mb-4"
- fill="none"
- stroke="currentColor"
- viewBox="0 0 24 24"
- >
- <path
- strokeLinecap="round"
- strokeLinejoin="round"
- strokeWidth={2}
- d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
- />
- </svg>
- <p className="text-lg font-medium text-brick mb-2">
- Data format error
- </p>
- <p className="text-sm text-brick">
- The API response is not in the expected format.
- Please check the console for details.
- </p>
- </div>
- </td>
- </tr>
- )}
- </tbody>
- </table>
- </div>
  )}
 
  {/* Pagination Controls */}

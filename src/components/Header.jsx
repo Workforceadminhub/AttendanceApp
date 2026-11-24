@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Bars3Icon, XMarkIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 import { useNavigate, useLocation, Link } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { clearDepartmentsCache } from "../contexts/DepartmentsContext";
 import { getUser } from "../utils/getUser";
 import { logoutSession } from "../utils/authSession";
 import { getUserRole } from "../utils/getUserRole";
@@ -148,6 +150,7 @@ export default function Header() {
   const setMobileOpen = (open) => setMobileOpenPath(open ? pathname : null);
   const authUser = useMemo(() => getUser(), [pathname]);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // Fix: redirect side-effect must not run during render
   useEffect(() => {
@@ -322,6 +325,8 @@ export default function Header() {
 
   const handleLogout = () => {
     logoutSession();
+    clearDepartmentsCache();
+    queryClient.clear();
     navigate("/login");
   };
 
@@ -398,6 +403,12 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-40 bg-cream border-b border-ink-200">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50 focus:rounded-md focus:bg-ink-900 focus:px-3 focus:py-2 focus:text-sm focus:text-cream"
+      >
+        Skip to content
+      </a>
       <nav
         aria-label="Global"
         className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8 h-16"

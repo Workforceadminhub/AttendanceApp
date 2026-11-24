@@ -182,7 +182,13 @@ function BulkEmailComposer() {
     try {
       while (pending.length > 0) {
         toast.info(`Sending… ${totalSent} sent, ${pending.length} remaining`, { autoClose: 3000 });
-        const res = await sendBulkEmail({ subject, html, recipients: pending, provider, campaignId });
+        const res = await sendBulkEmail({
+          subject,
+          content: { preheader, heading, body, ctaLabel, ctaUrl },
+          recipients: pending,
+          provider,
+          campaignId,
+        });
         campaignId = res?.campaignId || campaignId;
         totalSent += res?.sent || 0;
         if (res?.failed?.length) totalFailed.push(...res.failed);
@@ -200,7 +206,7 @@ function BulkEmailComposer() {
     } finally {
       setSending(false);
     }
-  }, [subject, valid, html, provider]);
+  }, [subject, valid, preheader, heading, body, ctaLabel, ctaUrl, provider]);
 
   const inputCls =
     "w-full rounded-md border border-ink-200 px-3 py-2 text-sm text-ink-800 focus:outline-none focus:ring-2 focus:ring-ink-900/10 focus:border-ink-400";
@@ -220,8 +226,9 @@ function BulkEmailComposer() {
           {/* ── Composer ── */}
           <Card padding="lg" className="space-y-4">
             <div>
-              <label className={labelCls}>Subject *</label>
+              <label htmlFor="be-subject" className={labelCls}>Subject *</label>
               <input
+ id="be-subject"
                 className={inputCls}
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
@@ -230,8 +237,9 @@ function BulkEmailComposer() {
             </div>
 
             <div>
-              <label className={labelCls}>Inbox preview text</label>
+              <label htmlFor="be-inbox-preview-text" className={labelCls}>Inbox preview text</label>
               <input
+ id="be-inbox-preview-text"
                 className={inputCls}
                 value={preheader}
                 onChange={(e) => setPreheader(e.target.value)}
@@ -240,8 +248,9 @@ function BulkEmailComposer() {
             </div>
 
             <div>
-              <label className={labelCls}>Heading</label>
+              <label htmlFor="be-heading" className={labelCls}>Heading</label>
               <input
+ id="be-heading"
                 className={inputCls}
                 value={heading}
                 onChange={(e) => setHeading(e.target.value)}
@@ -250,7 +259,7 @@ function BulkEmailComposer() {
             </div>
 
             <div>
-              <label className={labelCls}>Body</label>
+              <label htmlFor="be-body" className={labelCls}>Body</label>
               <div className="flex items-center gap-1 mb-1.5 rounded-md border border-ink-200 bg-cream-100 px-1.5 py-1">
                 {[
                   { key: "bold", title: "Bold", Icon: BoldIcon, run: () => applyFormat("wrap", "**") },
@@ -273,6 +282,7 @@ function BulkEmailComposer() {
                 ))}
               </div>
               <textarea
+                id="be-body"
                 ref={bodyRef}
                 className={`${inputCls} min-h-[160px] resize-y`}
                 value={body}
@@ -294,8 +304,9 @@ function BulkEmailComposer() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className={labelCls}>Button label</label>
+                <label htmlFor="be-button-label" className={labelCls}>Button label</label>
                 <input
+                  id="be-button-label"
                   className={inputCls}
                   value={ctaLabel}
                   onChange={(e) => setCtaLabel(e.target.value)}
@@ -303,8 +314,9 @@ function BulkEmailComposer() {
                 />
               </div>
               <div>
-                <label className={labelCls}>Button link</label>
+                <label htmlFor="be-button-link" className={labelCls}>Button link</label>
                 <input
+ id="be-button-link"
                   className={inputCls}
                   value={ctaUrl}
                   onChange={(e) => setCtaUrl(e.target.value)}
@@ -314,8 +326,9 @@ function BulkEmailComposer() {
             </div>
 
             <div>
-              <label className={labelCls}>Recipients *</label>
+              <label htmlFor="be-recipients" className={labelCls}>Recipients *</label>
               <textarea
+ id="be-recipients"
                 className={`${inputCls} min-h-[100px] resize-y font-mono text-xs`}
                 value={recipientsRaw}
                 onChange={(e) => setRecipientsRaw(e.target.value)}
@@ -334,7 +347,7 @@ function BulkEmailComposer() {
             </div>
 
             <div>
-              <label className={labelCls}>Send with</label>
+              <span className={labelCls}>Send with</span>
               <div className="inline-flex rounded-md border border-ink-200 overflow-hidden text-sm">
                 {[
                   { key: "zoho", label: "Zoho" },

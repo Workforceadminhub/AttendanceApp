@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchAttendance } from "../services/attendance";
 import { getNextSunday, getSundaysInYear } from "../utils/getDate";
+import { queryKeys } from "../queries/queryKeys";
 
 /** Parse "Sunday - d/m/y" to yyyy-MM-dd */
 export function sundayToYYYYMMDD(dateStr) {
@@ -25,8 +26,8 @@ export async function mapWithConcurrency(items, worker, concurrency = 4) {
   return results;
 }
 
-// 4 in flight: firing all ~40 Sundays at once saturates Lambda concurrency
-// and most requests come back 503.
+// Shared cap for attendance fan-outs: unbounded parallel requests saturate
+// Lambda concurrency and come back 503.
 const CONCURRENCY = 4;
 
 // A Sunday that still fails after retries is left empty rather than failing
@@ -43,24 +44,25 @@ async function fetchWithRetry(activeDate, permissions, attempts = 3) {
 }
 
 /**
- * GET /api/attendance for every Sunday of `year` up to the coming Sunday.
+ * GET /api/attendance for each Sunday of `month` ("yyyy-MM") up to the coming
+ * Sunday: the 4 or 5 requests the selected month needs, not the whole year.
  *
  * The response depends only on the date and the user's permissions, not on
  * the page asking, so DepartmentDetail and AdminSummaryDetail share this one
  * cached query. Each page filters the lists for its own department(s);
- * switching department or team no longer repeats the ~40-request fan-out.
+ * switching department or team reuses the cached month.
  *
  * Resolves to [{ activeDate, dateStr, list }] in chronological order.
  */
-export function useSundayAttendance(year, permissions, { enabled = true } = {}) {
+export function useSundayAttendance(month, permissions, { enabled = true } = {}) {
   const permissionsKey = [...(permissions || [])].sort().join("|");
   return useQuery({
-    queryKey: ["sundayAttendance", year, permissionsKey],
+    queryKey: queryKeys.sundayAttendance(month, permissionsKey),
     queryFn: async () => {
       const cutoff = sundayToYYYYMMDD(getNextSunday()) || "";
-      const sundays = getSundaysInYear(year).filter((s) => {
+      const sundays = getSundaysInYear(Number(month.slice(0, 4))).filter((s) => {
         const d = sundayToYYYYMMDD(s);
-        return d && d <= cutoff;
+        return d && d.startsWith(month) && d <= cutoff;
       });
       const results = await mapWithConcurrency(
         sundays,

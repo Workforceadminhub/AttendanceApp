@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useParams, Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
@@ -13,6 +13,7 @@ import { fetchWorkers, removeWorker } from "../services/workers";
 import { getUser } from "../utils/getUser";
 import { expandPermissions } from "../utils/expandPermissions";
 import Modal from "../components/Modal";
+import WorkerDirectoryTable, { WorkerDetailsGrid } from "../components/Workers/WorkerDirectoryTable";
 import { PencilIcon, EyeIcon, ChevronDownIcon, ChevronUpIcon, TrashIcon } from "@heroicons/react/24/outline";
 
 // Order by role from highest leadership to worker
@@ -70,6 +71,8 @@ export default function DepartmentWorkers() {
  const {
  data: workersData,
  isLoading: isWorkersLoading,
+ isError: isWorkersError,
+ refetch: refetchWorkers,
  } = useQuery({
  queryKey: ["departmentWorkers", decodedDepartment, permissionsKey],
  queryFn: () =>
@@ -421,6 +424,72 @@ export default function DepartmentWorkers() {
  ? `/department/admin/${encodeURIComponent(String(auth.team).toLowerCase().replaceAll(" ", ""))}`
  : `/department/${departmentRoute || encodeURIComponent(decodedDepartment)}`;
 
+ const canViewWorker = (worker) => !isSubTeamAdmin && !isTeamAdmin && canAccessWorkerDepartment(worker);
+ // View destination = attendance stats (read-only)
+ const statsHref = (worker) =>
+ `/worker/${worker.id}/attendance?department=${encodeURIComponent(worker.department || decodedDepartment || "")}&team=${encodeURIComponent(worker.team || "")}`;
+ // Edit destination = the editable worker page
+ const editHref = (worker) =>
+ `/worker/${worker.id}?from=department:${encodeURIComponent(decodedDepartment)}&returnTo=${encodeURIComponent(`${location.pathname}${location.search}`)}`;
+ const viewLink = (worker, text, className) =>
+ canViewWorker(worker) ? (
+ <Link to={statsHref(worker)} onClick={(e) => e.stopPropagation()} className={className}>
+ {text}
+ </Link>
+ ) : (
+ <span>{text}</span>
+ );
+ const directoryColumns = [
+ { key: "sn", header: "S/N", className: "font-medium text-ink-900", render: (_worker, index) => index + 1 },
+ { key: "name", header: "Name", className: "text-ink-900", render: (worker) => viewLink(worker, `${worker.firstname} ${worker.lastname}`, "text-ink-900 hover:underline") },
+ { key: "phone", header: "Phone", render: (worker) => worker.phone || worker.phonenumber || "-" },
+ { key: "department", header: "Department", render: (worker) => worker.department || decodedDepartment || "-" },
+ { key: "role", header: "Role", render: (worker) => viewLink(worker, worker.workerrole || worker.workerRole || "-", "text-ink-500 hover:text-ink-900 hover:underline") },
+ {
+ key: "actions",
+ header: "Actions",
+ interactive: true,
+ render: (worker, index) => {
+ const isExpanded = expandedId === (worker.id ?? index);
+ const canAccessThisWorker = canAccessWorkerDepartment(worker);
+ return (
+ <span className="flex items-center gap-3">
+ {/* Hide view button for team admins on department workers */}
+ {canViewWorker(worker) && (
+ <Link to={statsHref(worker)} className="text-ink-900 hover:text-ink-700" title="View attendance">
+ <EyeIcon className="h-4 w-4" />
+ </Link>
+ )}
+ {canEditWorkers && canAccessThisWorker && (
+ <Link to={editHref(worker)} className="text-forest hover:text-forest/80" title="Edit">
+ <PencilIcon className="h-4 w-4" />
+ </Link>
+ )}
+ {/* Hide delete request button for team admins on department workers */}
+ {canRequestDeleteWorkers && !isTeamAdmin && canAccessThisWorker && (
+ <button
+ type="button"
+ onClick={() => openRequestDeleteModalForWorker(worker.id)}
+ className="text-brick hover:text-brick/80"
+ title="Request to delete"
+ >
+ <TrashIcon className="h-4 w-4" />
+ </button>
+ )}
+ <button
+ type="button"
+ onClick={() => setExpandedId(isExpanded ? null : worker.id ?? index)}
+ className="text-ink-500 hover:text-ink-700"
+ title={isExpanded ? "Collapse" : "Expand details"}
+ >
+ {isExpanded ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />}
+ </button>
+ </span>
+ );
+ },
+ },
+ ];
+
  return (
  <div className="px-4 sm:px-6 lg:px-8 py-8">
  <Layout>
@@ -573,52 +642,32 @@ export default function DepartmentWorkers() {
  )}
  {isWorkersLoading ? (
  <LoadingState />
+ ) : isWorkersError ? (
+ <div role="alert" className="py-10 text-center text-sm text-ink-700">
+ Could not load workers.{" "}
+ <button type="button" className="underline font-medium text-ink-900" onClick={() => refetchWorkers()}>
+ Try again
+ </button>
+ </div>
  ) : workers.length > 0 ? (
- <div className="overflow-x-auto">
- <table className="min-w-full divide-y divide-ink-300">
- <thead>
- <tr>
- {canSelectWorkers && (
- <th className="py-3.5 pl-4 pr-3 text-left sm:pl-0">
- <input
- type="checkbox"
- checked={selectableWorkers.length > 0 && selectedVisibleCount === selectableWorkers.length}
- onChange={toggleAllWorkers}
- className="h-4 w-4 rounded border-ink-300 text-ink-900 focus:ring-ink-900/10"
- />
- </th>
- )}
- <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-ink-900 sm:pl-0">
- S/N
- </th>
- <th className="px-3 py-3.5 text-left text-sm font-semibold text-ink-900">
- Name
- </th>
- <th className="px-3 py-3.5 text-left text-sm font-semibold text-ink-900">
- Phone
- </th>
- <th className="px-3 py-3.5 text-left text-sm font-semibold text-ink-900">
- Department
- </th>
- <th className="px-3 py-3.5 text-left text-sm font-semibold text-ink-900">
- Role
- </th>
- <th className="px-3 py-3.5 text-left text-sm font-semibold text-ink-900">
- Actions
- </th>
- </tr>
- </thead>
- <tbody className="divide-y divide-ink-200">
- {workers.map((worker, index) => {
- const isExpanded = expandedId === (worker.id ?? index);
- const canAccessThisWorker = canAccessWorkerDepartment(worker);
- const canViewThisWorker =
- !isSubTeamAdmin && !isTeamAdmin && canAccessThisWorker;
- // View destination = attendance stats (read-only)
- const statsHref = `/worker/${worker.id}/attendance?department=${encodeURIComponent(worker.department || decodedDepartment || "")}&team=${encodeURIComponent(worker.team || "")}`;
- // Edit destination = the editable worker page
- const editHref = `/worker/${worker.id}?from=department:${encodeURIComponent(decodedDepartment)}&returnTo=${encodeURIComponent(`${location.pathname}${location.search}`)}`;
- const detailItems = [
+ <WorkerDirectoryTable
+ columns={directoryColumns}
+ rows={workers}
+ selection={
+ canSelectWorkers
+ ? {
+ allChecked: selectableWorkers.length > 0 && selectedVisibleCount === selectableWorkers.length,
+ onToggleAll: toggleAllWorkers,
+ isChecked: (worker) => worker.id != null && selectedWorkers.has(worker.id),
+ onToggle: (worker) => worker.id != null && canAccessWorkerDepartment(worker) && toggleWorker(worker.id),
+ isDisabled: (worker) => worker.id == null || !canAccessWorkerDepartment(worker),
+ }
+ : undefined
+ }
+ getRowHref={(worker) => (canViewWorker(worker) ? statsHref(worker) : null)}
+ isExpanded={(worker, index) => expandedId === (worker.id ?? index)}
+ renderDetails={(worker) => {
+ const items = [
  { label: "Email", value: worker.email },
  { label: "Other Name", value: worker.othername },
  { label: "Gender", value: worker.gender },
@@ -630,150 +679,9 @@ export default function DepartmentWorkers() {
  { label: "Address", value: worker.address },
  { label: "Status", value: worker.status || "ACTIVE" },
  ].filter((item) => item.value != null && String(item.value).trim() !== "");
- return (
- <React.Fragment key={worker.id ?? index}>
- <tr
- onClick={
- canViewThisWorker
- ? () => navigate(statsHref)
- : undefined
- }
- className={
- canViewThisWorker
- ? "cursor-pointer hover:bg-cream-200 transition-colors"
- : ""
- }
- >
- {canSelectWorkers && (
- <td
- className="whitespace-nowrap py-4 pl-4 pr-3 sm:pl-0"
- onClick={(e) => e.stopPropagation()}
- >
- <input
- type="checkbox"
- checked={worker.id != null && selectedWorkers.has(worker.id)}
- onChange={() => worker.id != null && canAccessThisWorker && toggleWorker(worker.id)}
- disabled={worker.id == null || !canAccessThisWorker}
- className="h-4 w-4 rounded border-ink-300 text-ink-900 focus:ring-ink-900/10"
+ return <WorkerDetailsGrid items={items.map((item) => ({ ...item, value: String(item.value) }))} />;
+ }}
  />
- </td>
- )}
- <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-ink-900 sm:pl-0">
- {index + 1}
- </td>
- <td className="whitespace-nowrap px-3 py-4 text-sm text-ink-900">
- {canViewThisWorker ? (
- <Link
- to={statsHref}
- onClick={(e) => e.stopPropagation()}
- className="text-ink-900 hover:underline"
- >
- {worker.firstname} {worker.lastname}
- </Link>
- ) : (
- <span>
- {worker.firstname} {worker.lastname}
- </span>
- )}
- </td>
- <td className="whitespace-nowrap px-3 py-4 text-sm text-ink-500">
- {worker.phone || worker.phonenumber || "-"}
- </td>
- <td className="whitespace-nowrap px-3 py-4 text-sm text-ink-500">
- {worker.department || decodedDepartment || "-"}
- </td>
- <td className="whitespace-nowrap px-3 py-4 text-sm">
- {canViewThisWorker ? (
- <Link
- to={statsHref}
- onClick={(e) => e.stopPropagation()}
- className="text-ink-500 hover:text-ink-900 hover:underline"
- >
- {worker.workerrole || worker.workerRole || "-"}
- </Link>
- ) : (
- <span className="text-ink-500">
- {worker.workerrole || worker.workerRole || "-"}
- </span>
- )}
- </td>
- <td
- className="whitespace-nowrap px-3 py-4 text-sm"
- onClick={(e) => e.stopPropagation()}
- >
- <span className="flex items-center gap-3">
- {/* Hide view button for team admins on department workers */}
- {canViewThisWorker && (
- <Link
- to={statsHref}
- className="text-ink-900 hover:text-ink-700"
- title="View attendance"
- >
- <EyeIcon className="h-4 w-4" />
- </Link>
- )}
- {canEditWorkers && canAccessThisWorker && (
- <Link
- to={editHref}
- className="text-forest hover:text-forest/80"
- title="Edit"
- >
- <PencilIcon className="h-4 w-4" />
- </Link>
- )}
- {/* Hide delete request button for team admins on department workers */}
- {canRequestDeleteWorkers && !isTeamAdmin && canAccessThisWorker && (
- <button
- type="button"
- onClick={() => openRequestDeleteModalForWorker(worker.id)}
- className="text-brick hover:text-brick/80"
- title="Request to delete"
- >
- <TrashIcon className="h-4 w-4" />
- </button>
- )}
- <button
- type="button"
- onClick={() => setExpandedId(isExpanded ? null : worker.id ?? index)}
- className="text-ink-500 hover:text-ink-700"
- title={isExpanded ? "Collapse" : "Expand details"}
- >
- {isExpanded ? (
- <ChevronUpIcon className="h-4 w-4" />
- ) : (
- <ChevronDownIcon className="h-4 w-4" />
- )}
- </button>
- </span>
- </td>
- </tr>
- {isExpanded && (
- <tr>
- <td
- colSpan={canSelectWorkers ? 7 : 6}
- className="bg-cream px-4 py-3 text-sm"
- >
- <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-6 gap-y-2">
- {detailItems.length > 0 ? (
- detailItems.map(({ label, value }) => (
- <div key={label}>
- <span className="font-medium text-ink-500">{label}:</span>{" "}
- <span className="text-ink-900">{String(value)}</span>
- </div>
- ))
- ) : (
- <span className="text-ink-500">No additional details available.</span>
- )}
- </div>
- </td>
- </tr>
- )}
- </React.Fragment>
- );
- })}
- </tbody>
- </table>
- </div>
  ) : (
  <p className="text-ink-500">No workers found in this department.</p>
  )}

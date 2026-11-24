@@ -6,7 +6,11 @@
  * in the in-app report; delivery events arrive via api/email-webhook.js and are
  * linked back by that same campaign id.
  *
- * Request body: { subject, html, recipients[], provider? }
+ * The HTML is rendered here from structured content; raw HTML from the client
+ * is refused, so a stolen token cannot send arbitrary signed markup.
+ *
+ * Request body: { subject, preheader?, heading?, body, ctaLabel?, ctaUrl?,
+ *                 recipients[], provider?, campaignId? }
  * Response:      { provider, campaignId, sent, failed[], errors? }
  *
  * Env: EMAIL_FROM, RESEND_API_KEY and/or BREVO_API_KEY, plus the auth/Supabase
@@ -15,15 +19,25 @@
 import { Resend } from "resend";
 import nodemailer from "nodemailer";
 import { ulid } from "ulid";
-import { authorize } from "./_lib/auth.js";
+import { authorize, bearerFrom } from "./_lib/auth.js";
+import { checkSendQuota, quotaLimits } from "./_lib/quota.js";
 import { insertRows, selectRows, supabaseConfigured, updateRows } from "./_lib/supabase.js";
+import { buildEmail } from "../src/emails/template.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESEND_BATCH = 100;
 const BREVO_BATCH = 1000;
-// Hard cap on recipients per request. Real per-user rate limiting needs a
-// shared store (e.g. Supabase/Redis); serverless in-memory counters do not work.
+// Hard cap on recipients per request; the hourly per-user quota is checked
+// against the bulk_emails log.
 const MAX_BULK_RECIPIENTS = Number(process.env.MAX_BULK_RECIPIENTS) || 2000;
+const MAX_SUBJECT_LENGTH = 200;
+const MAX_FIELD_LENGTH = 300;
+const MAX_BODY_LENGTH = 50_000;
+
+/** Single-line text: CR/LF removed so a value can never add a mail header. */
+function oneLine(value, max) {
+  return String(value ?? "").replace(/[\r\n]+/g, " ").trim().slice(0, max);
+}
 const DEFAULT_FROM_NAME =
   process.env.EMAIL_FROM_NAME || "Harvesters International Christian Centre, Gbagada";
 
@@ -204,19 +218,31 @@ export default async function handler(req, res) {
   body = body || {};
 
   // Auth: admin (from verified token claims) or allowlisted code.
-  const auth = await authorize(req.headers.authorization);
+  const auth = await authorize(bearerFrom(req));
   if (!auth.ok) {
     console.error("bulk-email authorize failed:", auth.reason);
     return res.status(auth.status).json({ error: "Unauthorized.", reason: auth.reason });
   }
 
-  const { subject, html, recipients } = body;
-  if (!subject || !String(subject).trim()) {
+  const { recipients } = body;
+  if (body.html !== undefined) {
+    return res.status(400).json({ error: "Raw html is not accepted. Send structured content." });
+  }
+  const subject = oneLine(body.subject, MAX_SUBJECT_LENGTH);
+  if (!subject) {
     return res.status(400).json({ error: "Subject is required." });
   }
-  if (!html || !String(html).trim()) {
-    return res.status(400).json({ error: "Email body (html) is required." });
+  const content = {
+    preheader: oneLine(body.preheader, MAX_FIELD_LENGTH),
+    heading: oneLine(body.heading, MAX_FIELD_LENGTH),
+    body: typeof body.body === "string" ? body.body.slice(0, MAX_BODY_LENGTH) : "",
+    ctaLabel: oneLine(body.ctaLabel, MAX_FIELD_LENGTH),
+    ctaUrl: oneLine(body.ctaUrl, 2000),
+  };
+  if (!content.body.trim() && !content.heading) {
+    return res.status(400).json({ error: "Email body is required." });
   }
+  const html = buildEmail(content);
   if (!Array.isArray(recipients) || recipients.length === 0) {
     return res.status(400).json({ error: "recipients[] is required." });
   }
@@ -264,13 +290,35 @@ export default async function handler(req, res) {
     try {
       const [row] = await selectRows(
         "bulk_emails",
-        `select=id,sent_by,sent_count,failed_count&id=eq.${continuingId}&limit=1`
+        `select=id,sent_by,recipients_count,sent_count,failed_count&id=eq.${continuingId}&limit=1`
       );
-      if (row && (row.sent_by || null) === (auth.code || null)) existingCampaign = row;
+      // A continuation may only cover recipients the original send has not
+      // reached yet, so it cannot be used to slip past the hourly quota.
+      const outstanding =
+        (row?.recipients_count || 0) - (row?.sent_count || 0) - (row?.failed_count || 0);
+      if (row && (row.sent_by || null) === (auth.code || null) && clean.length <= outstanding) {
+        existingCampaign = row;
+      }
     } catch (e) {
       console.error("bulk_emails lookup failed:", e?.message || e);
     }
   }
+  if (supabaseConfigured() && !existingCampaign) {
+    try {
+      const quota = await checkSendQuota(
+        "bulk_emails",
+        { actorColumn: "sent_by", unitsColumn: "recipients_count" },
+        auth.code || null,
+        clean.length,
+        quotaLimits("BULK_EMAIL", { maxSends: 20, maxUnits: 10_000 })
+      );
+      if (!quota.ok) return res.status(429).json({ error: quota.error });
+    } catch (e) {
+      console.error("bulk_emails quota check failed:", e?.message || e);
+      return res.status(503).json({ error: "Could not check the sending quota. Try again shortly." });
+    }
+  }
+
   const campaignId = existingCampaign ? existingCampaign.id : ulid();
   const sender = resolveSender(process.env.EMAIL_FROM);
   const args = { from: sender.header, subject, html, recipients: clean, campaignId };
@@ -297,7 +345,7 @@ export default async function handler(req, res) {
       await insertRows("bulk_emails", [
         {
           id: campaignId,
-          subject: String(subject).trim(),
+          subject,
           provider,
           sender: sender.header,
           sent_by: auth.code || null,

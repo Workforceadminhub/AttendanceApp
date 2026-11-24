@@ -42,7 +42,16 @@ export default [
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_|^React$", ignoreRestSiblings: true },
       ],
       "no-console": ["warn", { allow: ["warn", "error"] }],
-      "no-empty": ["error", { allowEmptyCatch: true }],
+      // An empty catch must say why it is safe to ignore (a comment satisfies this).
+      "no-empty": "error",
+      // Server-only SDKs must never reach the browser bundle.
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: ["nodemailer", "resend"],
+          patterns: [{ group: ["@aws-sdk/*"], message: "Server-only: use it from api/, not src/." }],
+        },
+      ],
     },
   },
   {

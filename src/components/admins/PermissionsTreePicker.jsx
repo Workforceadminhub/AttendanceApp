@@ -28,13 +28,6 @@ export default function PermissionsTreePicker({
     setCollapsed((prev) => ({ ...prev, [team]: !(prev[team] ?? true) }));
   };
 
-  const handleHeaderKeyDown = (event, team) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      toggleCollapse(team);
-    }
-  };
-
   const toggleDept = (dept) => {
     onChange(
       selected.includes(dept)
@@ -54,7 +47,7 @@ export default function PermissionsTreePicker({
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <label className="block text-sm font-medium text-ink-700">{label}</label>
+        <span className="block text-sm font-medium text-ink-700">{label}</span>
         <button
           type="button"
           onClick={() => onChange(allChecked ? [] : [...allDepts])}
@@ -71,15 +64,13 @@ export default function PermissionsTreePicker({
           const checkedCount = teamDepts.filter((d) => selected.includes(d)).length;
           return (
             <div key={group.team} className="mb-1">
-              <div
-                role="button"
-                tabIndex={0}
-                aria-expanded={!teamCollapsed}
-                onClick={() => toggleCollapse(group.team)}
-                onKeyDown={(e) => handleHeaderKeyDown(e, group.team)}
-                className="flex items-center justify-between bg-cream rounded px-2 py-1.5 cursor-pointer select-none hover:bg-cream-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink-900"
-              >
-                <div className="flex items-center">
+              <div className="flex items-center justify-between bg-cream rounded px-2 py-1.5 hover:bg-cream-200">
+                <button
+                  type="button"
+                  aria-expanded={!teamCollapsed}
+                  onClick={() => toggleCollapse(group.team)}
+                  className="flex flex-1 items-center text-left select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink-900"
+                >
                   {teamCollapsed ? (
                     <ChevronRightIcon className="h-3.5 w-3.5 mr-1.5 text-ink-500" />
                   ) : (
@@ -91,13 +82,10 @@ export default function PermissionsTreePicker({
                   <span className="ml-1.5 text-xs text-ink-400">
                     ({checkedCount}/{teamDepts.length})
                   </span>
-                </div>
+                </button>
                 <button
                   type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleTeam(teamDepts, allTeamChecked);
-                  }}
+                  onClick={() => toggleTeam(teamDepts, allTeamChecked)}
                   className="text-xs text-ink-900 hover:text-ink-900 font-medium"
                 >
                   {allTeamChecked ? "Uncheck" : "Check All"}

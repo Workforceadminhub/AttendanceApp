@@ -98,6 +98,15 @@ export default function TeamMismatch() {
  }
  };
 
+ // Apply saved team changes to the rows already on screen instead of
+ // downloading the whole workforce again.
+ const applyTeamFixes = (teamById) => {
+ const patch = (list) =>
+ list.map((w) => (teamById.has(String(w.id)) ? { ...w, team: teamById.get(String(w.id)) } : w));
+ setAllWorkers((prev) => patch(prev));
+ setMismatchedWorkers((prev) => patch(prev).filter(isMismatched));
+ };
+
  useEffect(() => {
  if (!isSuperAdmin) return;
  fetchAllWorkers();
@@ -120,7 +129,7 @@ export default function TeamMismatch() {
  });
 
  toast.success(`Fixed team for ${worker.firstname} ${worker.lastname}`);
- fetchAllWorkers();
+ applyTeamFixes(new Map([[String(worker.id), suggestedTeam]]));
  clearSelection();
  } catch (error) {
  toast.error(`Failed to fix worker: ${error.message}`);
@@ -149,6 +158,7 @@ export default function TeamMismatch() {
  const BATCH_SIZE = 5;
  const workerIds = Array.from(selectedWorkers);
  const tasks = [];
+ const fixed = new Map();
 
  for (const workerId of workerIds) {
  const worker = mismatchedWorkers.find((w) => w.id === workerId);
@@ -166,9 +176,11 @@ export default function TeamMismatch() {
  const results = await Promise.allSettled(
  batch.map((payload) => apiRequest("PUT", "/api/super/admin/workers", payload))
  );
- results.forEach((res) => {
- if (res.status === "fulfilled") successCount++;
- else errorCount++;
+ results.forEach((res, index) => {
+ if (res.status === "fulfilled") {
+ successCount++;
+ fixed.set(String(batch[index].id), batch[index].team);
+ } else errorCount++;
  });
  }
 
@@ -179,7 +191,7 @@ export default function TeamMismatch() {
  toast.error(`Failed to fix ${errorCount} worker(s)`);
  }
 
- fetchAllWorkers();
+ applyTeamFixes(fixed);
  clearSelection();
  } catch (error) {
  toast.error(`Failed to fix workers: ${error.message}`);

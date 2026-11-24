@@ -1,3 +1,4 @@
+import { ConfirmProvider } from "../components/ui/ConfirmDialog";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { render, screen, fireEvent, waitFor, cleanup, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
@@ -31,7 +32,7 @@ it("counts saved meetings and copies a plain confirmation link", async () => {
   createMeeting({ date: "2026-09-19", title: "September Leaders" });
   const writeText = vi.fn().mockResolvedValue();
   Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
-  render(<MemoryRouter><MeetingSettings /></MemoryRouter>);
+  render(<MemoryRouter><ConfirmProvider><MeetingSettings /></ConfirmProvider></MemoryRouter>);
   expect(await screen.findByText("Leaders (2 total)")).toBeInTheDocument();
   expect(getAllMeetings("leaders").filter(m => m.isActive)).toHaveLength(1);
   fireEvent.click(screen.getByRole("button", { name: "Copy link for September Leaders" }));
@@ -39,7 +40,7 @@ it("counts saved meetings and copies a plain confirmation link", async () => {
 });
 it("provides a selectable link when clipboard access fails", async () => {
   Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: vi.fn().mockRejectedValue(new Error()) } });
-  render(<MemoryRouter><MeetingSettings /></MemoryRouter>);
+  render(<MemoryRouter><ConfirmProvider><MeetingSettings /></ConfirmProvider></MemoryRouter>);
   fireEvent.click(await screen.findByRole("button", { name: /Copy link for October 2026 Leaders/ }));
   expect(await screen.findByLabelText("Select and copy this meeting link")).toHaveValue(`${window.location.origin}/leadersmeeting/confirm`);
 });
@@ -63,7 +64,7 @@ it("ignores an impossible date in a link", async () => {
 it("creates plain attendance links and dated report links", async () => {
   const writeText = vi.fn().mockResolvedValue();
   Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
-  render(<MemoryRouter><MeetingSettings /></MemoryRouter>);
+  render(<MemoryRouter><ConfirmProvider><MeetingSettings /></ConfirmProvider></MemoryRouter>);
   fireEvent.change(screen.getByLabelText(/Meeting Date/), { target: { value: "2026-11-21" } });
   fireEvent.change(screen.getByLabelText(/Meeting Title/), { target: { value: "November" } });
   fireEvent.click(screen.getByRole("button", { name: "Create Meeting" }));
@@ -75,11 +76,10 @@ it("creates plain attendance links and dated report links", async () => {
 });
 
 it("permanently deletes an active meeting and activates the remaining meeting", async () => {
-  vi.spyOn(window, "confirm").mockReturnValue(true);
   // Create an older meeting so we have 2 workers meetings (like the user scenario)
   createMeeting({ meetingType: "workers", date: "2026-08-15", title: "August 2026 Workers Meeting", setAsActive: false });
   
-  render(<MemoryRouter><MeetingSettings /></MemoryRouter>);
+  render(<MemoryRouter><ConfirmProvider><MeetingSettings /></ConfirmProvider></MemoryRouter>);
   fireEvent.click(screen.getByRole("button", { name: /Workers \(2 total\)/ }));
 
   expect(await screen.findByText("October 2026 Workers Meeting")).toBeInTheDocument();
@@ -89,6 +89,7 @@ it("permanently deletes an active meeting and activates the remaining meeting", 
   const octCard = screen.getByText("October 2026 Workers Meeting").closest("div.rounded-xl");
   const deleteBtn = within(octCard).getByRole("button", { name: "Delete" });
   fireEvent.click(deleteBtn);
+  fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Delete" }));
 
   // October should be gone, August should remain and now be Active
   await waitFor(() => {
@@ -105,13 +106,13 @@ it("permanently deletes an active meeting and activates the remaining meeting", 
 });
 
 it("empties the list when the last meeting is deleted and does not resurrect default meetings", async () => {
-  vi.spyOn(window, "confirm").mockReturnValue(true);
-  render(<MemoryRouter><MeetingSettings /></MemoryRouter>);
+  render(<MemoryRouter><ConfirmProvider><MeetingSettings /></ConfirmProvider></MemoryRouter>);
   fireEvent.click(screen.getByRole("button", { name: /Workers \(1 total\)/ }));
 
   expect(await screen.findByText("October 2026 Workers Meeting")).toBeInTheDocument();
 
   fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Delete" }));
 
   await waitFor(() => {
     expect(screen.queryByText("October 2026 Workers Meeting")).not.toBeInTheDocument();
@@ -138,7 +139,7 @@ it("handles already exists error by loading and activating the existing meeting"
     ],
   });
 
-  render(<MemoryRouter><MeetingSettings /></MemoryRouter>);
+  render(<MemoryRouter><ConfirmProvider><MeetingSettings /></ConfirmProvider></MemoryRouter>);
   fireEvent.change(screen.getByLabelText(/Meeting Date/), { target: { value: "2026-11-21" } });
   fireEvent.click(screen.getByRole("button", { name: "Create Meeting" }));
 
@@ -150,6 +151,6 @@ it("handles already exists error by loading and activating the existing meeting"
 
 
 it("returns to the Super Admin dashboard from settings", () => {
- render(<MemoryRouter><MeetingSettings /></MemoryRouter>);
+ render(<MemoryRouter><ConfirmProvider><MeetingSettings /></ConfirmProvider></MemoryRouter>);
  expect(screen.getByRole("link", { name: "← Back to Dashboard" })).toHaveAttribute("href", "/overview/super-admin");
 });

@@ -11,7 +11,11 @@
  * Env: AWS_S3_BUCKET, AWS_S3_REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY
  */
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { authorize } from "./_lib/auth.js";
+import { authorize, bearerFrom } from "./_lib/auth.js";
+import { allowAction } from "./_lib/quota.js";
+import { supabaseConfigured } from "./_lib/supabase.js";
+
+const MAX_UPLOADS_PER_HOUR = Number(process.env.EMAIL_IMAGE_MAX_UPLOADS_PER_HOUR) || 60;
 
 const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 
@@ -66,9 +70,12 @@ export default async function handler(req, res) {
   }
   body = body || {};
 
-  const auth = await authorize(req.headers.authorization);
+  const auth = await authorize(bearerFrom(req));
   if (!auth.ok) {
     return res.status(auth.status).json({ error: "Unauthorized." });
+  }
+  if (supabaseConfigured() && !(await allowAction("upload-email-image", auth.code, MAX_UPLOADS_PER_HOUR))) {
+    return res.status(429).json({ error: "Hourly upload limit reached. Try again later." });
   }
 
   const { data, filename, contentType } = body;

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { mapWithConcurrency } from "../../../hooks/useSundayAttendance";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
@@ -120,16 +121,21 @@ export default function MarkAttendance() {
     mutationFn: async () => {
       const entries = Object.entries(marks);
       if (entries.length === 0) throw new Error("No attendance marked");
-      const results = await Promise.allSettled(
-        entries.map(([workerId, status]) =>
-          markParticipation(id, workerId, selectedDate, status)
-        )
+      // Five at a time: a whole cohort at once overwhelms the API.
+      const results = await mapWithConcurrency(
+        entries,
+        ([workerId, status]) =>
+          markParticipation(id, workerId, selectedDate, status).then(
+            (value) => ({ workerId, value }),
+            () => ({ workerId, failed: true })
+          ),
+        5
       );
-      const failed = results.filter((r) => r.status === "rejected").length;
-      if (failed > 0) throw new Error(`${failed} record(s) failed to save`);
+      if (results.every((r) => r.failed)) throw new Error("Failed to save attendance");
       return results;
     },
     onSuccess: (results) => {
+      const failedIds = new Set(results.filter((r) => r.failed).map((r) => r.workerId));
       // Marking the final session can auto-complete a worker and issue their
       // certificate - surface that rather than letting it happen silently.
       const autoCompleted = results.filter(
@@ -138,14 +144,23 @@ export default function MarkAttendance() {
       const certificates = results.filter(
         (r) => r.value?.data?.auto_complete?.certificate_created
       ).length;
-      toast.success("Attendance saved");
+      if (failedIds.size > 0) {
+        toast.error(
+          `${failedIds.size} record${failedIds.size === 1 ? "" : "s"} failed to save. Save again to retry.`
+        );
+      } else {
+        toast.success("Attendance saved");
+      }
       if (autoCompleted > 0) {
         toast.success(
           `${autoCompleted} worker${autoCompleted === 1 ? "" : "s"} completed the training` +
             (certificates > 0 ? ` and ${certificates === 1 ? "a certificate was" : "certificates were"} issued` : "")
         );
       }
-      setMarks({});
+      // Saved marks are cleared; only the failed ones stay pending for a retry.
+      setMarks((prev) =>
+        Object.fromEntries(Object.entries(prev).filter(([workerId]) => failedIds.has(workerId)))
+      );
       queryClient.invalidateQueries({ queryKey: ["hub-training-enrollees", id] });
       queryClient.invalidateQueries({ queryKey: ["hub-training", id] });
     },

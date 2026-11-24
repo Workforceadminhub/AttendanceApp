@@ -1,3 +1,4 @@
+import { ConfirmProvider } from "../../../components/ui/ConfirmDialog";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -20,7 +21,7 @@ function renderPath(steps) {
   fetchAllTrainings.mockResolvedValue({ data: [{ id: "one", name: "Foundation" }] });
   updateProgressionPath.mockResolvedValue({});
   updateProgressionPathSteps.mockResolvedValue({});
-  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><ProgressionPaths /></QueryClientProvider>);
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><ConfirmProvider><ProgressionPaths /></ConfirmProvider></QueryClientProvider>);
 }
 
 describe("pathway level continuity", () => {

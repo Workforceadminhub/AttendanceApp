@@ -1,3 +1,4 @@
+import { ConfirmProvider } from "../../components/ui/ConfirmDialog";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, cleanup, fireEvent, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
@@ -215,7 +216,7 @@ describe("admin report pages", () => {
 });
 
 it("creating an active meeting through Settings updates open meeting and report requests", async () => {
-  render(<MemoryRouter><MeetingSettings /><LeadersMeetingConfirm /><LeadersMeetingReport /></MemoryRouter>);
+  render(<MemoryRouter><ConfirmProvider><MeetingSettings /></ConfirmProvider><LeadersMeetingConfirm /><LeadersMeetingReport /></MemoryRouter>);
   await waitFor(() => expect(getMeetingRegistrations).toHaveBeenCalledWith("2026-10-17", "all", "leaders"));
   fireEvent.change(screen.getByLabelText(/^Meeting Date/), { target: { value: "2026-11-21" } });
   fireEvent.click(screen.getByRole("button", { name: "Create Meeting" }));

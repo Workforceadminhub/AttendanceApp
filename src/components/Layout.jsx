@@ -1,5 +1,3 @@
-import React from "react";
-
 /**
  * Layout - page content shell.
  *
@@ -12,11 +10,13 @@ import React from "react";
 function Layout({ children, narrow = false, className = "" }) {
   const max = narrow ? "max-w-3xl" : "max-w-7xl";
   return (
-    <div
-      className={`mx-auto w-full min-w-0 ${max} px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-24 ${className}`}
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className={`outline-none mx-auto w-full min-w-0 ${max} px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-24 ${className}`}
     >
       {children}
-    </div>
+    </main>
   );
 }
 

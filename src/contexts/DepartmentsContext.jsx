@@ -37,6 +37,14 @@ function readCache() {
   }
 }
 
+export function clearDepartmentsCache() {
+  try {
+    localStorage.removeItem(CACHE_KEY);
+  } catch {
+    // storage unavailable - nothing to clear
+  }
+}
+
 function writeCache(data) {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify({ data, savedAt: Date.now() }));
@@ -123,33 +131,6 @@ export function useEffectiveRouteList() {
     }
     return getEffectiveRouteList();
   }, [departments, authSessionKey]);
-}
-
-// Explicit App.jsx routes for campus-wide admins (e.g. /summary/super-admin).
-// Session ensureSessionRoute() also registers these, so dynamic maps must skip
-// them or they collide and win over the dedicated pages (redirect loop / blank).
-const RESERVED_ADMIN_ROUTES = new Set(["/super-admin"]);
-
-export function useDepartmentRoutes() {
-  const list = useEffectiveRouteList();
-  return useMemo(() => {
-    const deptRoutes = list.filter(
-      (i) => i.route && !RESERVED_ADMIN_ROUTES.has(i.route)
-    );
-    const attendanceRoutes = deptRoutes.map((i) => `/attendance${i.route}`);
-    const summaryRoutes = deptRoutes.map((i) => `/summary${i.route}`);
-    const dashboardRoutes = deptRoutes.map((i) => `/dashboard${i.route}`);
-    const teamSlugs = Array.from(
-      new Set(
-        deptRoutes.map(
-          (i) => `admin/${(i.team || "").toLowerCase().trim().replaceAll(" ", "")}`
-        )
-      )
-    ).filter((s) => s !== "admin/");
-    const adminRoutes = teamSlugs;
-    const historyRoutes = teamSlugs.map((s) => `history/${s}`);
-    return { attendanceRoutes, summaryRoutes, dashboardRoutes, adminRoutes, historyRoutes };
-  }, [list]);
 }
 
 /** Subscribe filters to department updates instead of only reading the mutable cache. */

@@ -15,7 +15,7 @@ describe("pageMeta", () => {
   it("resolves root path to Workers Hub - Harvesters Gbagada", () => {
     const meta = resolvePageMeta("/");
     expect(meta.title).toBe(APP_NAME);
-    expect(meta.ogImage).toBe("/logo.jpg");
+    expect(meta.ogImage).toBe("/logo512.png");
   });
 
   it("resolves Workers Ball 2026 registration and scanner routes with WB26 OG data", () => {
@@ -65,10 +65,10 @@ describe("pageMeta", () => {
     ).toBe("Workers Ball 2026 · Harvesters Gbagada");
     expect(
       document.head.querySelector('meta[property="og:image"]')?.getAttribute("content")
-    ).toBe("/wb26-og.jpg");
+    ).toBe("https://attendance.hiccgbagada.com/wb26-og.jpg");
     expect(
       document.head.querySelector('meta[name="twitter:image"]')?.getAttribute("content")
-    ).toBe("/wb26-og.jpg");
+    ).toBe("https://attendance.hiccgbagada.com/wb26-og.jpg");
   });
 
   it("renders route metadata into an HTML template string for static builds", () => {
@@ -88,7 +88,7 @@ describe("pageMeta", () => {
 
     const wbHtml = renderMetaIntoHtml(template, "/wb26");
     expect(wbHtml).toContain("<title>Workers Ball 2026 · Harvesters Gbagada</title>");
-    expect(wbHtml).toContain('<meta property="og:image" content="/wb26-og.jpg" />');
+    expect(wbHtml).toContain('<meta property="og:image" content="https://attendance.hiccgbagada.com/wb26-og.jpg" />');
     expect(wbHtml).toContain('<meta name="theme-color" content="#0A0E1A" />');
   });
 });

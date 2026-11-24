@@ -1,11 +1,11 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 /**
  * Catches render-time errors in the wrapped route subtree so a single broken
  * page doesn't take down the whole app. Use as a wrapper inside <Route>.
  */
-export default class RouteErrorBoundary extends React.Component {
+class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
     this.state = { error: null };
@@ -27,6 +27,13 @@ export default class RouteErrorBoundary extends React.Component {
     }
   }
 
+  componentDidUpdate(prevProps) {
+    // Navigating away from the broken page clears the error.
+    if (this.state.error && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ error: null });
+    }
+  }
+
   handleReset = () => this.setState({ error: null });
 
   render() {
@@ -36,7 +43,7 @@ export default class RouteErrorBoundary extends React.Component {
         <div className="max-w-2xl mx-auto text-center">
           <h1 className="text-2xl font-bold text-ink-900 mb-3">Something went wrong on this page</h1>
           <p className="text-ink-600 mb-6">
-            The error has been logged. You can try again, or head back to the homepage.
+            You can try again, or head back to the homepage.
           </p>
           {process.env.NODE_ENV !== "production" && (
             <pre className="text-left text-xs bg-cream-200 rounded p-4 mb-6 overflow-x-auto">
@@ -53,6 +60,7 @@ export default class RouteErrorBoundary extends React.Component {
             </button>
             <Link
               to="/"
+              onClick={this.handleReset}
               className="px-4 py-2 rounded-md bg-ink-200 text-ink-800 hover:bg-ink-300"
             >
               Go home
@@ -62,4 +70,9 @@ export default class RouteErrorBoundary extends React.Component {
       </div>
     );
   }
+}
+
+export default function RouteErrorBoundary({ children }) {
+  const { pathname } = useLocation();
+  return <ErrorBoundary resetKey={pathname}>{children}</ErrorBoundary>;
 }

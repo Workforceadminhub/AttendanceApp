@@ -18,7 +18,9 @@
  *   "reference": "6b25bd5ed71e0b4ab30cfdedfa32a707"
  * }
  */
-import { insertRows, supabaseConfigured } from "./_lib/supabase.js";
+import { insertRowsIdempotent, supabaseConfigured } from "./_lib/supabase.js";
+
+const MAX_EVENTS = 100;
 import { safeCompareSecrets } from "./_lib/auth.js";
 
 function normalizeSmsEvent(payload) {
@@ -76,6 +78,10 @@ export default async function handler(req, res) {
     ? body.data
     : [body];
 
+  if (events.length > MAX_EVENTS) {
+    return res.status(413).json({ error: `Too many events. Maximum is ${MAX_EVENTS} per request.` });
+  }
+
   const rows = events.map(normalizeSmsEvent).filter(Boolean);
 
   console.log("Received Sendchamp SMS webhook event:", {
@@ -86,7 +92,8 @@ export default async function handler(req, res) {
 
   if (supabaseConfigured() && rows.length > 0) {
     try {
-      await insertRows("sms_events", rows);
+      // A provider retry repeats sms_uid + status; the unique index skips it.
+      await insertRowsIdempotent("sms_events", rows, "sms_uid,status");
     } catch (e) {
       console.error("sms-webhook insert error:", e?.message || e);
       return res.status(500).json({ error: "Failed to store events." }); // provider will retry

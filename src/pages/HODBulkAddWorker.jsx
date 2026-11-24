@@ -43,6 +43,10 @@ export default function HODBulkAddWorker() {
  const handleBulkUpload = (event) => {
  const file = event.target.files[0];
  if (!file) return;
+    if (!/\.xlsx$/i.test(file.name)) {
+      toast.error("Please upload an Excel .xlsx file");
+      return;
+    }
 
  setUploadedFile(file);
  setParsedWorkers([]);
@@ -297,19 +301,7 @@ export default function HODBulkAddWorker() {
  e.stopPropagation();
  const files = e.dataTransfer.files;
  if (files?.length > 0) {
- const file = files[0];
- if (
- file.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
- file.type === "application/vnd.ms-excel" ||
- file.name.endsWith(".xlsx") ||
- file.name.endsWith(".xls") ||
- file.name.endsWith(".csv")
- ) {
- setUploadedFile(file);
- handleBulkUpload({ target: { files: [file] } });
- } else {
- toast.error("Please upload an Excel or CSV file (.xlsx, .xls, or .csv)");
- }
+ handleBulkUpload({ target: { files: [files[0]] } });
  }
  };
 
@@ -353,6 +345,14 @@ export default function HODBulkAddWorker() {
  onDragOver={handleDragOver}
  onDrop={handleDrop}
  onClick={() => document.getElementById("hod-bulk-upload").click()}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              document.getElementById("hod-bulk-upload").click();
+            }
+          }}
  >
  <div className="space-y-4">
  <svg
@@ -382,7 +382,7 @@ export default function HODBulkAddWorker() {
  <input
  id="hod-bulk-upload"
  type="file"
- accept=".xlsx,.xls,.csv"
+ accept=".xlsx"
  onChange={handleBulkUpload}
  className="hidden"
  />

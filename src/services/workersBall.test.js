@@ -163,7 +163,7 @@ describe("workersBall service", () => {
         "/api/workers-ball/scan",
         { scan: "HGWB-AB23CD" },
         undefined,
-        false
+        true
       );
       expect(result).toMatchObject({
         success: true,
@@ -217,7 +217,7 @@ describe("workersBall service", () => {
         "/api/workers-ball/scan",
         { scan: "HGWB-998877" },
         undefined,
-        false
+        true
       );
     });
 

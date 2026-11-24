@@ -8,7 +8,8 @@
  * Response:     { success: true, campaignId, sent, failed[], totalRecipients, errors? }
  */
 import { ulid } from "ulid";
-import { authorizeSuperAdmin } from "./_lib/auth.js";
+import { authorizeSuperAdmin, bearerFrom } from "./_lib/auth.js";
+import { checkSendQuota, quotaLimits } from "./_lib/quota.js";
 import { insertRows, supabaseConfigured } from "./_lib/supabase.js";
 
 // Sendchamp Config
@@ -20,9 +21,12 @@ const SMARTSMS_API_TOKEN = process.env.SMARTSMS_API_TOKEN || "";
 const SMARTSMS_SEND_URL = "https://app.smartsmssolutions.com/io/api/client/v1/sms/";
 
 const BATCH_SIZE = 100;
-// Hard cap on recipients per request. Real per-user rate limiting needs a
-// shared store (e.g. Supabase/Redis); serverless in-memory counters do not work.
+// Hard cap on recipients per request; the hourly per-user quota is checked
+// against the bulk_sms log.
 const MAX_BULK_RECIPIENTS = Number(process.env.MAX_BULK_RECIPIENTS) || 2000;
+const MAX_MESSAGE_LENGTH = 1600;
+// GSM sender IDs: 1 to 11 letters or digits.
+const SENDER_NAME_RE = /^[A-Za-z0-9]{1,11}$/;
 
 function chunk(arr, size) {
   const out = [];
@@ -36,8 +40,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed. Use POST." });
   }
 
-  const authHeader = req.headers.authorization || req.headers.Authorization;
-  const auth = await authorizeSuperAdmin(authHeader);
+  const auth = await authorizeSuperAdmin(bearerFrom(req));
   if (!auth.ok) {
     return res.status(auth.status).json({
       error: "Access denied. Super Admin access required.",
@@ -57,10 +60,15 @@ export default async function handler(req, res) {
   const {
     message,
     recipients,
-    sender_name = "Sendchamp",
+    sender_name: rawSenderName,
     route: rawRoute = "non_dnd",
     provider: rawProvider = "sendchamp",
   } = body || {};
+
+  const sender_name = String(rawSenderName ?? "Sendchamp").trim();
+  if (!SENDER_NAME_RE.test(sender_name)) {
+    return res.status(400).json({ error: "Sender name must be 1 to 11 letters or digits." });
+  }
 
   const provider = String(rawProvider || "sendchamp").trim().toLowerCase();
   if (provider !== "sendchamp" && provider !== "smartsmssolutions") {
@@ -74,6 +82,10 @@ export default async function handler(req, res) {
 
   if (!message || !String(message).trim()) {
     return res.status(400).json({ error: "Message content is required." });
+  }
+
+  if (String(message).length > MAX_MESSAGE_LENGTH) {
+    return res.status(400).json({ error: `Message is too long. Maximum is ${MAX_MESSAGE_LENGTH} characters.` });
   }
 
   if (!Array.isArray(recipients) || recipients.length === 0) {
@@ -92,6 +104,24 @@ export default async function handler(req, res) {
 
   if (cleanRecipients.length === 0) {
     return res.status(400).json({ error: "No valid recipient phone numbers provided." });
+  }
+
+  const actor = auth.code || null;
+  if (supabaseConfigured()) {
+    try {
+      const quota = await checkSendQuota(
+        "bulk_sms",
+        { actorColumn: "sent_by", unitsColumn: "recipient_count" },
+        actor,
+        cleanRecipients.length,
+        quotaLimits("BULK_SMS", { maxSends: 10, maxUnits: 5000 })
+      );
+      if (!quota.ok) return res.status(429).json({ error: quota.error });
+    } catch (e) {
+      // SMS spends wallet funds, so an unreadable quota refuses the send.
+      console.error("bulk_sms quota check failed:", e?.message || e);
+      return res.status(503).json({ error: "Could not check the sending quota. Try again shortly." });
+    }
   }
 
   const campaignId = ulid();
@@ -116,7 +146,7 @@ export default async function handler(req, res) {
       try {
         const formData = new URLSearchParams();
         formData.append("token", SMARTSMS_API_TOKEN);
-        formData.append("sender", String(sender_name).trim() || "HICC");
+        formData.append("sender", sender_name);
         formData.append("to", batch.join(","));
         formData.append("message", String(message).trim());
         formData.append("type", "0");
@@ -166,7 +196,7 @@ export default async function handler(req, res) {
         const payload = {
           to: batch,
           message: String(message).trim(),
-          sender_name: String(sender_name).trim() || "Sendchamp",
+          sender_name,
           route: route || "non_dnd",
         };
 
@@ -211,7 +241,8 @@ export default async function handler(req, res) {
         {
           id: campaignId,
           provider: provider || "sendchamp",
-          sender_name: sender_name || "Sendchamp",
+          sender_name,
+          sent_by: actor,
           route: route || "non_dnd",
           message: String(message).trim(),
           recipient_count: cleanRecipients.length,
@@ -247,6 +278,5 @@ export default async function handler(req, res) {
     sent,
     failed,
     errors: errors.length > 0 ? errors : undefined,
-    data: providerResponses,
   });
 }

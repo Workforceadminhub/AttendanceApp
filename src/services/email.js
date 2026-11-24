@@ -72,21 +72,23 @@ export const parseRecipients = (raw = "") => {
  * forward the stored access token as a Bearer header.
  *
  * Endpoint - POST /api/send-bulk-email
- *   { subject: string, html: string, recipients: string[] }
+ *   { subject, preheader, heading, body, ctaLabel, ctaUrl, recipients }
+ * The function renders the HTML itself from this structured content.
  * The function sends one message per recipient so addresses are never exposed.
  *
  * @param {Object} payload
  * @param {string} payload.subject
- * @param {string} payload.html        Fully rendered, email-safe HTML.
+ * @param {Object} payload.content     { preheader, heading, body, ctaLabel, ctaUrl }
  * @param {string[]} payload.recipients
  * @param {"resend"|"brevo"} [payload.provider]  Which provider to send through.
  * @returns {Promise<{ provider: string, sent: number, failed: string[] }>} Send result.
  */
-export const sendBulkEmail = async ({ subject, html, recipients, provider, campaignId }) => {
+export const sendBulkEmail = async ({ subject, content, recipients, provider, campaignId }) => {
+  const { preheader = "", heading = "", body = "", ctaLabel = "", ctaUrl = "" } = content || {};
   if (!subject || !subject.trim()) {
     throw new Error("Subject is required.");
   }
-  if (!html || !html.trim()) {
+  if (!body.trim() && !heading.trim()) {
     throw new Error("Email body is empty.");
   }
   if (!Array.isArray(recipients) || recipients.length === 0) {
@@ -103,7 +105,11 @@ export const sendBulkEmail = async ({ subject, html, recipients, provider, campa
     },
     body: JSON.stringify({
       subject: subject.trim(),
-      html,
+      preheader,
+      heading,
+      body,
+      ctaLabel,
+      ctaUrl,
       recipients,
       ...(provider ? { provider } : {}),
       // Set when continuing a send the server handed back as `remaining`.

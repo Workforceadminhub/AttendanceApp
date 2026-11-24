@@ -394,7 +394,7 @@ export async function decodeQrCodeDataUrl(qrDataUrl) {
 }
 
 /**
- * 5. Scan a Workers Ball pass at the accreditation desk (public, no auth).
+ * 5. Scan a Workers Ball pass at the accreditation desk (signed-in staff only).
  * POST /api/workers-ball/scan with { "scan": "HGWB-AB23CD" }
  * Sets the worker as attended and returns attended: true with their name.
  * Scanning the same code again returns "Already attended" and does not check them in a second time.
@@ -415,7 +415,7 @@ export async function scanWorkersBallPass(scanText) {
       "/api/workers-ball/scan",
       { scan: scanPayload },
       undefined,
-      false
+      true
     );
 
     if (response?.success === false) {
@@ -968,8 +968,6 @@ export async function fetchWorkersBallRegistrations(params = {}) {
     undefined,
     true
   );
-
-  console.warn("[WorkersBall] GET /api/workers-ball/registrations response:", response);
 
   if (response?.success === false) {
     throw new Error(

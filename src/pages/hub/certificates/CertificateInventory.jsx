@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import Layout from "../../../components/Layout";
 import { Stat, Tag } from "../../../components/ui";
 import CertificatePreview from "../../../components/hub/certificates/CertificatePreview";
 import { fetchAllTrainings, fetchTrainingCertificates } from "../../../services/hub/trainings";
 import { asDate, display, formatDate, unwrapData } from "../../../utils/training";
+import { mapWithConcurrency } from "../../../hooks/useSundayAttendance";
+import { queryKeys } from "../../../queries/queryKeys";
 
 /**
  * FE-C6 Admin certificate inventory.
@@ -27,20 +29,28 @@ export default function CertificateInventory() {
   });
   const trainings = trainingsData?.data ?? [];
 
-  const certificateQueries = useQueries({
-    queries: trainings.map((training) => ({
-      queryKey: ["hub-training-certificates", training.id],
-      queryFn: () => fetchTrainingCertificates(training.id),
-    })),
+  // One request per training, four at a time. A training that fails is
+  // counted and reported rather than blanking the whole inventory.
+  const trainingIds = trainings.map((training) => training.id);
+  const { data: certificateResults, isLoading: certificatesLoading } = useQuery({
+    queryKey: queryKeys.hub.trainingCertificates("inventory", trainingIds.join(",")),
+    queryFn: () =>
+      mapWithConcurrency(
+        trainingIds,
+        (id) => fetchTrainingCertificates(id).catch(() => null),
+        4
+      ),
+    enabled: trainingIds.length > 0,
   });
+  const failedCount = (certificateResults ?? []).filter((result) => result === null).length;
 
-  const isLoading = trainingsLoading || certificateQueries.some((q) => q.isLoading);
+  const isLoading = trainingsLoading || certificatesLoading;
 
   const certificates = useMemo(() => {
     const merged = [];
-    certificateQueries.forEach((query, index) => {
+    (certificateResults ?? []).forEach((result, index) => {
       const training = trainings[index];
-      (unwrapData(query.data) ?? []).forEach((certificate) => {
+      (unwrapData(result) ?? []).forEach((certificate) => {
         merged.push({
           ...certificate,
           training_id: training?.id,
@@ -51,9 +61,9 @@ export default function CertificateInventory() {
     return merged.sort((a, b) =>
       String(b.issued_at ?? "").localeCompare(String(a.issued_at ?? ""))
     );
-    // certificateQueries is a new array each render; key off the settled data.
+    // `trainings` is a new array each render; the results only change with it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trainings, certificateQueries.map((q) => q.dataUpdatedAt).join(",")]);
+  }, [certificateResults]);
 
   const filtered = useMemo(() => {
     const worker = workerFilter.trim().toLowerCase();
@@ -101,6 +111,12 @@ export default function CertificateInventory() {
               Certificate Templates
             </Link>
           </div>
+
+          {failedCount > 0 && (
+            <p role="alert" className="text-sm text-brick">
+              Certificates for {failedCount} training{failedCount === 1 ? "" : "s"} could not be loaded.
+            </p>
+          )}
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <Stat label="Certificates Issued" value={certificates.length} loading={isLoading} />

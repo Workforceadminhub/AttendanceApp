@@ -1,3 +1,4 @@
+import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
@@ -53,23 +54,16 @@ const MODE_OPTIONS = [
 
 function Panel({ title, subtitle, children, footer, wide = false, onClose }) {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-end bg-ink-900/40"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <aside
+    <Dialog open onClose={onClose} className="relative z-50">
+      <div className="fixed inset-0 bg-ink-900/40" aria-hidden="true" />
+      <div className="fixed inset-0 flex items-start justify-end">
+      <DialogPanel
+        as="aside"
         className={`bg-cream h-full w-full ${wide ? "max-w-xl" : "max-w-md"} overflow-y-auto flex flex-col shadow-2xl`}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="sticky top-0 z-10 bg-cream border-b border-ink-200 px-5 py-4 flex items-center justify-between">
           <div className="min-w-0">
-            <div className="qc-section-title">{title}</div>
+            <DialogTitle as="div" className="qc-section-title">{title}</DialogTitle>
             {subtitle && <div className="text-sm font-medium text-ink-900 mt-0.5 truncate">{subtitle}</div>}
           </div>
           <button
@@ -85,8 +79,9 @@ function Panel({ title, subtitle, children, footer, wide = false, onClose }) {
         </div>
         <div className="flex-1 px-5 py-5">{children}</div>
         {footer && <div className="sticky bottom-0 bg-cream border-t border-ink-200 px-5 py-4">{footer}</div>}
-      </aside>
-    </div>
+      </DialogPanel>
+      </div>
+    </Dialog>
   );
 }
 

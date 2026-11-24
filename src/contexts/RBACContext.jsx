@@ -1,13 +1,12 @@
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { createContext, useContext, useMemo } from "react";
 import { useLocation } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { fetchMyRBAC } from "../services/hub/rbac";
+import { getAccessToken } from "../utils/authSession";
 import { getUserRole } from "../utils/getUserRole";
+import { queryKeys } from "../queries/queryKeys";
 
 const RBACContext = createContext(null);
-
-// After a failed /rbac/me call, wait this long before trying again on a later
-// navigation. It used to retry on every route change.
-const RETRY_AFTER_FAILURE_MS = 60 * 1000;
 
 /**
  * Training Hub actions that Super Admin and Church Admin always hold, even when
@@ -22,91 +21,48 @@ const ADMIN_TRAINING_ACTIONS = new Set([
 /**
  * Provides RBAC data from GET /api/hub/rbac/me.
  *
- * - On mount (if an accessToken exists) it fetches the user's role,
- *   navigation visibility, allowed actions, and scope filter.
- * - If the call fails (legacy JWT not accepted, network error, etc.)
- *   the context value stays null - every consumer falls back gracefully
- *   and the existing app behaviour is unchanged.
- * - Exposes a `refresh()` to re-fetch after login or role change.
+ * - Keyed by the access token, so signing in or out (or as someone else)
+ *   never serves the previous user's permissions.
+ * - If the call fails the value stays null and `error` is set; consumers
+ *   decide whether to fall back or block.
  */
 export function RBACProvider({ children }) {
-  const [rbac, setRbac] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const loadedRef = useRef(false);
-  const lastFailureRef = useRef({ token: null, at: 0 });
-  const { pathname } = useLocation();
+  // Re-render on navigation so a token stored at login is picked up.
+  useLocation();
+  const token = getAccessToken();
 
-  const load = useCallback(async () => {
-    const token = sessionStorage.getItem("accessToken");
-    if (!token) {
-      setRbac(null);
-      loadedRef.current = false;
-      return;
-    }
-
-    setLoading(true);
-    try {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: queryKeys.rbac(token),
+    queryFn: async () => {
       const res = await fetchMyRBAC();
-      if (res?.success && res.data) {
-        setRbac(res.data);
-      } else if (res?.role) {
-        setRbac(res);
-      } else {
-        setRbac(null);
-      }
-      loadedRef.current = true;
-    } catch {
-      setRbac(null);
-      lastFailureRef.current = { token, at: Date.now() };
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      if (res?.success && res.data) return res.data;
+      if (res?.role) return res;
+      return null;
+    },
+    enabled: Boolean(token),
+  });
 
-  // Re-check on route changes - catches the login→dashboard transition
-  // where the token appears mid-session. Skips if already loaded.
-  useEffect(() => {
-    const token = sessionStorage.getItem("accessToken");
-    if (!token) {
-      if (loadedRef.current) {
-        setRbac(null);
-        loadedRef.current = false;
-      }
-      return;
-    }
-    if (loadedRef.current) return;
-    const failure = lastFailureRef.current;
-    if (failure.token === token && Date.now() - failure.at < RETRY_AFTER_FAILURE_MS) return;
-    load();
-  }, [load, pathname]);
-
-  // Listen for storage changes (login/logout in another tab)
-  useEffect(() => {
-    const onStorage = (e) => {
-      if (e.key === "accessToken" || e.key === "authUser") {
-        loadedRef.current = false;
-        load();
-      }
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, [load]);
-
-  // Memoized: the provider re-renders on every navigation (it reads the
-  // pathname), and a new object each time re-rendered every RBAC consumer.
-  const value = useMemo(() => ({ rbac, loading, refresh: load }), [rbac, loading, load]);
+  const value = useMemo(
+    () => ({
+      rbac: token ? data ?? null : null,
+      loading: Boolean(token) && isLoading,
+      error: token ? error ?? null : null,
+      refresh: refetch,
+    }),
+    [token, data, isLoading, error, refetch]
+  );
 
   return <RBACContext.Provider value={value}>{children}</RBACContext.Provider>;
 }
 
 /**
  * Full RBAC context.
- * Returns { rbac, loading, refresh } or null values if context is unavailable.
+ * Returns { rbac, loading, error, refresh } or null values if context is unavailable.
  */
 export function useRBAC() {
   const ctx = useContext(RBACContext);
   if (!ctx) {
-    return { rbac: null, loading: false, refresh: () => {} };
+    return { rbac: null, loading: false, error: null, refresh: () => {} };
   }
   return ctx;
 }

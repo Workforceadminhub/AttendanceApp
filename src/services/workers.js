@@ -286,12 +286,25 @@ async function requestSuperAdminWorkers({ page = 1, limit = DEFAULT_PAGE_LIMIT, 
   return result;
 }
 
-/** Fetch one page of super-admin workers with intersection placement filtering. */
+const isSet = (value) => Boolean(value) && value !== "All";
+
+/**
+ * One page of super-admin workers. The server ORs team and department, so when
+ * both are selected the intersection is collected in full and paged here;
+ * filtering a single server page would yield short pages and wrong totals.
+ */
 export async function listSuperAdminWorkers({ page = 1, limit = DEFAULT_PAGE_LIMIT, ...options } = {}) {
+  if (isSet(options.team) && isSet(options.department)) {
+    const rows = await fetchAllSuperAdminWorkers(options);
+    const totalPages = Math.max(1, Math.ceil(rows.length / limit));
+    const current = Math.min(page, totalPages);
+    return {
+      data: rows.slice((current - 1) * limit, current * limit),
+      pagination: { page: current, limit, total: rows.length, totalPages, hasNext: current < totalPages, hasPrev: current > 1 },
+    };
+  }
   const result = await requestSuperAdminWorkers({ ...options, page, limit });
-  const unwrapped = unwrapPaginated(result, { page, limit });
-  unwrapped.data = filterWorkersByPlacement(unwrapped.data, options);
-  return unwrapped;
+  return unwrapPaginated(result, { page, limit });
 }
 
 /** Fetch the complete super-admin directory using the same filters as its pages. */
@@ -299,6 +312,6 @@ export async function fetchAllSuperAdminWorkers(options = {}) {
   // Filter after collection so an OR-filtered server page with no intersection
   // matches cannot hide matching workers on a later page.
   const rows = await fetchAllPages(({ page, limit }) => requestSuperAdminWorkers({ ...options, page, limit }),
-    { pageSize: options.limit || FETCH_ALL_PAGE_LIMIT });
+    { pageSize: FETCH_ALL_PAGE_LIMIT });
   return filterWorkersByPlacement(rows, options);
 }

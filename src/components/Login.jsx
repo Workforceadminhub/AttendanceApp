@@ -32,13 +32,8 @@ const Login = () => {
     }
   }, [searchParams]);
 
-  const handleKeyPress = (event) => {
-    if (event.keyCode === 13 || event.which === 13) {
-      handleLogin();
-    }
-  };
-
-  const handleLogin = async () => {
+  const handleLogin = async (event) => {
+    event?.preventDefault();
     const hasInput = mode === "code" ? code.trim() : email.trim() && password;
     if (loginInFlight.current || isLoading || !hasInput) return;
     loginInFlight.current = true;
@@ -159,7 +154,7 @@ const Login = () => {
                 : "Enter your pass ID to continue."}
             </p>
 
-            <div className="mt-8 space-y-5">
+            <form className="mt-8 space-y-5" onSubmit={handleLogin} noValidate>
               {mode === "code" ? (
                 <div>
                   <label htmlFor="id" className="qc-label">
@@ -175,7 +170,6 @@ const Login = () => {
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
                     onBlur={() => setCode((c) => c.trimEnd())}
-                    onKeyDown={handleKeyPress}
                     disabled={isLoading}
                     className="qc-input qc-num"
                   />
@@ -194,7 +188,6 @@ const Login = () => {
                       autoFocus
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      onKeyDown={handleKeyPress}
                       disabled={isLoading}
                       className="qc-input"
                     />
@@ -219,7 +212,6 @@ const Login = () => {
                         autoComplete="current-password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        onKeyDown={handleKeyPress}
                         disabled={isLoading}
                         className="qc-input pr-11"
                       />
@@ -227,7 +219,6 @@ const Login = () => {
                         type="button"
                         onClick={() => setShowPassword((v) => !v)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-700 transition-colors"
-                        tabIndex={-1}
                         aria-label={showPassword ? "Hide password" : "Show password"}
                       >
                         {showPassword ? (
@@ -242,9 +233,7 @@ const Login = () => {
               )}
 
               <button
-                type="button"
-                onClick={handleLogin}
-                onKeyDown={handleKeyPress}
+                type="submit"
                 disabled={
                   isLoading ||
                   (mode === "code" ? !code.trim() : !email.trim() || !password)
@@ -263,7 +252,7 @@ const Login = () => {
                   </>
                 )}
               </button>
-            </div>
+            </form>
 
             <button
               type="button"

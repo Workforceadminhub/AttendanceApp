@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Header from "./Header";
 import { getUser } from "../utils/getUser";
 import { getUserRole } from "../utils/getUserRole";
@@ -43,9 +44,11 @@ describe("Header mobile navigation", () => {
     });
 
     render(
+      <QueryClientProvider client={new QueryClient()}>
       <MemoryRouter>
         <Header />
       </MemoryRouter>
+      </QueryClientProvider>
     );
 
     // Open mobile menu
@@ -92,9 +95,11 @@ describe("Header mobile navigation", () => {
     });
 
     render(
+      <QueryClientProvider client={new QueryClient()}>
       <MemoryRouter>
         <Header />
       </MemoryRouter>
+      </QueryClientProvider>
     );
 
     const menuBtn = screen.getByRole("button", { name: /open menu/i });

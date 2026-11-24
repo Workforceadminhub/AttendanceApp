@@ -9,7 +9,7 @@
  *                        stats: { delivered, opened, clicked, bounced,
  *                                 complained, unsubscribed, other, total } } ] }
  */
-import { authorize } from "./_lib/auth.js";
+import { authorize, bearerFrom } from "./_lib/auth.js";
 import { callRpc, selectRows, supabaseConfigured } from "./_lib/supabase.js";
 
 // Map raw provider event names to summary buckets.
@@ -39,6 +39,7 @@ const EMPTY = () => ({
 
 // PostgREST returns at most max-rows (1000 by default) per response.
 const EVENTS_PAGE_SIZE = 1000;
+const ULID_RE = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 
 /**
  * { [campaignId]: { [event]: count } } for the given campaigns. Uses the
@@ -54,13 +55,14 @@ async function eventCounts(ids) {
     if (e?.status !== 404) throw e;
   }
 
-  // PostgREST in.() — quote ids to be safe with special chars.
-  const inList = ids.map((id) => `"${String(id).replace(/"/g, '""')}"`).join(",");
+  // Campaign ids are ULIDs; anything else never reaches the in.() filter.
+  const inList = ids.filter((id) => ULID_RE.test(String(id))).join(",");
+  if (!inList) return {};
   const counts = {};
   for (let offset = 0; ; offset += EVENTS_PAGE_SIZE) {
     const page = await selectRows(
       "email_events",
-      `select=campaign_id,event&campaign_id=in.(${encodeURIComponent(inList)})` +
+      `select=campaign_id,event&campaign_id=in.(${inList})` +
         `&order=id&limit=${EVENTS_PAGE_SIZE}&offset=${offset}`
     );
     for (const ev of page) {
@@ -78,7 +80,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed." });
   }
 
-  const auth = await authorize(req.headers.authorization || req.headers.Authorization);
+  const auth = await authorize(bearerFrom(req));
   if (req.query?.check === "1") {
     if (!auth.ok && auth.status === 403) {
       return res.status(200).json({ allowed: false });

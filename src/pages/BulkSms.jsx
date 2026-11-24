@@ -247,7 +247,7 @@ function BulkSmsComposer() {
             <Card padding="lg" className="space-y-5">
               {/* Provider Selector */}
               <div>
-                <label className={labelCls}>SMS Gateway Provider</label>
+                <span className={labelCls}>SMS Gateway Provider</span>
                 <div className="grid grid-cols-2 gap-2 bg-ink-100/60 p-1 rounded-lg">
                   {PROVIDERS.map((p) => (
                     <button
@@ -302,10 +302,11 @@ function BulkSmsComposer() {
               {/* Sender Name */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className={labelCls}>Sender Name (Sender ID) *</label>
+                  <label htmlFor="bs-sender" className={labelCls}>Sender Name (Sender ID) *</label>
                   <span className="text-xs text-ink-400">Max 11 alphanumeric chars</span>
                 </div>
                 <input
+                  id="bs-sender"
                   className={inputCls}
                   value={senderName}
                   maxLength={11}
@@ -343,7 +344,7 @@ function BulkSmsComposer() {
 
               {/* Route */}
               <div>
-                <label className={labelCls}>Delivery Route</label>
+                <span className={labelCls}>Delivery Route</span>
                 <div className={`grid grid-cols-1 ${routeOptions.length > 2 ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-2`}>
                   {routeOptions.map((opt) => (
                     <button
@@ -366,7 +367,7 @@ function BulkSmsComposer() {
               {/* Recipients Input */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className={labelCls}>
+                  <label htmlFor="bs-recipients" className={labelCls}>
                     Phone Numbers *{" "}
                     <span className="text-xs font-normal text-ink-500">
                       (separate by commas, spaces, or new lines)
@@ -385,6 +386,7 @@ function BulkSmsComposer() {
                   </div>
                 </div>
                 <textarea
+                  id="bs-recipients"
                   rows={4}
                   className={`${inputCls} font-mono text-xs`}
                   value={recipientsRaw}
@@ -420,7 +422,7 @@ function BulkSmsComposer() {
               {/* Message Content */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className={labelCls}>Message Text *</label>
+                  <label htmlFor="bs-message" className={labelCls}>Message Text *</label>
                   <div className="flex items-center gap-2 text-xs">
                     {smsMetrics.isUnicode && (
                       <span className="text-amber-700 font-medium bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
@@ -434,6 +436,7 @@ function BulkSmsComposer() {
                   </div>
                 </div>
                 <textarea
+                  id="bs-message"
                   rows={5}
                   className={inputCls}
                   value={message}

@@ -1,3 +1,4 @@
+import { ConfirmProvider } from "../components/ui/ConfirmDialog";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
@@ -41,7 +42,7 @@ function pick(inputId, optionText) {
 async function openPage() {
   render(
     <MemoryRouter>
-      <ManageDepartments />
+      <ConfirmProvider><ManageDepartments /></ConfirmProvider>
     </MemoryRouter>
   );
   fireEvent.click(await screen.findByText("Districts"));

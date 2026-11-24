@@ -1,18 +1,6 @@
 import { z } from "zod";
 
-/**
- * Single source of truth for form/payload shapes.
- *
- * Usage with React Hook Form:
- *   import { useForm } from "react-hook-form";
- *   import { zodResolver } from "@hookform/resolvers/zod";
- *   import { workerSchema } from "../utils/schemas";
- *
- *   const form = useForm({ resolver: zodResolver(workerSchema) });
- *
- * As you migrate forms, replace the bespoke `if (!firstname) toast.error(...)`
- * blocks with this. Errors come back at form.formState.errors.<field>.message.
- */
+/** Single source of truth for form/payload shapes (React Hook Form via zodResolver). */
 
 // ── Shared field validators ───────────────────────────────────────────────────
 
@@ -39,11 +27,6 @@ const awakeningPhone = z
     "Phone number must be 11 digits (e.g. 08012345678) or +234 format (e.g. +2348012345678)"
   );
 
-const EMAIL_TLDS = [
-  "com", "org", "net", "co", "io", "edu", "gov", "info", "biz", "app",
-  "dev", "ai", "tech", "africa", "ng", "uk", "eu", "za", "gh", "ke", "us",
-];
-
 const email = z
   .string()
   .trim()
@@ -52,13 +35,6 @@ const email = z
   .refine(
     (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v),
     "Enter a valid email address (e.g. name@example.com)"
-  )
-  .refine(
-    (v) => EMAIL_TLDS.includes(v.split(".").pop()?.toLowerCase() ?? ""),
-    () => {
-      const allowed = EMAIL_TLDS.slice(0, 6).map((t) => `.${t}`).join(", ");
-      return `Email must end with an allowed domain such as ${allowed}…`;
-    }
   );
 
 /** Reusable plain-JS checks for places outside React Hook Form (admin modals, bulk flows). */
@@ -74,43 +50,9 @@ export const isValidEmail = (value) => {
   const v = (value ?? "").toString().trim();
   return (
     v.includes("@") &&
-    /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) &&
-    EMAIL_TLDS.includes(v.split(".").pop()?.toLowerCase() ?? "")
+    /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)
   );
 };
-
-export const workerSchema = z.object({
-  firstname: z.string().trim().min(1, "First name is required"),
-  lastname: z.string().trim().min(1, "Last name is required"),
-  othername: z.string().trim().optional().default(""),
-  email,
-  phonenumber: phone,
-  gender: z.enum(["Male", "Female"], { error: "Gender is required" }),
-  workerrole: z.string().trim().min(1, "Role is required"),
-  birthdate: z.string().trim().min(1, "Birthdate is required"),
-  maritalstatus: z.enum(["Single", "Married"]).optional(),
-  agerange: z.string().optional(),
-  employment: z.string().optional(),
-  occupation: z.string().optional(),
-  address: z.string().optional(),
-});
-
-export const departmentSchema = z.object({
-  name: z.string().trim().min(1, "Department name is required"),
-  team: z.string().trim().min(1, "Team is required"),
-  route: z
-    .string()
-    .trim()
-    .optional()
-    .transform((v) => (v ? (v.startsWith("/") ? v : `/${v}`) : v)),
-  code: z.string().trim().min(1, "Code is required"),
-  isactive: z.boolean().default(true),
-});
-
-export const loginSchema = z.object({
-  email: z.string().min(1, "Email is required"),
-  password: z.string().min(1, "Password is required"),
-});
 
 export const leadershipRegistrationSchema = z.object({
   fullName: z.string().trim().min(2, "Full name is required"),
@@ -126,6 +68,10 @@ export const leadershipRegistrationSchema = z.object({
     { error: "Campus is required" }
   ),
   course: z.enum(["BLC", "ALC"], { error: "Course is required" }),
+}).superRefine((data, ctx) => {
+  if (data.leadershipStatus === "Existing Leader" && !data.leadershipRole?.trim()) {
+    ctx.addIssue({ code: "custom", path: ["leadershipRole"], message: "Current leadership role is required" });
+  }
 });
 
 // ── Awakening Conference ──────────────────────────────────────────────────────
@@ -263,6 +209,3 @@ export const awakeningRegistrationSchema = z
       }
     }
   });
-
-const schemas = { workerSchema, departmentSchema, loginSchema, leadershipRegistrationSchema, awakeningRegistrationSchema };
-export default schemas;

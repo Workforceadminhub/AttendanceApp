@@ -1,3 +1,4 @@
+import { useConfirm } from "../../../components/ui/ConfirmDialog";
 import { useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -589,6 +590,7 @@ export default function TrainingDetail() {
 /** No grades are shown anywhere - attendance and completion only. */
 function EnrolleeTable({ enrollees, sessions, participation, trainingId, canComplete }) {
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const completeMut = useMutation({
     mutationFn: (enrollmentId) => completeEnrollment(trainingId, enrollmentId),
     onSuccess: (response) => {
@@ -648,7 +650,7 @@ function EnrolleeTable({ enrollees, sessions, participation, trainingId, canComp
               <td className="px-4 py-3 text-ink-600 capitalize">{enrollee.enrollment_type ?? "primary"}</td>
               <td className="px-4 py-3">
                 {progress.total === 0 ? (
-                  <span className="text-ink-400">-</span>
+                  <span className="text-ink-500">-</span>
                 ) : (
                   <div className="flex items-center gap-2">
                     <div className="w-20 h-1.5 bg-ink-200 rounded-full overflow-hidden">
@@ -671,8 +673,8 @@ function EnrolleeTable({ enrollees, sessions, participation, trainingId, canComp
                   <button
                     type="button"
                     disabled={isCompleting}
-                    onClick={() => {
-                      if (window.confirm(`Mark ${name} as completed? A certificate will be issued when this training has a certificate template.`)) {
+                    onClick={async () => {
+                      if (await confirm({ title: "Mark completed", message: `Mark ${name} as completed? A certificate will be issued when this training has a certificate template.`, confirmLabel: "Mark completed" })) {
                         completeMut.mutate(enrollmentId);
                       }
                     }}
@@ -681,7 +683,7 @@ function EnrolleeTable({ enrollees, sessions, participation, trainingId, canComp
                     {isCompleting ? "Saving..." : "Mark completed"}
                   </button>
                 ) : (
-                  <span className="text-xs text-ink-400">-</span>
+                  <span className="text-xs text-ink-500">-</span>
                 )}
                 </td>
               )}

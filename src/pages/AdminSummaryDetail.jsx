@@ -25,8 +25,8 @@ import {
   filterPermissionsByTeam,
 } from "../utils/routeObject";
 import { countAdminWorkers } from "../services/workers";
-import { getNextSunday } from "../utils/getDate";
 import { useSundayAttendance } from "../hooks/useSundayAttendance";
+import { firstSundayOfYear, getMonthOptions, getNextSunday, toMonthValue } from "../utils/getDate";
 
 export default function AdminSummaryDetail() {
   const location = useLocation();
@@ -75,12 +75,15 @@ export default function AdminSummaryDetail() {
     return depts.filter((dept) => !excluded.has(dept)).sort();
   }, [teamName]);
 
-  // Attendance Trend: /api/attendance for every Sunday, shared with the other
+  const monthOptions = useMemo(() => getMonthOptions(), []);
+  const [selectedMonth, setSelectedMonth] = useState(() => toMonthValue());
+
+  // Attendance Trend: /api/attendance for the selected month, shared with the other
   // trend pages through the React Query cache (see useSundayAttendance).
   // Team/department picks only re-filter the cached lists.
   const trendPermissions = useMemo(() => expandPermissions(getUser()), []);
   const { data: sundayAttendance, isLoading: isTrendsLoading } = useSundayAttendance(
-    2026,
+    selectedMonth,
     trendPermissions,
     { enabled: canPickTeam ? !!selectedTeam : true }
   );
@@ -128,26 +131,6 @@ export default function AdminSummaryDetail() {
     [trendsData]
   );
 
-  // Monthly filter (similar to DepartmentDetail)
-  const MONTHS_2026 = useMemo(() => {
-    return Array.from({ length: 12 }, (_, i) => {
-      const m = i + 1;
-      return {
-        value: `2026-${String(m).padStart(2, "0")}`,
-        label:
-          new Date(2026, i, 1).toLocaleString("en-GB", { month: "long" }) +
-          " 2026",
-      };
-    });
-  }, []);
-
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const now = new Date();
-    if (now.getFullYear() === 2026) {
-      return `2026-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    }
-    return "2026-01";
-  });
 
   const monthlyTrends = useMemo(
     () =>
@@ -155,8 +138,8 @@ export default function AdminSummaryDetail() {
     [trends, selectedMonth]
   );
 
-  // Leaderboard: startDate is always first Sunday of 2026, endDate is last Sunday of selected month
-  const leaderboardStartDate = "2026-01-04";
+  // Leaderboard: from the first Sunday of the selected year to the last Sunday of the selected month
+  const leaderboardStartDate = firstSundayOfYear(Number(selectedMonth.slice(0, 4)));
   const leaderboardEndDate = useMemo(() => {
     const [y, m] = selectedMonth.split("-").map(Number);
     const lastDay = new Date(y, m, 0);
@@ -310,7 +293,7 @@ export default function AdminSummaryDetail() {
                   onChange={(event) => setSelectedMonth(event.target.value)}
                   className="rounded-md border border-ink-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ink-900/10"
                 >
-                  {MONTHS_2026.map((month) => (
+                  {monthOptions.map((month) => (
                     <option key={month.value} value={month.value}>
                       {month.label}
                     </option>
@@ -371,7 +354,7 @@ export default function AdminSummaryDetail() {
                     onChange={(e) => setSelectedMonth(e.target.value)}
                     className="rounded-md border border-ink-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ink-900/10"
                   >
-                    {MONTHS_2026.map((m) => (
+                    {monthOptions.map((m) => (
                       <option key={m.value} value={m.value}>
                         {m.label}
                       </option>

@@ -1,3 +1,4 @@
+import { useConfirm } from "../components/ui/ConfirmDialog";
 import { useState, useEffect, useRef, useMemo, useCallback, Fragment } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import Select from "react-select";
@@ -72,6 +73,7 @@ function ClusterNote({ name, cluster: directCluster }) {
 
 export default function ManageDepartments() {
  const navigate = useNavigate();
+ const confirm = useConfirm();
  const { refetch: refetchDepartmentsContext } = useDepartmentsContext();
  const invalidateDepartments = useInvalidateDepartments();
  const [departments, setDepartments] = useState([]);
@@ -141,9 +143,6 @@ export default function ManageDepartments() {
  loadDepartments();
  }, [isSuperAdmin, loadDepartments]);
 
- if (!user || !isSuperAdmin) {
- return <Navigate to={getPostLoginPath(user)} replace />;
- }
 
  // Handle form input changes
  const handleInputChange = (e) => {
@@ -264,13 +263,8 @@ export default function ManageDepartments() {
  const newStatus = !department.isactive;
  const action = newStatus ? "enable" : "disable";
 
- if (
- !window.confirm(
- `Are you sure you want to ${action} "${department.name}"?`
- )
- ) {
- return;
- }
+ const actionLabel = newStatus ? "Enable" : "Disable";
+    if (!(await confirm({ title: `${actionLabel} department`, message: `${actionLabel} "${department.name}"?`, confirmLabel: actionLabel }))) return;
 
  setIsLoading(true);
  try {
@@ -290,13 +284,7 @@ export default function ManageDepartments() {
 
  // Delete department
  const handleDelete = async (department) => {
- if (
- !window.confirm(
- `Are you sure you want to delete "${department.name}"? This action cannot be undone.`
- )
- ) {
- return;
- }
+ if (!(await confirm({ title: "Delete department", message: `Delete "${department.name}"? This cannot be undone.`, confirmLabel: "Delete", danger: true }))) return;
 
  setIsLoading(true);
  try {
@@ -418,6 +406,10 @@ export default function ManageDepartments() {
  const toggleTeamCollapse = (team) => {
  setCollapsedTeams((prev) => ({ ...prev, [team]: !prev?.[team] }));
  };
+
+ if (!user || !isSuperAdmin) {
+ return <Navigate to={getPostLoginPath(user)} replace />;
+ }
 
  return (
  <div className="min-h-screen bg-cream">

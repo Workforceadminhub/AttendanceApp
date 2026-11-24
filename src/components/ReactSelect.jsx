@@ -94,6 +94,7 @@ export default function ReactSelectDropdown({
         defaultValue={defaultValue}
         isDisabled={disabled}
         placeholder={placeholder || title}
+        aria-label={title || placeholder}
         styles={disabled ? DISABLED_STYLES : ENABLED_STYLES}
         isClearable={isClearable}
         menuPlacement="auto"

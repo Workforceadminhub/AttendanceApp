@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../../queries/queryKeys";
 import { toast } from "react-toastify";
 import Layout from "../../../components/Layout";
 import { useCanAction } from "../../../contexts/RBACContext";
@@ -21,6 +22,7 @@ const LEVELS = [
 
 export default function CreateCourse() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const canCreate = useCanAction("create_training");
 
   const [form, setForm] = useState({
@@ -34,6 +36,7 @@ export default function CreateCourse() {
   const mutation = useMutation({
     mutationFn: (data) => createCourse(data),
     onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.hub.courses() });
       toast.success("Course created successfully");
       const courseId = res?.data?.id ?? res?.data?.course_id;
       if (courseId) {

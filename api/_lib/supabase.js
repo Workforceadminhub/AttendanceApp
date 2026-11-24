@@ -22,16 +22,37 @@ function headers(extra = {}) {
   };
 }
 
-/** Insert one or more rows into a table. Throws on non-2xx. */
-export async function insertRows(table, rows) {
-  const res = await fetch(`${URL}/rest/v1/${table}`, {
+/**
+ * Insert one or more rows into a table. Throws on non-2xx; the error carries
+ * `status`. With `onConflict` (comma-separated columns of a unique index),
+ * rows that already exist are skipped instead of failing the insert.
+ */
+export async function insertRows(table, rows, { onConflict } = {}) {
+  const query = onConflict ? `?on_conflict=${encodeURIComponent(onConflict)}` : "";
+  const prefer = onConflict ? "return=minimal,resolution=ignore-duplicates" : "return=minimal";
+  const res = await fetch(`${URL}/rest/v1/${table}${query}`, {
     method: "POST",
-    headers: headers({ Prefer: "return=minimal" }),
+    headers: headers({ Prefer: prefer }),
     body: JSON.stringify(rows),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`Supabase insert ${table} failed: HTTP ${res.status} ${text}`);
+    const error = new Error(`Supabase insert ${table} failed: HTTP ${res.status} ${text}`);
+    error.status = res.status;
+    throw error;
+  }
+}
+
+/**
+ * Insert that skips rows already stored (webhook retries). Falls back to a
+ * plain insert while the unique index from the migration is not applied yet.
+ */
+export async function insertRowsIdempotent(table, rows, onConflict) {
+  try {
+    await insertRows(table, rows, { onConflict });
+  } catch (e) {
+    if (e?.status !== 400) throw e;
+    await insertRows(table, rows);
   }
 }
 

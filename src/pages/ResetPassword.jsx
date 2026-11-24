@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { hubResetPassword } from "../services/hub/auth";
@@ -42,6 +42,14 @@ export default function ResetPassword() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // The code is in state now, so drop it from the address bar and history.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (!["otp", "token", "code"].some((key) => url.searchParams.has(key))) return;
+    ["otp", "token", "code"].forEach((key) => url.searchParams.delete(key));
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+  }, []);
 
   const { allPassed } = usePasswordRequirements(newPassword);
   const passwordsMatch = confirmPassword.length > 0 && newPassword === confirmPassword;

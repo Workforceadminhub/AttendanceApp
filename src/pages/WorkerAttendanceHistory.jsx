@@ -64,18 +64,21 @@ export default function WorkerAttendanceHistory() {
  const authUser = getUser();
  const permissions = authUser?.permissions ?? [];
 
- // All Sundays from Jan 1 of the current year up to today (chronological)
+ // Each Sunday costs a full department roster download, so start with the
+ // last quarter and only walk the whole year when asked.
+ const [range, setRange] = useState("13");
  const sundays = useMemo(() => {
- // getSundaysInYear() without arg → Jan 1 to today, most-recent-first
- // Reverse to chronological order for the chart
- return getSundaysInYear().reverse();
- }, []);
+ // getSundaysInYear() without arg: Jan 1 to today, most recent first
+ const recent = getSundaysInYear();
+ const scoped = range === "year" ? recent : recent.slice(0, Number(range));
+ return scoped.reverse();
+ }, [range]);
 
  // Fetch the department roster for each Sunday to get per-worker attendance.
  // The fetch doesn't depend on the worker, so the key leaves workerId out:
  // opening another worker in the same department reuses the cached rosters.
  const { data: attendanceByDate, isLoading } = useQuery({
- queryKey: ["departmentRosterBySunday", department, sundays.length],
+ queryKey: ["departmentRosterBySunday", department, range, sundays.length],
  queryFn: async () => {
  // Keep the history view from opening dozens of connections at once. The
  // attendance API is shared with the dashboard and can return transient 503s
@@ -181,13 +184,22 @@ export default function WorkerAttendanceHistory() {
  </h1>
  {workerDept && (
  <p className="mt-1 text-sm text-ink-500">
- {workerDept}{workerTeam ? ` · ${workerTeam}` : ""} ·{" "}
- <span className="qc-num text-ink-700">
- {new Date().getFullYear()}
- </span>{" "}
- year to date
+ {workerDept}{workerTeam ? ` · ${workerTeam}` : ""}
  </p>
  )}
+ <select
+ aria-label="Period"
+ value={range}
+ onChange={(e) => {
+ setRange(e.target.value);
+ setCurrentPage(1);
+ }}
+ className="qc-input mt-3 w-auto"
+ >
+ <option value="13">Last 3 months</option>
+ <option value="26">Last 6 months</option>
+ <option value="year">{new Date().getFullYear()} to date</option>
+ </select>
  </div>
 
  {isLoading ? (

@@ -1,3 +1,4 @@
+import { toast } from "react-toastify";
 import React from "react";
 import { loadExcelJS } from "../utils/loadExcelJS";
 import { saveAs } from "file-saver";
@@ -13,6 +14,8 @@ export default function ExportButton({ data }) {
  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
  saveAs(blob, "attendance.csv");
  } catch (error) {
+  console.error("Export failed", error);
+  toast.error("Export failed");
  }
  };
 
@@ -37,6 +40,8 @@ export default function ExportButton({ data }) {
  });
  saveAs(blob, "attendance.xlsx");
  } catch (error) {
+  console.error("Export failed", error);
+  toast.error("Export failed");
  }
  };
 

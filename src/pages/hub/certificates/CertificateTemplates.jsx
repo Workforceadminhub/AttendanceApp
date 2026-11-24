@@ -1,3 +1,4 @@
+import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
@@ -280,23 +281,15 @@ export default function CertificateTemplates() {
 
       {/* Full-size preview of a saved template */}
       {activeTemplate && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/50 p-4"
-          role="presentation"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setActiveTemplate(null);
-          }}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={`${activeTemplate.name} preview`}
+        <Dialog open onClose={() => setActiveTemplate(null)} className="relative z-50">
+          <div className="fixed inset-0 bg-ink-900/50" aria-hidden="true" />
+          <div className="fixed inset-0 flex items-center justify-center p-4">
+          <DialogPanel
             className="bg-cream w-full max-w-2xl max-h-full overflow-y-auto rounded-md border border-ink-200"
-            onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="sticky top-0 bg-cream border-b border-ink-200 px-5 py-4 flex items-center justify-between">
               <div className="min-w-0">
-                <div className="qc-section-title">Template Preview</div>
+                <DialogTitle as="div" className="qc-section-title">Template Preview</DialogTitle>
                 <div className="text-sm font-medium text-ink-900 truncate">{activeTemplate.name}</div>
               </div>
               <button
@@ -313,8 +306,9 @@ export default function CertificateTemplates() {
             <div className="p-5">
               <TemplateFace layout={activeTemplate.layout ?? {}} />
             </div>
+          </DialogPanel>
           </div>
-        </div>
+        </Dialog>
       )}
     </>
   );

@@ -4,13 +4,7 @@ import { SpeedInsights } from '@vercel/speed-insights/react';
 
 // Latin subsets only: the full geist-mono imports add Cyrillic, Vietnamese
 // and symbol @font-face rules (with long unicode-ranges) the app never uses.
-import '@fontsource/geist-sans/latin-400.css';
-import '@fontsource/geist-sans/latin-500.css';
-import '@fontsource/geist-sans/latin-600.css';
-import '@fontsource/geist-sans/latin-700.css';
-import '@fontsource/geist-mono/latin-400.css';
-import '@fontsource/geist-mono/latin-500.css';
-import '@fontsource/geist-mono/latin-600.css';
+import './fonts.css';
 
 import './index.css';
 import App from './App';

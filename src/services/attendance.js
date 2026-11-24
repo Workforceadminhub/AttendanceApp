@@ -179,77 +179,73 @@ export function calculateTotals(data) {
  */
 export const fetchAttendanceLeaderboard = async (_permissions, startDate, endDate, limit = 5, department) => {
   const empty = { topPerformers: [], bottomPerformers: [] };
-  try {
-    const params = {};
-    if (startDate) params.startDate = startDate;
-    if (endDate) params.endDate = endDate;
-    if (limit) params.limit = limit;
+  const params = {};
+  if (startDate) params.startDate = startDate;
+  if (endDate) params.endDate = endDate;
+  if (limit) params.limit = limit;
 
-    const response = await apiRequest("GET", "/api/attendance/trends", params);
+  const response = await apiRequest("GET", "/api/attendance/trends", params);
 
-    if (!response || response.error) {
-      throw new Error(response?.error || "Failed to fetch attendance leaderboard");
-    }
-
-    const raw = response.data ?? response;
-
-    // Handle { topPerformers, bottomPerformers } or { top, bottom } shapes directly
-    if (raw?.topPerformers || raw?.top) {
-      const inScope = (rows) => (rows || []).filter((worker) => !department || isSameDepartment(worker.department, department)).slice(0, limit);
-      return { topPerformers: inScope(raw.topPerformers ?? raw.top), bottomPerformers: inScope(raw.bottomPerformers ?? raw.bottom) };
-    }
-
-    // Transform backend shape: { "Dept Name": { topPresent: [...], topAbsent: [...] } }
-    // into { topPerformers: [...], bottomPerformers: [...] }
-    const deptKeys = Object.keys(raw).filter(
-      (k) => (!department || isSameDepartment(k, department)) && (raw[k]?.topPresent || raw[k]?.topAbsent)
-    );
-    if (deptKeys.length > 0) {
-      // Count Sundays in the date range for attendance-rate calculation
-      const totalSundays = countSundaysInRange(startDate, endDate);
-
-      const mapWorker = (w, dept, isPresent) => {
-        const parts = (w.name || "").trim().split(/\s+/);
-        const firstname = parts[0] || "";
-        const lastname = parts.slice(1).join(" ") || "";
-        const rate =
-          totalSundays > 0
-            ? isPresent
-              ? ((w.count / totalSundays) * 100).toFixed(0) + "%"
-              : (((totalSundays - w.count) / totalSundays) * 100).toFixed(0) + "%"
-            : "0%";
-        return {
-          id: w.workerid,
-          firstname,
-          lastname,
-          department: dept,
-          attendanceRate: rate,
-          trend: w.count,
-        };
-      };
-
-      let allTop = [];
-      let allBottom = [];
-      for (const dept of deptKeys) {
-        const d = raw[dept];
-        if (d.topPresent) allTop.push(...d.topPresent.map((w) => mapWorker(w, dept, true)));
-        if (d.topAbsent) allBottom.push(...d.topAbsent.map((w) => mapWorker(w, dept, false)));
-      }
-
-      // Sort by rate descending for top, ascending for bottom, then trim to limit
-      allTop.sort((a, b) => parseFloat(b.attendanceRate) - parseFloat(a.attendanceRate));
-      allBottom.sort((a, b) => parseFloat(a.attendanceRate) - parseFloat(b.attendanceRate));
-
-      return {
-        topPerformers: allTop.slice(0, limit),
-        bottomPerformers: allBottom.slice(0, limit),
-      };
-    }
-
-    return empty;
-  } catch (error) {
-    return empty;
+  if (!response || response.error) {
+    throw new Error(response?.error || "Failed to fetch attendance leaderboard");
   }
+
+  const raw = response.data ?? response;
+
+  // Handle { topPerformers, bottomPerformers } or { top, bottom } shapes directly
+  if (raw?.topPerformers || raw?.top) {
+    const inScope = (rows) => (rows || []).filter((worker) => !department || isSameDepartment(worker.department, department)).slice(0, limit);
+    return { topPerformers: inScope(raw.topPerformers ?? raw.top), bottomPerformers: inScope(raw.bottomPerformers ?? raw.bottom) };
+  }
+
+  // Transform backend shape: { "Dept Name": { topPresent: [...], topAbsent: [...] } }
+  // into { topPerformers: [...], bottomPerformers: [...] }
+  const deptKeys = Object.keys(raw).filter(
+    (k) => (!department || isSameDepartment(k, department)) && (raw[k]?.topPresent || raw[k]?.topAbsent)
+  );
+  if (deptKeys.length > 0) {
+    // Count Sundays in the date range for attendance-rate calculation
+    const totalSundays = countSundaysInRange(startDate, endDate);
+
+    const mapWorker = (w, dept, isPresent) => {
+      const parts = (w.name || "").trim().split(/\s+/);
+      const firstname = parts[0] || "";
+      const lastname = parts.slice(1).join(" ") || "";
+      const rate =
+        totalSundays > 0
+          ? isPresent
+            ? ((w.count / totalSundays) * 100).toFixed(0) + "%"
+            : (((totalSundays - w.count) / totalSundays) * 100).toFixed(0) + "%"
+          : "0%";
+      return {
+        id: w.workerid,
+        firstname,
+        lastname,
+        department: dept,
+        attendanceRate: rate,
+        trend: w.count,
+      };
+    };
+
+    let allTop = [];
+    let allBottom = [];
+    for (const dept of deptKeys) {
+      const d = raw[dept];
+      if (d.topPresent) allTop.push(...d.topPresent.map((w) => mapWorker(w, dept, true)));
+      if (d.topAbsent) allBottom.push(...d.topAbsent.map((w) => mapWorker(w, dept, false)));
+    }
+
+    // Sort by rate descending for top, ascending for bottom, then trim to limit
+    allTop.sort((a, b) => parseFloat(b.attendanceRate) - parseFloat(a.attendanceRate));
+    allBottom.sort((a, b) => parseFloat(a.attendanceRate) - parseFloat(b.attendanceRate));
+
+    return {
+      topPerformers: allTop.slice(0, limit),
+      bottomPerformers: allBottom.slice(0, limit),
+    };
+  }
+
+  return empty;
 };
 
 /**

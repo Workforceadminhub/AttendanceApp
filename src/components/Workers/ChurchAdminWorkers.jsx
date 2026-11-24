@@ -1,6 +1,7 @@
+import { useConfirm } from "../../components/ui/ConfirmDialog";
 import { Navigate } from "react-router-dom";
 import { getPostLoginPath } from "../../utils/routeObject";
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { getDepartmentByUser } from "../../utils/getDepartment";
@@ -24,6 +25,8 @@ import {
 } from "@heroicons/react/24/outline";
 import GenericModal from "../GenericModal";
 import LoadingState from "../LoadingState";
+import WorkerDirectoryTable, { WorkerDetailsGrid, formatWorkerPhone } from "./WorkerDirectoryTable";
+import { workerFirstName, workerLastName } from "../../utils/workerSort";
 import { getUser } from "../../utils/getUser";
 import { getUserRole } from "../../utils/getUserRole";
 
@@ -39,6 +42,7 @@ export default function ChurchAdminWorkers() {
 
 function ChurchAdminDirectory() {
  const navigate = useNavigate();
+ const confirm = useConfirm();
  const location = useLocation();
  const queryClient = useQueryClient();
  // All hooks must be called before any conditional returns
@@ -220,26 +224,14 @@ function ChurchAdminDirectory() {
  }
 
  // Strong confirmation dialog for deletion
- const confirmMessage = `⚠️ PERMANENT DELETION WARNING ⚠️
-
-You are about to PERMANENTLY DELETE this worker from the system.
-
-🚨 THIS ACTION IS IRREVERSIBLE AND CANNOT BE UNDONE 🚨
-
-All worker data, records, and associated information will be permanently lost.
-
-Are you absolutely certain you want to proceed with this permanent deletion?
-
-Type "DELETE" to confirm (case-sensitive):`;
-
- const userInput = window.prompt(confirmMessage);
- 
- if (userInput !== "DELETE") {
- if (userInput !== null) {
- toast.error("Deletion cancelled. You must type 'DELETE' exactly to confirm.");
- }
- return;
- }
+ const confirmed = await confirm({
+      title: "Delete worker permanently",
+      message: "This removes the worker and all of their records. It cannot be undone.",
+      confirmLabel: "Delete worker",
+      danger: true,
+      requireText: "DELETE",
+    });
+    if (!confirmed) return;
 
  setIsDeleting(true);
  try {
@@ -315,13 +307,62 @@ Type "DELETE" to confirm (case-sensitive):`;
  };
 
  // Helper function to split full name into first and last name
- const splitName = (fullName) => {
- if (!fullName) return { firstName: "", lastName: "" };
- const nameParts = fullName.trim().split(" ");
- const firstName = nameParts[0] || "";
- const lastName = nameParts.slice(1).join(" ") || "";
- return { firstName, lastName };
- };
+ const statsHref = (person) =>
+ `/worker/${person.id}/attendance?department=${encodeURIComponent(person.department || "")}&team=${encodeURIComponent(person.team || "")}`;
+ const rowLink = (person, text, className) => (
+ <Link to={statsHref(person)} onClick={(e) => e.stopPropagation()} className={className}>
+ {text}
+ </Link>
+ );
+ const directoryColumns = [
+ { key: "id", header: "ID", className: "font-medium text-ink-900", render: (person, idx) => person.id || person.workerid || idx + 1 },
+ { key: "firstname", header: "First Name", render: (person) => rowLink(person, workerFirstName(person), "text-ink-900 hover:underline") },
+ { key: "lastname", header: "Last Name", render: (person) => rowLink(person, workerLastName(person), "text-ink-900 hover:underline") },
+ { key: "phone", header: "Phone Number", render: (person) => formatWorkerPhone(person.phonenumber) },
+ { key: "department", header: "Department", render: (person) => person.department },
+ { key: "team", header: "Team", render: (person) => person.team },
+ { key: "role", header: "Role", render: (person) => rowLink(person, person.workerrole || person.role || "Worker", "text-ink-500 hover:text-ink-900 hover:underline") },
+ {
+ key: "actions",
+ header: "Actions",
+ interactive: true,
+ className: "text-ink-900",
+ render: (person) => {
+ const isExpanded = expandedRows.has(person.id);
+ return (
+ <div className="flex space-x-2">
+ <button
+ type="button"
+ onClick={() => toggleRowExpansion(person.id)}
+ className="text-ink-900 hover:text-ink-900"
+ title={isExpanded ? "Hide Details" : "View Details"}
+ aria-label={isExpanded ? "Hide Details" : "View Details"}
+ >
+ {isExpanded ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />}
+ </button>
+ <button
+ type="button"
+ onClick={() => handleEditWorker(person.id)}
+ className="text-forest hover:text-forest/80"
+ title="Edit Worker"
+ aria-label="Edit Worker"
+ >
+ <PencilIcon className="h-4 w-4" />
+ </button>
+ <button
+ type="button"
+ onClick={() => deleteWorker(person.id)}
+ className="text-brick hover:text-brick/80"
+ title="Delete Worker"
+ aria-label="Delete Worker"
+ >
+ <TrashIcon className="h-4 w-4" />
+ </button>
+ </div>
+ );
+ },
+ },
+ ];
 
  if (isLoading && data.length === 0) {
  return <LoadingState />;
@@ -485,230 +526,28 @@ Type "DELETE" to confirm (case-sensitive):`;
  <LoadingState />
  </div>
  ) : (
- <div className="overflow-x-auto">
- <table className="min-w-full divide-y divide-ink-200">
- <thead className="bg-cream">
- <tr>
- <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
- ID
- </th>
- <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
- First Name
- </th>
- <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
- Last Name
- </th>
- <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
- Phone Number
- </th>
- <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
- Department
- </th>
- <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
- Team
- </th>
- <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
- Role
- </th>
- <th className="px-6 py-3 text-left text-xs font-medium text-ink-500 uppercase tracking-wider">
- Actions
- </th>
- </tr>
- </thead>
- <tbody className="bg-white divide-y divide-ink-200">
- {Array.isArray(data) &&
- data.map((person, idx) => {
- // Use API field names: firstname, lastname, or fallback to fullname split
- const firstName =
- person.firstname ||
- splitName(person.fullname).firstName;
- const lastName =
- person.lastname ||
- splitName(person.fullname).lastName;
- const isExpanded = expandedRows.has(person.id);
- const statsHref = `/worker/${person.id}/attendance?department=${encodeURIComponent(person.department || "")}&team=${encodeURIComponent(person.team || "")}`;
-
- return (
- <Fragment key={person.id || person.workerid || `worker-${idx}`}>
- <tr
- key={person.id}
- onClick={() => navigate(statsHref)}
- onKeyDown={(e) => {
- if (e.key === "Enter") {
- e.preventDefault();
- navigate(statsHref);
- }
- }}
- tabIndex={0}
- role="link"
- className="cursor-pointer hover:bg-cream-200 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink-900"
- >
- <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-ink-900">
- {person.id || person.workerid || idx + 1}
- </td>
- <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-900">
- <Link
- to={statsHref}
- onClick={(e) => e.stopPropagation()}
- className="text-ink-900 hover:underline"
- >
- {firstName}
- </Link>
- </td>
- <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-900">
- <Link
- to={statsHref}
- onClick={(e) => e.stopPropagation()}
- className="text-ink-900 hover:underline"
- >
- {lastName}
- </Link>
- </td>
- <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-500">
- {person.phonenumber
- ? person.phonenumber.startsWith("0")
- ? person.phonenumber
- : `0${person.phonenumber}`
- : ""}
- </td>
- <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-500">
- {person.department}
- </td>
- <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-500">
- {person.team}
- </td>
- <td className="px-6 py-4 whitespace-nowrap text-sm">
- <Link
- to={statsHref}
- onClick={(e) => e.stopPropagation()}
- className="text-ink-500 hover:text-ink-900 hover:underline"
- >
- {person.workerrole || person.role || "Worker"}
- </Link>
- </td>
- <td
- className="px-6 py-4 whitespace-nowrap text-sm text-ink-900"
- onClick={(e) => e.stopPropagation()}
- >
- <div className="flex space-x-2">
- <button
- onClick={() =>
- toggleRowExpansion(person.id)
- }
- className="text-ink-900 hover:text-ink-900"
- title="View Details"
- >
- {isExpanded ? (
- <ChevronUpIcon className="h-4 w-4" />
- ) : (
- <ChevronDownIcon className="h-4 w-4" />
+ <WorkerDirectoryTable
+ columns={directoryColumns}
+ rows={Array.isArray(data) ? data : []}
+ rowKey={(person, idx) => person.id || person.workerid || `worker-${idx}`}
+ getRowHref={statsHref}
+ isExpanded={(person) => expandedRows.has(person.id)}
+ renderDetails={(person) => (
+ <WorkerDetailsGrid
+ items={[
+ { label: "Other Name", value: person.othername },
+ { label: "Email", value: person.email },
+ { label: "Birth Date", value: person.birthdate },
+ { label: "Gender", value: person.gender },
+ { label: "Marital Status", value: person.maritalstatus },
+ { label: "Age Range", value: person.agerange },
+ { label: "Employment Status", value: person.employment },
+ { label: "Occupation", value: person.occupation },
+ { label: "Address", value: person.address, wide: true },
+ ]}
+ />
  )}
- </button>
- <button
- onClick={() =>
- handleEditWorker(person.id)
- }
- className="text-forest hover:text-forest/80"
- title="Edit Worker"
- >
- <PencilIcon className="h-4 w-4" />
- </button>
- <button
- onClick={() => deleteWorker(person.id)}
- className="text-brick hover:text-brick/80"
- title="Delete Worker"
- >
- <TrashIcon className="h-4 w-4" />
- </button>
- </div>
- </td>
- </tr>
- {isExpanded && (
- <tr>
- <td colSpan="8" className="px-6 py-4 bg-cream">
- <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
- <div>
- <label className="block text-sm font-medium text-ink-700">
- Other Name
- </label>
- <p className="mt-1 text-sm text-ink-900">
- {person.othername || "N/A"}
- </p>
- </div>
- <div>
- <label className="block text-sm font-medium text-ink-700">
- Email
- </label>
- <p className="mt-1 text-sm text-ink-900">
- {person.email || "N/A"}
- </p>
- </div>
- <div>
- <label className="block text-sm font-medium text-ink-700">
- Birth Date
- </label>
- <p className="mt-1 text-sm text-ink-900">
- {person.birthdate || "N/A"}
- </p>
- </div>
- <div>
- <label className="block text-sm font-medium text-ink-700">
- Gender
- </label>
- <p className="mt-1 text-sm text-ink-900">
- {person.gender || "N/A"}
- </p>
- </div>
- <div>
- <label className="block text-sm font-medium text-ink-700">
- Marital Status
- </label>
- <p className="mt-1 text-sm text-ink-900">
- {person.maritalstatus || "N/A"}
- </p>
- </div>
- <div>
- <label className="block text-sm font-medium text-ink-700">
- Age Range
- </label>
- <p className="mt-1 text-sm text-ink-900">
- {person.agerange || "N/A"}
- </p>
- </div>
- <div>
- <label className="block text-sm font-medium text-ink-700">
- Employment Status
- </label>
- <p className="mt-1 text-sm text-ink-900">
- {person.employment || "N/A"}
- </p>
- </div>
- <div>
- <label className="block text-sm font-medium text-ink-700">
- Occupation
- </label>
- <p className="mt-1 text-sm text-ink-900">
- {person.occupation || "N/A"}
- </p>
- </div>
- <div className="md:col-span-2">
- <label className="block text-sm font-medium text-ink-700">
- Address
- </label>
- <p className="mt-1 text-sm text-ink-900">
- {person.address || "N/A"}
- </p>
- </div>
- </div>
- </td>
- </tr>
- )}
- </Fragment>
- );
- })}
- </tbody>
- </table>
- </div>
+ />
  )}
  </div>
  </div>

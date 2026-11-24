@@ -1,3 +1,4 @@
+import { useConfirm } from "../../../components/ui/ConfirmDialog";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
@@ -23,6 +24,7 @@ import { normalizePathwaySteps } from "./pathwaySteps";
  */
 export default function ProgressionPaths() {
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: "", description: "", steps: [] });
   const [editingId, setEditingId] = useState(null);
@@ -294,8 +296,8 @@ export default function ProgressionPaths() {
                 <button
                   type="button"
                   disabled={deleteMut.isPending || chain.length > 0}
-                  onClick={() => {
-                    if (window.confirm(`Delete ${path.name}?`)) deleteMut.mutate(path.id);
+                  onClick={async () => {
+                    if (await confirm({ title: "Delete pathway", message: `Delete ${path.name}?`, confirmLabel: "Delete", danger: true })) deleteMut.mutate(path.id);
                   }}
                   className="font-medium text-brick hover:underline disabled:opacity-40"
                   title={chain.length > 0 ? "Remove or reassign its trainings before deleting this pathway" : undefined}

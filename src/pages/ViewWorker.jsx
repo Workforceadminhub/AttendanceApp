@@ -142,6 +142,9 @@ export default function ViewWorker() {
 
  // Fetch worker details
  useEffect(() => {
+ // Set by cleanup, so a slow response for a previous worker is dropped
+ // instead of overwriting the one now on screen.
+ let cancelled = false;
  const fetchWorkerDetails = async () => {
  setIsLoading(true);
  setWorker(null);
@@ -152,7 +155,7 @@ export default function ViewWorker() {
  );
 
  // Handle different possible response structures
- if (!responseData) return;
+ if (cancelled || !responseData) return;
  let workerData = responseData;
  if (responseData.data) {
  workerData = responseData.data;
@@ -162,6 +165,7 @@ export default function ViewWorker() {
 
     // Reconcile inconsistent details/roster placement by worker ID using API data.
     workerData = await resolveWorkerForEditing(workerData);
+    if (cancelled) return;
     if (!workerData) {
       toast.error("Access denied. This worker is not in a department you manage.");
       navigate(getHODCancelPath());
@@ -175,15 +179,18 @@ export default function ViewWorker() {
     setWorker(workerData);
     setEditedWorker(workerData);
   } catch (error) {
-    toast.error("Failed to fetch worker details");
+    if (!cancelled) toast.error("Failed to fetch worker details");
   } finally {
-    setIsLoading(false);
+    if (!cancelled) setIsLoading(false);
   }
 };
 
   if (workerId && canEditWorkers) {
     fetchWorkerDetails();
   }
+  return () => {
+    cancelled = true;
+  };
 }, [workerId, navigate, canEditWorkers]);
 
 const getHODCancelPath = () => {
@@ -371,7 +378,7 @@ const getHODCancelPath = () => {
  <div className="min-h-screen bg-cream">
  <Layout>
  <div className="max-w-md mx-auto qc-card p-8 text-center mt-12">
- <div className="qc-eyebrow text-ink-400">404</div>
+ <div className="qc-eyebrow text-ink-500">404</div>
  <h1 className="mt-2 text-xl font-medium text-ink-900">
  Worker not found
  </h1>

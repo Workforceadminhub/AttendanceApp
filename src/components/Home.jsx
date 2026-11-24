@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { getUser } from "../utils/getUser";
 import { getPostLoginPath } from "../utils/routeObject";
 
@@ -65,16 +65,16 @@ export default function Home() {
           </p>
 
           <div className="mt-8 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-            <a href="/login" className="qc-btn-primary sm:px-6">
+            <Link to="/login" className="qc-btn-primary sm:px-6">
               <span>Sign in</span>
               <span aria-hidden="true">→</span>
-            </a>
-            <a
-              href="/new/worker"
+            </Link>
+            <Link
+              to="/new/worker"
               className="qc-btn-ghost sm:px-3"
             >
               Register a worker <span aria-hidden="true">→</span>
-            </a>
+            </Link>
           </div>
         </section>
 

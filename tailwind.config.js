@@ -36,7 +36,7 @@ module.exports = {
           50: "#EFF3ED",
         },
         mustard: {
-          DEFAULT: "#A87B0F",
+          DEFAULT: "#7A5808",
           50: "#F8F1DE",
         },
         brick: {

@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
+import { toast } from "react-toastify";
 import { Tag } from "../../ui";
 import { downloadCertificate } from "../../../services/hub/certificates";
 import { formatDate, display } from "../../../utils/training";
@@ -11,14 +12,6 @@ import { formatDate, display } from "../../../utils/training";
  * check it before downloading, and links out to the public verification page.
  */
 export default function CertificatePreview({ certificate, template, onClose }) {
-  useEffect(() => {
-    const onKey = (event) => {
-      if (event.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   if (!certificate) return null;
 
   const layout = template?.layout ?? certificate.layout ?? {};
@@ -36,28 +29,20 @@ export default function CertificatePreview({ certificate, template, onClose }) {
       link.click();
       URL.revokeObjectURL(url);
     } catch {
-      // The PDF may not have been generated yet; the face above still shows.
+      toast.error("Could not download the certificate PDF. Try again shortly.");
     }
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/50 p-4"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Certificate preview"
+    <Dialog open onClose={onClose} className="relative z-50">
+      <div className="fixed inset-0 bg-ink-900/50" aria-hidden="true" />
+      <div className="fixed inset-0 flex items-center justify-center p-4">
+      <DialogPanel
         className="bg-cream w-full max-w-2xl max-h-full overflow-y-auto rounded-md border border-ink-200"
-        onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="sticky top-0 bg-cream border-b border-ink-200 px-5 py-4 flex items-center justify-between">
           <div className="min-w-0">
-            <div className="qc-section-title">Certificate Preview</div>
+            <DialogTitle as="div" className="qc-section-title">Certificate Preview</DialogTitle>
             <div className="qc-num text-sm text-ink-900 mt-0.5 truncate">
               {certificate.certificate_number}
             </div>
@@ -168,8 +153,9 @@ export default function CertificatePreview({ certificate, template, onClose }) {
             Download PDF
           </button>
         </div>
+      </DialogPanel>
       </div>
-    </div>
+    </Dialog>
   );
 }
 

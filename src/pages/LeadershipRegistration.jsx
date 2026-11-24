@@ -2,7 +2,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { toast } from "react-toastify";
-import { leadershipRegistrationSchema } from "../utils/schemas";
+import { isValidEmail, leadershipRegistrationSchema } from "../utils/schemas";
 import { lookupWorkerByPhone, submitRegistration } from "../services/leadershipRegistrations";
 import { PUBLIC_LOOKUP_HINT, PUBLIC_SUBMIT_ERROR } from "../utils/safeMessages";
 import { CheckCircleIcon, MagnifyingGlassIcon, UserCircleIcon } from "@heroicons/react/24/outline";
@@ -233,7 +233,16 @@ function RegistrationForm({ prefilled, rawPhone, onReset }) {
           <ReadonlyField label="Full Name" value={prefilled.fullName} />
           <ReadonlyField label="Phone Number" value={prefilled.phoneNumber} />
           <div className="sm:col-span-2">
-            <ReadonlyField label="Email Address" value={prefilled.email} />
+            {isValidEmail(prefilled.email) ? (
+              <ReadonlyField label="Email Address" value={prefilled.email} />
+            ) : (
+              <>
+                <Label htmlFor="email" required>Email Address</Label>
+                <input id="email" type="email" placeholder="you@example.com"
+                  className={inputClass} {...register("email")} />
+                <FieldError message={errors.email?.message} />
+              </>
+            )}
           </div>
         </div>
       ) : (

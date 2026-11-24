@@ -1,3 +1,4 @@
+import { ConfirmProvider } from "../../components/ui/ConfirmDialog";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
@@ -14,6 +15,7 @@ vi.mock("../../services/workers", () => ({
   listSuperAdminWorkers: vi.fn(),
   fetchWorkers: vi.fn(),
   fetchAdminWorkersPage: vi.fn(),
+  fetchAdminWorkers: vi.fn(),
   fetchAllSuperAdminWorkers: vi.fn(),
 }));
 
@@ -89,7 +91,7 @@ describe("Workers unified component", () => {
     render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>
-          <Workers />
+          <ConfirmProvider><Workers /></ConfirmProvider>
         </MemoryRouter>
       </QueryClientProvider>
     );
@@ -105,14 +107,23 @@ describe("Workers unified component", () => {
     expect(screen.getByText("PENDING_ADD")).toBeInTheDocument();
 
     // Test column sorting by clicking "First Name"
-    const firstNameSortBtn = screen.getByRole("button", { name: /^first name/i });
-    fireEvent.click(firstNameSortBtn);
+    // Sorting orders the whole directory, so it loads every matching worker
+    // (including ones that are not on the current page) before paging.
+    fetchAllSuperAdminWorkers.mockResolvedValue([
+      { id: 1, firstname: "Zara", lastname: "Test", status: "ACTIVE" },
+      { id: 2, firstname: "Adam", lastname: "Test", status: "PENDING_ADD" },
+      { id: 3, firstname: "Aaron", lastname: "Elsewhere", status: "ACTIVE" },
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: /^first name/i }));
 
-    // After clicking first name, "Adam" should come before "Zara" (ascending)
-    const rows = screen.getAllByRole("row");
-    // Row 0 is the header row, row 1 should have Adam, row 2 should have Zara
-    expect(rows[1]).toHaveTextContent("Adam");
-    expect(rows[2]).toHaveTextContent("Zara");
+    await waitFor(() => {
+      const rows = screen.getAllByRole("row");
+      // Row 0 is the header row.
+      expect(rows[1]).toHaveTextContent("Aaron");
+      expect(rows[2]).toHaveTextContent("Adam");
+      expect(rows[3]).toHaveTextContent("Zara");
+    });
+    expect(screen.getByRole("columnheader", { name: /^first name/i })).toHaveAttribute("aria-sort", "ascending");
   });
 
   it("exports workers with normalized ACTIVE fallback status", async () => {
@@ -154,7 +165,7 @@ describe("Workers unified component", () => {
     render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>
-          <Workers />
+          <ConfirmProvider><Workers /></ConfirmProvider>
         </MemoryRouter>
       </QueryClientProvider>
     );

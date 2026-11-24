@@ -9,6 +9,10 @@
 export const SITE_NAME = "Harvesters International Christian Centre";
 export const APP_NAME = "Workers Hub - Harvesters Gbagada";
 
+/** Social crawlers (WhatsApp, X, Slack, LinkedIn) only fetch absolute image URLs. */
+export const SITE_ORIGIN = "https://attendance.hiccgbagada.com";
+const absoluteUrl = (path = "") => (/^https?:\/\//i.test(path) ? path : `${SITE_ORIGIN}${path}`);
+
 export const DEFAULT_META = {
   title: APP_NAME,
   description:
@@ -16,9 +20,11 @@ export const DEFAULT_META = {
   ogTitle: APP_NAME,
   ogDescription:
     "Dedicated portal to mark attendance and manage workers at Harvesters International Christian Centre, Gbagada Campus.",
-  ogImage: "/logo.jpg",
+  ogImage: "/logo512.png",
+  ogImageWidth: "512",
+  ogImageHeight: "512",
   ogImageAlt: APP_NAME,
-  twitterCard: "summary_large_image",
+  twitterCard: "summary",
   themeColor: "#000000",
 };
 
@@ -74,9 +80,11 @@ const AWAKENING_META = {
   ogTitle: "Awakening Conference Registration · Harvesters Gbagada",
   ogDescription:
     "Secure your spot for the Awakening Conference at Harvesters International Christian Centre.",
-  ogImage: "/logo.jpg",
+  ogImage: "/logo512.png",
+  ogImageWidth: "512",
+  ogImageHeight: "512",
   ogImageAlt: "Awakening Conference Registration · Harvesters Gbagada",
-  twitterCard: "summary_large_image",
+  twitterCard: "summary",
   themeColor: "#000000",
 };
 
@@ -620,7 +628,7 @@ export function applyPageMeta(meta, pathname = "/") {
     { property: "og:description" },
     resolved.ogDescription || resolved.description
   );
-  upsertMeta('meta[property="og:image"]', { property: "og:image" }, resolved.ogImage);
+  upsertMeta('meta[property="og:image"]', { property: "og:image" }, absoluteUrl(resolved.ogImage));
   upsertMeta('meta[property="og:image:width"]', { property: "og:image:width" }, resolved.ogImageWidth);
   upsertMeta('meta[property="og:image:height"]', { property: "og:image:height" }, resolved.ogImageHeight);
   upsertMeta(
@@ -644,7 +652,7 @@ export function applyPageMeta(meta, pathname = "/") {
     { name: "twitter:description" },
     resolved.ogDescription || resolved.description
   );
-  upsertMeta('meta[name="twitter:image"]', { name: "twitter:image" }, resolved.ogImage);
+  upsertMeta('meta[name="twitter:image"]', { name: "twitter:image" }, absoluteUrl(resolved.ogImage));
 }
 
 function escapeAttr(value = "") {
@@ -665,7 +673,7 @@ export function renderMetaIntoHtml(html, pathname = "/") {
   const description = escapeAttr(meta.description);
   const ogTitle = escapeAttr(meta.ogTitle || meta.title);
   const ogDescription = escapeAttr(meta.ogDescription || meta.description);
-  const ogImage = escapeAttr(meta.ogImage);
+  const ogImage = escapeAttr(absoluteUrl(meta.ogImage));
   const ogImageAlt = escapeAttr(meta.ogImageAlt || meta.ogTitle || meta.title);
   const themeColor = escapeAttr(meta.themeColor);
   const twitterCard = escapeAttr(meta.twitterCard);
@@ -690,7 +698,11 @@ export function renderMetaIntoHtml(html, pathname = "/") {
   );
   out = out.replace(
     /<meta\s+property="og:image"\s+content="[^"]*"\s*\/?>/i,
-    `<meta property="og:image" content="${ogImage}" />`
+    `<meta property="og:image" content="${ogImage}" />` +
+      (meta.ogImageWidth && meta.ogImageHeight
+        ? `\n    <meta property="og:image:width" content="${escapeAttr(meta.ogImageWidth)}" />` +
+          `\n    <meta property="og:image:height" content="${escapeAttr(meta.ogImageHeight)}" />`
+        : "")
   );
   out = out.replace(
     /<meta\s+property="og:image:alt"\s+content="[^"]*"\s*\/?>/i,

@@ -58,6 +58,22 @@ function oneTimeAuditSessionPlugin() {
           return;
         }
 
+        // Only a same-origin page on a loopback host may read the session:
+        // blocks cross-site fetches and DNS rebinding from other local pages.
+        const hostname = (request.headers.host || "").replace(/:\d+$/, "");
+        const isLocalHost =
+          ["localhost", "127.0.0.1", "[::1]"].includes(hostname) || hostname.endsWith(".localhost");
+        const fetchSite = request.headers["sec-fetch-site"];
+        const origin = request.headers.origin;
+        const sameOrigin =
+          (!fetchSite || fetchSite === "same-origin") &&
+          (!origin || origin === `http://${request.headers.host}`);
+        if (!isLocalHost || !sameOrigin) {
+          response.statusCode = 403;
+          response.end("Local audit sessions are available only to this dev server's own pages.");
+          return;
+        }
+
         const sessionPath = resolve(process.cwd(), ".ux-audit", `${role}.json`);
         try {
           const session = await readFile(sessionPath, "utf8");

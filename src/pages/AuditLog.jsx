@@ -77,7 +77,7 @@ export default function AuditLog() {
     ...(eventFilter && { event: eventFilter }),
   };
 
- const { data, isLoading } = useQuery({
+ const { data, isLoading, isError } = useQuery({
  queryKey: ["auditLogs", page, limit, filters],
  queryFn: () => fetchAuditLogs(page, limit, filters),
  enabled: isSuperAdmin,
@@ -159,6 +159,10 @@ export default function AuditLog() {
  <div className="mt-12">
  <LoadingState />
  </div>
+ ) : isError ? (
+ <p role="alert" className="mt-12 text-center text-sm text-brick">
+ Could not load the audit log. Try again shortly.
+ </p>
  ) : (
  <div className="bg-white rounded-lg border shadow overflow-hidden">
  <div className="overflow-x-auto">

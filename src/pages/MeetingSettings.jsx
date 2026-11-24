@@ -1,3 +1,4 @@
+import { useConfirm } from "../components/ui/ConfirmDialog";
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -27,6 +28,7 @@ import {
 
 export default function MeetingSettings() {
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const { isSuperAdmin, user } = getUserRole();
 
   const [activeTab, setActiveTab] = useState("leaders"); // "leaders" | "workers"
@@ -155,7 +157,9 @@ export default function MeetingSettings() {
           syncActiveMeetingCache(existingMeeting);
           try {
             await setActiveMeetingRemote(meetingId);
-          } catch {}
+          } catch {
+            // The meeting itself saved; the list reload below shows the real active state.
+          }
         } else {
           const currentList = getAllMeetings(meetingType).filter((m) => m.date !== trimmedDate);
           syncMeetingsCache(meetingType, [existingMeeting, ...currentList]);
@@ -199,7 +203,7 @@ export default function MeetingSettings() {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this meeting configuration?")) {
+    if (await confirm({ title: "Delete meeting", message: "Delete this meeting configuration?", confirmLabel: "Delete", danger: true })) {
       try {
         await deleteMeetingRemote(id);
         toast.info("Meeting deleted.");

@@ -47,7 +47,9 @@ export function escapeHtml(str = "") {
 /** Allow only safe URL schemes in links (blocks javascript:, data:, etc.). */
 function safeUrl(url = "") {
   const trimmed = String(url).trim();
-  return /^(https?:\/\/|mailto:|tel:|\/)/i.test(trimmed) ? trimmed : "#";
+  // A single leading slash is a same-site path; "//host" and "/\\host" are
+  // protocol-relative URLs to another site.
+  return /^(https?:\/\/|mailto:|tel:|\/(?![/\\]))/i.test(trimmed) ? trimmed : "#";
 }
 
 /**

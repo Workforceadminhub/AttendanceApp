@@ -409,14 +409,14 @@ export const getAdminSelectOptions = (isChurchAdmin, team, authUser) => {
   // store their actual department there and the parent team in `team`.
   const teamName = [team?.department, team?.team, authUser?.team]
     .map((value) => typeof value === "string" ? value : value?.name)
-    .find((name) => name && list.some((item) => isSameDepartment(item.team, name)));
+    .find((name) => name && list.some((item) => isSameTeam(item.team, name)));
   let options = (isChurchAdmin || isSuperAdmin)
     ? Array.from(new Set(list.map((item) => item.team))).map((t) => ({
         value: t,
         label: t,
       }))
     : list
-        .filter((item) => teamName && isSameDepartment(item.team, teamName))
+        .filter((item) => teamName && isSameTeam(item.team, teamName))
         .map((item) => ({ value: item.department, label: item.department }));
 
   if (filterByPermissions) {
@@ -475,6 +475,18 @@ export function getDepartmentEntry(value) {
   if (current) return current;
   return null;
 }
+
+const canonicalTeamName = (value) => {
+  const clean = String(value ?? "").trim().toLowerCase();
+  if (clean === "district") return "districts";
+  if (clean === "program") return "programs";
+  return clean;
+};
+
+export const isSameTeam = (t1, t2) => {
+  if (!t1 || !t2) return t1 === t2;
+  return departmentNamesMatch(canonicalTeamName(t1), canonicalTeamName(t2));
+};
 
 export const isSameDepartment = (d1, d2) => {
   if (departmentNamesMatch(d1, d2)) return true;

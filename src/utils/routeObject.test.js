@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { getEffectiveRouteList, departmentNameForApi, getAdminSelectOptions, getDepartmentEntry, getDepartmentNameFromRoute, getDepartmentRoute, getTeamForDepartment, isSameDepartment, setDynamicDepartments } from "./routeObject";
+import { getEffectiveRouteList, departmentNameForApi, getAdminSelectOptions, getDepartmentEntry, getDepartmentNameFromRoute, getDepartmentRoute, getTeamForDepartment, isSameDepartment, isSameTeam, setDynamicDepartments } from "./routeObject";
 
 afterEach(() => setDynamicDepartments(null));
 beforeEach(() => setDynamicDepartments([{name:"Call Centre", route:"/api-call", team:"Ministry"}]));
@@ -62,5 +62,13 @@ describe("API department authority", () => {
     setDynamicDepartments([{ name: "API New Name", route: "/opaque-route", team: "API Team", isactive: false }]);
     expect(getDepartmentEntry("API New Name")).toBeNull();
     expect(getDepartmentEntry("opaque-route")).toBeNull();
+  });
+
+  it("matches singular and plural canonical team aliases", () => {
+    expect(isSameTeam("District", "Districts")).toBe(true);
+    expect(isSameTeam("Districts", "district")).toBe(true);
+    expect(isSameTeam("Program", "Programs")).toBe(true);
+    expect(isSameTeam("Districts", "Ministry")).toBe(false);
+    expect(isSameTeam("", "Districts")).toBe(false);
   });
 });

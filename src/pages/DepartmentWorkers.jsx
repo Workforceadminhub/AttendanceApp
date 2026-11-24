@@ -7,9 +7,10 @@ import { saveAs } from "file-saver";
 import Layout from "../components/Layout";
 import LoadingState from "../components/LoadingState";
 import { useEffectiveRouteList } from "../contexts/DepartmentsContext";
-import { getDepartmentEntry, getDepartmentRoute, getDepartmentNameFromRoute, isSameDepartment } from "../utils/routeObject";
+import { getDepartmentEntry, getDepartmentRoute, getDepartmentNameFromRoute, isSameDepartment, isSameTeam } from "../utils/routeObject";
 import { getUserRole, canAccessDepartment } from "../utils/getUserRole";
-import { fetchWorkers, removeWorker } from "../services/workers";
+import { fetchAdminWorkers, fetchWorkers, removeWorker } from "../services/workers";
+import { getNextSunday } from "../utils/getDate";
 import { getUser } from "../utils/getUser";
 import { expandPermissions } from "../utils/expandPermissions";
 import Modal from "../components/Modal";
@@ -61,7 +62,7 @@ export default function DepartmentWorkers() {
  } = getUserRole();
  // Team overview routes use the team name; department deep links must keep
  // their department scope even when opened by a team admin.
- const isTeamOverview = isTeamAdmin && !!auth?.team && isSameDepartment(decodedDepartment, auth.team);
+ const isTeamOverview = isTeamAdmin && !!auth?.team && isSameTeam(decodedDepartment, auth.team);
  const canEditWorkers = isSuperAdmin || isChurchAdmin || isHOD || isTeamAdmin || isSubTeamAdmin;
  const canRequestDeleteWorkers = isSuperAdmin || isChurchAdmin || isHOD || isTeamAdmin; // exclude sub-team-admin
  const canSelectWorkers = canEditWorkers && !isSubTeamAdmin; // sub-team-admin should not see worker selection checkboxes
@@ -71,9 +72,11 @@ export default function DepartmentWorkers() {
  data: workersData,
  isLoading: isWorkersLoading,
  } = useQuery({
- queryKey: ["departmentWorkers", decodedDepartment, permissionsKey],
+ queryKey: ["departmentWorkers", decodedDepartment, isTeamOverview ? "team" : "department", permissionsKey],
  queryFn: () =>
- fetchWorkers(
+ isTeamOverview
+ ? fetchAdminWorkers(auth.team, "All", getNextSunday(), "", permissions)
+ : fetchWorkers(
  decodedDepartment,
  undefined,
  permissions
@@ -85,7 +88,7 @@ export default function DepartmentWorkers() {
  const sortedWorkers = useMemo(() => {
  const rawWorkers = (workersData || []).filter((w) =>
  isTeamOverview
- ? isSameDepartment(w.team, auth.team)
+ ? isSameTeam(w.team || getDepartmentEntry(w.department)?.team, auth.team)
  : isSameDepartment(w.department, decodedDepartment)
  );
  const getRoleRank = (role) => {

@@ -15,10 +15,11 @@ import {
 import Layout from "../components/Layout";
 import AttendanceLeaderboard from "../components/AttendanceLeaderboard";
 import LoadingState from "../components/LoadingState";
-import { getEffectiveRouteList, getDepartmentRoute, getDepartmentNameFromRoute, isSameDepartment } from "../utils/routeObject";
+import { getEffectiveRouteList, getDepartmentEntry, getDepartmentRoute, getDepartmentNameFromRoute, isSameDepartment, isSameTeam } from "../utils/routeObject";
 import { getUser } from "../utils/getUser";
 import { expandPermissions } from "../utils/expandPermissions";
-import { fetchWorkers } from "../services/workers";
+import { fetchAdminWorkers, fetchWorkers } from "../services/workers";
+import { getNextSunday } from "../utils/getDate";
 import { getUserRole } from "../utils/getUserRole";
 import { fetchDepartments } from "../services/departments";
 
@@ -40,7 +41,7 @@ export default function DepartmentDetail() {
 
  // Role information (to detect sub-team-admin)
  const { isSubTeamAdmin, isTeamAdmin, assignedDepartments, user: roleUser } = getUserRole();
- const isTeamOverview = isTeamAdmin && isSameDepartment(decodedDepartment, authUser?.team);
+ const isTeamOverview = isTeamAdmin && !!authUser?.team && isSameTeam(decodedDepartment, authUser.team);
 
  // Sub-team-admin: load departments from API and keep only assigned/permission-based
  const {
@@ -115,7 +116,7 @@ export default function DepartmentDetail() {
  const itemRoute = (item.route || item.department_route || item.departmentRoute || "").replace(/^\//, "").toLowerCase();
  if (isTeamOverview) {
  const entry = getEffectiveRouteList().find((department) => isSameDepartment(department.department, name));
- return isSameDepartment(item.team || entry?.team, authUser.team);
+ return isSameTeam(item.team || entry?.team, authUser.team);
  }
  return isSameDepartment(name, decodedDepartment) || (normRoute && itemRoute === normRoute);
  });
@@ -137,11 +138,21 @@ export default function DepartmentDetail() {
  } = useQuery({
  // Same key and fetch as DepartmentWorkers, so the "Workers (N)" link below
  // opens from cache instead of downloading the roster a second time.
- queryKey: ["departmentWorkers", decodedDepartment, trendPermissions.join(",")],
- queryFn: () => fetchWorkers(decodedDepartment, undefined, trendPermissions),
+ queryKey: ["departmentWorkers", decodedDepartment, isTeamOverview ? "team" : "department", trendPermissions.join(",")],
+ queryFn: () =>
+ isTeamOverview
+ ? fetchAdminWorkers(authUser.team, "All", getNextSunday(), "", trendPermissions)
+ : fetchWorkers(decodedDepartment, undefined, trendPermissions),
  });
 
- const workers = workersData || [];
+ const workers = useMemo(() => {
+ const list = workersData || [];
+ return list.filter((w) =>
+ isTeamOverview
+ ? isSameTeam(w.team || getDepartmentEntry(w.department)?.team, authUser?.team)
+ : isSameDepartment(w.department, decodedDepartment)
+ );
+ }, [workersData, isTeamOverview, authUser, decodedDepartment]);
 
  // Attendance Trend: filter by selected month (2026)
  const MONTHS_2026 = useMemo(() => {

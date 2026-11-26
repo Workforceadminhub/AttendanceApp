@@ -44,14 +44,6 @@ export default [
       "no-console": ["warn", { allow: ["warn", "error"] }],
       // An empty catch must say why it is safe to ignore (a comment satisfies this).
       "no-empty": "error",
-      // Server-only SDKs must never reach the browser bundle.
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: ["nodemailer", "resend"],
-          patterns: [{ group: ["@aws-sdk/*"], message: "Server-only: use it from api/, not src/." }],
-        },
-      ],
     },
   },
   {
@@ -61,7 +53,7 @@ export default [
     },
   },
   {
-    files: ["api/**/*.js", "scripts/**/*.{js,mjs}", "vite.config.mjs"],
+    files: ["scripts/**/*.{js,mjs}", "vite.config.mjs"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",

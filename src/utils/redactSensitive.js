@@ -1,11 +1,22 @@
 const SENSITIVE_KEYS = new Set([
   "password",
+  "newpassword",
+  "confirmpassword",
+  "temppassword",
+  "temp_password",
   "token",
   "accesstoken",
   "access_token",
   "refreshtoken",
   "refresh_token",
+  "invitetoken",
+  "invite_token",
   "authorization",
+  "code",
+  "accesscode",
+  "access_code",
+  "qrcode",
+  "qr_code",
   "otp",
   "pin",
   "secret",
@@ -17,13 +28,18 @@ const SENSITIVE_KEYS = new Set([
   "email",
   "bvn",
   "firstname",
+  "first_name",
   "lastname",
+  "last_name",
+  "othername",
   "fullname",
   "name",
   "address",
   "birthdate",
   "dob",
 ]);
+
+const JWT_RE = /eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g;
 
 /**
  * Deep-clone and redact sensitive keys before logging or error reporting.
@@ -33,7 +49,7 @@ export function redactSensitive(value, depth = 0) {
   if (value == null) return value;
   if (typeof value === "string") {
     if (/^Bearer\s+/i.test(value)) return "Bearer [redacted]";
-    return value;
+    return value.replace(JWT_RE, "[redacted-jwt]");
   }
   if (Array.isArray(value)) {
     return value.map((item) => redactSensitive(item, depth + 1));

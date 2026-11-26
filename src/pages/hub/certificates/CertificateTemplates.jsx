@@ -78,11 +78,30 @@ export default function CertificateTemplates() {
     createMut.mutate();
   };
 
-  const handleImage = (field) => (event) => {
+  const isRasterImage = async (file) => {
+    const buf = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+    const isJpeg = buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
+    const isPng =
+      buf.length >= 4 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47;
+    const isGif =
+      buf.length >= 4 && buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x38;
+    const isWebp =
+      buf.length >= 12 &&
+      buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
+      buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50;
+    return isJpeg || isPng || isGif || isWebp;
+  };
+
+  const handleImage = (field) => async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
     if (file.size > MAX_IMAGE_BYTES) {
       toast.error("Image must be under 400KB");
+      event.target.value = "";
+      return;
+    }
+    if (!(await isRasterImage(file))) {
+      toast.error("Only PNG, JPEG, GIF, or WEBP images are allowed");
       event.target.value = "";
       return;
     }

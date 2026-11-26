@@ -9,7 +9,6 @@ import { getUser } from "../utils/getUser";
 import { logoutSession } from "../utils/authSession";
 import { getUserRole } from "../utils/getUserRole";
 import { getDepartmentRoute } from "../utils/routeObject";
-import { canSendBulkEmail } from "../utils/bulkEmailAccess";
 import MobileSheet from "./ui/MobileSheet";
 import { useHubNav } from "../contexts/RBACContext";
 
@@ -311,15 +310,8 @@ export default function Header() {
     ...(isSuperAdmin ? [{ name: "Leaders Strength", href: "/settings/leaders-strength" }] : []),
     ...(isSuperAdmin ? [{ name: "Meeting Settings", href: "/settings/meetings" }] : []),
     ...(isSuperAdmin ? [{ name: "Admins", href: "/manage-admins" }] : []),
-    ...(isSuperAdmin ? [{ name: "Bulk SMS", href: "/bulk-sms" }] : []),
     ...(isSuperAdmin
       ? [{ name: "Audit Log", href: "/admin/audit-log" }]
-      : []),
-    ...(!isChurchAdminRole && canSendBulkEmail(authUser)
-      ? [
-          { name: "Bulk Email", href: "/bulk-email" },
-          { name: "Email Activity", href: "/bulk-email/report" },
-        ]
       : []),
   ];
 

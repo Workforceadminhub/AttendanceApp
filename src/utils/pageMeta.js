@@ -285,18 +285,6 @@ export const STATIC_ROUTE_META = {
     "Manage Admins",
     "Manage administrator accounts, roles, and department permissions at Harvesters Gbagada."
   ),
-  "/bulk-email": hubPage(
-    "Bulk Email",
-    "Compose and send bulk email communications to Harvesters Gbagada workers."
-  ),
-  "/bulk-email/report": hubPage(
-    "Email Activity",
-    "Track bulk email campaigns and live deliverability metrics at Harvesters Gbagada."
-  ),
-  "/bulk-sms": hubPage(
-    "Bulk SMS",
-    "Compose and send bulk SMS messages to Harvesters Gbagada workers."
-  ),
   "/admin/audit-log": hubPage(
     "Audit Log",
     "Review system activity and administrative audit logs at Harvesters Gbagada."

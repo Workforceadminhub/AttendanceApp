@@ -8,7 +8,6 @@ const SESSION_USER_KEYS = [
   "permissionLevel",
   "assignedDepartments",
   "permissions",
-  "canSendBulkEmail",
   "team",
   "role",
   "firstname",

@@ -15,10 +15,6 @@ vi.mock("../utils/getUserRole", () => ({
   getUserRole: vi.fn(),
 }));
 
-vi.mock("../utils/bulkEmailAccess", () => ({
-  canSendBulkEmail: () => false,
-}));
-
 vi.mock("../utils/authSession", () => ({
   logoutSession: vi.fn(),
 }));
